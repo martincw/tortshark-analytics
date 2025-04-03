@@ -18,9 +18,20 @@ import {
   BarChart3,
   CreditCard,
   Percent,
+  Save,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +45,15 @@ const CampaignDetail = () => {
   const [caseCount, setCaseCount] = useState(campaign?.manualStats.cases.toString() || "0");
   const [retainerCount, setRetainerCount] = useState(campaign?.manualStats.retainers.toString() || "0");
   const [revenue, setRevenue] = useState(campaign?.manualStats.revenue.toString() || "0");
+  
+  // New state for daily stats dialog
+  const [isDailyStatsDialogOpen, setIsDailyStatsDialogOpen] = useState(false);
+  const [dailyStats, setDailyStats] = useState({
+    leads: "0",
+    cases: "0",
+    retainers: "0",
+    revenue: "0"
+  });
   
   if (!campaign) {
     return (
@@ -80,6 +100,50 @@ const CampaignDetail = () => {
       toast.success("Campaign deleted successfully");
     }
   };
+  
+  const openDailyStatsDialog = () => {
+    setDailyStats({
+      leads: "0",
+      cases: "0",
+      retainers: "0",
+      revenue: "0"
+    });
+    setIsDailyStatsDialogOpen(true);
+  };
+  
+  const handleSaveDailyStats = () => {
+    // Parse the values
+    const newLeads = parseInt(dailyStats.leads) || 0;
+    const newCases = parseInt(dailyStats.cases) || 0;
+    const newRetainers = parseInt(dailyStats.retainers) || 0;
+    const newRevenue = parseFloat(dailyStats.revenue) || 0;
+    
+    // Update the campaign with the new values added to the existing ones
+    const updatedCampaign = {
+      ...campaign,
+      manualStats: {
+        ...campaign.manualStats,
+        leads: campaign.manualStats.leads + newLeads,
+        cases: campaign.manualStats.cases + newCases,
+        retainers: campaign.manualStats.retainers + newRetainers,
+        revenue: campaign.manualStats.revenue + newRevenue,
+        date: new Date().toISOString(), // Update the date to today
+      },
+    };
+    
+    // Update the campaign
+    updateCampaign(updatedCampaign);
+    
+    // Update the form fields to reflect the new values
+    setLeadCount(updatedCampaign.manualStats.leads.toString());
+    setCaseCount(updatedCampaign.manualStats.cases.toString());
+    setRetainerCount(updatedCampaign.manualStats.retainers.toString());
+    setRevenue(updatedCampaign.manualStats.revenue.toString());
+    
+    // Close the dialog and show a success toast
+    setIsDailyStatsDialogOpen(false);
+    toast.success("Daily stats updated successfully");
+  };
 
   return (
     <div className="space-y-6">
@@ -96,22 +160,38 @@ const CampaignDetail = () => {
           <h1 className="text-3xl font-bold">{campaign.name}</h1>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={() => setIsEditing(!isEditing)}
-            variant="outline"
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            {isEditing ? "Cancel" : "Update Stats"}
-          </Button>
           {isEditing ? (
-            <Button onClick={handleSave} variant="default">
-              Save Changes
-            </Button>
+            <>
+              <Button onClick={() => setIsEditing(false)} variant="outline">
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button onClick={handleSave} variant="default">
+                <Save className="mr-2 h-4 w-4" />
+                Save All
+              </Button>
+            </>
           ) : (
-            <Button onClick={handleDelete} variant="destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            <>
+              <Button
+                onClick={openDailyStatsDialog}
+                variant="outline"
+              >
+                <TrendingUp className="mr-2 h-4 w-4" />
+                Add Daily Stats
+              </Button>
+              <Button
+                onClick={() => setIsEditing(true)}
+                variant="outline"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit All Stats
+              </Button>
+              <Button onClick={handleDelete} variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -261,6 +341,79 @@ const CampaignDetail = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Daily Stats Dialog */}
+      <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Daily Stats</DialogTitle>
+            <DialogDescription>
+              Enter today's performance metrics for {campaign.name}. 
+              These values will be added to the existing totals.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="daily-leads" className="text-right">
+                Leads
+              </Label>
+              <Input
+                id="daily-leads"
+                type="number"
+                value={dailyStats.leads}
+                onChange={(e) => setDailyStats({...dailyStats, leads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="daily-cases" className="text-right">
+                Cases
+              </Label>
+              <Input
+                id="daily-cases" 
+                type="number"
+                value={dailyStats.cases}
+                onChange={(e) => setDailyStats({...dailyStats, cases: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="daily-retainers" className="text-right">
+                Retainers
+              </Label>
+              <Input
+                id="daily-retainers"
+                type="number" 
+                value={dailyStats.retainers}
+                onChange={(e) => setDailyStats({...dailyStats, retainers: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="daily-revenue" className="text-right">
+                Revenue ($)
+              </Label>
+              <Input
+                id="daily-revenue"
+                type="number" 
+                value={dailyStats.revenue}
+                onChange={(e) => setDailyStats({...dailyStats, revenue: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDailyStatsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDailyStats}>
+              Add Stats
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
