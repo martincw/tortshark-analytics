@@ -11,13 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Search, Calendar } from "lucide-react";
+import { Search, Calendar, Filter, PlusCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export function CampaignGrid() {
   const { campaigns } = useCampaign();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [filterCampaign, setFilterCampaign] = useState("all");
+  const navigate = useNavigate();
   
   // Extract unique campaign types (first part of name before the dash)
   const campaignTypes = Array.from(
@@ -47,6 +50,13 @@ export function CampaignGrid() {
         return a.name.localeCompare(b.name);
       case "adSpend":
         return b.stats.adSpend - a.stats.adSpend;
+      case "roi": {
+        const metricsA = (b.manualStats.revenue - b.stats.adSpend) / b.stats.adSpend * 100;
+        const metricsB = (a.manualStats.revenue - a.stats.adSpend) / a.stats.adSpend * 100;
+        return metricsA - metricsB;
+      }
+      case "profit":
+        return (b.manualStats.revenue - b.stats.adSpend) - (a.manualStats.revenue - a.stats.adSpend);
       case "leads":
         return b.manualStats.leads - a.manualStats.leads;
       case "cases":
@@ -74,47 +84,67 @@ export function CampaignGrid() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-4 flex-col sm:flex-row">
-          <Select value={filterCampaign} onValueChange={setFilterCampaign}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Campaign Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Campaigns</SelectItem>
-              {campaignTypes.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort By" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Campaign Name</SelectItem>
-              <SelectItem value="date">
-                <div className="flex items-center">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Date (Newest)
-                </div>
-              </SelectItem>
-              <SelectItem value="dateOldest">
-                <div className="flex items-center">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Date (Oldest)
-                </div>
-              </SelectItem>
-              <SelectItem value="adSpend">Ad Spend</SelectItem>
-              <SelectItem value="leads">Leads</SelectItem>
-              <SelectItem value="cases">Cases</SelectItem>
-              <SelectItem value="account">Account</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex gap-2 flex-col sm:flex-row items-center">
+          <div className="flex gap-2">
+            <Select value={filterCampaign} onValueChange={setFilterCampaign}>
+              <SelectTrigger className="w-[160px]">
+                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Campaign Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Campaigns</SelectItem>
+                {campaignTypes.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Campaign Name</SelectItem>
+                <SelectItem value="roi">Highest ROI</SelectItem>
+                <SelectItem value="profit">Highest Profit</SelectItem>
+                <SelectItem value="date">
+                  <div className="flex items-center">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Date (Newest)
+                  </div>
+                </SelectItem>
+                <SelectItem value="dateOldest">
+                  <div className="flex items-center">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Date (Oldest)
+                  </div>
+                </SelectItem>
+                <SelectItem value="adSpend">Ad Spend</SelectItem>
+                <SelectItem value="leads">Leads</SelectItem>
+                <SelectItem value="cases">Cases</SelectItem>
+                <SelectItem value="account">Account</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
+            <PlusCircle className="h-4 w-4 mr-1" /> Add Campaign
+          </Button>
         </div>
       </div>
+      
       {sortedCampaigns.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12 border border-dashed rounded-lg">
           <p className="text-lg font-medium text-muted-foreground">No campaigns found</p>
+          <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or search terms</p>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setSearchTerm("");
+              setFilterCampaign("all");
+            }}
+            className="mt-4"
+          >
+            Clear filters
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

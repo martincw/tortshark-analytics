@@ -36,6 +36,17 @@ export const formatCurrency = (value: number): string => {
   })}`;
 };
 
+// Format short currency (no cents for large numbers)
+export const formatCurrencyCompact = (value: number): string => {
+  if (Math.abs(value) >= 1000) {
+    return `$${value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+  }
+  return formatCurrency(value);
+};
+
 // Format percentage values
 export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
@@ -60,10 +71,25 @@ export const getPerformanceClass = (roi: number): string => {
   return "text-error-DEFAULT";
 };
 
+// Get trend direction based on metrics
+export const getTrendDirection = (value: number): "up" | "down" | "neutral" => {
+  if (value > 0) return "up";
+  if (value < 0) return "down";
+  return "neutral";
+};
+
 // Get performance label based on metrics
 export const getPerformanceLabel = (roi: number): string => {
   if (roi > 200) return "Excellent";
   if (roi > 100) return "Good";
   if (roi > 0) return "Positive";
   return "Needs Improvement";
+};
+
+// Get background class based on performance
+export const getPerformanceBgClass = (roi: number): string => {
+  if (roi > 200) return "bg-success-muted";
+  if (roi > 100) return "bg-secondary/15";
+  if (roi > 0) return "bg-secondary/10";
+  return "bg-error-muted";
 };
