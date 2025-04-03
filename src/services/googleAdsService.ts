@@ -21,7 +21,7 @@ export const getGoogleAuthUrl = (): string => {
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: getRedirectUri(),
     response_type: "code",
-    scope: GOOGLE_ADS_SCOPE,
+    scope: GOOGLE_ADS_API_SCOPE,
     access_type: "offline",
     prompt: "consent",
   });
