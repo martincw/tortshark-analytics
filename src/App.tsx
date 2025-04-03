@@ -15,6 +15,7 @@ import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
+            <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
           </Routes>
         </BrowserRouter>
       </CampaignProvider>

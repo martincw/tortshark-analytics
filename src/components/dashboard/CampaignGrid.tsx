@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Campaign } from "@/types/campaign";
 import { CampaignCard } from "./CampaignCard";
@@ -17,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { calculateMetrics } from "@/utils/campaignUtils";
 
 export function CampaignGrid() {
-  const { campaigns } = useCampaign();
+  const { campaigns, isLoading } = useCampaign();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [filterCampaign, setFilterCampaign] = useState("all");
@@ -117,6 +116,14 @@ export function CampaignGrid() {
         return 0;
     }
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

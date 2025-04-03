@@ -13,27 +13,57 @@ import { Badge } from "@/components/ui/badge";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "sonner";
 import { AccountConnection } from "@/types/campaign";
-import { CheckCircle, XCircle, RefreshCw, PlusCircle } from "lucide-react";
+import { 
+  CheckCircle, 
+  XCircle, 
+  RefreshCw, 
+  PlusCircle, 
+  Link
+} from "lucide-react";
+import { 
+  getGoogleAuthUrl, 
+  getStoredAuthTokens, 
+  clearAuthTokens 
+} from "@/services/googleAdsService";
 
 const AccountsPage = () => {
-  const { accountConnections, addAccountConnection } = useCampaign();
+  const { 
+    accountConnections, 
+    addAccountConnection, 
+    syncAccount,
+    isLoading 
+  } = useCampaign();
+  
   const [newAccountName, setNewAccountName] = React.useState("");
   const [newAccountPlatform, setNewAccountPlatform] = React.useState<"google" | "youtube">("google");
   
-  const handleConnectAccount = (accountId: string) => {
-    // This would normally trigger OAuth flow with Google
-    toast.success("Account connected successfully");
+  // Check if we have stored tokens
+  const isAuthenticated = !!getStoredAuthTokens()?.access_token;
+  
+  const handleConnectGoogle = () => {
+    // Redirect to Google OAuth flow
+    window.location.href = getGoogleAuthUrl();
   };
   
-  const handleSyncAccount = (accountId: string) => {
+  const handleDisconnectGoogle = () => {
+    clearAuthTokens();
+    toast.success("Disconnected from Google Ads");
+    // Reload the page to clear the UI state
+    window.location.reload();
+  };
+  
+  const handleSyncAccount = async (accountId: string) => {
     toast("Syncing account data...", {
       duration: 2000,
     });
     
-    // In a real app, this would trigger an API call to sync data
-    setTimeout(() => {
+    const success = await syncAccount(accountId);
+    
+    if (success) {
       toast.success("Account synchronized successfully");
-    }, 2000);
+    } else {
+      toast.error("Failed to sync account data");
+    }
   };
   
   const handleAddAccount = () => {
@@ -42,11 +72,16 @@ const AccountsPage = () => {
       return;
     }
     
+    if (!isAuthenticated) {
+      toast.error("Please connect to Google Ads first");
+      return;
+    }
+    
     const newAccount: Omit<AccountConnection, "id"> = {
       name: newAccountName.trim(),
       platform: newAccountPlatform,
-      isConnected: false,
-      lastSynced: null,
+      isConnected: true,
+      lastSynced: new Date().toISOString(),
     };
     
     addAccountConnection(newAccount);
@@ -64,51 +99,84 @@ const AccountsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Add New Account</CardTitle>
+            <CardTitle>Connect to Google Ads</CardTitle>
             <CardDescription>
-              Link a new Google Ads or YouTube Ads account to your dashboard
+              {isAuthenticated 
+                ? "Your Google Ads account is connected"
+                : "Link your Google Ads account to pull campaign data"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="accountName" className="text-sm font-medium">
-                Account Name
-              </label>
-              <Input
-                id="accountName"
-                value={newAccountName}
-                onChange={(e) => setNewAccountName(e.target.value)}
-                placeholder="e.g., Tort Masters LLC"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Platform</label>
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant={newAccountPlatform === "google" ? "default" : "outline"}
-                  onClick={() => setNewAccountPlatform("google")}
-                  className="flex-1"
+            {isAuthenticated ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-success-DEFAULT">
+                  <CheckCircle className="h-5 w-5" />
+                  <span>Connected to Google Ads</span>
+                </div>
+                <Button 
+                  onClick={handleDisconnectGoogle} 
+                  variant="outline"
+                  className="w-full"
                 >
-                  Google Ads
-                </Button>
-                <Button
-                  type="button"
-                  variant={newAccountPlatform === "youtube" ? "secondary" : "outline"}
-                  onClick={() => setNewAccountPlatform("youtube")}
-                  className="flex-1"
-                >
-                  YouTube Ads
+                  Disconnect Google Ads
                 </Button>
               </div>
-            </div>
-            <Button 
-              onClick={handleAddAccount} 
-              className="w-full mt-4"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Account
-            </Button>
+            ) : (
+              <Button 
+                onClick={handleConnectGoogle} 
+                className="w-full"
+              >
+                <Link className="mr-2 h-4 w-4" />
+                Connect Google Ads
+              </Button>
+            )}
+            
+            {isAuthenticated && (
+              <>
+                <div className="border-t my-4"></div>
+                <div className="space-y-2">
+                  <label htmlFor="accountName" className="text-sm font-medium">
+                    Account Name
+                  </label>
+                  <Input
+                    id="accountName"
+                    value={newAccountName}
+                    onChange={(e) => setNewAccountName(e.target.value)}
+                    placeholder="e.g., Tort Masters LLC"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Platform</label>
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant={newAccountPlatform === "google" ? "default" : "outline"}
+                      onClick={() => setNewAccountPlatform("google")}
+                      className="flex-1"
+                    >
+                      Google Ads
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newAccountPlatform === "youtube" ? "secondary" : "outline"}
+                      onClick={() => setNewAccountPlatform("youtube")}
+                      className="flex-1"
+                      disabled // YouTube not supported yet
+                    >
+                      YouTube Ads
+                    </Button>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleAddAccount} 
+                  className="w-full mt-4"
+                  disabled={isLoading}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Account
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -120,10 +188,24 @@ const AccountsPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {accountConnections.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No accounts added yet
-              </p>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              </div>
+            ) : accountConnections.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 border border-dashed rounded-md">
+                <p>No accounts added yet</p>
+                {!isAuthenticated && (
+                  <Button 
+                    onClick={handleConnectGoogle}
+                    variant="outline" 
+                    className="mt-4"
+                  >
+                    <Link className="mr-2 h-4 w-4" />
+                    Connect Google Ads
+                  </Button>
+                )}
+              </div>
             ) : (
               accountConnections.map((account) => (
                 <div
@@ -159,14 +241,15 @@ const AccountsPage = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleSyncAccount(account.id)}
+                        disabled={isLoading}
                       >
-                        <RefreshCw className="h-4 w-4 mr-1" />
+                        <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
                         Sync
                       </Button>
                     ) : (
                       <Button
                         size="sm"
-                        onClick={() => handleConnectAccount(account.id)}
+                        onClick={handleConnectGoogle}
                       >
                         Connect
                       </Button>

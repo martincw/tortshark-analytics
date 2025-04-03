@@ -22,6 +22,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Campaign } from "@/types/campaign";
+import { getStoredAuthTokens } from "@/services/googleAdsService";
 
 const AddCampaignPage = () => {
   const navigate = useNavigate();
@@ -36,6 +37,9 @@ const AddCampaignPage = () => {
   const [retainers, setRetainers] = useState("");
   const [revenue, setRevenue] = useState("");
   
+  // Check if we have stored tokens
+  const isAuthenticated = !!getStoredAuthTokens()?.access_token;
+  
   const connectedAccounts = accountConnections.filter(account => account.isConnected);
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -43,6 +47,12 @@ const AddCampaignPage = () => {
     
     if (!campaignName || !accountId) {
       toast.error("Please fill out all required fields");
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      toast.error("Please connect to Google Ads first");
+      navigate("/accounts");
       return;
     }
     
@@ -81,6 +91,78 @@ const AddCampaignPage = () => {
     navigate("/campaigns");
   };
 
+  // If not authenticated, redirect to accounts page
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            onClick={() => navigate("/campaigns")}
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-3xl font-bold">Add New Campaign</h1>
+        </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Connect to Google Ads</CardTitle>
+            <CardDescription>
+              You need to connect to Google Ads before adding a campaign
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center py-8">
+            <p className="text-center text-muted-foreground mb-6">
+              Please connect your Google Ads account to continue
+            </p>
+            <Button onClick={() => navigate("/accounts")}>
+              Go to Accounts Page
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // If no accounts, prompt to add account
+  if (connectedAccounts.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            onClick={() => navigate("/campaigns")}
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-3xl font-bold">Add New Campaign</h1>
+        </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Add Account</CardTitle>
+            <CardDescription>
+              You need to add an account before creating a campaign
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center py-8">
+            <p className="text-center text-muted-foreground mb-6">
+              Please add a Google Ads account to continue
+            </p>
+            <Button onClick={() => navigate("/accounts")}>
+              Go to Accounts Page
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
@@ -113,9 +195,12 @@ const AddCampaignPage = () => {
                   id="name"
                   value={campaignName}
                   onChange={(e) => setCampaignName(e.target.value)}
-                  placeholder="e.g., Personal Injury - Search"
+                  placeholder="e.g., Rideshare - Search"
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Start with the tort type, e.g., "Rideshare", "LDS", "MD", or "Wildfire"
+                </p>
               </div>
               <div className="space-y-2">
                 <label htmlFor="platform" className="text-sm font-medium">
@@ -131,7 +216,7 @@ const AddCampaignPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="google">Google Ads</SelectItem>
-                    <SelectItem value="youtube">YouTube Ads</SelectItem>
+                    <SelectItem value="youtube" disabled>YouTube Ads (Coming Soon)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
