@@ -8,7 +8,7 @@ import { calculateMetrics, formatCurrency, formatNumber } from "@/utils/campaign
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users, Calendar } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent } from "lucide-react";
 import { format } from "date-fns";
 
 interface CampaignCardProps {
@@ -30,9 +30,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
 
   // Determine profitability class
   const getProfitabilityClass = () => {
-    if (metrics.roi > 200) return "text-success-DEFAULT";
-    if (metrics.roi > 0) return "text-secondary";
-    return "text-error-DEFAULT";
+    if (metrics.roi > 200) return "text-success-DEFAULT font-bold";
+    if (metrics.roi > 0) return "text-secondary font-bold";
+    return "text-error-DEFAULT font-bold";
   };
 
   // Extract campaign type (first part of the name before dash)
@@ -61,8 +61,28 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </div>
         <p className="text-sm text-muted-foreground">Account: {campaign.accountName}</p>
       </CardHeader>
-      <CardContent className="pb-4">
-        <div className="grid grid-cols-2 gap-4 mb-4">
+      <CardContent className="pb-0">
+        {/* Highlight ROI and Profit in a more prominent way */}
+        <div className="grid grid-cols-2 gap-2 mb-4 bg-secondary/10 p-3 rounded-md">
+          <div className="flex items-center gap-2">
+            <Percent className="h-4 w-4 text-secondary" />
+            <BadgeStat 
+              label="ROI" 
+              value={`${metrics.roi.toFixed(0)}%`}
+              className={getProfitabilityClass()}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-secondary" />
+            <BadgeStat 
+              label="Profit" 
+              value={formatCurrency(metrics.profit)}
+              className={getProfitabilityClass()}
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-2">
           <div className="flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
             <BadgeStat 
@@ -92,20 +112,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             />
           </div>
         </div>
-        <div className="flex items-center justify-between mt-2">
-          <BadgeStat
-            label="ROI"
-            value={`${metrics.roi.toFixed(0)}%`}
-            className={getProfitabilityClass()}
-          />
-          <BadgeStat
-            label="Profit"
-            value={formatCurrency(metrics.profit)}
-            className={getProfitabilityClass()}
-          />
-        </div>
       </CardContent>
-      <CardFooter className="pt-0">
+      <CardFooter className="pt-4">
         <Button onClick={handleViewDetails} variant="outline" className="w-full">
           View Details
         </Button>

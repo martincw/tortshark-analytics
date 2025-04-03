@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { calculateMetrics, formatCurrency, formatNumber } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { StatCard } from "@/components/ui/stat-card";
@@ -48,6 +48,13 @@ const CampaignDetail = () => {
   }
   
   const metrics = calculateMetrics(campaign);
+
+  // Get ROI class based on performance
+  const getRoiClass = () => {
+    if (metrics.roi > 200) return "text-success-DEFAULT";
+    if (metrics.roi > 0) return "text-secondary"; 
+    return "text-error-DEFAULT";
+  };
   
   const handleSave = () => {
     const updatedCampaign = {
@@ -107,6 +114,29 @@ const CampaignDetail = () => {
             </Button>
           )}
         </div>
+      </div>
+      
+      {/* Highlight ROI and Profit metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <StatCard
+          title="Return on Investment"
+          value={`${metrics.roi.toFixed(1)}%`}
+          icon={<Percent className="h-5 w-5" />}
+          trend={metrics.roi > 0 ? "up" : "down"}
+          trendValue={metrics.roi > 200 ? "Excellent" : metrics.roi > 100 ? "Good" : metrics.roi > 0 ? "Positive" : "Needs Attention"}
+          className="border-2 border-secondary"
+          valueClassName={getRoiClass()}
+        />
+        
+        <StatCard
+          title="Campaign Profit"
+          value={formatCurrency(metrics.profit)}
+          icon={<CreditCard className="h-5 w-5" />}
+          trend={metrics.profit > 0 ? "up" : "down"}
+          trendValue={metrics.profit > 5000 ? "High Performer" : metrics.profit > 0 ? "Profitable" : "Loss"}
+          className="border-2 border-secondary"
+          valueClassName={getRoiClass()}
+        />
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -221,30 +251,12 @@ const CampaignDetail = () => {
               <div className="flex items-center gap-3">
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <BadgeStat
-                  label="Profit"
-                  value={formatCurrency(metrics.profit)}
-                  className={metrics.profit > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
+                  label="Average Revenue Per Case"
+                  value={campaign.manualStats.cases > 0 
+                    ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.cases) 
+                    : "$0.00"}
                 />
               </div>
-            </div>
-            <div className="pt-4 border-t">
-              <div className="flex items-center gap-3">
-                <Percent className="h-5 w-5 text-muted-foreground" />
-                <BadgeStat
-                  label="ROI"
-                  value={`${metrics.roi.toFixed(1)}%`}
-                  className={metrics.roi > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {metrics.roi > 200
-                  ? "Excellent ROI! This campaign is performing very well."
-                  : metrics.roi > 100
-                  ? "Good ROI. This campaign is profitable."
-                  : metrics.roi > 0
-                  ? "Positive ROI, but there's room for improvement."
-                  : "Negative ROI. Consider optimizing this campaign."}
-              </p>
             </div>
           </CardContent>
         </Card>

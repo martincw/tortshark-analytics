@@ -38,7 +38,7 @@ export const formatCurrency = (value: number): string => {
 
 // Format percentage values
 export const formatPercent = (value: number): string => {
-  return `${value.toFixed(2)}%`;
+  return `${value.toFixed(1)}%`;
 };
 
 // Format large numbers with abbreviations
@@ -50,4 +50,20 @@ export const formatNumber = (value: number): string => {
     return `${(value / 1000).toFixed(1)}K`;
   }
   return value.toString();
+};
+
+// Get color class based on performance metrics
+export const getPerformanceClass = (roi: number): string => {
+  if (roi > 200) return "text-success-DEFAULT font-bold";
+  if (roi > 100) return "text-secondary font-bold";
+  if (roi > 0) return "text-secondary";
+  return "text-error-DEFAULT";
+};
+
+// Get performance label based on metrics
+export const getPerformanceLabel = (roi: number): string => {
+  if (roi > 200) return "Excellent";
+  if (roi > 100) return "Good";
+  if (roi > 0) return "Positive";
+  return "Needs Improvement";
 };
