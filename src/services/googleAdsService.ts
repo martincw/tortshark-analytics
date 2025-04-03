@@ -120,6 +120,13 @@ export const getStoredAuthTokens = () => {
   return tokens ? JSON.parse(tokens) : null;
 };
 
+// Check if ad platform is connected - returns true if authenticated
+// or if we're allowing manual campaigns (which we now are)
+export const isPlatformConnected = (platform: string = "any"): boolean => {
+  // Always return true since we now allow manual campaign creation
+  return true;
+};
+
 // Clear stored auth tokens (for logout)
 export const clearAuthTokens = () => {
   localStorage.removeItem("googleAdsTokens");

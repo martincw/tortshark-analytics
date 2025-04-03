@@ -11,9 +11,8 @@ const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
   
-  // Check if we have stored tokens
+  // Authentication status is only relevant for syncing data, not for creating campaigns
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
-  const hasConnectedAccounts = accountConnections.some(account => account.isConnected);
 
   return (
     <div className="space-y-6">
@@ -34,41 +33,41 @@ const CampaignsPage = () => {
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
           <p className="text-lg font-medium">Loading campaigns...</p>
         </div>
-      ) : !isAuthenticated ? (
-        <div className="text-center py-16 border border-dashed rounded-lg">
-          <h3 className="text-lg font-medium mb-2">Connect Google Ads to get started</h3>
-          <p className="text-muted-foreground mb-6">
-            You need to connect your Google Ads account to view campaign data
-          </p>
-          <Button onClick={() => navigate("/accounts")}>
-            <Link className="mr-2 h-4 w-4" />
-            Connect Google Ads
-          </Button>
-        </div>
-      ) : !hasConnectedAccounts ? (
-        <div className="text-center py-16 border border-dashed rounded-lg">
-          <h3 className="text-lg font-medium mb-2">Add an account to get started</h3>
-          <p className="text-muted-foreground mb-6">
-            You need to add at least one account to view campaign data
-          </p>
-          <Button onClick={() => navigate("/accounts")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Account
-          </Button>
-        </div>
       ) : campaigns.length === 0 ? (
         <div className="text-center py-16 border border-dashed rounded-lg">
           <h3 className="text-lg font-medium mb-2">No campaigns found</h3>
           <p className="text-muted-foreground mb-6">
             Create your first campaign to get started
           </p>
-          <Button onClick={() => navigate("/add-campaign")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Campaign
-          </Button>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => navigate("/add-campaign")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Campaign
+            </Button>
+            {!isAuthenticated && (
+              <Button onClick={() => navigate("/accounts")} variant="outline">
+                <Link className="mr-2 h-4 w-4" />
+                Connect Ad Platforms
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
-        <CampaignGrid />
+        <>
+          {!isAuthenticated && (
+            <div className="bg-muted/50 p-4 rounded-lg mb-6 flex justify-between items-center">
+              <div>
+                <h3 className="font-medium">Connect to ad platforms</h3>
+                <p className="text-sm text-muted-foreground">Connect to Google Ads or other platforms to sync campaign data automatically</p>
+              </div>
+              <Button onClick={() => navigate("/accounts")} variant="outline" size="sm">
+                <Link className="mr-2 h-4 w-4" />
+                Connect Platforms
+              </Button>
+            </div>
+          )}
+          <CampaignGrid />
+        </>
       )}
     </div>
   );

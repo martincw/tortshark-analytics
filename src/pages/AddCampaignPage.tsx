@@ -22,7 +22,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Campaign } from "@/types/campaign";
-import { getStoredAuthTokens } from "@/services/googleAdsService";
+import { getStoredAuthTokens, isPlatformConnected } from "@/services/googleAdsService";
 
 const AddCampaignPage = () => {
   const navigate = useNavigate();
@@ -37,30 +37,35 @@ const AddCampaignPage = () => {
   const [retainers, setRetainers] = useState("");
   const [revenue, setRevenue] = useState("");
   
-  // Check if we have stored tokens
+  // Check if we have stored tokens - but we don't require them
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
+  const isPlatformActive = isPlatformConnected(platform);
   
-  const connectedAccounts = accountConnections.filter(account => account.isConnected);
+  // Include all accounts or create a manual account option
+  const availableAccounts = accountConnections.length > 0 
+    ? accountConnections 
+    : [{ id: "manual", name: "Manual Entry", platform: "manual" as any, isConnected: true, lastSynced: null }];
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!campaignName || !accountId) {
-      toast.error("Please fill out all required fields");
+    if (!campaignName) {
+      toast.error("Please enter a campaign name");
       return;
     }
     
-    if (!isAuthenticated) {
-      toast.error("Please connect to Google Ads first");
-      navigate("/accounts");
-      return;
-    }
-    
-    const selectedAccount = accountConnections.find(acc => acc.id === accountId);
+    // Use selected account or create a manual one
+    let selectedAccount = availableAccounts.find(acc => acc.id === accountId);
     
     if (!selectedAccount) {
-      toast.error("Please select a valid account");
-      return;
+      // Create a manual account if none selected
+      selectedAccount = {
+        id: "manual",
+        name: "Manual Entry",
+        platform: platform,
+        isConnected: true,
+        lastSynced: null
+      };
     }
     
     const currentDate = new Date().toISOString().split("T")[0];
@@ -68,7 +73,7 @@ const AddCampaignPage = () => {
     const newCampaign: Omit<Campaign, "id"> = {
       name: campaignName,
       platform,
-      accountId,
+      accountId: selectedAccount.id,
       accountName: selectedAccount.name,
       stats: {
         adSpend: parseFloat(adSpend) || 0,
@@ -90,78 +95,6 @@ const AddCampaignPage = () => {
     toast.success("Campaign added successfully");
     navigate("/campaigns");
   };
-
-  // If not authenticated, redirect to accounts page
-  if (!isAuthenticated) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            onClick={() => navigate("/campaigns")}
-            variant="outline"
-            size="icon"
-            className="h-9 w-9"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-3xl font-bold">Add New Campaign</h1>
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Connect to Google Ads</CardTitle>
-            <CardDescription>
-              You need to connect to Google Ads before adding a campaign
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center py-8">
-            <p className="text-center text-muted-foreground mb-6">
-              Please connect your Google Ads account to continue
-            </p>
-            <Button onClick={() => navigate("/accounts")}>
-              Go to Accounts Page
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // If no accounts, prompt to add account
-  if (connectedAccounts.length === 0) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            onClick={() => navigate("/campaigns")}
-            variant="outline"
-            size="icon"
-            className="h-9 w-9"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-3xl font-bold">Add New Campaign</h1>
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Add Account</CardTitle>
-            <CardDescription>
-              You need to add an account before creating a campaign
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center py-8">
-            <p className="text-center text-muted-foreground mb-6">
-              Please add a Google Ads account to continue
-            </p>
-            <Button onClick={() => navigate("/accounts")}>
-              Go to Accounts Page
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -216,34 +149,42 @@ const AddCampaignPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="google">Google Ads</SelectItem>
-                    <SelectItem value="youtube" disabled>YouTube Ads (Coming Soon)</SelectItem>
+                    <SelectItem value="youtube">YouTube Ads</SelectItem>
+                    {/* Can add more platforms here in the future */}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <label htmlFor="account" className="text-sm font-medium">
-                  Account *
+                  Account 
                 </label>
                 <Select
                   value={accountId}
                   onValueChange={setAccountId}
-                  required
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
+                    <SelectValue placeholder="Manual Entry (No Account)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {connectedAccounts.length === 0 ? (
-                      <SelectItem value="none" disabled>No connected accounts</SelectItem>
-                    ) : (
-                      connectedAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name} ({account.platform})
-                        </SelectItem>
-                      ))
-                    )}
+                    <SelectItem value="manual">Manual Entry (No Account)</SelectItem>
+                    {availableAccounts.filter(acc => acc.id !== "manual").map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} ({account.platform})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {!isAuthenticated && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <Button 
+                      variant="link" 
+                      className="h-auto p-0 text-xs" 
+                      onClick={() => navigate("/accounts")}
+                    >
+                      Connect to ad platforms
+                    </Button> to sync campaign data automatically
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="adSpend" className="text-sm font-medium">
