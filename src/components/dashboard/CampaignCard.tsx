@@ -8,7 +8,7 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerfo
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers } from "lucide-react";
 import { format } from "date-fns";
 
 interface CampaignCardProps {
@@ -35,37 +35,43 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     return "text-error-DEFAULT font-bold";
   };
 
-  // Extract campaign type (first part of the name before dash)
-  const campaignType = campaign.name.split(" - ")[0];
+  // No longer need to extract campaign type, just use the name directly
+  const tortType = campaign.name;
   
   // Calculate conversion rate
   const conversionRate = campaign.manualStats.leads > 0 
     ? ((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1) 
     : "0";
 
+  // Get badge variant based on tort type
+  const getBadgeVariant = (tortType: string) => {
+    switch (tortType) {
+      case "Rideshare": return "default";
+      case "LDS": return "secondary";
+      case "MD": return "outline";
+      case "Wildfire": return "destructive";
+      default: return "default";
+    }
+  };
+
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow border border-border/80 group">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg font-bold line-clamp-1">{campaign.name}</CardTitle>
+            <CardTitle className="text-lg font-bold line-clamp-1">{tortType}</CardTitle>
             <p className="text-sm text-muted-foreground flex items-center mt-1">
               <Calendar className="h-3 w-3 mr-1 inline" />
               {formattedDate}
             </p>
           </div>
           <Badge 
-            variant={
-              campaignType === "Rideshare" ? "default" : 
-              campaignType === "LDS" ? "secondary" :
-              campaignType === "MD" ? "outline" : "destructive"
-            }
+            variant={getBadgeVariant(tortType)}
             className="shrink-0"
           >
-            {campaignType}
+            {tortType}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground truncate">Account: {campaign.accountName}</p>
       </CardHeader>
       <CardContent className="pb-0">
         {/* Highlight ROI and Profit in a more prominent way */}

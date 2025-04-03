@@ -14,7 +14,7 @@ const CampaignsPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Mass Tort Campaigns</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your Rideshare, LDS, MD, and Wildfire campaigns
+            Manage your Rideshare, LDS, MD, and Wildfire tort campaigns
           </p>
         </div>
         <Button onClick={() => navigate("/add-campaign")}>

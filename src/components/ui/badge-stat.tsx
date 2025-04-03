@@ -11,7 +11,7 @@ interface BadgeStatProps {
 
 export function BadgeStat({ label, value, className, isDimmed = false }: BadgeStatProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 w-full">
       <p className={cn(
         "text-xs", 
         isDimmed ? "text-muted-foreground/70" : "text-muted-foreground"

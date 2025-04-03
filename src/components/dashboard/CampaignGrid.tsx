@@ -14,6 +14,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { Search, Calendar, Filter, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { calculateMetrics } from "@/utils/campaignUtils";
 
 export function CampaignGrid() {
   const { campaigns } = useCampaign();
@@ -22,23 +23,65 @@ export function CampaignGrid() {
   const [filterCampaign, setFilterCampaign] = useState("all");
   const navigate = useNavigate();
   
-  // Extract unique campaign types (first part of name before the dash)
+  // Group campaigns by tort type (first part of name before the dash)
+  const groupedCampaigns = campaigns.reduce((acc, campaign) => {
+    const tortType = campaign.name.split(" - ")[0];
+    
+    if (!acc[tortType]) {
+      acc[tortType] = [];
+    }
+    
+    acc[tortType].push(campaign);
+    return acc;
+  }, {} as Record<string, Campaign[]>);
+  
+  // Create consolidated campaigns (one per tort type)
+  const consolidatedCampaigns = Object.entries(groupedCampaigns).map(([tortType, campaigns]) => {
+    // Use the first campaign as a base
+    const baseCampaign = { ...campaigns[0] };
+    
+    // Sum up all the metrics
+    const totalStats = campaigns.reduce((acc, campaign) => {
+      acc.adSpend += campaign.stats.adSpend;
+      acc.impressions += campaign.stats.impressions;
+      acc.clicks += campaign.stats.clicks;
+      return acc;
+    }, { adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: baseCampaign.stats.date });
+    
+    // Calculate average CPC
+    totalStats.cpc = totalStats.clicks > 0 ? totalStats.adSpend / totalStats.clicks : 0;
+    
+    // Sum up manual stats
+    const totalManualStats = campaigns.reduce((acc, campaign) => {
+      acc.leads += campaign.manualStats.leads;
+      acc.cases += campaign.manualStats.cases;
+      acc.retainers += campaign.manualStats.retainers;
+      acc.revenue += campaign.manualStats.revenue;
+      return acc;
+    }, { leads: 0, cases: 0, retainers: 0, revenue: 0, date: baseCampaign.manualStats.date });
+    
+    return {
+      ...baseCampaign,
+      id: tortType, // Use tort type as ID for consolidated campaign
+      name: tortType, // Use tort type as the name
+      stats: totalStats,
+      manualStats: totalManualStats
+    };
+  });
+  
+  // Extract unique campaign types
   const campaignTypes = Array.from(
     new Set(
-      campaigns.map(campaign => {
-        const parts = campaign.name.split(" - ");
-        return parts[0];
-      })
+      consolidatedCampaigns.map(campaign => campaign.name)
     )
   );
   
   // Filter campaigns based on search term and campaign type
-  const filteredCampaigns = campaigns.filter(campaign => {
+  const filteredCampaigns = consolidatedCampaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          campaign.accountName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const campaignType = campaign.name.split(" - ")[0];
-    const matchesCampaign = filterCampaign === "all" || campaignType === filterCampaign;
+    const matchesCampaign = filterCampaign === "all" || campaign.name === filterCampaign;
     
     return matchesSearch && matchesCampaign;
   });
@@ -51,12 +94,15 @@ export function CampaignGrid() {
       case "adSpend":
         return b.stats.adSpend - a.stats.adSpend;
       case "roi": {
-        const metricsA = (b.manualStats.revenue - b.stats.adSpend) / b.stats.adSpend * 100;
-        const metricsB = (a.manualStats.revenue - a.stats.adSpend) / a.stats.adSpend * 100;
+        const metricsA = calculateMetrics(b).roi;
+        const metricsB = calculateMetrics(a).roi;
         return metricsA - metricsB;
       }
-      case "profit":
-        return (b.manualStats.revenue - b.stats.adSpend) - (a.manualStats.revenue - a.stats.adSpend);
+      case "profit": {
+        const metricsA = calculateMetrics(b).profit;
+        const metricsB = calculateMetrics(a).profit;
+        return metricsA - metricsB;
+      }
       case "leads":
         return b.manualStats.leads - a.manualStats.leads;
       case "cases":
@@ -89,10 +135,10 @@ export function CampaignGrid() {
             <Select value={filterCampaign} onValueChange={setFilterCampaign}>
               <SelectTrigger className="w-[160px]">
                 <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Campaign Type" />
+                <SelectValue placeholder="Tort Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Campaigns</SelectItem>
+                <SelectItem value="all">All Tort Types</SelectItem>
                 {campaignTypes.map(type => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
@@ -103,7 +149,7 @@ export function CampaignGrid() {
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="name">Campaign Name</SelectItem>
+                <SelectItem value="name">Tort Type</SelectItem>
                 <SelectItem value="roi">Highest ROI</SelectItem>
                 <SelectItem value="profit">Highest Profit</SelectItem>
                 <SelectItem value="date">
