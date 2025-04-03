@@ -2,7 +2,7 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
-import { SidebarProvider } from "@/contexts/CampaignContext";
+import { CampaignProvider } from "@/contexts/CampaignContext";
 import { Navbar } from "./Navbar";
 
 export function MainLayout() {
