@@ -11,20 +11,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Search } from "lucide-react";
+import { Search, Calendar } from "lucide-react";
 
 export function CampaignGrid() {
   const { campaigns } = useCampaign();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
-  const [filterPlatform, setFilterPlatform] = useState("all");
+  const [filterCampaign, setFilterCampaign] = useState("all");
   
-  // Filter campaigns based on search term and platform
+  // Extract unique campaign types (first part of name before the dash)
+  const campaignTypes = Array.from(
+    new Set(
+      campaigns.map(campaign => {
+        const parts = campaign.name.split(" - ");
+        return parts[0];
+      })
+    )
+  );
+  
+  // Filter campaigns based on search term and campaign type
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          campaign.accountName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPlatform = filterPlatform === "all" || campaign.platform === filterPlatform;
-    return matchesSearch && matchesPlatform;
+    
+    const campaignType = campaign.name.split(" - ")[0];
+    const matchesCampaign = filterCampaign === "all" || campaignType === filterCampaign;
+    
+    return matchesSearch && matchesCampaign;
   });
   
   // Sort campaigns based on sort criteria
@@ -38,6 +51,10 @@ export function CampaignGrid() {
         return b.manualStats.leads - a.manualStats.leads;
       case "cases":
         return b.manualStats.cases - a.manualStats.cases;
+      case "date":
+        return new Date(b.stats.date).getTime() - new Date(a.stats.date).getTime();
+      case "dateOldest":
+        return new Date(a.stats.date).getTime() - new Date(b.stats.date).getTime();
       case "account":
         return a.accountName.localeCompare(b.accountName);
       default:
@@ -57,15 +74,16 @@ export function CampaignGrid() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-4">
-          <Select value={filterPlatform} onValueChange={setFilterPlatform}>
+        <div className="flex gap-4 flex-col sm:flex-row">
+          <Select value={filterCampaign} onValueChange={setFilterCampaign}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Platform" />
+              <SelectValue placeholder="Campaign Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Platforms</SelectItem>
-              <SelectItem value="google">Google Ads</SelectItem>
-              <SelectItem value="youtube">YouTube Ads</SelectItem>
+              <SelectItem value="all">All Campaigns</SelectItem>
+              {campaignTypes.map(type => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
@@ -74,6 +92,18 @@ export function CampaignGrid() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="name">Campaign Name</SelectItem>
+              <SelectItem value="date">
+                <div className="flex items-center">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Date (Newest)
+                </div>
+              </SelectItem>
+              <SelectItem value="dateOldest">
+                <div className="flex items-center">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Date (Oldest)
+                </div>
+              </SelectItem>
               <SelectItem value="adSpend">Ad Spend</SelectItem>
               <SelectItem value="leads">Leads</SelectItem>
               <SelectItem value="cases">Cases</SelectItem>

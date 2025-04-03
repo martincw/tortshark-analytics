@@ -8,7 +8,8 @@ import { calculateMetrics, formatCurrency, formatNumber } from "@/utils/campaign
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar } from "lucide-react";
+import { format } from "date-fns";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -24,6 +25,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     navigate(`/campaign/${campaign.id}`);
   };
 
+  // Format the date
+  const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
+
   // Determine profitability class
   const getProfitabilityClass = () => {
     if (metrics.roi > 200) return "text-success-DEFAULT";
@@ -31,13 +35,28 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     return "text-error-DEFAULT";
   };
 
+  // Extract campaign type (first part of the name before dash)
+  const campaignType = campaign.name.split(" - ")[0];
+
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-bold">{campaign.name}</CardTitle>
-          <Badge variant={campaign.platform === "google" ? "default" : "secondary"}>
-            {campaign.platform === "google" ? "Google Ads" : "YouTube Ads"}
+          <div>
+            <CardTitle className="text-lg font-bold">{campaign.name}</CardTitle>
+            <p className="text-sm text-muted-foreground flex items-center mt-1">
+              <Calendar className="h-3 w-3 mr-1" />
+              {formattedDate}
+            </p>
+          </div>
+          <Badge 
+            variant={
+              campaignType === "Rideshare" ? "default" : 
+              campaignType === "LDS" ? "secondary" :
+              campaignType === "MD" ? "outline" : "destructive"
+            }
+          >
+            {campaignType}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">Account: {campaign.accountName}</p>

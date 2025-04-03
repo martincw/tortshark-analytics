@@ -12,9 +12,9 @@ const CampaignsPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Mass Tort Campaigns</h1>
           <p className="text-muted-foreground mt-1">
-            View and manage all your advertising campaigns
+            Manage your Rideshare, LDS, MD, and Wildfire campaigns
           </p>
         </div>
         <Button onClick={() => navigate("/add-campaign")}>

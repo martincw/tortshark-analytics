@@ -14,7 +14,8 @@ const generateCampaign = (
   name: string,
   platform: "google" | "youtube",
   accountName: string,
-  adSpendBase: number
+  adSpendBase: number,
+  daysOffset: number
 ): Campaign => {
   const adSpend = adSpendBase + Math.random() * 500;
   const impressions = Math.floor(adSpend * 100 + Math.random() * 5000);
@@ -37,32 +38,37 @@ const generateCampaign = (
       impressions,
       clicks,
       cpc,
-      date: daysAgo(0),
+      date: daysAgo(daysOffset),
     },
     manualStats: {
       leads,
       cases,
       retainers,
       revenue,
-      date: daysAgo(0),
+      date: daysAgo(daysOffset),
     },
   };
 };
 
-// Create mock campaigns
+// Create mock campaigns with the specific campaign names
 export const mockCampaigns: Campaign[] = [
-  generateCampaign("Personal Injury - Search", "google", "Tort Masters LLC", 1200),
-  generateCampaign("Medical Device - Display", "google", "Injury Advocates", 850),
-  generateCampaign("Class Action - Search", "google", "LegalMaxPPC", 1500),
-  generateCampaign("Medical Malpractice - Video", "youtube", "Justice Seekers", 2200),
-  generateCampaign("Pharmaceutical", "google", "Tort Masters LLC", 1750),
-  generateCampaign("Product Liability - Search", "google", "Legal Lead Gen", 900),
-  generateCampaign("Product Liability - Video", "youtube", "Legal Lead Gen", 1350),
-  generateCampaign("Workplace Injury", "google", "Injury Advocates", 800),
-  generateCampaign("PFAS Contamination", "youtube", "Environmental Justice", 2500),
-  generateCampaign("Camp Lejeune", "google", "Veterans Advocates", 3000),
-  generateCampaign("Cancer Litigation", "youtube", "Medical Justice", 2800),
-  generateCampaign("Roundup", "google", "Agricultural Claims", 1600),
+  // Rideshare campaign with different dates
+  generateCampaign("Rideshare - Search", "google", "Tort Masters LLC", 1200, 0),
+  generateCampaign("Rideshare - Display", "google", "Injury Advocates", 850, 1),
+  generateCampaign("Rideshare - Retargeting", "google", "LegalMaxPPC", 950, 3),
+  
+  // LDS campaign with different dates  
+  generateCampaign("LDS - Search", "google", "Justice Seekers", 2200, 0),
+  generateCampaign("LDS - Display", "google", "Tort Masters LLC", 1750, 2),
+  
+  // MD campaign with different dates
+  generateCampaign("MD - Search", "google", "Legal Lead Gen", 900, 1),
+  generateCampaign("MD - Video", "google", "Legal Lead Gen", 1350, 4),
+  
+  // Wildfire campaign with different dates
+  generateCampaign("Wildfire - Search", "google", "Injury Advocates", 800, 0),
+  generateCampaign("Wildfire - Display", "google", "Environmental Justice", 2500, 2),
+  generateCampaign("Wildfire - Retargeting", "google", "Veterans Advocates", 1100, 5),
 ];
 
 // Mock account connections
@@ -91,7 +97,7 @@ export const mockAccountConnections: AccountConnection[] = [
   {
     id: uuidv4(),
     name: "Justice Seekers",
-    platform: "youtube",
+    platform: "google",
     isConnected: true,
     lastSynced: daysAgo(0),
   },
@@ -105,27 +111,13 @@ export const mockAccountConnections: AccountConnection[] = [
   {
     id: uuidv4(),
     name: "Environmental Justice",
-    platform: "youtube",
+    platform: "google",
     isConnected: false,
     lastSynced: null,
   },
   {
     id: uuidv4(),
     name: "Veterans Advocates",
-    platform: "google",
-    isConnected: true,
-    lastSynced: daysAgo(0),
-  },
-  {
-    id: uuidv4(),
-    name: "Medical Justice",
-    platform: "youtube",
-    isConnected: true,
-    lastSynced: daysAgo(0),
-  },
-  {
-    id: uuidv4(),
-    name: "Agricultural Claims",
     platform: "google",
     isConnected: true,
     lastSynced: daysAgo(0),
