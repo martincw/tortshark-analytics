@@ -4,11 +4,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { handleGoogleAuthCallback, storeAuthTokens } from "@/services/googleAdsService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink } from "lucide-react";
 
 const GoogleAuthCallback = () => {
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -18,6 +19,16 @@ const GoogleAuthCallback = () => {
         const queryParams = new URLSearchParams(location.search);
         const code = queryParams.get("code");
         const errorMsg = queryParams.get("error");
+        
+        // Collect debug info
+        const debug = {
+          url: window.location.href,
+          query: Object.fromEntries(queryParams.entries()),
+          origin: window.location.origin,
+          redirectUri: window.location.origin + "/auth/google/callback"
+        };
+        setDebugInfo(debug);
+        console.log("Auth callback debug info:", debug);
         
         if (errorMsg) {
           setError(`Google returned an error: ${errorMsg}`);
@@ -81,11 +92,24 @@ const GoogleAuthCallback = () => {
             <h1 className="text-xl font-semibold">Authentication Error</h1>
           </div>
           <p className="text-muted-foreground">{error}</p>
-          <p className="text-sm">
-            {error.includes("not configured") 
-              ? "Please make sure you've set up the VITE_GOOGLE_CLIENT_ID environment variable." 
-              : "This error commonly occurs when the Google API client configuration is incorrect or missing permissions."}
-          </p>
+          
+          <div className="bg-secondary/20 p-3 rounded-md">
+            <h3 className="text-sm font-medium mb-2">Possible solutions:</h3>
+            <ul className="text-sm space-y-2">
+              <li>• Make sure your Google project has OAuth configured properly</li>
+              <li>• Check that <code>{window.location.origin}/auth/google/callback</code> is added as an authorized redirect URI in your Google console</li>
+              <li>• Verify that your Google project has the Google Ads API enabled</li>
+            </ul>
+            <a 
+              href="https://console.cloud.google.com/apis/credentials" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-500 text-sm flex items-center gap-1 mt-2"
+            >
+              Go to Google API Console <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+          
           <div className="pt-4">
             <Button onClick={handleContinue} className="w-full">
               Continue to Accounts Page

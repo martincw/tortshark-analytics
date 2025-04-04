@@ -6,13 +6,13 @@ const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const GOOGLE_ADS_API_BASE_URL = "https://googleads.googleapis.com";
 const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
-// Get Google Client ID from environment variable
+// Hard-coded client ID for immediate testing
+// In production, this should come from environment variables
+const GOOGLE_CLIENT_ID = "588217915343-e9ie84prjmlg53ofg9bhv670pas52n18.apps.googleusercontent.com";
+
+// Get Google Client ID from environment variable or fallback to hard-coded value
 const getGoogleClientId = () => {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    console.warn("VITE_GOOGLE_CLIENT_ID is not set in your environment variables");
-  }
-  return clientId;
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID;
 };
 
 // Get redirect URL based on current environment
@@ -35,6 +35,12 @@ export const getGoogleAuthUrl = (): string => {
     scope: GOOGLE_ADS_API_SCOPE,
     access_type: "offline",
     prompt: "consent",
+  });
+
+  console.log("Generated OAuth URL with these parameters:", {
+    clientId,
+    redirectUri: getRedirectUri(),
+    scope: GOOGLE_ADS_API_SCOPE
   });
 
   return `${GOOGLE_OAUTH_URL}?${params.toString()}`;
