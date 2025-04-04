@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,13 +32,17 @@ export const GoogleAdsConnection = ({
   handleAddAccount,
   isLoading,
 }: GoogleAdsConnectionProps) => {
+  const [configError, setConfigError] = useState<string | null>(null);
+  
   const handleConnectGoogle = () => {
     try {
       // Redirect to Google OAuth flow
       window.location.href = getGoogleAuthUrl();
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
-      toast.error("Failed to connect to Google. You can still create campaigns manually.");
+      const errorMessage = error instanceof Error ? error.message : "Connection failed";
+      setConfigError(errorMessage);
+      toast.error(errorMessage);
     }
   };
   
@@ -83,6 +87,18 @@ export const GoogleAdsConnection = ({
               <Link className="mr-2 h-4 w-4" />
               Connect Google Ads
             </Button>
+            
+            {configError && (
+              <div className="p-3 bg-error-foreground/10 rounded-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-error" />
+                  <span className="font-medium text-sm">Configuration Error</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {configError}. Check your environment variables.
+                </p>
+              </div>
+            )}
             
             <div className="p-3 bg-secondary/30 rounded-md">
               <div className="flex items-center gap-2 mb-2">

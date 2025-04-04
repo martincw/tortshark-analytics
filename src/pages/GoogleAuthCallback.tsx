@@ -47,7 +47,11 @@ const GoogleAuthCallback = () => {
         navigate("/accounts");
       } catch (error) {
         console.error("Error during auth callback:", error);
-        setError(error instanceof Error ? error.message : "Authentication failed");
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : "Authentication failed";
+          
+        setError(errorMessage);
         setIsProcessing(false);
       }
     };
@@ -78,7 +82,9 @@ const GoogleAuthCallback = () => {
           </div>
           <p className="text-muted-foreground">{error}</p>
           <p className="text-sm">
-            This error commonly occurs when the Google API client configuration is incorrect or missing permissions.
+            {error.includes("not configured") 
+              ? "Please make sure you've set up the VITE_GOOGLE_CLIENT_ID environment variable." 
+              : "This error commonly occurs when the Google API client configuration is incorrect or missing permissions."}
           </p>
           <div className="pt-4">
             <Button onClick={handleContinue} className="w-full">
