@@ -1,3 +1,4 @@
+
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
@@ -15,11 +16,9 @@ const getGoogleClientId = () => {
 };
 
 // Get redirect URL based on current environment
-// Ensure it's properly encoded and formatted
 const getRedirectUri = () => {
-  // Make sure the path is exactly "/auth/google/callback"
-  // This must match the Authorized redirect URI configured in Google Cloud Console
-  return encodeURIComponent(`${window.location.origin}/auth/google/callback`);
+  const redirectUri = `${window.location.origin}/auth/google/callback`;
+  return encodeURIComponent(redirectUri);
 };
 
 // Generate Google OAuth URL
@@ -31,12 +30,15 @@ export const getGoogleAuthUrl = (): string => {
   }
   
   // Create OAuth URL with properly encoded parameters
-  const url = `${GOOGLE_OAUTH_URL}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${getRedirectUri()}&response_type=code&scope=${encodeURIComponent(GOOGLE_ADS_API_SCOPE)}&access_type=offline&prompt=consent`;
+  const redirectUri = getRedirectUri();
+  const scope = encodeURIComponent(GOOGLE_ADS_API_SCOPE);
+  
+  const url = `${GOOGLE_OAUTH_URL}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
   
   console.log("Generated OAuth URL:", url);
   console.log("Google OAuth parameters:", {
     clientId,
-    redirectUri: decodeURIComponent(getRedirectUri()),
+    redirectUri: decodeURIComponent(redirectUri),
     scope: GOOGLE_ADS_API_SCOPE,
     fullUrl: url
   });
