@@ -6,9 +6,9 @@ const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const GOOGLE_ADS_API_BASE_URL = "https://googleads.googleapis.com";
 const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
-// Get Google Client ID from environment variable or fallback to a placeholder
+// Get Google Client ID from environment variable or use the hardcoded value for testing
 const getGoogleClientId = () => {
-  return import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID || "588217915343-e9ie84prjmlg53ofg9bhv670pas52n18.apps.googleusercontent.com";
 };
 
 // Get redirect URL based on current environment
