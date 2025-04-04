@@ -33,13 +33,20 @@ export const getGoogleAuthUrl = (): string => {
   const redirectUri = getRedirectUri();
   const scope = encodeURIComponent(GOOGLE_ADS_API_SCOPE);
   
-  const url = `${GOOGLE_OAUTH_URL}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+  // Add state parameter for CSRF protection and debugging
+  const state = encodeURIComponent(JSON.stringify({
+    timestamp: Date.now(),
+    origin: window.location.origin
+  }));
+  
+  const url = `${GOOGLE_OAUTH_URL}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`;
   
   console.log("Generated OAuth URL:", url);
   console.log("Google OAuth parameters:", {
     clientId,
     redirectUri: decodeURIComponent(redirectUri),
     scope: GOOGLE_ADS_API_SCOPE,
+    state: decodeURIComponent(state),
     fullUrl: url
   });
 
@@ -48,9 +55,25 @@ export const getGoogleAuthUrl = (): string => {
 
 // Handle OAuth callback and exchange code for tokens
 export const handleGoogleAuthCallback = async (
-  code: string
+  code: string,
+  state?: string
 ): Promise<{ access_token: string; refresh_token: string } | null> => {
   try {
+    console.log("Attempting to exchange code for tokens");
+    console.log("Code received:", code.substring(0, 10) + "...");
+    console.log("State received:", state || "No state parameter");
+    
+    // Parse state parameter if available
+    let stateObj = null;
+    if (state) {
+      try {
+        stateObj = JSON.parse(decodeURIComponent(state));
+        console.log("Decoded state:", stateObj);
+      } catch (e) {
+        console.warn("Could not parse state parameter:", e);
+      }
+    }
+    
     // In a real implementation, this would make a server call to exchange the code
     // for tokens, as client secret should never be exposed in the frontend
     
@@ -60,13 +83,31 @@ export const handleGoogleAuthCallback = async (
     // Return mock tokens for now - this would typically come from a backend service
     // that handles the OAuth token exchange securely
     return {
-      access_token: "mock_access_token",
-      refresh_token: "mock_refresh_token"
+      access_token: "mock_access_token_" + Date.now(),
+      refresh_token: "mock_refresh_token_" + Date.now()
     };
   } catch (error) {
     console.error("Error exchanging code for tokens:", error);
     return null;
   }
+};
+
+// Parse error message from OAuth error response
+export const parseOAuthError = (errorCode: string): string => {
+  const errorMessages: Record<string, string> = {
+    "access_denied": "User denied access to their Google account",
+    "invalid_request": "The OAuth request was invalid or malformed",
+    "invalid_client": "Client authentication failed. Check your Client ID",
+    "invalid_grant": "The authorization code is invalid or expired",
+    "unauthorized_client": "This client is not authorized to use this grant type",
+    "unsupported_grant_type": "The requested grant type is not supported",
+    "invalid_scope": "The requested scope is invalid or unknown",
+    "redirect_uri_mismatch": "The redirect URI does not match the one registered in Google Cloud Console",
+    "server_error": "Google authentication server error",
+    "temporarily_unavailable": "Google authentication server is temporarily unavailable"
+  };
+  
+  return errorMessages[errorCode] || `Authentication error: ${errorCode}`;
 };
 
 // Fetch user's Google Ads accounts

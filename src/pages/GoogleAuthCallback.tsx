@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { handleGoogleAuthCallback, storeAuthTokens } from "@/services/googleAdsService";
+import { handleGoogleAuthCallback, storeAuthTokens, parseOAuthError } from "@/services/googleAdsService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ExternalLink } from "lucide-react";
@@ -18,35 +18,38 @@ const GoogleAuthCallback = () => {
       try {
         const queryParams = new URLSearchParams(location.search);
         const code = queryParams.get("code");
-        const errorMsg = queryParams.get("error");
+        const errorCode = queryParams.get("error");
+        const state = queryParams.get("state");
         
         // Collect debug info
         const debug = {
           url: window.location.href,
           query: Object.fromEntries(queryParams.entries()),
           origin: window.location.origin,
-          redirectUri: window.location.origin + "/auth/google/callback"
+          redirectUri: window.location.origin + "/auth/google/callback",
+          timestamp: new Date().toISOString()
         };
         setDebugInfo(debug);
         console.log("Auth callback debug info:", debug);
         
-        if (errorMsg) {
-          setError(`Google returned an error: ${errorMsg}`);
+        if (errorCode) {
+          const errorMessage = parseOAuthError(errorCode);
+          setError(`Google authentication failed: ${errorMessage}`);
           setIsProcessing(false);
           return;
         }
         
         if (!code) {
-          setError("Authorization code not found");
+          setError("Authorization code not found in the callback URL");
           setIsProcessing(false);
           return;
         }
 
         // Exchange code for tokens
-        const tokens = await handleGoogleAuthCallback(code);
+        const tokens = await handleGoogleAuthCallback(code, state || undefined);
         
         if (!tokens) {
-          setError("Failed to authenticate with Google");
+          setError("Failed to exchange authorization code for tokens");
           setIsProcessing(false);
           return;
         }
@@ -60,7 +63,7 @@ const GoogleAuthCallback = () => {
         console.error("Error during auth callback:", error);
         const errorMessage = error instanceof Error 
           ? error.message 
-          : "Authentication failed";
+          : "Authentication failed for unknown reasons";
           
         setError(errorMessage);
         setIsProcessing(false);
@@ -99,6 +102,7 @@ const GoogleAuthCallback = () => {
               <li>• Make sure your Google project has OAuth configured properly</li>
               <li>• Check that <code>{window.location.origin}/auth/google/callback</code> is added as an authorized redirect URI in your Google console</li>
               <li>• Verify that your Google project has the Google Ads API enabled</li>
+              <li>• Ensure you're using a Google account with access to Google Ads</li>
             </ul>
             <a 
               href="https://console.cloud.google.com/apis/credentials" 
