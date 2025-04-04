@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,12 @@ import {
   Copy,
   CopyCheck
 } from "lucide-react";
-import { getGoogleAuthUrl, clearAuthTokens, getStoredAuthTokens } from "@/services/googleAdsService";
+import { 
+  getGoogleAuthUrl, 
+  clearAuthTokens, 
+  getStoredAuthTokens,
+  openGoogleAuthPopup
+} from "@/services/googleAdsService";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -44,6 +50,7 @@ export const GoogleAdsConnection = ({
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [showUriDialog, setShowUriDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [directUrl, setDirectUrl] = useState("");
   const exactRedirectUri = `${window.location.origin}/auth/google/callback`;
   
   useEffect(() => {
@@ -63,6 +70,14 @@ export const GoogleAdsConnection = ({
       console.log("Current origin:", window.location.origin);
       console.log("Redirect URI should be:", exactRedirectUri);
       
+      // Generate the OAuth URL and store it for direct access
+      try {
+        const url = getGoogleAuthUrl();
+        setDirectUrl(url);
+      } catch (error) {
+        console.error("Failed to generate OAuth URL:", error);
+      }
+      
       // Show the URI dialog before proceeding
       setShowUriDialog(true);
     } catch (error) {
@@ -77,16 +92,39 @@ export const GoogleAdsConnection = ({
     try {
       setShowUriDialog(false);
       
-      toast.info("Redirecting to Google OAuth...");
+      toast.info("Connecting to Google OAuth...");
       
-      // Redirect to Google OAuth flow
-      const authUrl = getGoogleAuthUrl();
-      window.location.href = authUrl;
+      // Try using popup approach first
+      const popup = openGoogleAuthPopup();
+      
+      if (!popup) {
+        // If popup fails, try direct navigation
+        window.location.href = getGoogleAuthUrl();
+      } else {
+        // Monitor the popup
+        const checkPopupClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkPopupClosed);
+            // Check if authentication succeeded by checking for tokens
+            const tokens = getStoredAuthTokens();
+            if (tokens?.access_token) {
+              toast.success("Successfully connected to Google Ads");
+              window.location.reload();
+            }
+          }
+        }, 500);
+      }
     } catch (error) {
-      console.error("Error redirecting to Google OAuth:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to redirect";
+      console.error("Error connecting to Google OAuth:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to connect";
       setConfigError(errorMessage);
       toast.error(errorMessage);
+    }
+  };
+  
+  const openDirectLink = () => {
+    if (directUrl) {
+      window.open(directUrl, "_blank");
     }
   };
   
@@ -145,7 +183,7 @@ export const GoogleAdsConnection = ({
                 <div className="p-3 bg-error-foreground/10 rounded-md">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="h-4 w-4 text-error" />
-                    <span className="font-medium text-sm">Configuration Error</span>
+                    <span className="font-medium text-sm">Connection Error</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {configError}
@@ -235,14 +273,25 @@ export const GoogleAdsConnection = ({
               </p>
             </div>
             
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={() => setShowUriDialog(false)}
-              >
-                Cancel
+            <div className="flex flex-col gap-3">
+              <Button onClick={proceedWithGoogleAuth}>
+                Continue with Popup
               </Button>
-              <div className="space-x-2">
+              
+              {directUrl && (
+                <Button variant="outline" onClick={openDirectLink}>
+                  Open in New Tab <ExternalLink className="ml-1 h-3 w-3" />
+                </Button>
+              )}
+              
+              <div className="flex justify-between mt-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowUriDialog(false)}
+                >
+                  Cancel
+                </Button>
+                
                 <a 
                   href="https://console.cloud.google.com/apis/credentials" 
                   target="_blank"
@@ -252,9 +301,6 @@ export const GoogleAdsConnection = ({
                     Google Console <ExternalLink className="ml-1 h-3 w-3" />
                   </Button>
                 </a>
-                <Button onClick={proceedWithGoogleAuth}>
-                  Continue
-                </Button>
               </div>
             </div>
           </div>

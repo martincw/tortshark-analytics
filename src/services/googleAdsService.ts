@@ -36,9 +36,11 @@ export const getGoogleAuthUrl = (): string => {
   // Add state parameter for CSRF protection and debugging
   const state = encodeURIComponent(JSON.stringify({
     timestamp: Date.now(),
-    origin: window.location.origin
+    origin: window.location.origin,
+    random: Math.random().toString(36).substring(2, 15)
   }));
   
+  // Use popup parameter to prevent issues with iframe blocking
   const url = `${GOOGLE_OAUTH_URL}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`;
   
   console.log("Generated OAuth URL:", url);
@@ -51,6 +53,34 @@ export const getGoogleAuthUrl = (): string => {
   });
 
   return url;
+};
+
+// Open Google OAuth in a popup window
+export const openGoogleAuthPopup = (): Window | null => {
+  try {
+    const url = getGoogleAuthUrl();
+    // Open popup with specific dimensions
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const popup = window.open(
+      url,
+      "googleAuthPopup",
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+    );
+    
+    if (!popup) {
+      console.error("Popup was blocked by the browser");
+      throw new Error("Popup was blocked. Please allow popups for this site.");
+    }
+    
+    return popup;
+  } catch (error) {
+    console.error("Error opening Google Auth popup:", error);
+    return null;
+  }
 };
 
 // Handle OAuth callback and exchange code for tokens

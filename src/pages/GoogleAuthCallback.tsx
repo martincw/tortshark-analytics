@@ -58,7 +58,16 @@ const GoogleAuthCallback = () => {
         storeAuthTokens(tokens);
         
         toast.success("Successfully connected to Google Ads");
-        navigate("/accounts");
+        
+        // Check if we were opened from a popup
+        if (window.opener && !window.opener.closed) {
+          // We're in a popup, so message the parent and close
+          window.opener.postMessage({ type: "GOOGLE_AUTH_SUCCESS" }, "*");
+          window.close();
+        } else {
+          // Normal navigation
+          navigate("/accounts");
+        }
       } catch (error) {
         console.error("Error during auth callback:", error);
         const errorMessage = error instanceof Error 
@@ -72,6 +81,18 @@ const GoogleAuthCallback = () => {
 
     processAuth();
   }, [location.search, navigate]);
+
+  useEffect(() => {
+    // Add event listener to handle when popup is closed
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.data.type === "GOOGLE_AUTH_SUCCESS") {
+        window.location.reload();
+      }
+    };
+    
+    window.addEventListener("message", handleAuthMessage);
+    return () => window.removeEventListener("message", handleAuthMessage);
+  }, []);
 
   const handleContinue = () => {
     if (error) {
