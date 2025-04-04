@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckCircle, Link, AlertCircle, PlusCircle } from "lucide-react";
+import { CheckCircle, Link, AlertCircle, PlusCircle, ExternalLink } from "lucide-react";
 import { getGoogleAuthUrl, clearAuthTokens, getStoredAuthTokens } from "@/services/googleAdsService";
 import { toast } from "sonner";
 
@@ -33,11 +33,33 @@ export const GoogleAdsConnection = ({
   isLoading,
 }: GoogleAdsConnectionProps) => {
   const [configError, setConfigError] = useState<string | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  
+  useEffect(() => {
+    // Check URL for error parameters that might indicate OAuth issues
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error) {
+      setConfigError(`OAuth error: ${error}`);
+      toast.error(`Google OAuth error: ${error}`);
+    }
+  }, []);
   
   const handleConnectGoogle = () => {
     try {
+      // Log the current origin for debugging purposes
+      console.log("Current origin:", window.location.origin);
+      console.log("Redirect URI should be:", `${window.location.origin}/auth/google/callback`);
+      
+      // Important: Make sure this matches EXACTLY with what's configured in the Google Cloud Console
+      toast.info("Redirecting to Google OAuth...", {
+        description: "Please make sure your Google Cloud project has the correct redirect URI configured."
+      });
+      
       // Redirect to Google OAuth flow
-      window.location.href = getGoogleAuthUrl();
+      const authUrl = getGoogleAuthUrl();
+      window.location.href = authUrl;
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
       const errorMessage = error instanceof Error ? error.message : "Connection failed";
@@ -95,8 +117,34 @@ export const GoogleAdsConnection = ({
                   <span className="font-medium text-sm">Configuration Error</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {configError}. Check your environment variables.
+                  {configError}
                 </p>
+                <div className="mt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowDebugInfo(!showDebugInfo)}
+                    className="text-xs"
+                  >
+                    {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
+                  </Button>
+                </div>
+                
+                {showDebugInfo && (
+                  <div className="mt-2 p-2 bg-secondary/30 rounded border text-xs font-mono whitespace-pre-wrap">
+                    <p>Current Origin: {window.location.origin}</p>
+                    <p>Required Redirect URI: {window.location.origin}/auth/google/callback</p>
+                  </div>
+                )}
+                
+                <a 
+                  href="https://console.cloud.google.com/apis/credentials" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-500 text-xs flex items-center gap-1 mt-2"
+                >
+                  Go to Google API Console <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
             )}
             
