@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -7,6 +7,8 @@ import { AccountConnection } from "@/types/campaign";
 import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError } from "@/services/googleAdsService";
 import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AccountsPage = () => {
   const { 
@@ -18,8 +20,9 @@ const AccountsPage = () => {
   
   const navigate = useNavigate();
   const location = useLocation();
-  const [newAccountName, setNewAccountName] = React.useState("");
-  const [newAccountPlatform, setNewAccountPlatform] = React.useState<"google" | "youtube">("google");
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountPlatform, setNewAccountPlatform] = useState<"google" | "youtube">("google");
+  const [oauthError, setOauthError] = useState<string | null>(null);
   
   // Check if we have stored tokens
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
@@ -31,19 +34,27 @@ const AccountsPage = () => {
     
     if (error) {
       const errorMessage = parseOAuthError(error);
+      setOauthError(`${error}: ${errorMessage}`);
       toast.error(`Google OAuth Error: ${errorMessage}`);
       
-      // Clean up the URL to remove error parameters
-      navigate('/accounts', { replace: true });
+      // Clean up the URL to remove error parameters after a delay
+      setTimeout(() => {
+        navigate('/accounts', { replace: true });
+      }, 500);
     }
   }, [location, navigate]);
   
   const handleConnectGoogle = () => {
     try {
+      // Clear any previous errors
+      setOauthError(null);
+      
       // Redirect to Google OAuth flow
       window.location.href = getGoogleAuthUrl();
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setOauthError(errorMessage);
       toast.error("Failed to connect to Google. You can still create campaigns manually.");
     }
   };
@@ -90,6 +101,16 @@ const AccountsPage = () => {
       <p className="text-muted-foreground">
         Connect your ad accounts or create campaigns manually
       </p>
+      
+      {oauthError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Error</AlertTitle>
+          <AlertDescription>
+            {oauthError}. Please check your Google Cloud Console settings and try again.
+          </AlertDescription>
+        </Alert>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <GoogleAdsConnection

@@ -1,8 +1,8 @@
-
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
-const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords.readonly";
+// Updated to use the correct scope for Google Ads API
+const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const GOOGLE_ADS_API_BASE_URL = "https://googleads.googleapis.com";
 const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
@@ -167,11 +167,25 @@ export const fetchGoogleAdsAccounts = async (
     // In a real implementation, this would call the Google Ads API
     console.log("Fetching Google Ads accounts with token:", accessToken);
     
-    // Return mock accounts for demonstration purposes
+    // Return multiple mock accounts for demonstration purposes
     return [
       {
         id: "ga-" + Date.now(),
         name: "Demo Google Ads Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      },
+      {
+        id: "ga-" + (Date.now() + 1),
+        name: "Secondary Google Ads Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      },
+      {
+        id: "ga-" + (Date.now() + 2),
+        name: "Marketing Campaign Account",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
