@@ -110,11 +110,18 @@ export const handleGoogleAuthCallback = async (
     // Simulating token exchange - in production this would be a backend endpoint
     console.log("Exchanging auth code for tokens", code);
     
-    // Mock tokens and mock accounts
+    // Mock tokens and mock accounts - in a real implementation these would come from the API
     const mockAccounts: AccountConnection[] = [
       {
-        id: "ga-" + Date.now(),
+        id: "ga-" + Date.now().toString(),
         name: "Demo Google Ads Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      },
+      {
+        id: "ga-" + (Date.now() + 1).toString(),
+        name: "Another Google Ads Account",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()

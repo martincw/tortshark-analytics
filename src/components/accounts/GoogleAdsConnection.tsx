@@ -60,7 +60,14 @@ export const GoogleAdsConnection = ({
     
     if (error) {
       setConfigError(`OAuth error: ${error}`);
-      toast.error(`Google OAuth error: ${error}`);
+      
+      // If it's a redirect_uri_mismatch, show the URI dialog automatically
+      if (error === 'redirect_uri_mismatch') {
+        setShowUriDialog(true);
+        toast.error("Redirect URI mismatch detected. Please update your Google Cloud Console settings.");
+      } else {
+        toast.error(`Google OAuth error: ${error}`);
+      }
     }
   }, []);
   
@@ -78,7 +85,7 @@ export const GoogleAdsConnection = ({
         console.error("Failed to generate OAuth URL:", error);
       }
       
-      // Show the URI dialog before proceeding
+      // Always show the URI dialog first before proceeding with authentication
       setShowUriDialog(true);
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
@@ -197,6 +204,14 @@ export const GoogleAdsConnection = ({
                     >
                       {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowUriDialog(true)}
+                      className="text-xs ml-2"
+                    >
+                      Show Redirect URI
+                    </Button>
                   </div>
                   
                   {showDebugInfo && (
@@ -245,63 +260,49 @@ export const GoogleAdsConnection = ({
       <Dialog open={showUriDialog} onOpenChange={setShowUriDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Configure Google OAuth Redirect</DialogTitle>
+            <DialogTitle>Fix Redirect URI Mismatch Error</DialogTitle>
             <DialogDescription>
-              Before continuing, please make sure the following exact URI is added to your Google Cloud Console as an Authorized Redirect URI.
+              The "redirect_uri_mismatch" error means the URI in your Google Cloud Console doesn't exactly match what this app is using. Follow these steps to fix it:
             </DialogDescription>
           </DialogHeader>
           
-          <div className="p-4 border rounded-md bg-secondary/10 mt-2">
-            <div className="flex items-center justify-between">
-              <code className="text-sm font-mono break-all">{exactRedirectUri}</code>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={copyToClipboard}
-                className="ml-2"
-              >
-                {copied ? <CopyCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          
-          <div className="space-y-4 mt-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
-              <p className="text-sm text-muted-foreground">
-                This must match <strong>EXACTLY</strong> in your Google Cloud Console. Even a trailing slash difference will cause a 403 error.
-              </p>
+          <div className="space-y-4 mt-2">
+            <div className="bg-warning-foreground/10 p-4 rounded-md border border-warning-DEFAULT">
+              <h3 className="text-sm font-medium mb-2">Copy this exact Redirect URI:</h3>
+              <div className="bg-background p-3 rounded-md flex items-center justify-between">
+                <code className="text-sm font-mono break-all">{exactRedirectUri}</code>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={copyToClipboard}
+                  className="ml-2"
+                >
+                  {copied ? <CopyCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             
-            <div className="flex flex-col gap-3">
-              <Button onClick={proceedWithGoogleAuth}>
-                Continue with Popup
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">To fix this error:</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm">
+                <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-500">Google Cloud Console</a></li>
+                <li>Find and select your OAuth 2.0 Client ID</li>
+                <li>Under "Authorized redirect URIs," add the exact URI above (it must match character-for-character)</li>
+                <li>Click Save, then wait a few minutes for Google to process the change</li>
+                <li>Try connecting again</li>
+              </ol>
+            </div>
+            
+            <div className="pt-4 space-y-3">
+              <Button onClick={proceedWithGoogleAuth} className="w-full">
+                Try Connecting Again
               </Button>
               
               {directUrl && (
-                <Button variant="outline" onClick={openDirectLink}>
-                  Open in New Tab <ExternalLink className="ml-1 h-3 w-3" />
+                <Button variant="outline" onClick={openDirectLink} className="w-full">
+                  Open Auth URL Directly <ExternalLink className="ml-1 h-3 w-3" />
                 </Button>
               )}
-              
-              <div className="flex justify-between mt-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowUriDialog(false)}
-                >
-                  Cancel
-                </Button>
-                
-                <a 
-                  href="https://console.cloud.google.com/apis/credentials" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="outline">
-                    Google Console <ExternalLink className="ml-1 h-3 w-3" />
-                  </Button>
-                </a>
-              </div>
             </div>
           </div>
         </DialogContent>

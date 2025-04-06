@@ -42,6 +42,19 @@ const GoogleAuthCallback = () => {
           const errorMessage = parseOAuthError(errorParam);
           setError(`Google authentication failed: ${errorMessage}`);
           setIsProcessing(false);
+          
+          // If we're in a popup and there's an error, try to communicate with parent
+          if (window.opener && !window.opener.closed) {
+            try {
+              window.opener.postMessage({ 
+                type: "GOOGLE_AUTH_ERROR", 
+                error: errorParam 
+              }, "*");
+            } catch (e) {
+              console.error("Failed to communicate with parent window:", e);
+            }
+          }
+          
           return;
         }
         
@@ -72,6 +85,7 @@ const GoogleAuthCallback = () => {
         } else {
           // If no accounts were returned, create a default one
           const defaultAccount = {
+            id: "ga-" + Date.now(),
             name: "Google Ads Account",
             platform: "google" as const,
             isConnected: true,
@@ -131,6 +145,11 @@ const GoogleAuthCallback = () => {
     });
   };
 
+  const handleRetryAuth = () => {
+    // Redirect back to accounts page which will start the OAuth flow again
+    navigate("/accounts");
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       {isProcessing ? (
@@ -178,6 +197,13 @@ const GoogleAuthCallback = () => {
                   <li>Add or update the redirect URI to match exactly</li>
                   <li>Save your changes and try again</li>
                 </ol>
+                
+                <Button
+                  className="mt-4 w-full"
+                  onClick={handleRetryAuth}
+                >
+                  Try Again
+                </Button>
               </div>
             </div>
           )}

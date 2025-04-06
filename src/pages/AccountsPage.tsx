@@ -1,10 +1,10 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
-import { getStoredAuthTokens, getGoogleAuthUrl } from "@/services/googleAdsService";
+import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError } from "@/services/googleAdsService";
 import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 
@@ -17,11 +17,26 @@ const AccountsPage = () => {
   } = useCampaign();
   
   const navigate = useNavigate();
+  const location = useLocation();
   const [newAccountName, setNewAccountName] = React.useState("");
   const [newAccountPlatform, setNewAccountPlatform] = React.useState<"google" | "youtube">("google");
   
   // Check if we have stored tokens
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
+  
+  useEffect(() => {
+    // Check for error in URL parameters (e.g., after redirect from Google)
+    const params = new URLSearchParams(location.search);
+    const error = params.get('error');
+    
+    if (error) {
+      const errorMessage = parseOAuthError(error);
+      toast.error(`Google OAuth Error: ${errorMessage}`);
+      
+      // Clean up the URL to remove error parameters
+      navigate('/accounts', { replace: true });
+    }
+  }, [location, navigate]);
   
   const handleConnectGoogle = () => {
     try {
