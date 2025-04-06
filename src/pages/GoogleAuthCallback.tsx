@@ -5,6 +5,7 @@ import { handleGoogleAuthCallback, storeAuthTokens, parseOAuthError } from "@/se
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ExternalLink } from "lucide-react";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 const GoogleAuthCallback = () => {
   const [isProcessing, setIsProcessing] = useState(true);
@@ -12,6 +13,7 @@ const GoogleAuthCallback = () => {
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
   const navigate = useNavigate();
   const location = useLocation();
+  const { addAccountConnection } = useCampaign();
 
   useEffect(() => {
     const processAuth = async () => {
@@ -57,7 +59,23 @@ const GoogleAuthCallback = () => {
         // Store tokens securely
         storeAuthTokens(tokens);
         
-        toast.success("Successfully connected to Google Ads");
+        // Add any returned accounts to the account connections
+        if (tokens.accounts && tokens.accounts.length > 0) {
+          tokens.accounts.forEach(account => {
+            addAccountConnection(account);
+          });
+          toast.success(`Connected to ${tokens.accounts.length} Google Ads account(s)`);
+        } else {
+          // If no accounts were returned, create a default one
+          const defaultAccount = {
+            name: "Google Ads Account",
+            platform: "google" as const,
+            isConnected: true,
+            lastSynced: new Date().toISOString()
+          };
+          addAccountConnection(defaultAccount);
+          toast.success("Successfully connected to Google Ads");
+        }
         
         // Check if we were opened from a popup
         if (window.opener && !window.opener.closed) {
@@ -80,7 +98,7 @@ const GoogleAuthCallback = () => {
     };
 
     processAuth();
-  }, [location.search, navigate]);
+  }, [location.search, navigate, addAccountConnection]);
 
   useEffect(() => {
     // Add event listener to handle when popup is closed
@@ -124,6 +142,7 @@ const GoogleAuthCallback = () => {
               <li>• Check that <code>{window.location.origin}/auth/google/callback</code> is added as an authorized redirect URI in your Google console</li>
               <li>• Verify that your Google project has the Google Ads API enabled</li>
               <li>• Ensure you're using a Google account with access to Google Ads</li>
+              <li>• Confirm that you've selected the read-only scope for Google Ads API</li>
             </ul>
             <a 
               href="https://console.cloud.google.com/apis/credentials" 

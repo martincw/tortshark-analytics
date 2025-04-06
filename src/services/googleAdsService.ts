@@ -2,7 +2,7 @@
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
-const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
+const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords.readonly";
 const GOOGLE_ADS_API_BASE_URL = "https://googleads.googleapis.com";
 const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
@@ -87,7 +87,7 @@ export const openGoogleAuthPopup = (): Window | null => {
 export const handleGoogleAuthCallback = async (
   code: string,
   state?: string
-): Promise<{ access_token: string; refresh_token: string } | null> => {
+): Promise<{ access_token: string; refresh_token: string; accounts?: AccountConnection[] } | null> => {
   try {
     console.log("Attempting to exchange code for tokens");
     console.log("Code received:", code.substring(0, 10) + "...");
@@ -110,11 +110,23 @@ export const handleGoogleAuthCallback = async (
     // Simulating token exchange - in production this would be a backend endpoint
     console.log("Exchanging auth code for tokens", code);
     
+    // Mock tokens and mock accounts
+    const mockAccounts: AccountConnection[] = [
+      {
+        id: "ga-" + Date.now(),
+        name: "Demo Google Ads Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      }
+    ];
+    
     // Return mock tokens for now - this would typically come from a backend service
-    // that handles the OAuth token exchange securely
+    // that handles the OAuth token exchange securely, also include mock accounts
     return {
       access_token: "mock_access_token_" + Date.now(),
-      refresh_token: "mock_refresh_token_" + Date.now()
+      refresh_token: "mock_refresh_token_" + Date.now(),
+      accounts: mockAccounts
     };
   } catch (error) {
     console.error("Error exchanging code for tokens:", error);
@@ -148,8 +160,16 @@ export const fetchGoogleAdsAccounts = async (
     // In a real implementation, this would call the Google Ads API
     console.log("Fetching Google Ads accounts with token:", accessToken);
     
-    // Return empty array for now - would be populated from API response
-    return [];
+    // Return mock accounts for demonstration purposes
+    return [
+      {
+        id: "ga-" + Date.now(),
+        name: "Demo Google Ads Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      }
+    ];
   } catch (error) {
     console.error("Error fetching Google Ads accounts:", error);
     return [];
@@ -198,6 +218,7 @@ export const storeAuthTokens = (tokens: {
   access_token: string; 
   refresh_token: string;
   accountId?: string;
+  accounts?: AccountConnection[];
 }) => {
   localStorage.setItem("googleAdsTokens", JSON.stringify(tokens));
 };
