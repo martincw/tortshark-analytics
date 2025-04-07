@@ -23,6 +23,7 @@ const AccountsPage = () => {
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountPlatform, setNewAccountPlatform] = useState<"google" | "youtube">("google");
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [authSuccess, setAuthSuccess] = useState(false);
   
   // Check if we have stored tokens
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
@@ -43,6 +44,35 @@ const AccountsPage = () => {
       }, 500);
     }
   }, [location, navigate]);
+  
+  // Listen for auth success events
+  useEffect(() => {
+    const handleAuthSuccess = (event: CustomEvent) => {
+      console.log("Auth success event received", event.detail);
+      setAuthSuccess(true);
+      
+      // If there are accounts in the event, add them
+      if (event.detail?.accounts && Array.isArray(event.detail.accounts)) {
+        event.detail.accounts.forEach((account: AccountConnection) => {
+          addAccountConnection(account);
+        });
+        toast.success(`Connected to ${event.detail.accounts.length} Google Ads account(s)`);
+      } else {
+        // If no accounts were found, show different success message
+        toast.success("Successfully connected to Google Ads");
+      }
+      
+      // Reset success state after a delay
+      setTimeout(() => setAuthSuccess(false), 3000);
+    };
+    
+    // Type assertion to handle CustomEvent
+    window.addEventListener('googleAuthSuccess', handleAuthSuccess as EventListener);
+    
+    return () => {
+      window.removeEventListener('googleAuthSuccess', handleAuthSuccess as EventListener);
+    };
+  }, [addAccountConnection]);
   
   const handleConnectGoogle = () => {
     try {
@@ -101,6 +131,16 @@ const AccountsPage = () => {
       <p className="text-muted-foreground">
         Connect your ad accounts or create campaigns manually
       </p>
+      
+      {authSuccess && (
+        <Alert className="bg-success-foreground/10 border-success-DEFAULT">
+          <CheckCircle className="h-4 w-4 text-success-DEFAULT" />
+          <AlertTitle>Authentication Successful</AlertTitle>
+          <AlertDescription>
+            Your Google Ads account has been connected successfully.
+          </AlertDescription>
+        </Alert>
+      )}
       
       {oauthError && (
         <Alert variant="destructive">

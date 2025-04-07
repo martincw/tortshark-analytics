@@ -4,12 +4,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { handleGoogleAuthCallback, storeAuthTokens, parseOAuthError } from "@/services/googleAdsService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ExternalLink, Copy, CopyCheck } from "lucide-react";
+import { AlertCircle, ExternalLink, Copy, CopyCheck, CheckCircle } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 
 const GoogleAuthCallback = () => {
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
   const [copied, setCopied] = useState(false);
@@ -75,13 +76,14 @@ const GoogleAuthCallback = () => {
 
         // Store tokens securely
         storeAuthTokens(tokens);
+        setSuccess(true);
         
         // Add any returned accounts to the account connections
         if (tokens.accounts && tokens.accounts.length > 0) {
           tokens.accounts.forEach(account => {
             addAccountConnection(account);
           });
-          toast.success(`Connected to ${tokens.accounts.length} Google Ads account(s)`);
+          console.log(`Added ${tokens.accounts.length} accounts from authentication`);
         } else {
           // If no accounts were returned, create a default one
           const defaultAccount = {
@@ -92,18 +94,31 @@ const GoogleAuthCallback = () => {
             lastSynced: new Date().toISOString()
           };
           addAccountConnection(defaultAccount);
-          toast.success("Successfully connected to Google Ads");
+          console.log("Added default account since no accounts were returned");
         }
         
         // Check if we were opened from a popup
         if (window.opener && !window.opener.closed) {
           // We're in a popup, so message the parent and close
-          window.opener.postMessage({ type: "GOOGLE_AUTH_SUCCESS" }, "*");
-          window.close();
+          try {
+            window.opener.postMessage({ 
+              type: "GOOGLE_AUTH_SUCCESS",
+              accounts: tokens.accounts || []
+            }, "*");
+            console.log("Sent success message to parent window");
+            // Close after a short delay to make sure the message is sent
+            setTimeout(() => window.close(), 1000);
+          } catch (e) {
+            console.error("Failed to communicate with parent window:", e);
+          }
         } else {
-          // Normal navigation
-          navigate("/accounts");
+          // Normal navigation - delay to show success message
+          setTimeout(() => {
+            navigate("/accounts");
+          }, 2000);
         }
+        
+        setIsProcessing(false);
       } catch (error) {
         console.error("Error during auth callback:", error);
         const errorMessage = error instanceof Error 
@@ -158,6 +173,20 @@ const GoogleAuthCallback = () => {
           <h1 className="text-2xl font-bold">Processing Google Authentication</h1>
           <p className="text-muted-foreground mt-2">Please wait while we connect your account...</p>
         </>
+      ) : success ? (
+        <div className="w-full max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg space-y-4 text-center">
+          <div className="flex items-center justify-center mb-4">
+            <CheckCircle className="h-16 w-16 text-success-DEFAULT" />
+          </div>
+          <h1 className="text-2xl font-bold">Authentication Successful!</h1>
+          <p className="text-muted-foreground mt-2">Your Google Ads account has been connected successfully.</p>
+          <Button 
+            onClick={() => navigate("/accounts")} 
+            className="w-full mt-4"
+          >
+            Go to Accounts Page
+          </Button>
+        </div>
       ) : error ? (
         <div className="w-full max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg space-y-4">
           <div className="flex items-center gap-2 text-error-DEFAULT">
@@ -215,7 +244,7 @@ const GoogleAuthCallback = () => {
               <li>• Check that <code>{exactRedirectUri}</code> is added as an authorized redirect URI in your Google console</li>
               <li>• Verify that your Google project has the Google Ads API enabled</li>
               <li>• Ensure you're using a Google account with access to Google Ads</li>
-              <li>• Confirm that you've selected the read-only scope for Google Ads API</li>
+              <li>• Confirm that you've selected the correct scope for Google Ads API</li>
             </ul>
             <a 
               href="https://console.cloud.google.com/apis/credentials" 

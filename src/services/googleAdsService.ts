@@ -1,3 +1,4 @@
+
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
@@ -241,7 +242,17 @@ export const storeAuthTokens = (tokens: {
   accountId?: string;
   accounts?: AccountConnection[];
 }) => {
-  localStorage.setItem("googleAdsTokens", JSON.stringify(tokens));
+  const storageItem = {
+    ...tokens,
+    timestamp: Date.now(), // Add timestamp for checking token freshness
+  };
+  
+  localStorage.setItem("googleAdsTokens", JSON.stringify(storageItem));
+  
+  // Dispatch a custom event that we can listen for in other components
+  window.dispatchEvent(new CustomEvent('googleAuthSuccess', { 
+    detail: { accounts: tokens.accounts }
+  }));
 };
 
 // Retrieve stored auth tokens
@@ -260,4 +271,6 @@ export const isPlatformConnected = (platform: string = "any"): boolean => {
 // Clear stored auth tokens (for logout)
 export const clearAuthTokens = () => {
   localStorage.removeItem("googleAdsTokens");
+  // Dispatch event to update UI
+  window.dispatchEvent(new CustomEvent('googleAuthLogout'));
 };

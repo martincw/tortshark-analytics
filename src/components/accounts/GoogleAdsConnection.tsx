@@ -51,6 +51,7 @@ export const GoogleAdsConnection = ({
   const [showUriDialog, setShowUriDialog] = useState(false);
   const [copied, setCopied] = useState(false);
   const [directUrl, setDirectUrl] = useState("");
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const exactRedirectUri = `${window.location.origin}/auth/google/callback`;
   
   useEffect(() => {
@@ -69,6 +70,40 @@ export const GoogleAdsConnection = ({
         toast.error(`Google OAuth error: ${error}`);
       }
     }
+  }, []);
+  
+  // Listen for auth events from popup windows
+  useEffect(() => {
+    const handleAuthMessage = (event: MessageEvent) => {
+      console.log("Received message from popup:", event.data);
+      
+      if (event.data.type === "GOOGLE_AUTH_SUCCESS") {
+        console.log("Auth success event from popup");
+        setIsAuthenticating(false);
+        toast.success("Successfully connected to Google Ads");
+        
+        // Trigger a page reload to refresh the UI
+        setTimeout(() => window.location.reload(), 1000);
+      } else if (event.data.type === "GOOGLE_AUTH_ERROR") {
+        setIsAuthenticating(false);
+        toast.error(`Authentication error: ${event.data.error || "Unknown error"}`);
+      }
+    };
+    
+    window.addEventListener("message", handleAuthMessage);
+    return () => window.removeEventListener("message", handleAuthMessage);
+  }, []);
+  
+  // Also listen for the custom event from tokens being stored
+  useEffect(() => {
+    const handleAuthSuccess = () => {
+      console.log("Auth success event from storage");
+      setIsAuthenticating(false);
+      // No toast here as it will be handled by the AccountsPage component
+    };
+    
+    window.addEventListener('googleAuthSuccess', handleAuthSuccess);
+    return () => window.removeEventListener('googleAuthSuccess', handleAuthSuccess);
   }, []);
   
   const handleConnectGoogle = () => {
@@ -98,6 +133,7 @@ export const GoogleAdsConnection = ({
   const proceedWithGoogleAuth = () => {
     try {
       setShowUriDialog(false);
+      setIsAuthenticating(true);
       
       toast.info("Connecting to Google OAuth...");
       
@@ -109,23 +145,40 @@ export const GoogleAdsConnection = ({
         window.location.href = getGoogleAuthUrl();
       } else {
         // Monitor the popup
-        const checkPopupClosed = setInterval(() => {
+        let popupCheckInterval: number | null = window.setInterval(() => {
           if (popup.closed) {
-            clearInterval(checkPopupClosed);
+            if (popupCheckInterval) {
+              window.clearInterval(popupCheckInterval);
+              popupCheckInterval = null;
+            }
+            
             // Check if authentication succeeded by checking for tokens
             const tokens = getStoredAuthTokens();
             if (tokens?.access_token) {
+              setIsAuthenticating(false);
               toast.success("Successfully connected to Google Ads");
               window.location.reload();
+            } else {
+              setIsAuthenticating(false);
+              toast.error("Authentication was not completed");
             }
           }
         }, 500);
+        
+        // Set a timeout to clear interval if popup stays open too long
+        setTimeout(() => {
+          if (popupCheckInterval) {
+            window.clearInterval(popupCheckInterval);
+            setIsAuthenticating(false);
+          }
+        }, 120000); // 2 minute timeout
       }
     } catch (error) {
       console.error("Error connecting to Google OAuth:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to connect";
       setConfigError(errorMessage);
       toast.error(errorMessage);
+      setIsAuthenticating(false);
     }
   };
   
@@ -181,9 +234,19 @@ export const GoogleAdsConnection = ({
               <Button 
                 onClick={handleConnectGoogle} 
                 className="w-full"
+                disabled={isAuthenticating}
               >
-                <Link className="mr-2 h-4 w-4" />
-                Connect Google Ads
+                {isAuthenticating ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <Link className="mr-2 h-4 w-4" />
+                    Connect Google Ads
+                  </>
+                )}
               </Button>
               
               {configError && (
