@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { handleGoogleAuthCallback, storeAuthTokens, parseOAuthError } from "@/services/googleAdsService";
@@ -14,6 +13,7 @@ const GoogleAuthCallback = () => {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
   const [copied, setCopied] = useState(false);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const { addAccountConnection } = useCampaign();
@@ -76,26 +76,33 @@ const GoogleAuthCallback = () => {
 
         // Store tokens securely
         storeAuthTokens(tokens);
-        setSuccess(true);
         
-        // Add any returned accounts to the account connections
         if (tokens.accounts && tokens.accounts.length > 0) {
+          setAccounts(tokens.accounts);
+          
+          // Add returned accounts to context
           tokens.accounts.forEach(account => {
             addAccountConnection(account);
           });
-          console.log(`Added ${tokens.accounts.length} accounts from authentication`);
+          
+          console.log(`Added ${tokens.accounts.length} Google Ads accounts`);
+          toast.success(`Found ${tokens.accounts.length} Google Ads accounts`);
         } else {
-          // If no accounts were returned, create a default one
+          console.warn("No Google Ads accounts were returned");
+          toast.warning("No Google Ads accounts were found");
+          
+          // Create a default account as fallback
           const defaultAccount = {
             id: "ga-" + Date.now(),
-            name: "Google Ads Account",
+            name: "Default Google Ads Account",
             platform: "google" as const,
             isConnected: true,
             lastSynced: new Date().toISOString()
           };
           addAccountConnection(defaultAccount);
-          console.log("Added default account since no accounts were returned");
         }
+        
+        setSuccess(true);
         
         // Check if we were opened from a popup
         if (window.opener && !window.opener.closed) {
@@ -105,7 +112,7 @@ const GoogleAuthCallback = () => {
               type: "GOOGLE_AUTH_SUCCESS",
               accounts: tokens.accounts || []
             }, "*");
-            console.log("Sent success message to parent window");
+            console.log("Sent success message to parent window with accounts:", tokens.accounts);
             // Close after a short delay to make sure the message is sent
             setTimeout(() => window.close(), 1000);
           } catch (e) {
@@ -137,6 +144,10 @@ const GoogleAuthCallback = () => {
     // Add event listener to handle when popup is closed
     const handleAuthMessage = (event: MessageEvent) => {
       if (event.data.type === "GOOGLE_AUTH_SUCCESS") {
+        console.log("Received auth success message with accounts:", event.data.accounts);
+        if (event.data.accounts) {
+          setAccounts(event.data.accounts);
+        }
         window.location.reload();
       }
     };
@@ -179,7 +190,28 @@ const GoogleAuthCallback = () => {
             <CheckCircle className="h-16 w-16 text-success-DEFAULT" />
           </div>
           <h1 className="text-2xl font-bold">Authentication Successful!</h1>
-          <p className="text-muted-foreground mt-2">Your Google Ads account has been connected successfully.</p>
+          <p className="text-muted-foreground mt-2">
+            Your Google Ads account has been connected successfully.
+          </p>
+          
+          {accounts.length > 0 ? (
+            <div className="mt-4 p-4 bg-secondary/20 rounded-md text-left">
+              <h3 className="font-medium text-sm mb-2">Connected Accounts ({accounts.length}):</h3>
+              <ul className="space-y-2">
+                {accounts.map((account, index) => (
+                  <li key={account.id} className="text-sm flex items-center">
+                    <CheckCircle className="h-3 w-3 mr-2 text-success-DEFAULT" />
+                    {account.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-warning-foreground text-sm mt-2">
+              No Google Ads accounts were found
+            </p>
+          )}
+          
           <Button 
             onClick={() => navigate("/accounts")} 
             className="w-full mt-4"

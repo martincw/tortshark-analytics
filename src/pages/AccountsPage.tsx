@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
-import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError } from "@/services/googleAdsService";
+import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError, getStoredAccounts } from "@/services/googleAdsService";
 import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { AlertCircle, CheckCircle } from "lucide-react";
@@ -25,8 +26,29 @@ const AccountsPage = () => {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [googleAccounts, setGoogleAccounts] = useState<AccountConnection[]>([]);
   
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
+  
+  // Check for stored Google accounts on load
+  useEffect(() => {
+    if (isAuthenticated) {
+      const accounts = getStoredAccounts();
+      setGoogleAccounts(accounts);
+      
+      // Import any Google accounts that aren't already in our account connections
+      if (accounts.length > 0) {
+        accounts.forEach(account => {
+          const exists = accountConnections.some(ac => ac.id === account.id);
+          if (!exists) {
+            addAccountConnection(account);
+          }
+        });
+        
+        toast.success(`Found ${accounts.length} Google Ads accounts`);
+      }
+    }
+  }, [isAuthenticated, addAccountConnection, accountConnections]);
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -49,18 +71,30 @@ const AccountsPage = () => {
       setAuthSuccess(true);
       
       if (event.detail?.accounts && Array.isArray(event.detail.accounts)) {
-        event.detail.accounts.forEach((account: AccountConnection) => {
-          addAccountConnection(account);
+        const newAccounts = event.detail.accounts;
+        setGoogleAccounts(newAccounts);
+        
+        // Add any new accounts to our context
+        newAccounts.forEach((account: AccountConnection) => {
+          const exists = accountConnections.some(ac => ac.id === account.id);
+          if (!exists) {
+            addAccountConnection(account);
+          }
         });
         
         // If accounts were found, select the first one
-        if (event.detail.accounts.length > 0) {
-          setSelectedAccountId(event.detail.accounts[0].id);
+        if (newAccounts.length > 0) {
+          setSelectedAccountId(newAccounts[0].id);
         }
         
-        toast.success(`Connected to ${event.detail.accounts.length} Google Ads account(s)`);
+        toast.success(`Connected to ${newAccounts.length} Google Ads account(s)`);
       } else {
         toast.success("Successfully connected to Google Ads");
+        // Check again for stored accounts
+        const storedAccounts = getStoredAccounts();
+        if (storedAccounts.length > 0) {
+          setGoogleAccounts(storedAccounts);
+        }
       }
       
       setTimeout(() => setAuthSuccess(false), 3000);
@@ -71,7 +105,7 @@ const AccountsPage = () => {
     return () => {
       window.removeEventListener('googleAuthSuccess', handleAuthSuccess as EventListener);
     };
-  }, [addAccountConnection]);
+  }, [accountConnections, addAccountConnection]);
   
   const handleConnectGoogle = () => {
     try {
@@ -128,7 +162,8 @@ const AccountsPage = () => {
 
   const handleSelectAccount = (accountId: string) => {
     setSelectedAccountId(accountId);
-    toast.info(`Account selected: ${accountConnections.find(acc => acc.id === accountId)?.name}`);
+    const accountName = accountConnections.find(acc => acc.id === accountId)?.name;
+    toast.info(`Account selected: ${accountName}`);
   };
 
   return (
@@ -144,6 +179,7 @@ const AccountsPage = () => {
           <AlertTitle>Authentication Successful</AlertTitle>
           <AlertDescription>
             Your Google Ads account has been connected successfully.
+            {googleAccounts.length > 0 && ` ${googleAccounts.length} account(s) found.`}
           </AlertDescription>
         </Alert>
       )}

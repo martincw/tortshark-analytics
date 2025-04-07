@@ -1,4 +1,3 @@
-
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
@@ -106,31 +105,13 @@ export const handleGoogleAuthCallback = async (
     }
     
     // In a real implementation, this would make a server call to exchange the code
-    // for tokens, as client secret should never be exposed in the frontend
-    
-    // Simulating token exchange - in production this would be a backend endpoint
+    // Simulating token exchange and account fetch
     console.log("Exchanging auth code for tokens", code);
     
-    // Mock tokens and mock accounts - in a real implementation these would come from the API
-    const mockAccounts: AccountConnection[] = [
-      {
-        id: "ga-" + Date.now().toString(),
-        name: "Demo Google Ads Account",
-        platform: "google",
-        isConnected: true,
-        lastSynced: new Date().toISOString()
-      },
-      {
-        id: "ga-" + (Date.now() + 1).toString(),
-        name: "Another Google Ads Account",
-        platform: "google",
-        isConnected: true,
-        lastSynced: new Date().toISOString()
-      }
-    ];
+    // After getting the token, fetch the accounts
+    const mockAccounts = await fetchGoogleAdsAccounts("mock_access_token");
     
-    // Return mock tokens for now - this would typically come from a backend service
-    // that handles the OAuth token exchange securely, also include mock accounts
+    // Return mock tokens and accounts
     return {
       access_token: "mock_access_token_" + Date.now(),
       refresh_token: "mock_refresh_token_" + Date.now(),
@@ -168,24 +149,27 @@ export const fetchGoogleAdsAccounts = async (
     // In a real implementation, this would call the Google Ads API
     console.log("Fetching Google Ads accounts with token:", accessToken);
     
+    // Display an account selection dialog to the user (simulated)
+    console.log("Simulating account selection dialog");
+    
     // Return multiple mock accounts for demonstration purposes
     return [
       {
-        id: "ga-" + Date.now(),
+        id: "ga-" + Math.floor(Math.random() * 10000),
         name: "Demo Google Ads Account",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
       },
       {
-        id: "ga-" + (Date.now() + 1),
+        id: "ga-" + Math.floor(Math.random() * 10000),
         name: "Secondary Google Ads Account",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
       },
       {
-        id: "ga-" + (Date.now() + 2),
+        id: "ga-" + Math.floor(Math.random() * 10000),
         name: "Marketing Campaign Account",
         platform: "google",
         isConnected: true,
@@ -258,7 +242,16 @@ export const storeAuthTokens = (tokens: {
 // Retrieve stored auth tokens
 export const getStoredAuthTokens = () => {
   const tokens = localStorage.getItem("googleAdsTokens");
-  return tokens ? JSON.parse(tokens) : null;
+  if (!tokens) return null;
+  
+  const parsedTokens = JSON.parse(tokens);
+  return parsedTokens;
+};
+
+// Retrieve stored Google Ads accounts
+export const getStoredAccounts = (): AccountConnection[] => {
+  const tokens = getStoredAuthTokens();
+  return tokens?.accounts || [];
 };
 
 // Check if ad platform is connected - returns true if authenticated
