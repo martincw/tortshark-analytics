@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -23,6 +24,7 @@ const AccountsPage = () => {
   const [newAccountPlatform, setNewAccountPlatform] = useState<"google" | "youtube">("google");
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
   
@@ -50,6 +52,12 @@ const AccountsPage = () => {
         event.detail.accounts.forEach((account: AccountConnection) => {
           addAccountConnection(account);
         });
+        
+        // If accounts were found, select the first one
+        if (event.detail.accounts.length > 0) {
+          setSelectedAccountId(event.detail.accounts[0].id);
+        }
+        
         toast.success(`Connected to ${event.detail.accounts.length} Google Ads account(s)`);
       } else {
         toast.success("Successfully connected to Google Ads");
@@ -110,7 +118,17 @@ const AccountsPage = () => {
   };
 
   const handleCreateCampaign = () => {
-    navigate("/add-campaign");
+    // If an account is selected, pass it in the query parameter
+    if (selectedAccountId) {
+      navigate(`/add-campaign?accountId=${selectedAccountId}`);
+    } else {
+      navigate("/add-campaign");
+    }
+  };
+
+  const handleSelectAccount = (accountId: string) => {
+    setSelectedAccountId(accountId);
+    toast.info(`Account selected: ${accountConnections.find(acc => acc.id === accountId)?.name}`);
   };
 
   return (
@@ -157,8 +175,22 @@ const AccountsPage = () => {
           handleSyncAccount={handleSyncAccount}
           handleConnectGoogle={handleConnectGoogle}
           handleCreateCampaign={handleCreateCampaign}
+          selectedAccountId={selectedAccountId || undefined}
+          onSelectAccount={handleSelectAccount}
         />
       </div>
+
+      {selectedAccountId && (
+        <div className="flex justify-center">
+          <Button 
+            onClick={handleCreateCampaign} 
+            size="lg"
+            className="mt-4"
+          >
+            Create Campaign with Selected Account
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

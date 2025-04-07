@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,6 +26,7 @@ import { getStoredAuthTokens, isPlatformConnected } from "@/services/googleAdsSe
 
 const AddCampaignPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addCampaign, accountConnections } = useCampaign();
   
   const [campaignName, setCampaignName] = useState("");
@@ -37,7 +38,6 @@ const AddCampaignPage = () => {
   const [retainers, setRetainers] = useState("");
   const [revenue, setRevenue] = useState("");
   
-  // Check if we have stored tokens - but we don't require them
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
   const isPlatformActive = isPlatformConnected(platform);
   
@@ -45,6 +45,21 @@ const AddCampaignPage = () => {
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
     : [{ id: "manual", name: "Manual Entry", platform: "manual" as any, isConnected: true, lastSynced: null }];
+
+  // Parse query parameters to set initial values
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const preselectedAccountId = params.get('accountId');
+    
+    if (preselectedAccountId) {
+      const account = accountConnections.find(acc => acc.id === preselectedAccountId);
+      if (account) {
+        setAccountId(preselectedAccountId);
+        setPlatform(account.platform);
+        toast.info(`Using account: ${account.name}`);
+      }
+    }
+  }, [location.search, accountConnections]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

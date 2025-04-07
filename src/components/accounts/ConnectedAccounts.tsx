@@ -15,6 +15,7 @@ import {
   XCircle, 
   RefreshCw, 
   PlusCircle,
+  Link,
 } from "lucide-react";
 
 interface ConnectedAccountsProps {
@@ -23,6 +24,8 @@ interface ConnectedAccountsProps {
   handleSyncAccount: (accountId: string) => void;
   handleConnectGoogle: () => void;
   handleCreateCampaign: () => void;
+  selectedAccountId?: string;
+  onSelectAccount?: (accountId: string) => void;
 }
 
 export const ConnectedAccounts = ({
@@ -31,6 +34,8 @@ export const ConnectedAccounts = ({
   handleSyncAccount,
   handleConnectGoogle,
   handleCreateCampaign,
+  selectedAccountId,
+  onSelectAccount,
 }: ConnectedAccountsProps) => {
   return (
     <Card>
@@ -57,6 +62,8 @@ export const ConnectedAccounts = ({
             handleSyncAccount={handleSyncAccount}
             handleConnectGoogle={handleConnectGoogle}
             handleCreateCampaign={handleCreateCampaign}
+            selectedAccountId={selectedAccountId}
+            onSelectAccount={onSelectAccount}
           />
         )}
       </CardContent>
@@ -104,6 +111,8 @@ interface AccountsListProps {
   handleSyncAccount: (accountId: string) => void;
   handleConnectGoogle: () => void;
   handleCreateCampaign: () => void;
+  selectedAccountId?: string;
+  onSelectAccount?: (accountId: string) => void;
 }
 
 const AccountsList = ({
@@ -112,6 +121,8 @@ const AccountsList = ({
   handleSyncAccount,
   handleConnectGoogle,
   handleCreateCampaign,
+  selectedAccountId,
+  onSelectAccount,
 }: AccountsListProps) => {
   return (
     <>
@@ -119,7 +130,10 @@ const AccountsList = ({
         {accountConnections.map((account) => (
           <div
             key={account.id}
-            className="flex items-center justify-between p-4 border rounded-md"
+            className={`flex items-center justify-between p-4 border rounded-md cursor-pointer transition-colors ${
+              selectedAccountId === account.id ? "bg-muted border-primary" : "hover:bg-muted/50"
+            }`}
+            onClick={() => onSelectAccount && onSelectAccount(account.id)}
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -127,6 +141,9 @@ const AccountsList = ({
                 <Badge variant={account.platform === "google" ? "default" : "secondary"}>
                   {account.platform === "google" ? "Google" : "YouTube"}
                 </Badge>
+                {selectedAccountId === account.id && (
+                  <Badge variant="outline" className="ml-2 bg-primary/10">Selected</Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {account.isConnected ? (
@@ -149,7 +166,10 @@ const AccountsList = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleSyncAccount(account.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSyncAccount(account.id);
+                  }}
                   disabled={isLoading}
                 >
                   <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
@@ -158,7 +178,10 @@ const AccountsList = ({
               ) : (
                 <Button
                   size="sm"
-                  onClick={handleConnectGoogle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleConnectGoogle();
+                  }}
                 >
                   Connect
                 </Button>
@@ -181,5 +204,4 @@ const AccountsList = ({
   );
 };
 
-import { Link } from "lucide-react";
 export { Link };
