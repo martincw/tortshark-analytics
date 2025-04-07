@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -9,6 +8,7 @@ import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const AccountsPage = () => {
   const { 
