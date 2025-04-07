@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -7,7 +6,7 @@ import { AccountConnection } from "@/types/campaign";
 import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError } from "@/services/googleAdsService";
 import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AccountsPage = () => {
@@ -25,11 +24,9 @@ const AccountsPage = () => {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   
-  // Check if we have stored tokens
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
   
   useEffect(() => {
-    // Check for error in URL parameters (e.g., after redirect from Google)
     const params = new URLSearchParams(location.search);
     const error = params.get('error');
     
@@ -38,35 +35,29 @@ const AccountsPage = () => {
       setOauthError(`${error}: ${errorMessage}`);
       toast.error(`Google OAuth Error: ${errorMessage}`);
       
-      // Clean up the URL to remove error parameters after a delay
       setTimeout(() => {
         navigate('/accounts', { replace: true });
       }, 500);
     }
   }, [location, navigate]);
   
-  // Listen for auth success events
   useEffect(() => {
     const handleAuthSuccess = (event: CustomEvent) => {
       console.log("Auth success event received", event.detail);
       setAuthSuccess(true);
       
-      // If there are accounts in the event, add them
       if (event.detail?.accounts && Array.isArray(event.detail.accounts)) {
         event.detail.accounts.forEach((account: AccountConnection) => {
           addAccountConnection(account);
         });
         toast.success(`Connected to ${event.detail.accounts.length} Google Ads account(s)`);
       } else {
-        // If no accounts were found, show different success message
         toast.success("Successfully connected to Google Ads");
       }
       
-      // Reset success state after a delay
       setTimeout(() => setAuthSuccess(false), 3000);
     };
     
-    // Type assertion to handle CustomEvent
     window.addEventListener('googleAuthSuccess', handleAuthSuccess as EventListener);
     
     return () => {
@@ -76,10 +67,7 @@ const AccountsPage = () => {
   
   const handleConnectGoogle = () => {
     try {
-      // Clear any previous errors
       setOauthError(null);
-      
-      // Redirect to Google OAuth flow
       window.location.href = getGoogleAuthUrl();
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
@@ -112,7 +100,7 @@ const AccountsPage = () => {
     const newAccount: Omit<AccountConnection, "id"> = {
       name: newAccountName.trim(),
       platform: newAccountPlatform,
-      isConnected: isAuthenticated, // Only mark as connected if authenticated
+      isConnected: isAuthenticated,
       lastSynced: isAuthenticated ? new Date().toISOString() : undefined,
     };
     
