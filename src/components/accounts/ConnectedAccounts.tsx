@@ -16,7 +16,16 @@ import {
   RefreshCw, 
   PlusCircle,
   Link,
+  AlertCircle,
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface ConnectedAccountsProps {
   accountConnections: AccountConnection[];
@@ -37,6 +46,13 @@ export const ConnectedAccounts = ({
   selectedAccountId,
   onSelectAccount,
 }: ConnectedAccountsProps) => {
+  // Filter to just show Google accounts for the dedicated section
+  const googleAccounts = accountConnections.filter(
+    account => account.platform === "google" && account.isConnected
+  );
+  
+  const hasGoogleAccounts = googleAccounts.length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -56,15 +72,81 @@ export const ConnectedAccounts = ({
             handleCreateCampaign={handleCreateCampaign}
           />
         ) : (
-          <AccountsList
-            accountConnections={accountConnections}
-            isLoading={isLoading}
-            handleSyncAccount={handleSyncAccount}
-            handleConnectGoogle={handleConnectGoogle}
-            handleCreateCampaign={handleCreateCampaign}
-            selectedAccountId={selectedAccountId}
-            onSelectAccount={onSelectAccount}
-          />
+          <>
+            {hasGoogleAccounts && (
+              <div className="mb-4">
+                <h3 className="text-sm font-medium mb-2">Google Ads Accounts</h3>
+                <div className="bg-secondary/20 rounded-md p-3">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Account Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Last Synced</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {googleAccounts.map((account) => (
+                        <TableRow 
+                          key={account.id}
+                          className={`cursor-pointer ${selectedAccountId === account.id ? "bg-primary/10" : ""}`}
+                          onClick={() => onSelectAccount && onSelectAccount(account.id)}
+                        >
+                          <TableCell className="font-medium">{account.name}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4 text-success-DEFAULT" />
+                              <span>Connected</span>
+                              {selectedAccountId === account.id && (
+                                <Badge variant="outline" className="ml-2 bg-primary/10">Selected</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {account.lastSynced 
+                              ? new Date(account.lastSynced).toLocaleDateString() 
+                              : "Not synced yet"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSyncAccount(account.id);
+                              }}
+                              disabled={isLoading}
+                            >
+                              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                              Sync
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {googleAccounts.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <AlertCircle className="h-5 w-5 mx-auto mb-2" />
+                      <p>No Google Ads accounts connected</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <AccountsList
+              accountConnections={accountConnections}
+              isLoading={isLoading}
+              handleSyncAccount={handleSyncAccount}
+              handleConnectGoogle={handleConnectGoogle}
+              handleCreateCampaign={handleCreateCampaign}
+              selectedAccountId={selectedAccountId}
+              onSelectAccount={onSelectAccount}
+            />
+          </>
         )}
       </CardContent>
     </Card>
@@ -127,6 +209,7 @@ const AccountsList = ({
   return (
     <>
       <div className="space-y-3">
+        <h3 className="text-sm font-medium mb-2">All Accounts</h3>
         {accountConnections.map((account) => (
           <div
             key={account.id}

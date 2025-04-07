@@ -34,21 +34,30 @@ const AccountsPage = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const accounts = getStoredAccounts();
-      setGoogleAccounts(accounts);
-      
-      // Import any Google accounts that aren't already in our account connections
       if (accounts.length > 0) {
+        setGoogleAccounts(accounts);
+        
+        // Import any Google accounts that aren't already in our account connections
         accounts.forEach(account => {
           const exists = accountConnections.some(ac => ac.id === account.id);
           if (!exists) {
             addAccountConnection(account);
+            console.log("Added Google account:", account.name);
           }
         });
         
         toast.success(`Found ${accounts.length} Google Ads accounts`);
+        
+        // If we have Google accounts but none selected, select the first one
+        if (!selectedAccountId && accounts.length > 0) {
+          setSelectedAccountId(accounts[0].id);
+          toast.info(`Selected account: ${accounts[0].name}`);
+        }
+      } else {
+        console.log("No stored Google accounts found");
       }
     }
-  }, [isAuthenticated, addAccountConnection, accountConnections]);
+  }, [isAuthenticated, addAccountConnection, accountConnections, selectedAccountId]);
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -79,12 +88,14 @@ const AccountsPage = () => {
           const exists = accountConnections.some(ac => ac.id === account.id);
           if (!exists) {
             addAccountConnection(account);
+            console.log("Added new Google account:", account.name);
           }
         });
         
         // If accounts were found, select the first one
         if (newAccounts.length > 0) {
           setSelectedAccountId(newAccounts[0].id);
+          toast.info(`Selected account: ${newAccounts[0].name}`);
         }
         
         toast.success(`Connected to ${newAccounts.length} Google Ads account(s)`);
@@ -94,6 +105,7 @@ const AccountsPage = () => {
         const storedAccounts = getStoredAccounts();
         if (storedAccounts.length > 0) {
           setGoogleAccounts(storedAccounts);
+          console.log("Found stored accounts after auth:", storedAccounts);
         }
       }
       
@@ -166,6 +178,11 @@ const AccountsPage = () => {
     toast.info(`Account selected: ${accountName}`);
   };
 
+  // Count Google accounts 
+  const connectedGoogleAccounts = accountConnections.filter(
+    acc => acc.platform === "google" && acc.isConnected
+  ).length;
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Ad Account Connections</h1>
@@ -190,6 +207,17 @@ const AccountsPage = () => {
           <AlertTitle>Authentication Error</AlertTitle>
           <AlertDescription>
             {oauthError}. Please check your Google Cloud Console settings and try again.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {connectedGoogleAccounts > 0 && (
+        <Alert className="bg-primary/10 border-primary">
+          <CheckCircle className="h-4 w-4 text-primary" />
+          <AlertTitle>Google Ads Accounts Connected</AlertTitle>
+          <AlertDescription>
+            You have {connectedGoogleAccounts} Google Ads account(s) connected and ready to use.
+            {selectedAccountId && " One account is selected and ready for campaign creation."}
           </AlertDescription>
         </Alert>
       )}

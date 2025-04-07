@@ -1,3 +1,4 @@
+
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
@@ -153,6 +154,7 @@ export const fetchGoogleAdsAccounts = async (
     console.log("Simulating account selection dialog");
     
     // Return multiple mock accounts for demonstration purposes
+    // Creating 5 mock accounts with various names for better demo purposes
     return [
       {
         id: "ga-" + Math.floor(Math.random() * 10000),
@@ -163,14 +165,28 @@ export const fetchGoogleAdsAccounts = async (
       },
       {
         id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "Secondary Google Ads Account",
+        name: "Law Firm Marketing Account",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
       },
       {
         id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "Marketing Campaign Account",
+        name: "Personal Injury Campaign Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      },
+      {
+        id: "ga-" + Math.floor(Math.random() * 10000),
+        name: "Local Services Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      },
+      {
+        id: "ga-" + Math.floor(Math.random() * 10000),
+        name: "National Client Acquisition",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
@@ -233,6 +249,12 @@ export const storeAuthTokens = (tokens: {
   
   localStorage.setItem("googleAdsTokens", JSON.stringify(storageItem));
   
+  // If we have accounts, also store them separately for easy access
+  if (tokens.accounts && tokens.accounts.length > 0) {
+    localStorage.setItem("googleAdsAccounts", JSON.stringify(tokens.accounts));
+    console.log("Stored Google Ads accounts:", tokens.accounts);
+  }
+  
   // Dispatch a custom event that we can listen for in other components
   window.dispatchEvent(new CustomEvent('googleAuthSuccess', { 
     detail: { accounts: tokens.accounts }
@@ -250,6 +272,20 @@ export const getStoredAuthTokens = () => {
 
 // Retrieve stored Google Ads accounts
 export const getStoredAccounts = (): AccountConnection[] => {
+  // First try to get accounts from dedicated storage
+  const accountsStr = localStorage.getItem("googleAdsAccounts");
+  if (accountsStr) {
+    try {
+      const accounts = JSON.parse(accountsStr);
+      if (Array.isArray(accounts) && accounts.length > 0) {
+        return accounts;
+      }
+    } catch (e) {
+      console.error("Error parsing stored accounts:", e);
+    }
+  }
+  
+  // Fall back to accounts in the tokens
   const tokens = getStoredAuthTokens();
   return tokens?.accounts || [];
 };
