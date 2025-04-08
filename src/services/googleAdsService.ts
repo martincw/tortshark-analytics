@@ -130,8 +130,17 @@ export const handleGoogleAuthCallback = async (
     let accountData: AccountConnection[] = [];
     
     if (tokenData.access_token) {
-      // Fetch Google Ads accounts with the new token
-      accountData = await fetchGoogleAdsAccounts(tokenData.access_token);
+      try {
+        // Fetch Google Ads accounts with the new token
+        accountData = await fetchGoogleAdsAccounts(tokenData.access_token);
+      } catch (error) {
+        console.error("Error fetching Google Ads accounts:", error);
+        
+        // Check if the error is related to missing developer token
+        if (error instanceof Error && error.message.includes("developer-token")) {
+          toast.error("Missing Google Ads Developer Token. Please check Supabase Edge Function settings.");
+        }
+      }
     }
     
     return {
@@ -178,6 +187,13 @@ export const fetchGoogleAdsAccounts = async (
     
     if (error) {
       console.error("Accounts fetch failed:", error);
+      
+      // Check if the error might be related to missing developer token
+      if (error.message && error.message.includes("developer-token")) {
+        toast.error("Google Ads Developer Token is missing. Please add it to the Supabase Edge Function secrets.");
+        throw new Error("developer-token is missing or invalid");
+      }
+      
       throw new Error(`Failed to fetch accounts: ${error.message}`);
     }
     
@@ -185,8 +201,14 @@ export const fetchGoogleAdsAccounts = async (
       throw new Error("No accounts data received from Edge Function");
     }
     
+    // If the response is an error object with details
+    if (accountsData.error) {
+      console.error("Google Ads API error:", accountsData);
+      toast.error(accountsData.message || "Failed to fetch Google Ads accounts");
+      throw new Error(accountsData.error);
+    }
+    
     // Map the account data to our internal structure
-    // Using the fixed IDs from the response to prevent duplicates
     return accountsData.map((account: any) => ({
       id: account.id, // Use the fixed ID from the response
       name: account.name || "Unnamed Account",

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -39,13 +40,16 @@ const AccountsPage = () => {
         setGoogleAccounts(accounts);
         setAuthenticationAttempted(true);
         
+        // Use a Set to track existing IDs and avoid duplicates
+        const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
         let newAccountsAdded = 0;
+        
         accounts.forEach(account => {
-          const exists = accountConnections.some(ac => ac.id === account.id);
-          if (!exists) {
+          if (!existingAccountIds.has(account.id)) {
             addAccountConnection(account);
             console.log("Added Google account:", account.name);
             newAccountsAdded++;
+            existingAccountIds.add(account.id);
           }
         });
         
@@ -93,13 +97,16 @@ const AccountsPage = () => {
         const newAccounts = event.detail.accounts;
         setGoogleAccounts(newAccounts);
         
+        // Use a Set to track existing IDs and avoid duplicates
+        const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
         let newAccountsAdded = 0;
+        
         newAccounts.forEach((account: AccountConnection) => {
-          const exists = accountConnections.some(ac => ac.id === account.id);
-          if (!exists) {
+          if (!existingAccountIds.has(account.id)) {
             addAccountConnection(account);
             console.log("Added new Google account:", account.name);
             newAccountsAdded++;
+            existingAccountIds.add(account.id);
           }
         });
         
