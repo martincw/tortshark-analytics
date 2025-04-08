@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
@@ -112,9 +113,12 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const addCampaign = (newCampaign: Omit<Campaign, "id">): string => {
     const id = crypto.randomUUID();
+    
+    // Ensure statsHistory is initialized
     const campaign: Campaign = {
       ...newCampaign,
       id,
+      statsHistory: newCampaign.statsHistory || []
     };
     
     console.log("Adding new campaign:", campaign);

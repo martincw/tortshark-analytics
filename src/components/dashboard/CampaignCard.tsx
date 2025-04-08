@@ -42,7 +42,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
-    console.log("Navigating to campaign details. Campaign:", campaign);
+    console.log("Navigating to campaign details for:", campaign.id);
     navigate(`/campaign/${campaign.id}`);
   };
 

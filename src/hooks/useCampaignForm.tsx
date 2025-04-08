@@ -120,7 +120,7 @@ export const useCampaignForm = () => {
         revenue: 0,
         date: currentDate,
       },
-      statsHistory: [], // Initialize with empty statsHistory array
+      statsHistory: [], // Explicitly initialize with empty array
       targets: {
         monthlyRetainers: parseInt(targetMonthlyRetainers) || 0,
         casePayoutAmount: parseFloat(casePayoutAmount) || 0,

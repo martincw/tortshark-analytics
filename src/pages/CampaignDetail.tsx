@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ const CampaignDetail = () => {
     console.log("Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
   }, [id, setSelectedCampaignId, campaigns]);
   
+  // Find the campaign by ID
   const campaign = campaigns.find((c) => c.id === id);
   
   // Debug the found campaign
