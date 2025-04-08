@@ -1,5 +1,5 @@
-
 import { Campaign, AccountConnection } from "@/types/campaign";
+import { supabase, SUPABASE_PROJECT_URL } from "@/integrations/supabase/client";
 
 // Google Ads API constants
 // Updated to use the correct scope for Google Ads API
@@ -103,24 +103,23 @@ export const handleGoogleAuthCallback = async (
     console.log("Code received:", code.substring(0, 10) + "...");
     
     // Use our Supabase Edge Function to exchange code for tokens
-    const tokenEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-token`;
-    
-    const tokenResponse = await fetch(tokenEndpoint, {
+    const { data: tokenData, error } = await supabase.functions.invoke("google-token", {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: { 
         code,
         redirectUri: `${window.location.origin}/auth/google/callback`
-      })
+      }
     });
     
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json().catch(() => ({}));
-      console.error("Token exchange failed:", tokenResponse.status, errorData);
-      throw new Error(`Failed to exchange code: ${errorData.error || tokenResponse.statusText}`);
+    if (error) {
+      console.error("Token exchange failed:", error);
+      throw new Error(`Failed to exchange code: ${error.message}`);
     }
     
-    const tokenData = await tokenResponse.json();
+    if (!tokenData) {
+      throw new Error("No token data received from Edge Function");
+    }
+    
     console.log("Received token data:", { 
       hasAccessToken: !!tokenData.access_token,
       hasRefreshToken: !!tokenData.refresh_token,
@@ -170,23 +169,21 @@ export const fetchGoogleAdsAccounts = async (
 ): Promise<AccountConnection[]> => {
   try {
     // Call our Edge Function instead of direct Google API
-    const accountsEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-accounts`;
-    
-    const response = await fetch(accountsEndpoint, {
+    const { data: accountsData, error } = await supabase.functions.invoke("google-accounts", {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${accessToken}`
       }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Accounts fetch failed:", response.status, errorData);
-      throw new Error(`Failed to fetch accounts: ${errorData.error || response.statusText}`);
+    if (error) {
+      console.error("Accounts fetch failed:", error);
+      throw new Error(`Failed to fetch accounts: ${error.message}`);
     }
     
-    const accountsData = await response.json();
+    if (!accountsData) {
+      throw new Error("No accounts data received from Edge Function");
+    }
     
     // Map the account data to our internal structure
     return accountsData.map((account: any) => ({
@@ -211,27 +208,26 @@ export const fetchCampaigns = async (
 ): Promise<Campaign[]> => {
   try {
     // Call our Edge Function instead of direct Google API
-    const campaignsEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-campaigns`;
-    
-    const response = await fetch(campaignsEndpoint, {
+    const { data: campaignsData, error } = await supabase.functions.invoke("google-campaigns", {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${accessToken}`
       },
-      body: JSON.stringify({ 
+      body: { 
         accountId,
         dateRange
-      })
+      }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Campaigns fetch failed:", response.status, errorData);
-      throw new Error(`Failed to fetch campaigns: ${errorData.error || response.statusText}`);
+    if (error) {
+      console.error("Campaigns fetch failed:", error);
+      throw new Error(`Failed to fetch campaigns: ${error.message}`);
     }
     
-    const campaignsData = await response.json();
+    if (!campaignsData) {
+      throw new Error("No campaigns data received from Edge Function");
+    }
+    
     return campaignsData;
     
   } catch (error) {
@@ -247,25 +243,20 @@ export const syncAccountData = async (
 ): Promise<boolean> => {
   try {
     // Call our Edge Function instead of direct Google API
-    const syncEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-sync`;
-    
-    const response = await fetch(syncEndpoint, {
+    const { data, error } = await supabase.functions.invoke("google-sync", {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${accessToken}`
       },
-      body: JSON.stringify({ accountId })
+      body: { accountId }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Account sync failed:", response.status, errorData);
-      throw new Error(`Failed to sync account: ${errorData.error || response.statusText}`);
+    if (error) {
+      console.error("Account sync failed:", error);
+      throw new Error(`Failed to sync account: ${error.message}`);
     }
     
-    const result = await response.json();
-    return result.success || false;
+    return data?.success || false;
     
   } catch (error) {
     console.error("Error syncing account data:", error);
