@@ -43,7 +43,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
-    setSelectedCampaignId(campaign.id);
+    console.log("Navigating to campaign details:", campaign.id);
     navigate(`/campaign/${campaign.id}`);
   };
 
@@ -52,6 +52,14 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     const newLeads = parseInt(quickStats.leads) || 0;
     const newCases = parseInt(quickStats.cases) || 0;
     const newRevenue = parseFloat(quickStats.revenue) || 0;
+    
+    console.log("Adding quick stats:", {
+      campaignId: campaign.id,
+      date: selectedDate.toISOString(),
+      leads: newLeads,
+      cases: newCases,
+      revenue: newRevenue
+    });
     
     // Add a new history entry
     addStatHistoryEntry(campaign.id, {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -47,15 +46,24 @@ const CampaignDetail = () => {
     if (id) {
       setSelectedCampaignId(id);
     }
-  }, [id, setSelectedCampaignId]);
+    
+    // Debug the campaign ID and campaigns
+    console.log("Campaign ID from URL:", id);
+    console.log("Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
+  }, [id, setSelectedCampaignId, campaigns]);
   
   const campaign = campaigns.find((c) => c.id === id);
   
+  // Debug the found campaign
+  useEffect(() => {
+    console.log("Found campaign:", campaign);
+  }, [campaign]);
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [leadCount, setLeadCount] = useState(campaign?.manualStats.leads.toString() || "0");
-  const [caseCount, setCaseCount] = useState(campaign?.manualStats.cases.toString() || "0");
-  const [retainerCount, setRetainerCount] = useState(campaign?.manualStats.retainers.toString() || "0");
-  const [revenue, setRevenue] = useState(campaign?.manualStats.revenue.toString() || "0");
+  const [leadCount, setLeadCount] = useState("0");
+  const [caseCount, setCaseCount] = useState("0");
+  const [retainerCount, setRetainerCount] = useState("0");
+  const [revenue, setRevenue] = useState("0");
   
   // New state for daily stats dialog
   const [isDailyStatsDialogOpen, setIsDailyStatsDialogOpen] = useState(false);
@@ -74,16 +82,24 @@ const CampaignDetail = () => {
       setCaseCount(campaign.manualStats.cases.toString());
       setRetainerCount(campaign.manualStats.retainers.toString());
       setRevenue(campaign.manualStats.revenue.toString());
+      
+      console.log("Updated form fields with campaign data", {
+        leads: campaign.manualStats.leads,
+        cases: campaign.manualStats.cases,
+        retainers: campaign.manualStats.retainers,
+        revenue: campaign.manualStats.revenue
+      });
     }
   }, [campaign]);
   
   if (!campaign) {
+    console.log("Campaign not found for ID:", id);
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
-        <Button onClick={() => navigate("/")} variant="default">
+        <Button onClick={() => navigate("/campaigns")} variant="default">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          Back to Campaigns
         </Button>
       </div>
     );
@@ -118,7 +134,7 @@ const CampaignDetail = () => {
   const handleDelete = () => {
     if (window.confirm("Are you sure you want to delete this campaign?")) {
       deleteCampaign(campaign.id);
-      navigate("/");
+      navigate("/campaigns");
       toast.success("Campaign deleted successfully");
     }
   };
@@ -140,6 +156,15 @@ const CampaignDetail = () => {
     const newCases = parseInt(dailyStats.cases) || 0;
     const newRetainers = parseInt(dailyStats.retainers) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
+    
+    console.log("Adding new stats history entry:", {
+      campaignId: campaign.id,
+      date: selectedDate.toISOString(),
+      leads: newLeads,
+      cases: newCases,
+      retainers: newRetainers,
+      revenue: newRevenue
+    });
     
     // Add stats history entry
     addStatHistoryEntry(campaign.id, {
@@ -166,7 +191,7 @@ const CampaignDetail = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/campaigns")}
             variant="outline"
             size="icon"
             className="h-9 w-9"

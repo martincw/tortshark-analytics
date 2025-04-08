@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
@@ -95,6 +94,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Save campaigns to localStorage whenever they change
   useEffect(() => {
+    console.log("Saving campaigns to localStorage:", campaigns);
     saveToLocalStorage('campaigns', campaigns);
   }, [campaigns]);
 
@@ -104,6 +104,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [accountConnections]);
 
   const updateCampaign = (updatedCampaign: Campaign) => {
+    console.log("Updating campaign:", updatedCampaign);
     setCampaigns(campaigns.map(campaign => 
       campaign.id === updatedCampaign.id ? updatedCampaign : campaign
     ));
@@ -114,15 +115,17 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     const campaign: Campaign = {
       ...newCampaign,
       id,
-      statsHistory: [] // Initialize with empty history
     };
     
+    console.log("Adding new campaign:", campaign);
     setCampaigns(prev => [...prev, campaign]);
     console.log("Campaign added successfully:", campaign);
     return id;
   };
 
   const addStatHistoryEntry = (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => {
+    console.log("Adding stat history entry:", { campaignId, entry });
+    
     setCampaigns(prev => {
       return prev.map(campaign => {
         if (campaign.id === campaignId) {
@@ -132,6 +135,13 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
             id: crypto.randomUUID(),
             createdAt: new Date().toISOString()
           };
+          
+          console.log("Created new entry:", newEntry);
+          
+          // Get the stats history (ensure it exists)
+          const statsHistory = Array.isArray(campaign.statsHistory) 
+            ? campaign.statsHistory 
+            : [];
           
           // Update campaign stats
           const updatedCampaign = {
@@ -144,9 +154,10 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
               revenue: campaign.manualStats.revenue + entry.revenue,
               date: new Date().toISOString(), // Update the date to today
             },
-            statsHistory: [newEntry, ...campaign.statsHistory]
+            statsHistory: [newEntry, ...statsHistory]
           };
           
+          console.log("Updated campaign:", updatedCampaign);
           return updatedCampaign;
         }
         return campaign;
