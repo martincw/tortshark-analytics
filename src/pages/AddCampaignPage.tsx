@@ -40,13 +40,6 @@ const AddCampaignPage = () => {
   const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
   const [targetROAS, setTargetROAS] = useState("");
   
-  // Campaign stats
-  const [adSpend, setAdSpend] = useState("");
-  const [leads, setLeads] = useState("");
-  const [cases, setCases] = useState("");
-  const [retainers, setRetainers] = useState("");
-  const [revenue, setRevenue] = useState("");
-  
   // Include all accounts or create a manual account option
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
@@ -100,17 +93,17 @@ const AddCampaignPage = () => {
       accountId: selectedAccount.id,
       accountName: selectedAccount.name,
       stats: {
-        adSpend: parseFloat(adSpend) || 0,
+        adSpend: 0,
         impressions: 0,
-        clicks: parseFloat(adSpend) ? Math.floor(parseFloat(adSpend) / 2) : 0, // Rough estimate
-        cpc: parseFloat(adSpend) && parseFloat(adSpend) > 0 ? 2 : 0, // Default CPC as $2
+        clicks: 0,
+        cpc: 0,
         date: currentDate,
       },
       manualStats: {
-        leads: parseInt(leads) || 0,
-        cases: parseInt(cases) || 0,
-        retainers: parseInt(retainers) || 0,
-        revenue: parseFloat(revenue) || 0,
+        leads: 0,
+        cases: 0,
+        retainers: 0,
+        revenue: 0,
         date: currentDate,
       },
       targets: {
@@ -281,79 +274,6 @@ const AddCampaignPage = () => {
                   <p className="text-xs text-muted-foreground">
                     Return on ad spend (ROAS) target percentage
                   </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t pt-4">
-              <h3 className="text-md font-medium mb-4">Current Statistics</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="adSpend" className="text-sm font-medium">
-                    Ad Spend ($)
-                  </label>
-                  <Input
-                    id="adSpend"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={adSpend}
-                    onChange={(e) => setAdSpend(e.target.value)}
-                    placeholder="e.g., 1000.00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="leads" className="text-sm font-medium">
-                    Number of Leads
-                  </label>
-                  <Input
-                    id="leads"
-                    type="number"
-                    min="0"
-                    value={leads}
-                    onChange={(e) => setLeads(e.target.value)}
-                    placeholder="e.g., 50"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="cases" className="text-sm font-medium">
-                    Number of Cases
-                  </label>
-                  <Input
-                    id="cases"
-                    type="number"
-                    min="0"
-                    value={cases}
-                    onChange={(e) => setCases(e.target.value)}
-                    placeholder="e.g., 10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="retainers" className="text-sm font-medium">
-                    Number of Retainers
-                  </label>
-                  <Input
-                    id="retainers"
-                    type="number"
-                    min="0"
-                    value={retainers}
-                    onChange={(e) => setRetainers(e.target.value)}
-                    placeholder="e.g., 5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="revenue" className="text-sm font-medium">
-                    Revenue ($)
-                  </label>
-                  <Input
-                    id="revenue"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={revenue}
-                    onChange={(e) => setRevenue(e.target.value)}
-                    placeholder="e.g., 25000.00"
-                  />
                 </div>
               </div>
             </div>
