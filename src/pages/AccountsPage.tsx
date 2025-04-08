@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
-import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError, getStoredAccounts } from "@/services/googleAdsService";
+import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError, getStoredAccounts, fetchGoogleAdsAccounts } from "@/services/googleAdsService";
 import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { AlertCircle, CheckCircle } from "lucide-react";
@@ -28,48 +27,94 @@ const AccountsPage = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [googleAccounts, setGoogleAccounts] = useState<AccountConnection[]>([]);
   const [authenticationAttempted, setAuthenticationAttempted] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
   
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
   
   useEffect(() => {
-    if (isAuthenticated) {
-      const accounts = getStoredAccounts();
-      console.log("Checking for stored accounts:", accounts);
-      
-      if (accounts.length > 0) {
-        setGoogleAccounts(accounts);
-        setAuthenticationAttempted(true);
+    const fetchAccountsOnLoad = async () => {
+      if (isAuthenticated) {
+        setLoadingAccounts(true);
         
-        // Use a Set to track existing IDs and avoid duplicates
-        const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
-        let newAccountsAdded = 0;
-        
-        accounts.forEach(account => {
-          if (!existingAccountIds.has(account.id)) {
-            addAccountConnection(account);
-            console.log("Added Google account:", account.name);
-            newAccountsAdded++;
-            existingAccountIds.add(account.id);
+        try {
+          const storedAccounts = getStoredAccounts();
+          console.log("Stored accounts:", storedAccounts);
+          
+          if (storedAccounts.length > 0) {
+            setGoogleAccounts(storedAccounts);
+            setAuthenticationAttempted(true);
+            
+            const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
+            let newAccountsAdded = 0;
+            
+            storedAccounts.forEach(account => {
+              if (!existingAccountIds.has(account.id)) {
+                addAccountConnection(account);
+                console.log("Added stored Google account:", account.name);
+                newAccountsAdded++;
+                existingAccountIds.add(account.id);
+              }
+            });
+            
+            if (newAccountsAdded > 0) {
+              toast.success(`Found ${newAccountsAdded} Google Ads accounts`);
+            }
+            
+            if (!selectedAccountId && storedAccounts.length > 0) {
+              setSelectedAccountId(storedAccounts[0].id);
+              toast.info(`Selected account: ${storedAccounts[0].name}`);
+            }
+          } else {
+            const tokens = getStoredAuthTokens();
+            
+            if (tokens?.access_token) {
+              console.log("No stored accounts, fetching from API...");
+              try {
+                const freshAccounts = await fetchGoogleAdsAccounts(tokens.access_token);
+                console.log("Freshly fetched accounts:", freshAccounts);
+                
+                if (freshAccounts && freshAccounts.length > 0) {
+                  setGoogleAccounts(freshAccounts);
+                  
+                  const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
+                  let newAccountsAdded = 0;
+                  
+                  freshAccounts.forEach(account => {
+                    if (!existingAccountIds.has(account.id)) {
+                      addAccountConnection(account);
+                      newAccountsAdded++;
+                      existingAccountIds.add(account.id);
+                    }
+                  });
+                  
+                  if (newAccountsAdded > 0) {
+                    toast.success(`Found ${newAccountsAdded} Google Ads accounts`);
+                  }
+                  
+                  if (!selectedAccountId && freshAccounts.length > 0) {
+                    setSelectedAccountId(freshAccounts[0].id);
+                  }
+                } else {
+                  console.log("No accounts found from API fetch");
+                  toast.warning("No Google Ads accounts found. You can create accounts manually.");
+                }
+              } catch (error) {
+                console.error("Error fetching fresh accounts:", error);
+                toast.error("Failed to fetch Google Ads accounts. You can create accounts manually.");
+              }
+            }
           }
-        });
-        
-        if (newAccountsAdded > 0) {
-          toast.success(`Found ${newAccountsAdded} new Google Ads accounts`);
-        }
-        
-        if (!selectedAccountId && accounts.length > 0) {
-          setSelectedAccountId(accounts[0].id);
-          toast.info(`Selected account: ${accounts[0].name}`);
-        }
-      } else {
-        console.log("No stored Google accounts found");
-        
-        if (authenticationAttempted) {
-          toast.warning("No Google Ads accounts found. You can create accounts manually.");
+        } catch (error) {
+          console.error("Error loading accounts:", error);
+        } finally {
+          setLoadingAccounts(false);
+          setAuthenticationAttempted(true);
         }
       }
-    }
-  }, [isAuthenticated, addAccountConnection, accountConnections, selectedAccountId, authenticationAttempted]);
+    };
+    
+    fetchAccountsOnLoad();
+  }, [isAuthenticated, addAccountConnection, accountConnections, selectedAccountId]);
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -97,7 +142,6 @@ const AccountsPage = () => {
         const newAccounts = event.detail.accounts;
         setGoogleAccounts(newAccounts);
         
-        // Use a Set to track existing IDs and avoid duplicates
         const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
         let newAccountsAdded = 0;
         

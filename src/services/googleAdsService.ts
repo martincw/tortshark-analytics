@@ -178,6 +178,11 @@ export const fetchGoogleAdsAccounts = async (
   accessToken: string
 ): Promise<AccountConnection[]> => {
   try {
+    console.log("Fetching Google Ads accounts via Edge Function");
+    
+    // Clear any previous token errors
+    localStorage.removeItem("googleAdsDeveloperTokenError");
+    
     // Call our Edge Function instead of direct Google API
     const { data: accountsData, error } = await supabase.functions.invoke("google-accounts", {
       method: 'GET',
@@ -190,7 +195,13 @@ export const fetchGoogleAdsAccounts = async (
       console.error("Accounts fetch failed:", error);
       
       // Check if the error might be related to missing developer token
-      if (error.message && error.message.includes("developer-token")) {
+      if (error.message && (
+        error.message.includes("developer-token") || 
+        error.message.includes("Developer Token")
+      )) {
+        // Store the error for UI feedback
+        localStorage.setItem("googleAdsDeveloperTokenError", "true");
+        
         toast.error("Google Ads Developer Token is missing. Please add it to the Supabase Edge Function secrets.");
         throw new Error("developer-token is missing or invalid");
       }
@@ -198,13 +209,22 @@ export const fetchGoogleAdsAccounts = async (
       throw new Error(`Failed to fetch accounts: ${error.message}`);
     }
     
-    if (!accountsData) {
-      throw new Error("No accounts data received from Edge Function");
-    }
-    
-    // If the response is an error object with details
-    if (accountsData.error) {
+    // If we get a response where the data itself is an error object
+    if (accountsData && accountsData.error) {
       console.error("Google Ads API error:", accountsData);
+      
+      // Check for developer token errors in the response
+      if (
+        accountsData.details && (
+          accountsData.details.includes("developer-token") || 
+          accountsData.details.includes("Developer Token")
+        )
+      ) {
+        localStorage.setItem("googleAdsDeveloperTokenError", "true");
+        toast.error("Google Ads Developer Token is missing or invalid");
+        throw new Error("Developer token is missing or invalid");
+      }
+      
       toast.error(accountsData.message || "Failed to fetch Google Ads accounts");
       throw new Error(accountsData.error);
     }
@@ -220,6 +240,15 @@ export const fetchGoogleAdsAccounts = async (
     
   } catch (error) {
     console.error("Error fetching Google Ads accounts:", error);
+    
+    // Check if this is a developer token error
+    if (error instanceof Error && (
+      error.message.includes("developer-token") || 
+      error.message.includes("Developer Token")
+    )) {
+      localStorage.setItem("googleAdsDeveloperTokenError", "true");
+    }
+    
     throw error; // Let the error propagate so we don't silently fail
   }
 };

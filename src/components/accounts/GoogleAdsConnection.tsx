@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,17 +54,16 @@ export const GoogleAdsConnection = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showConnectionError, setShowConnectionError] = useState(false);
   const [connectionErrorMessage, setConnectionErrorMessage] = useState("");
+  const [developerTokenStatus, setDeveloperTokenStatus] = useState<"unknown" | "missing" | "present">("unknown");
   const exactRedirectUri = `${window.location.origin}/auth/google/callback`;
   
   useEffect(() => {
-    // Check URL for error parameters that might indicate OAuth issues
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
     
     if (error) {
       setConfigError(`OAuth error: ${error}`);
       
-      // If it's a redirect_uri_mismatch, show the URI dialog automatically
       if (error === 'redirect_uri_mismatch') {
         setShowUriDialog(true);
         toast.error("Redirect URI mismatch detected. Please update your Google Cloud Console settings.");
@@ -73,9 +71,19 @@ export const GoogleAdsConnection = ({
         toast.error(`Google OAuth error: ${error}`);
       }
     }
-  }, []);
+    
+    if (isAuthenticated) {
+      const storedTokenError = localStorage.getItem("googleAdsDeveloperTokenError");
+      if (storedTokenError) {
+        setDeveloperTokenStatus("missing");
+        setConfigError("Google Ads Developer Token is missing or invalid. Please check Supabase Edge Function secrets.");
+        toast.error("Google Ads Developer Token is missing. This is required to fetch real accounts.");
+      } else {
+        setDeveloperTokenStatus("present");
+      }
+    }
+  }, [isAuthenticated]);
   
-  // Listen for auth events from popup windows
   useEffect(() => {
     const handleAuthMessage = (event: MessageEvent) => {
       console.log("Received message from popup:", event.data);
@@ -85,8 +93,6 @@ export const GoogleAdsConnection = ({
         setIsAuthenticating(false);
         setShowConnectionError(false);
         toast.success("Successfully connected to Google Ads");
-        
-        // Trigger a page reload to refresh the UI
         setTimeout(() => window.location.reload(), 1000);
       } else if (event.data.type === "GOOGLE_AUTH_ERROR") {
         setIsAuthenticating(false);
@@ -100,13 +106,11 @@ export const GoogleAdsConnection = ({
     return () => window.removeEventListener("message", handleAuthMessage);
   }, []);
   
-  // Also listen for the custom event from tokens being stored
   useEffect(() => {
     const handleAuthSuccess = () => {
       console.log("Auth success event from storage");
       setIsAuthenticating(false);
       setShowConnectionError(false);
-      // No toast here as it will be handled by the AccountsPage component
     };
     
     const handleAuthFailure = (event: CustomEvent) => {
@@ -128,15 +132,12 @@ export const GoogleAdsConnection = ({
   
   const handleConnectGoogle = () => {
     try {
-      // Reset error states
       setShowConnectionError(false);
       setConnectionErrorMessage("");
       
-      // Log the current origin for debugging purposes
       console.log("Current origin:", window.location.origin);
       console.log("Redirect URI should be:", exactRedirectUri);
       
-      // Generate the OAuth URL and store it for direct access
       try {
         const url = getGoogleAuthUrl();
         setDirectUrl(url);
@@ -144,7 +145,6 @@ export const GoogleAdsConnection = ({
         console.error("Failed to generate OAuth URL:", error);
       }
       
-      // Always show the URI dialog first before proceeding with authentication
       setShowUriDialog(true);
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
@@ -161,22 +161,17 @@ export const GoogleAdsConnection = ({
       
       toast.info("Connecting to Google OAuth...");
       
-      // Try using popup approach first
       const popup = openGoogleAuthPopup();
       
       if (!popup) {
-        // If popup fails, try direct navigation
         window.location.href = getGoogleAuthUrl();
       } else {
-        // Monitor the popup is already handled by openGoogleAuthPopup
-        // But we'll add a timeout for user feedback
         setTimeout(() => {
           if (isAuthenticating) {
             toast.info("Authentication is taking longer than expected. Check the popup window.");
           }
         }, 10000);
         
-        // Set a timeout to clear isAuthenticating state if it takes too long
         setTimeout(() => {
           if (isAuthenticating) {
             setIsAuthenticating(false);
@@ -184,7 +179,7 @@ export const GoogleAdsConnection = ({
             setConnectionErrorMessage("Authentication timed out. Please try again.");
             toast.error("Authentication timed out. Please try again.");
           }
-        }, 120000); // 2 minute timeout
+        }, 120000);
       }
     } catch (error) {
       console.error("Error connecting to Google OAuth:", error);
@@ -214,7 +209,6 @@ export const GoogleAdsConnection = ({
   const handleDisconnectGoogle = () => {
     clearAuthTokens();
     toast.success("Disconnected from Google Ads");
-    // Reload the page to clear the UI state
     window.location.reload();
   };
   
@@ -236,6 +230,28 @@ export const GoogleAdsConnection = ({
                 <CheckCircle className="h-5 w-5" />
                 <span>Connected to Google Ads</span>
               </div>
+              
+              {developerTokenStatus === "missing" && (
+                <div className="p-3 bg-error-foreground/10 rounded-md border border-error-DEFAULT">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4 text-error-DEFAULT" />
+                    <span className="font-medium text-sm">Developer Token Missing</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    A Google Ads Developer Token is required to fetch real accounts.
+                    Please add it as a secret in your Supabase Edge Function.
+                  </p>
+                  <a 
+                    href="https://developers.google.com/google-ads/api/docs/first-call/dev-token"
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 text-xs flex items-center gap-1 mt-2"
+                  >
+                    How to get a Developer Token <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+              
               <Button 
                 onClick={handleDisconnectGoogle} 
                 variant="outline"
@@ -466,7 +482,7 @@ export const AccountForm = ({
             variant={newAccountPlatform === "youtube" ? "secondary" : "outline"}
             onClick={() => setNewAccountPlatform("youtube")}
             className="flex-1"
-            disabled // YouTube not supported yet
+            disabled
           >
             YouTube Ads
           </Button>
