@@ -23,7 +23,7 @@ export function AccountsOverview() {
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Accounts Overview</CardTitle>
-        <CardDescription>Manage your Google and YouTube ad accounts</CardDescription>
+        <CardDescription>Manage your Google Ads accounts</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
@@ -36,9 +36,7 @@ export function AccountsOverview() {
               <div key={account.id} className="flex items-center justify-between bg-secondary/10 rounded-md p-3">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{account.name}</span>
-                  <Badge variant={account.platform === "google" ? "default" : "secondary"}>
-                    {account.platform === "google" ? "Google" : "YouTube"}
-                  </Badge>
+                  <Badge variant="default">Google Ads</Badge>
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Last synced: {account.lastSynced ? new Date(account.lastSynced).toLocaleDateString() : "Never"}
@@ -59,9 +57,7 @@ export function AccountsOverview() {
                 <div key={account.id} className="flex items-center justify-between bg-warning-muted rounded-md p-3">
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{account.name}</span>
-                    <Badge variant="outline">
-                      {account.platform === "google" ? "Google" : "YouTube"}
-                    </Badge>
+                    <Badge variant="outline">Google Ads</Badge>
                   </div>
                   <Button size="sm" onClick={() => navigate("/accounts")}>Connect</Button>
                 </div>

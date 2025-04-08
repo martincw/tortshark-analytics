@@ -45,7 +45,7 @@ export const ConnectedAccounts = ({
       <CardHeader>
         <CardTitle>Connected Accounts</CardTitle>
         <CardDescription>
-          Manage your ad accounts
+          Manage your Google Ads accounts
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -125,9 +125,7 @@ const AccountsList = ({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium">{account.name}</span>
-                <Badge variant={account.platform === "google" ? "default" : "secondary"}>
-                  {account.platform === "google" ? "Google" : "YouTube"}
-                </Badge>
+                <Badge variant="default">Google Ads</Badge>
                 {selectedAccountId === account.id && (
                   <Badge variant="outline" className="ml-2 bg-primary/10">Selected</Badge>
                 )}

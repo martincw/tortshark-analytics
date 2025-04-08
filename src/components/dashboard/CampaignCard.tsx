@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,17 +58,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg font-bold line-clamp-1">{tortType}</CardTitle>
+            <CardTitle className="text-lg font-bold line-clamp-1">{campaign.name}</CardTitle>
             <p className="text-sm text-muted-foreground flex items-center mt-1">
               <Calendar className="h-3 w-3 mr-1 inline" />
               {formattedDate}
             </p>
           </div>
           <Badge 
-            variant={getBadgeVariant(tortType)}
+            variant={getBadgeVariant(campaign.name)}
             className="shrink-0"
           >
-            {tortType}
+            Google Ads
           </Badge>
         </div>
       </CardHeader>

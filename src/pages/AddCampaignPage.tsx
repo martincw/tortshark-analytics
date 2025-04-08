@@ -29,7 +29,7 @@ const AddCampaignPage = () => {
   const { addCampaign, accountConnections } = useCampaign();
   
   const [campaignName, setCampaignName] = useState("");
-  const [platform, setPlatform] = useState<"google" | "youtube">("google");
+  const [platform, setPlatform] = useState<"google">("google");
   const [accountId, setAccountId] = useState("");
   const [adSpend, setAdSpend] = useState("");
   const [leads, setLeads] = useState("");
@@ -40,7 +40,7 @@ const AddCampaignPage = () => {
   // Include all accounts or create a manual account option
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
-    : [{ id: "manual", name: "Manual Entry", platform: "manual" as any, isConnected: true, lastSynced: null }];
+    : [{ id: "manual", name: "Manual Entry", platform: "google" as any, isConnected: true, lastSynced: null }];
 
   // Parse query parameters to set initial values
   useEffect(() => {
@@ -160,20 +160,9 @@ const AddCampaignPage = () => {
                 <label htmlFor="platform" className="text-sm font-medium">
                   Platform *
                 </label>
-                <Select
-                  value={platform}
-                  onValueChange={(value: "google" | "youtube") => setPlatform(value)}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select platform" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="google">Google Ads</SelectItem>
-                    <SelectItem value="youtube">YouTube Ads</SelectItem>
-                    {/* Can add more platforms here in the future */}
-                  </SelectContent>
-                </Select>
+                <div className="w-full p-2 border rounded-md bg-muted/30 text-sm">
+                  Google Ads
+                </div>
               </div>
               <div className="space-y-2">
                 <label htmlFor="account" className="text-sm font-medium">
@@ -190,7 +179,7 @@ const AddCampaignPage = () => {
                     <SelectItem value="manual">Manual Entry (No Account)</SelectItem>
                     {availableAccounts.filter(acc => acc.id !== "manual").map((account) => (
                       <SelectItem key={account.id} value={account.id}>
-                        {account.name} ({account.platform})
+                        {account.name} (Google Ads)
                       </SelectItem>
                     ))}
                   </SelectContent>

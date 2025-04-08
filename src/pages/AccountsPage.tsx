@@ -25,7 +25,7 @@ const AccountsPage = () => {
   
   const navigate = useNavigate();
   const [newAccountName, setNewAccountName] = useState("");
-  const [newAccountPlatform, setNewAccountPlatform] = useState<"google" | "youtube">("google");
+  const [newAccountPlatform, setNewAccountPlatform] = useState<"google">("google");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   
   const handleAddAccount = () => {
@@ -68,11 +68,11 @@ const AccountsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Ad Account Connections</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Google Ads Account Connections</h1>
       </div>
       
       <p className="text-muted-foreground">
-        Manage your ad accounts and create campaigns
+        Manage your Google Ads accounts and create campaigns
       </p>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -80,7 +80,7 @@ const AccountsPage = () => {
           <CardHeader>
             <CardTitle>Add New Account</CardTitle>
             <CardDescription>
-              Create a new ad account
+              Create a new Google Ads account
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -92,28 +92,13 @@ const AccountsPage = () => {
                 id="accountName"
                 value={newAccountName}
                 onChange={(e) => setNewAccountName(e.target.value)}
-                placeholder="e.g., My Ad Account"
+                placeholder="e.g., My Google Ads Account"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Platform</label>
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant={newAccountPlatform === "google" ? "default" : "outline"}
-                  onClick={() => setNewAccountPlatform("google")}
-                  className="flex-1"
-                >
-                  Google Ads
-                </Button>
-                <Button
-                  type="button"
-                  variant={newAccountPlatform === "youtube" ? "secondary" : "outline"}
-                  onClick={() => setNewAccountPlatform("youtube")}
-                  className="flex-1"
-                >
-                  YouTube Ads
-                </Button>
+              <div className="w-full p-2 border rounded-md bg-muted/30 text-sm">
+                Google Ads
               </div>
             </div>
             <Button 
