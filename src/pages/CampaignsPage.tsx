@@ -5,14 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Plus, Link } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { getStoredAuthTokens } from "@/services/googleAdsService";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
-  
-  // Authentication status is only relevant for syncing data, not for creating campaigns
-  const isAuthenticated = !!getStoredAuthTokens()?.access_token;
 
   return (
     <div className="space-y-6">
@@ -44,30 +40,14 @@ const CampaignsPage = () => {
               <Plus className="mr-2 h-4 w-4" />
               Add Campaign
             </Button>
-            {!isAuthenticated && (
-              <Button onClick={() => navigate("/accounts")} variant="outline">
-                <Link className="mr-2 h-4 w-4" />
-                Connect Ad Platforms
-              </Button>
-            )}
+            <Button onClick={() => navigate("/accounts")} variant="outline">
+              <Link className="mr-2 h-4 w-4" />
+              Manage Ad Accounts
+            </Button>
           </div>
         </div>
       ) : (
-        <>
-          {!isAuthenticated && (
-            <div className="bg-muted/50 p-4 rounded-lg mb-6 flex justify-between items-center">
-              <div>
-                <h3 className="font-medium">Connect to ad platforms</h3>
-                <p className="text-sm text-muted-foreground">Connect to Google Ads or other platforms to sync campaign data automatically</p>
-              </div>
-              <Button onClick={() => navigate("/accounts")} variant="outline" size="sm">
-                <Link className="mr-2 h-4 w-4" />
-                Connect Platforms
-              </Button>
-            </div>
-          )}
-          <CampaignGrid />
-        </>
+        <CampaignGrid />
       )}
     </div>
   );

@@ -22,7 +22,6 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Campaign } from "@/types/campaign";
-import { getStoredAuthTokens, isPlatformConnected } from "@/services/googleAdsService";
 
 const AddCampaignPage = () => {
   const navigate = useNavigate();
@@ -37,9 +36,6 @@ const AddCampaignPage = () => {
   const [cases, setCases] = useState("");
   const [retainers, setRetainers] = useState("");
   const [revenue, setRevenue] = useState("");
-  
-  const isAuthenticated = !!getStoredAuthTokens()?.access_token;
-  const isPlatformActive = isPlatformConnected(platform);
   
   // Include all accounts or create a manual account option
   const availableAccounts = accountConnections.length > 0 
@@ -199,17 +195,9 @@ const AddCampaignPage = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {!isAuthenticated && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <Button 
-                      variant="link" 
-                      className="h-auto p-0 text-xs" 
-                      onClick={() => navigate("/accounts")}
-                    >
-                      Connect to ad platforms
-                    </Button> to sync campaign data automatically
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Manual account creation only. No automatic syncing available.
+                </p>
               </div>
               <div className="space-y-2">
                 <label htmlFor="adSpend" className="text-sm font-medium">
