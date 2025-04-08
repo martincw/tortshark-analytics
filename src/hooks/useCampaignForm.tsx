@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -121,6 +120,7 @@ export const useCampaignForm = () => {
         revenue: 0,
         date: currentDate,
       },
+      statsHistory: [], // Add empty statsHistory array
       targets: {
         monthlyRetainers: parseInt(targetMonthlyRetainers) || 0,
         casePayoutAmount: parseFloat(casePayoutAmount) || 0,
