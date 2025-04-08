@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -44,6 +45,7 @@ const AccountsPage = () => {
             setGoogleAccounts(storedAccounts);
             setAuthenticationAttempted(true);
             
+            // Check for existing accountConnections and only add new ones
             const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
             let newAccountsAdded = 0;
             
@@ -76,6 +78,7 @@ const AccountsPage = () => {
                 if (freshAccounts && freshAccounts.length > 0) {
                   setGoogleAccounts(freshAccounts);
                   
+                  // Check for existing accountConnections and only add new ones
                   const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
                   let newAccountsAdded = 0;
                   
