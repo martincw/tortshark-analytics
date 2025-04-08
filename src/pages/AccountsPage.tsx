@@ -248,13 +248,13 @@ const AccountsPage = () => {
       lastSynced: isAuthenticated ? new Date().toISOString() : undefined,
     };
     
-    // Fix: Store the returned account object from addAccountConnection
-    const addedAccount = addAccountConnection(newAccount);
+    // Add the account and capture the new account ID
+    const newAccountId = addAccountConnection(newAccount);
     setNewAccountName("");
     
-    // Only try to access id if addedAccount is not undefined/null
-    if (addedAccount && 'id' in addedAccount) {
-      setSelectedAccountId(addedAccount.id);
+    // Only set the selected account ID if we got a valid ID back
+    if (typeof newAccountId === 'string') {
+      setSelectedAccountId(newAccountId);
     }
     
     toast.success("Account added successfully");
