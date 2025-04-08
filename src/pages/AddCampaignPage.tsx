@@ -22,6 +22,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Campaign } from "@/types/campaign";
+import { formatCurrency } from "@/utils/campaignUtils";
 
 const AddCampaignPage = () => {
   const navigate = useNavigate();
@@ -44,6 +45,25 @@ const AddCampaignPage = () => {
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
     : [{ id: "manual", name: "Manual Entry", platform: "google" as any, isConnected: true, lastSynced: null }];
+
+  // Calculate target income and spend dynamically
+  useEffect(() => {
+    if (targetMonthlyRetainers && casePayoutAmount) {
+      // Calculate target monthly income based on retainers and payout
+      const retainers = parseInt(targetMonthlyRetainers) || 0;
+      const payout = parseFloat(casePayoutAmount) || 0;
+      const income = retainers * payout;
+      
+      setTargetMonthlyIncome(income.toString());
+      
+      // Calculate target monthly spend based on income and ROAS
+      const roas = parseFloat(targetROAS) || 0;
+      if (roas > 0) {
+        const spend = income / (roas / 100);
+        setTargetMonthlySpend(spend.toFixed(2));
+      }
+    }
+  }, [targetMonthlyRetainers, casePayoutAmount, targetROAS]);
 
   // Parse query parameters to set initial values
   useEffect(() => {
@@ -231,34 +251,6 @@ const AddCampaignPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="targetMonthlyIncome" className="text-sm font-medium">
-                    Target Monthly Income ($)
-                  </label>
-                  <Input
-                    id="targetMonthlyIncome"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={targetMonthlyIncome}
-                    onChange={(e) => setTargetMonthlyIncome(e.target.value)}
-                    placeholder="e.g., 50000.00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="targetMonthlySpend" className="text-sm font-medium">
-                    Target Monthly Ad Spend ($)
-                  </label>
-                  <Input
-                    id="targetMonthlySpend"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={targetMonthlySpend}
-                    onChange={(e) => setTargetMonthlySpend(e.target.value)}
-                    placeholder="e.g., 10000.00"
-                  />
-                </div>
-                <div className="space-y-2">
                   <label htmlFor="targetROAS" className="text-sm font-medium">
                     Target ROAS (%)
                   </label>
@@ -274,6 +266,46 @@ const AddCampaignPage = () => {
                   <p className="text-xs text-muted-foreground">
                     Return on ad spend (ROAS) target percentage
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="targetMonthlyIncome" className="text-sm font-medium">
+                    Target Monthly Income ($)
+                  </label>
+                  <Input
+                    id="targetMonthlyIncome"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={targetMonthlyIncome}
+                    onChange={(e) => setTargetMonthlyIncome(e.target.value)}
+                    readOnly
+                    className="bg-muted/30"
+                  />
+                  {targetMonthlyIncome && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(parseFloat(targetMonthlyIncome))} based on {targetMonthlyRetainers} retainers at {formatCurrency(parseFloat(casePayoutAmount) || 0)} each
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="targetMonthlySpend" className="text-sm font-medium">
+                    Target Monthly Ad Spend ($)
+                  </label>
+                  <Input
+                    id="targetMonthlySpend"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={targetMonthlySpend}
+                    onChange={(e) => setTargetMonthlySpend(e.target.value)}
+                    readOnly
+                    className="bg-muted/30"
+                  />
+                  {targetMonthlySpend && targetROAS && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(parseFloat(targetMonthlySpend))} calculated for {targetROAS}% ROAS
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
