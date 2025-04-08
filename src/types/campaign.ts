@@ -7,6 +7,7 @@ export interface Campaign {
   accountName: string;
   stats: CampaignStats;
   manualStats: ManualStats;
+  targets: CampaignTargets;
 }
 
 export interface CampaignStats {
@@ -23,6 +24,14 @@ export interface ManualStats {
   retainers: number;
   revenue: number;
   date: string; // ISO date string
+}
+
+export interface CampaignTargets {
+  monthlyRetainers: number;
+  casePayoutAmount: number;
+  monthlyIncome: number;
+  monthlySpend: number;
+  targetROAS: number;
 }
 
 export interface CampaignMetrics {

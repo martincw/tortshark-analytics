@@ -28,9 +28,19 @@ const AddCampaignPage = () => {
   const location = useLocation();
   const { addCampaign, accountConnections } = useCampaign();
   
+  // Campaign basic details
   const [campaignName, setCampaignName] = useState("");
   const [platform, setPlatform] = useState<"google">("google");
   const [accountId, setAccountId] = useState("");
+  
+  // Campaign targets
+  const [targetMonthlyRetainers, setTargetMonthlyRetainers] = useState("");
+  const [casePayoutAmount, setCasePayoutAmount] = useState("");
+  const [targetMonthlyIncome, setTargetMonthlyIncome] = useState("");
+  const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
+  const [targetROAS, setTargetROAS] = useState("");
+  
+  // Campaign stats
   const [adSpend, setAdSpend] = useState("");
   const [leads, setLeads] = useState("");
   const [cases, setCases] = useState("");
@@ -102,6 +112,13 @@ const AddCampaignPage = () => {
         retainers: parseInt(retainers) || 0,
         revenue: parseFloat(revenue) || 0,
         date: currentDate,
+      },
+      targets: {
+        monthlyRetainers: parseInt(targetMonthlyRetainers) || 0,
+        casePayoutAmount: parseFloat(casePayoutAmount) || 0,
+        monthlyIncome: parseFloat(targetMonthlyIncome) || 0,
+        monthlySpend: parseFloat(targetMonthlySpend) || 0,
+        targetROAS: parseFloat(targetROAS) || 0,
       },
     };
     
@@ -188,25 +205,103 @@ const AddCampaignPage = () => {
                   Manual account creation only. No automatic syncing available.
                 </p>
               </div>
-              <div className="space-y-2">
-                <label htmlFor="adSpend" className="text-sm font-medium">
-                  Ad Spend ($)
-                </label>
-                <Input
-                  id="adSpend"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={adSpend}
-                  onChange={(e) => setAdSpend(e.target.value)}
-                  placeholder="e.g., 1000.00"
-                />
+            </div>
+            
+            <div className="border-t pt-4">
+              <h3 className="text-md font-medium mb-4">Campaign Targets</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="targetMonthlyRetainers" className="text-sm font-medium">
+                    Target Monthly Retainers
+                  </label>
+                  <Input
+                    id="targetMonthlyRetainers"
+                    type="number"
+                    min="0"
+                    value={targetMonthlyRetainers}
+                    onChange={(e) => setTargetMonthlyRetainers(e.target.value)}
+                    placeholder="e.g., 10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="casePayoutAmount" className="text-sm font-medium">
+                    Case Payout Amount ($)
+                  </label>
+                  <Input
+                    id="casePayoutAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={casePayoutAmount}
+                    onChange={(e) => setCasePayoutAmount(e.target.value)}
+                    placeholder="e.g., 5000.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="targetMonthlyIncome" className="text-sm font-medium">
+                    Target Monthly Income ($)
+                  </label>
+                  <Input
+                    id="targetMonthlyIncome"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={targetMonthlyIncome}
+                    onChange={(e) => setTargetMonthlyIncome(e.target.value)}
+                    placeholder="e.g., 50000.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="targetMonthlySpend" className="text-sm font-medium">
+                    Target Monthly Ad Spend ($)
+                  </label>
+                  <Input
+                    id="targetMonthlySpend"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={targetMonthlySpend}
+                    onChange={(e) => setTargetMonthlySpend(e.target.value)}
+                    placeholder="e.g., 10000.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="targetROAS" className="text-sm font-medium">
+                    Target ROAS (%)
+                  </label>
+                  <Input
+                    id="targetROAS"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={targetROAS}
+                    onChange={(e) => setTargetROAS(e.target.value)}
+                    placeholder="e.g., 300"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Return on ad spend (ROAS) target percentage
+                  </p>
+                </div>
               </div>
             </div>
             
             <div className="border-t pt-4">
-              <h3 className="text-md font-medium mb-4">Manual Statistics</h3>
+              <h3 className="text-md font-medium mb-4">Current Statistics</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="adSpend" className="text-sm font-medium">
+                    Ad Spend ($)
+                  </label>
+                  <Input
+                    id="adSpend"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={adSpend}
+                    onChange={(e) => setAdSpend(e.target.value)}
+                    placeholder="e.g., 1000.00"
+                  />
+                </div>
                 <div className="space-y-2">
                   <label htmlFor="leads" className="text-sm font-medium">
                     Number of Leads

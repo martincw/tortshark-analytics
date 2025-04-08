@@ -52,8 +52,27 @@ const loadFromLocalStorage = (key: string, defaultValue: any) => {
 };
 
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Update existing campaigns to ensure they have the targets property
+  const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
+    return campaigns.map(campaign => {
+      if (!campaign.targets) {
+        return {
+          ...campaign,
+          targets: {
+            monthlyRetainers: 0,
+            casePayoutAmount: 0,
+            monthlyIncome: 0,
+            monthlySpend: 0,
+            targetROAS: 0,
+          }
+        };
+      }
+      return campaign;
+    });
+  };
+
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => 
-    loadFromLocalStorage('campaigns', [])
+    migrateExistingCampaigns(loadFromLocalStorage('campaigns', []))
   );
   
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>(() => 
