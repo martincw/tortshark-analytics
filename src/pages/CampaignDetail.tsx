@@ -53,7 +53,7 @@ const CampaignDetail = () => {
     console.log("Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
   }, [id, setSelectedCampaignId, campaigns]);
   
-  // Find the campaign by ID
+  // Find the campaign by ID - ensure we're comparing the same types
   const campaign = campaigns.find((c) => c.id === id);
   
   // Debug the found campaign

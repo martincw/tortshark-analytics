@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   
   const handleViewDetails = () => {
     console.log("Navigating to campaign details for:", campaign.id);
+    setSelectedCampaignId(campaign.id);
     navigate(`/campaign/${campaign.id}`);
   };
 

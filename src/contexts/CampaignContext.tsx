@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
@@ -131,7 +130,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     console.log("Adding stat history entry:", { campaignId, entry });
     
     setCampaigns(prev => {
-      return prev.map(campaign => {
+      const updatedCampaigns = prev.map(campaign => {
         if (campaign.id === campaignId) {
           // Create new entry with ID and createdAt
           const newEntry: StatHistoryEntry = {
@@ -166,6 +165,9 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
         return campaign;
       });
+      
+      console.log("Updated campaigns state:", updatedCampaigns);
+      return updatedCampaigns;
     });
   };
 
