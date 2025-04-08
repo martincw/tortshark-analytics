@@ -1,5 +1,6 @@
 import { Campaign, AccountConnection } from "@/types/campaign";
 import { supabase, SUPABASE_PROJECT_URL } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Google Ads API constants
 // Updated to use the correct scope for Google Ads API
