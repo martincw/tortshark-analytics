@@ -8,7 +8,7 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerfo
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -21,13 +21,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface CampaignCardProps {
   campaign: Campaign;
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
-  const { setSelectedCampaignId, updateCampaign } = useCampaign();
+  const { setSelectedCampaignId, addStatHistoryEntry } = useCampaign();
   const navigate = useNavigate();
   const metrics = calculateMetrics(campaign);
   
@@ -38,6 +40,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     cases: "0",
     revenue: "0"
   });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
     setSelectedCampaignId(campaign.id);
@@ -50,25 +53,19 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     const newCases = parseInt(quickStats.cases) || 0;
     const newRevenue = parseFloat(quickStats.revenue) || 0;
     
-    // Update the campaign with the new values added to the existing ones
-    const updatedCampaign = {
-      ...campaign,
-      manualStats: {
-        ...campaign.manualStats,
-        leads: campaign.manualStats.leads + newLeads,
-        cases: campaign.manualStats.cases + newCases,
-        revenue: campaign.manualStats.revenue + newRevenue,
-        date: new Date().toISOString(), // Update the date to today
-      },
-    };
-    
-    // Update the campaign
-    updateCampaign(updatedCampaign);
+    // Add a new history entry
+    addStatHistoryEntry(campaign.id, {
+      date: selectedDate.toISOString(),
+      leads: newLeads, 
+      cases: newCases,
+      retainers: 0, // Default to 0 for simplicity in quick entry
+      revenue: newRevenue
+    });
     
     // Close the dialog and show a success toast
     setIsQuickEntryOpen(false);
     setQuickStats({ leads: "0", cases: "0", revenue: "0" });
-    toast.success("Stats updated successfully");
+    toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
   // Format the date
@@ -187,17 +184,60 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </CardFooter>
       </Card>
       
-      {/* Quick Entry Dialog */}
+      {/* Quick Entry Dialog with Date Picker */}
       <Dialog open={isQuickEntryOpen} onOpenChange={setIsQuickEntryOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Add Stats for {campaign.name}</DialogTitle>
             <DialogDescription>
-              Quickly add new leads and cases. These values will be added to the existing totals.
+              Add leads, cases, and revenue for a specific date. These values will be added to the total.
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            {/* Date Picker */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="date-picker" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date-picker"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {selectedDate ? (
+                        format(selectedDate, "PPP")
+                      ) : (
+                        <span>Select date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-1">
+                      <input
+                        type="date"
+                        className="form-input w-full p-2 rounded-md border"
+                        value={format(selectedDate, "yyyy-MM-dd")}
+                        onChange={(e) => {
+                          const date = new Date(e.target.value);
+                          if (!isNaN(date.getTime())) {
+                            setSelectedDate(date);
+                          }
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="quick-leads" className="text-right">
                 Leads

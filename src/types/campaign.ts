@@ -7,6 +7,7 @@ export interface Campaign {
   accountName: string;
   stats: CampaignStats;
   manualStats: ManualStats;
+  statsHistory: StatHistoryEntry[];
   targets: CampaignTargets;
 }
 
@@ -24,6 +25,16 @@ export interface ManualStats {
   retainers: number;
   revenue: number;
   date: string; // ISO date string
+}
+
+export interface StatHistoryEntry {
+  id: string;
+  date: string; // ISO date string
+  leads: number;
+  cases: number;
+  retainers: number;
+  revenue: number;
+  createdAt: string; // ISO date string of when this entry was added
 }
 
 export interface CampaignTargets {

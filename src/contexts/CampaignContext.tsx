@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Campaign, DateRange, AccountConnection } from "../types/campaign";
+import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
 
 interface CampaignContextType {
@@ -12,6 +12,7 @@ interface CampaignContextType {
   addCampaign: (newCampaign: Omit<Campaign, "id">) => string;
   addAccountConnection: (newAccount: Omit<AccountConnection, "id">) => string;
   deleteCampaign: (id: string) => void;
+  addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => void;
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
   isLoading: boolean;
@@ -52,22 +53,27 @@ const loadFromLocalStorage = (key: string, defaultValue: any) => {
 };
 
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Update existing campaigns to ensure they have the targets property
+  // Update existing campaigns to ensure they have the targets property and statsHistory
   const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
     return campaigns.map(campaign => {
-      if (!campaign.targets) {
-        return {
-          ...campaign,
-          targets: {
-            monthlyRetainers: 0,
-            casePayoutAmount: 0,
-            monthlyIncome: 0,
-            monthlySpend: 0,
-            targetROAS: 0,
-          }
+      const updatedCampaign = { ...campaign };
+      
+      if (!updatedCampaign.targets) {
+        updatedCampaign.targets = {
+          monthlyRetainers: 0,
+          casePayoutAmount: 0,
+          monthlyIncome: 0,
+          monthlySpend: 0,
+          targetROAS: 0,
+          targetProfit: 0,
         };
       }
-      return campaign;
+      
+      if (!updatedCampaign.statsHistory) {
+        updatedCampaign.statsHistory = [];
+      }
+      
+      return updatedCampaign;
     });
   };
 
@@ -107,12 +113,45 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     const id = crypto.randomUUID();
     const campaign: Campaign = {
       ...newCampaign,
-      id
+      id,
+      statsHistory: [] // Initialize with empty history
     };
     
     setCampaigns(prev => [...prev, campaign]);
     console.log("Campaign added successfully:", campaign);
     return id;
+  };
+
+  const addStatHistoryEntry = (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => {
+    setCampaigns(prev => {
+      return prev.map(campaign => {
+        if (campaign.id === campaignId) {
+          // Create new entry with ID and createdAt
+          const newEntry: StatHistoryEntry = {
+            ...entry,
+            id: crypto.randomUUID(),
+            createdAt: new Date().toISOString()
+          };
+          
+          // Update campaign stats
+          const updatedCampaign = {
+            ...campaign,
+            manualStats: {
+              ...campaign.manualStats,
+              leads: campaign.manualStats.leads + entry.leads,
+              cases: campaign.manualStats.cases + entry.cases,
+              retainers: campaign.manualStats.retainers + entry.retainers,
+              revenue: campaign.manualStats.revenue + entry.revenue,
+              date: new Date().toISOString(), // Update the date to today
+            },
+            statsHistory: [newEntry, ...campaign.statsHistory]
+          };
+          
+          return updatedCampaign;
+        }
+        return campaign;
+      });
+    });
   };
 
   const addAccountConnection = (newAccount: Omit<AccountConnection, "id">): string => {
@@ -156,6 +195,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       updateCampaign,
       addCampaign,
       addAccountConnection,
+      addStatHistoryEntry,
       deleteCampaign,
       selectedCampaignId,
       setSelectedCampaignId,

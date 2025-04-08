@@ -20,6 +20,7 @@ import {
   Percent,
   Save,
   X,
+  CalendarDays,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -32,11 +33,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { campaigns, updateCampaign, deleteCampaign, setSelectedCampaignId } = useCampaign();
+  const { campaigns, updateCampaign, deleteCampaign, setSelectedCampaignId, addStatHistoryEntry } = useCampaign();
   
   // Set the selected campaign ID when this component mounts
   useEffect(() => {
@@ -61,6 +65,7 @@ const CampaignDetail = () => {
     retainers: "0",
     revenue: "0"
   });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   // Update form fields when campaign changes
   useEffect(() => {
@@ -125,6 +130,7 @@ const CampaignDetail = () => {
       retainers: "0",
       revenue: "0"
     });
+    setSelectedDate(new Date());
     setIsDailyStatsDialogOpen(true);
   };
   
@@ -135,31 +141,24 @@ const CampaignDetail = () => {
     const newRetainers = parseInt(dailyStats.retainers) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
     
-    // Update the campaign with the new values added to the existing ones
-    const updatedCampaign = {
-      ...campaign,
-      manualStats: {
-        ...campaign.manualStats,
-        leads: campaign.manualStats.leads + newLeads,
-        cases: campaign.manualStats.cases + newCases,
-        retainers: campaign.manualStats.retainers + newRetainers,
-        revenue: campaign.manualStats.revenue + newRevenue,
-        date: new Date().toISOString(), // Update the date to today
-      },
-    };
-    
-    // Update the campaign
-    updateCampaign(updatedCampaign);
+    // Add stats history entry
+    addStatHistoryEntry(campaign.id, {
+      date: selectedDate.toISOString(),
+      leads: newLeads,
+      cases: newCases,
+      retainers: newRetainers,
+      revenue: newRevenue
+    });
     
     // Update the form fields to reflect the new values
-    setLeadCount(updatedCampaign.manualStats.leads.toString());
-    setCaseCount(updatedCampaign.manualStats.cases.toString());
-    setRetainerCount(updatedCampaign.manualStats.retainers.toString());
-    setRevenue(updatedCampaign.manualStats.revenue.toString());
+    setLeadCount((parseInt(leadCount) + newLeads).toString());
+    setCaseCount((parseInt(caseCount) + newCases).toString());
+    setRetainerCount((parseInt(retainerCount) + newRetainers).toString());
+    setRevenue((parseFloat(revenue) + newRevenue).toString());
     
     // Close the dialog and show a success toast
     setIsDailyStatsDialogOpen(false);
-    toast.success("Daily stats updated successfully");
+    toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
   return (
@@ -194,7 +193,7 @@ const CampaignDetail = () => {
                 onClick={openDailyStatsDialog}
                 variant="outline"
               >
-                <TrendingUp className="mr-2 h-4 w-4" />
+                <CalendarDays className="mr-2 h-4 w-4" />
                 Add Daily Stats
               </Button>
               <Button
@@ -359,18 +358,104 @@ const CampaignDetail = () => {
         </Card>
       </div>
       
-      {/* Daily Stats Dialog */}
+      {/* Stats History Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Stats History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {campaign.statsHistory && campaign.statsHistory.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-4 font-medium">Date</th>
+                    <th className="text-left py-2 px-4 font-medium">Leads</th>
+                    <th className="text-left py-2 px-4 font-medium">Cases</th>
+                    <th className="text-left py-2 px-4 font-medium">Retainers</th>
+                    <th className="text-left py-2 px-4 font-medium">Revenue</th>
+                    <th className="text-left py-2 px-4 font-medium">Added On</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaign.statsHistory.map((entry) => (
+                    <tr key={entry.id} className="border-b hover:bg-muted/50">
+                      <td className="py-2 px-4">{format(new Date(entry.date), "MMM d, yyyy")}</td>
+                      <td className="py-2 px-4">{entry.leads}</td>
+                      <td className="py-2 px-4">{entry.cases}</td>
+                      <td className="py-2 px-4">{entry.retainers}</td>
+                      <td className="py-2 px-4">{formatCurrency(entry.revenue)}</td>
+                      <td className="py-2 px-4 text-muted-foreground text-sm">
+                        {format(new Date(entry.createdAt), "MMM d, yyyy")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No history records yet. Add daily stats to track your campaign's performance over time.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Daily Stats Dialog with Date Picker */}
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Add Daily Stats</DialogTitle>
             <DialogDescription>
-              Enter today's performance metrics for {campaign.name}. 
+              Enter performance metrics for {campaign.name} for a specific date. 
               These values will be added to the existing totals.
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            {/* Date Picker */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="date-picker" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date-picker"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {selectedDate ? (
+                        format(selectedDate, "PPP")
+                      ) : (
+                        <span>Select date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-1">
+                      <input
+                        type="date"
+                        className="form-input w-full p-2 rounded-md border"
+                        value={format(selectedDate, "yyyy-MM-dd")}
+                        onChange={(e) => {
+                          const date = new Date(e.target.value);
+                          if (!isNaN(date.getTime())) {
+                            setSelectedDate(date);
+                          }
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="daily-leads" className="text-right">
                 Leads
