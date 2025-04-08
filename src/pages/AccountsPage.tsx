@@ -248,11 +248,12 @@ const AccountsPage = () => {
       lastSynced: isAuthenticated ? new Date().toISOString() : undefined,
     };
     
+    // Fix: Store the returned account object from addAccountConnection
     const addedAccount = addAccountConnection(newAccount);
     setNewAccountName("");
     
-    // Select the newly added account
-    if (addedAccount) {
+    // Only try to access id if addedAccount is not undefined/null
+    if (addedAccount && 'id' in addedAccount) {
       setSelectedAccountId(addedAccount.id);
     }
     
