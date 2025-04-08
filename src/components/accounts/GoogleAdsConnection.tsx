@@ -16,7 +16,8 @@ import {
   PlusCircle, 
   ExternalLink, 
   Copy,
-  CopyCheck
+  CopyCheck,
+  XCircle
 } from "lucide-react";
 import { 
   getGoogleAuthUrl, 
@@ -52,6 +53,8 @@ export const GoogleAdsConnection = ({
   const [copied, setCopied] = useState(false);
   const [directUrl, setDirectUrl] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showConnectionError, setShowConnectionError] = useState(false);
+  const [connectionErrorMessage, setConnectionErrorMessage] = useState("");
   const exactRedirectUri = `${window.location.origin}/auth/google/callback`;
   
   useEffect(() => {
@@ -80,12 +83,15 @@ export const GoogleAdsConnection = ({
       if (event.data.type === "GOOGLE_AUTH_SUCCESS") {
         console.log("Auth success event from popup");
         setIsAuthenticating(false);
+        setShowConnectionError(false);
         toast.success("Successfully connected to Google Ads");
         
         // Trigger a page reload to refresh the UI
         setTimeout(() => window.location.reload(), 1000);
       } else if (event.data.type === "GOOGLE_AUTH_ERROR") {
         setIsAuthenticating(false);
+        setShowConnectionError(true);
+        setConnectionErrorMessage(event.data.error || "Unknown error");
         toast.error(`Authentication error: ${event.data.error || "Unknown error"}`);
       }
     };
@@ -99,15 +105,33 @@ export const GoogleAdsConnection = ({
     const handleAuthSuccess = () => {
       console.log("Auth success event from storage");
       setIsAuthenticating(false);
+      setShowConnectionError(false);
       // No toast here as it will be handled by the AccountsPage component
     };
     
+    const handleAuthFailure = (event: CustomEvent) => {
+      console.log("Auth failure event:", event.detail);
+      setIsAuthenticating(false);
+      setShowConnectionError(true);
+      setConnectionErrorMessage(event.detail?.message || "Authentication was not completed");
+      toast.error(event.detail?.message || "Authentication was not completed");
+    };
+    
     window.addEventListener('googleAuthSuccess', handleAuthSuccess);
-    return () => window.removeEventListener('googleAuthSuccess', handleAuthSuccess);
+    window.addEventListener('googleAuthFailure', handleAuthFailure as EventListener);
+    
+    return () => {
+      window.removeEventListener('googleAuthSuccess', handleAuthSuccess);
+      window.removeEventListener('googleAuthFailure', handleAuthFailure as EventListener);
+    };
   }, []);
   
   const handleConnectGoogle = () => {
     try {
+      // Reset error states
+      setShowConnectionError(false);
+      setConnectionErrorMessage("");
+      
       // Log the current origin for debugging purposes
       console.log("Current origin:", window.location.origin);
       console.log("Redirect URI should be:", exactRedirectUri);
@@ -144,32 +168,21 @@ export const GoogleAdsConnection = ({
         // If popup fails, try direct navigation
         window.location.href = getGoogleAuthUrl();
       } else {
-        // Monitor the popup
-        let popupCheckInterval: number | null = window.setInterval(() => {
-          if (popup.closed) {
-            if (popupCheckInterval) {
-              window.clearInterval(popupCheckInterval);
-              popupCheckInterval = null;
-            }
-            
-            // Check if authentication succeeded by checking for tokens
-            const tokens = getStoredAuthTokens();
-            if (tokens?.access_token) {
-              setIsAuthenticating(false);
-              toast.success("Successfully connected to Google Ads");
-              window.location.reload();
-            } else {
-              setIsAuthenticating(false);
-              toast.error("Authentication was not completed");
-            }
-          }
-        }, 500);
-        
-        // Set a timeout to clear interval if popup stays open too long
+        // Monitor the popup is already handled by openGoogleAuthPopup
+        // But we'll add a timeout for user feedback
         setTimeout(() => {
-          if (popupCheckInterval) {
-            window.clearInterval(popupCheckInterval);
+          if (isAuthenticating) {
+            toast.info("Authentication is taking longer than expected. Check the popup window.");
+          }
+        }, 10000);
+        
+        // Set a timeout to clear isAuthenticating state if it takes too long
+        setTimeout(() => {
+          if (isAuthenticating) {
             setIsAuthenticating(false);
+            setShowConnectionError(true);
+            setConnectionErrorMessage("Authentication timed out. Please try again.");
+            toast.error("Authentication timed out. Please try again.");
           }
         }, 120000); // 2 minute timeout
       }
@@ -177,6 +190,8 @@ export const GoogleAdsConnection = ({
       console.error("Error connecting to Google OAuth:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to connect";
       setConfigError(errorMessage);
+      setShowConnectionError(true);
+      setConnectionErrorMessage(errorMessage);
       toast.error(errorMessage);
       setIsAuthenticating(false);
     }
@@ -248,6 +263,36 @@ export const GoogleAdsConnection = ({
                   </>
                 )}
               </Button>
+              
+              {showConnectionError && (
+                <div className="p-3 bg-error-foreground/10 rounded-md border border-error-DEFAULT">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="h-4 w-4 text-error-DEFAULT" />
+                    <span className="font-medium text-sm">Connection Failed</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {connectionErrorMessage || "Could not connect to Google. This could be due to a network issue, popup blocker, or Google authentication server problem."}
+                  </p>
+                  <div className="mt-2 space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleConnectGoogle}
+                      className="text-xs"
+                    >
+                      Try Again
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowUriDialog(true)}
+                      className="text-xs"
+                    >
+                      Show Authentication Tips
+                    </Button>
+                  </div>
+                </div>
+              )}
               
               {configError && (
                 <div className="p-3 bg-error-foreground/10 rounded-md">
@@ -323,9 +368,9 @@ export const GoogleAdsConnection = ({
       <Dialog open={showUriDialog} onOpenChange={setShowUriDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Fix Redirect URI Mismatch Error</DialogTitle>
+            <DialogTitle>Google Authentication Setup</DialogTitle>
             <DialogDescription>
-              The "redirect_uri_mismatch" error means the URI in your Google Cloud Console doesn't exactly match what this app is using. Follow these steps to fix it:
+              Follow these steps to connect to Google Ads and avoid common authentication errors:
             </DialogDescription>
           </DialogHeader>
           
@@ -346,19 +391,20 @@ export const GoogleAdsConnection = ({
             </div>
             
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">To fix this error:</h3>
+              <h3 className="text-sm font-medium">Troubleshooting Tips:</h3>
               <ol className="list-decimal pl-5 space-y-2 text-sm">
-                <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-500">Google Cloud Console</a></li>
-                <li>Find and select your OAuth 2.0 Client ID</li>
-                <li>Under "Authorized redirect URIs," add the exact URI above (it must match character-for-character)</li>
-                <li>Click Save, then wait a few minutes for Google to process the change</li>
-                <li>Try connecting again</li>
+                <li>Make sure you're using a modern browser (Chrome, Firefox, Edge)</li>
+                <li>Disable popup blockers for this site</li>
+                <li>Ensure your browser allows third-party cookies</li>
+                <li>Clear your browser cache and cookies if experiencing persistent issues</li>
+                <li>Check your network connection</li>
+                <li>Verify you have access to a Google Ads account</li>
               </ol>
             </div>
             
             <div className="pt-4 space-y-3">
               <Button onClick={proceedWithGoogleAuth} className="w-full">
-                Try Connecting Again
+                Proceed with Authentication
               </Button>
               
               {directUrl && (

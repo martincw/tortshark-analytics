@@ -27,6 +27,7 @@ const AccountsPage = () => {
   const [authSuccess, setAuthSuccess] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [googleAccounts, setGoogleAccounts] = useState<AccountConnection[]>([]);
+  const [authenticationAttempted, setAuthenticationAttempted] = useState(false);
   
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
   
@@ -34,19 +35,26 @@ const AccountsPage = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const accounts = getStoredAccounts();
+      console.log("Checking for stored accounts:", accounts);
+      
       if (accounts.length > 0) {
         setGoogleAccounts(accounts);
+        setAuthenticationAttempted(true);
         
         // Import any Google accounts that aren't already in our account connections
+        let newAccountsAdded = 0;
         accounts.forEach(account => {
           const exists = accountConnections.some(ac => ac.id === account.id);
           if (!exists) {
             addAccountConnection(account);
             console.log("Added Google account:", account.name);
+            newAccountsAdded++;
           }
         });
         
-        toast.success(`Found ${accounts.length} Google Ads accounts`);
+        if (newAccountsAdded > 0) {
+          toast.success(`Found ${newAccountsAdded} new Google Ads accounts`);
+        }
         
         // If we have Google accounts but none selected, select the first one
         if (!selectedAccountId && accounts.length > 0) {
@@ -55,9 +63,14 @@ const AccountsPage = () => {
         }
       } else {
         console.log("No stored Google accounts found");
+        
+        // Check if we've attempted authentication but still have no accounts
+        if (authenticationAttempted) {
+          toast.warning("No Google Ads accounts found. You can create accounts manually.");
+        }
       }
     }
-  }, [isAuthenticated, addAccountConnection, accountConnections, selectedAccountId]);
+  }, [isAuthenticated, addAccountConnection, accountConnections, selectedAccountId, authenticationAttempted]);
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -67,6 +80,7 @@ const AccountsPage = () => {
       const errorMessage = parseOAuthError(error);
       setOauthError(`${error}: ${errorMessage}`);
       toast.error(`Google OAuth Error: ${errorMessage}`);
+      setAuthenticationAttempted(true);
       
       setTimeout(() => {
         navigate('/accounts', { replace: true });
@@ -78,17 +92,20 @@ const AccountsPage = () => {
     const handleAuthSuccess = (event: CustomEvent) => {
       console.log("Auth success event received", event.detail);
       setAuthSuccess(true);
+      setAuthenticationAttempted(true);
       
       if (event.detail?.accounts && Array.isArray(event.detail.accounts)) {
         const newAccounts = event.detail.accounts;
         setGoogleAccounts(newAccounts);
         
         // Add any new accounts to our context
+        let newAccountsAdded = 0;
         newAccounts.forEach((account: AccountConnection) => {
           const exists = accountConnections.some(ac => ac.id === account.id);
           if (!exists) {
             addAccountConnection(account);
             console.log("Added new Google account:", account.name);
+            newAccountsAdded++;
           }
         });
         
@@ -98,36 +115,109 @@ const AccountsPage = () => {
           toast.info(`Selected account: ${newAccounts[0].name}`);
         }
         
-        toast.success(`Connected to ${newAccounts.length} Google Ads account(s)`);
+        if (newAccountsAdded > 0) {
+          toast.success(`Connected to ${newAccountsAdded} Google Ads account(s)`);
+        } else if (newAccounts.length > 0) {
+          toast.success("Successfully connected to Google Ads");
+        } else {
+          toast.warning("No new Google Ads accounts found");
+        }
       } else {
-        toast.success("Successfully connected to Google Ads");
-        // Check again for stored accounts
+        // No accounts in the event, check stored accounts
         const storedAccounts = getStoredAccounts();
         if (storedAccounts.length > 0) {
           setGoogleAccounts(storedAccounts);
-          console.log("Found stored accounts after auth:", storedAccounts);
+          toast.success("Successfully connected to Google Ads");
+          
+          // Add any stored accounts not already in our context
+          storedAccounts.forEach(account => {
+            const exists = accountConnections.some(ac => ac.id === account.id);
+            if (!exists) {
+              addAccountConnection(account);
+            }
+          });
+          
+          // Select the first account if none selected
+          if (!selectedAccountId && storedAccounts.length > 0) {
+            setSelectedAccountId(storedAccounts[0].id);
+          }
+        } else {
+          // No accounts found at all
+          toast.warning("Connected to Google Ads but no accounts were found");
+          
+          // Create a default fallback account
+          const fallbackAccount: AccountConnection = {
+            id: "fallback-" + Date.now(),
+            name: "Default Google Ads Account",
+            platform: "google",
+            isConnected: true,
+            lastSynced: new Date().toISOString()
+          };
+          
+          addAccountConnection(fallbackAccount);
+          setSelectedAccountId(fallbackAccount.id);
+          setGoogleAccounts([fallbackAccount]);
+          
+          toast.info("Created a default account for you");
         }
       }
       
       setTimeout(() => setAuthSuccess(false), 3000);
     };
     
+    const handleAuthFailure = (event: CustomEvent) => {
+      console.log("Auth failure event received", event.detail);
+      setAuthenticationAttempted(true);
+      
+      // Create a fallback account even if authentication fails
+      if (accountConnections.length === 0) {
+        const fallbackAccount: AccountConnection = {
+          id: "fallback-" + Date.now(),
+          name: "Default Google Ads Account",
+          platform: "google",
+          isConnected: false,
+          lastSynced: undefined
+        };
+        
+        addAccountConnection(fallbackAccount);
+        setSelectedAccountId(fallbackAccount.id);
+        toast.info("Created a default account. You can still create campaigns manually.");
+      }
+    };
+    
     window.addEventListener('googleAuthSuccess', handleAuthSuccess as EventListener);
+    window.addEventListener('googleAuthFailure', handleAuthFailure as EventListener);
     
     return () => {
       window.removeEventListener('googleAuthSuccess', handleAuthSuccess as EventListener);
+      window.removeEventListener('googleAuthFailure', handleAuthFailure as EventListener);
     };
-  }, [accountConnections, addAccountConnection]);
+  }, [accountConnections, addAccountConnection, selectedAccountId]);
   
   const handleConnectGoogle = () => {
     try {
       setOauthError(null);
+      setAuthenticationAttempted(true);
       window.location.href = getGoogleAuthUrl();
     } catch (error) {
       console.error("Error initiating Google OAuth flow:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       setOauthError(errorMessage);
       toast.error("Failed to connect to Google. You can still create campaigns manually.");
+      
+      // Create a default account even if connection fails
+      if (accountConnections.length === 0) {
+        const fallbackAccount: AccountConnection = {
+          id: "fallback-" + Date.now(),
+          name: "Default Google Ads Account",
+          platform: "google",
+          isConnected: false,
+          lastSynced: undefined
+        };
+        
+        addAccountConnection(fallbackAccount);
+        setSelectedAccountId(fallbackAccount.id);
+      }
     }
   };
   
@@ -158,8 +248,14 @@ const AccountsPage = () => {
       lastSynced: isAuthenticated ? new Date().toISOString() : undefined,
     };
     
-    addAccountConnection(newAccount);
+    const addedAccount = addAccountConnection(newAccount);
     setNewAccountName("");
+    
+    // Select the newly added account
+    if (addedAccount) {
+      setSelectedAccountId(addedAccount.id);
+    }
+    
     toast.success("Account added successfully");
   };
 
