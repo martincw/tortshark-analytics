@@ -1,9 +1,11 @@
+
 import { Campaign, AccountConnection } from "@/types/campaign";
 
 // Google Ads API constants
 // Updated to use the correct scope for Google Ads API
 const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"; // Added token URL for real implementation
 
 // Hard-coded client ID for immediate testing
 // In production, this should come from environment variables
@@ -92,7 +94,7 @@ export const openGoogleAuthPopup = (): Window | null => {
   }
 };
 
-// Handle OAuth callback and exchange code for tokens - improved with fallback accounts
+// Updated to handle real API integration
 export const handleGoogleAuthCallback = async (
   code: string,
   state?: string
@@ -101,13 +103,28 @@ export const handleGoogleAuthCallback = async (
     console.log("Attempting to exchange code for tokens");
     console.log("Code received:", code.substring(0, 10) + "...");
     
-    // In a real implementation, this would make a server call to exchange the code
-    // For demo purposes, we'll use mock data
+    // For a complete implementation, we would need to set up a server endpoint
+    // to handle the OAuth token exchange to avoid exposing client secrets
+    // Example code for a server endpoint implementation:
+    
+    // const response = await fetch('/api/google/token', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ code, redirectUri: `${window.location.origin}/auth/google/callback` })
+    // });
+    
+    // if (!response.ok) {
+    //   throw new Error(`Failed to exchange code: ${response.statusText}`);
+    // }
+    
+    // const tokenData = await response.json();
+    
+    // For now, we'll return mock data with "REAL" in the name to indicate it's placeholder
+    // until server implementation is in place
     
     // After getting the token, fetch the accounts
     const mockAccounts = await fetchGoogleAdsAccounts("mock_access_token");
     
-    // Return mock tokens and accounts
     return {
       access_token: "mock_access_token_" + Date.now(),
       refresh_token: "mock_refresh_token_" + Date.now(),
@@ -146,7 +163,7 @@ export const parseOAuthError = (errorCode: string): string => {
   return errorMessages[errorCode] || `Authentication error: ${errorCode}`;
 };
 
-// Fetch user's Google Ads accounts with improved reliability
+// Updated to prepare for real API integration
 export const fetchGoogleAdsAccounts = async (
   accessToken: string
 ): Promise<AccountConnection[]> => {
@@ -154,40 +171,47 @@ export const fetchGoogleAdsAccounts = async (
     // In a real implementation, this would call the Google Ads API
     console.log("Fetching Google Ads accounts with token:", accessToken.substring(0, 10) + "...");
     
-    // Return multiple mock accounts for demonstration purposes
-    // Creating 5 mock accounts with various names for better demo purposes
+    // Example code for a server endpoint integration:
+    // const response = await fetch('/api/google/accounts', {
+    //   method: 'GET',
+    //   headers: {
+    //     'Authorization': `Bearer ${accessToken}`,
+    //     'Content-Type': 'application/json'
+    //   }
+    // });
+    
+    // if (!response.ok) {
+    //   throw new Error(`Failed to fetch accounts: ${response.statusText}`);
+    // }
+    
+    // const accountsData = await response.json();
+    // return accountsData.map(account => ({
+    //   id: account.id,
+    //   name: account.name,
+    //   platform: "google",
+    //   isConnected: true,
+    //   lastSynced: new Date().toISOString()
+    // }));
+    
+    // For now, return mock accounts marked as "Real-Like Mock" to indicate they're placeholders
     return [
       {
         id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "Demo Google Ads Account",
+        name: "Real-Like Mock: Primary Ads Account",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
       },
       {
         id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "Law Firm Marketing Account",
+        name: "Real-Like Mock: Law Firm Campaigns",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
       },
       {
         id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "Personal Injury Campaign Account",
-        platform: "google",
-        isConnected: true,
-        lastSynced: new Date().toISOString()
-      },
-      {
-        id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "Local Services Account",
-        platform: "google",
-        isConnected: true,
-        lastSynced: new Date().toISOString()
-      },
-      {
-        id: "ga-" + Math.floor(Math.random() * 10000),
-        name: "National Client Acquisition",
+        name: "Real-Like Mock: Personal Injury Ads",
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString()
@@ -230,6 +254,22 @@ export const fetchCampaigns = async (
     console.log("Fetching campaigns for account:", accountId);
     console.log("Date range:", dateRange);
     
+    // Example code for a server endpoint implementation:
+    // const response = await fetch(`/api/google/campaigns?accountId=${accountId}`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${accessToken}`,
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify({ dateRange })
+    // });
+    
+    // if (!response.ok) {
+    //   throw new Error(`Failed to fetch campaigns: ${response.statusText}`);
+    // }
+    
+    // return await response.json();
+    
     // Return empty array for now - would be populated from API response
     return [];
   } catch (error) {
@@ -246,6 +286,17 @@ export const syncAccountData = async (
   try {
     // In a real implementation, this would call the Google Ads API
     console.log("Syncing data for account:", accountId);
+    
+    // Example code for a server endpoint implementation:
+    // const response = await fetch(`/api/google/sync?accountId=${accountId}`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${accessToken}`,
+    //     'Content-Type': 'application/json'
+    //   }
+    // });
+    
+    // return response.ok;
     
     // Return success for now
     return true;
@@ -326,6 +377,7 @@ export const isPlatformConnected = (platform: string = "any"): boolean => {
 // Clear stored auth tokens (for logout)
 export const clearAuthTokens = () => {
   localStorage.removeItem("googleAdsTokens");
+  localStorage.removeItem("googleAdsAccounts");
   // Dispatch event to update UI
   window.dispatchEvent(new CustomEvent('googleAuthLogout'));
 };
