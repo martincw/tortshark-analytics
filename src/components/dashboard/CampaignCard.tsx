@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,12 +42,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
-    console.log("Navigating to campaign details:", campaign.id);
+    console.log("Navigating to campaign details. Campaign:", campaign);
     navigate(`/campaign/${campaign.id}`);
   };
 
   const handleQuickStatsSubmit = () => {
-    // Parse the values
     const newLeads = parseInt(quickStats.leads) || 0;
     const newCases = parseInt(quickStats.cases) || 0;
     const newRevenue = parseFloat(quickStats.revenue) || 0;
@@ -61,40 +59,33 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       revenue: newRevenue
     });
     
-    // Add a new history entry
     addStatHistoryEntry(campaign.id, {
       date: selectedDate.toISOString(),
       leads: newLeads, 
       cases: newCases,
-      retainers: 0, // Default to 0 for simplicity in quick entry
+      retainers: 0,
       revenue: newRevenue
     });
     
-    // Close the dialog and show a success toast
     setIsQuickEntryOpen(false);
     setQuickStats({ leads: "0", cases: "0", revenue: "0" });
     toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
-  // Format the date
   const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
 
-  // Determine profitability class
   const getProfitabilityClass = () => {
     if (metrics.roi > 200) return "text-success-DEFAULT font-bold";
     if (metrics.roi > 0) return "text-secondary font-bold";
     return "text-error-DEFAULT font-bold";
   };
 
-  // No longer need to extract campaign type, just use the name directly
   const tortType = campaign.name;
   
-  // Calculate conversion rate
   const conversionRate = campaign.manualStats.leads > 0 
     ? ((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1) 
     : "0";
 
-  // Get badge variant based on tort type
   const getBadgeVariant = (tortType: string) => {
     switch (tortType) {
       case "Rideshare": return "default";
@@ -118,7 +109,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               </p>
             </div>
             <Badge 
-              variant={getBadgeVariant(campaign.name)}
+              variant="default"
               className="shrink-0"
             >
               Google Ads
@@ -126,7 +117,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           </div>
         </CardHeader>
         <CardContent className="pb-0">
-          {/* Highlight ROI and Profit in a more prominent way */}
           <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-muted-foreground">ROI</span>
@@ -192,7 +182,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </CardFooter>
       </Card>
       
-      {/* Quick Entry Dialog with Date Picker */}
       <Dialog open={isQuickEntryOpen} onOpenChange={setIsQuickEntryOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -203,7 +192,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            {/* Date Picker */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="date-picker" className="text-right">
                 Date
