@@ -58,6 +58,9 @@ const AddCampaignPage = () => {
         setPlatform(account.platform);
         toast.info(`Using account: ${account.name}`);
       }
+    } else if (accountConnections.length > 0) {
+      // Default to the first account if no account is pre-selected
+      setAccountId(accountConnections[0].id);
     }
   }, [location.search, accountConnections]);
   
@@ -75,7 +78,7 @@ const AddCampaignPage = () => {
     if (!selectedAccount) {
       // Create a manual account if none selected
       selectedAccount = {
-        id: "manual",
+        id: "manual-" + Date.now(),
         name: "Manual Entry",
         platform: platform,
         isConnected: true,
@@ -106,9 +109,16 @@ const AddCampaignPage = () => {
       },
     };
     
-    addCampaign(newCampaign);
-    toast.success("Campaign added successfully");
-    navigate("/campaigns");
+    try {
+      console.log("Adding campaign:", newCampaign);
+      const campaignId = addCampaign(newCampaign);
+      console.log("Campaign added with ID:", campaignId);
+      toast.success("Campaign added successfully");
+      navigate("/campaigns");
+    } catch (error) {
+      console.error("Error adding campaign:", error);
+      toast.error("Failed to add campaign. Please try again.");
+    }
   };
 
   return (
@@ -178,7 +188,7 @@ const AddCampaignPage = () => {
                   onValueChange={setAccountId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Manual Entry (No Account)" />
+                    <SelectValue placeholder="Select an account" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manual">Manual Entry (No Account)</SelectItem>

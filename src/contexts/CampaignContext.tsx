@@ -7,6 +7,7 @@ import {
   getStoredAuthTokens,
   syncAccountData
 } from "../services/googleAdsService";
+import { toast } from "sonner";
 
 interface CampaignContextType {
   campaigns: Campaign[];
@@ -14,8 +15,8 @@ interface CampaignContextType {
   dateRange: DateRange;
   setDateRange: (range: DateRange) => void;
   updateCampaign: (updatedCampaign: Campaign) => void;
-  addCampaign: (newCampaign: Omit<Campaign, "id">) => void;
-  addAccountConnection: (newAccount: Omit<AccountConnection, "id">) => void;
+  addCampaign: (newCampaign: Omit<Campaign, "id">) => string;
+  addAccountConnection: (newAccount: Omit<AccountConnection, "id">) => string;
   deleteCampaign: (id: string) => void;
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
@@ -37,15 +38,52 @@ const getThirtyDaysAgo = (): string => {
   return date.toISOString().split('T')[0];
 };
 
+// Helper to save data to localStorage
+const saveToLocalStorage = (key: string, data: any) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error(`Error saving ${key} to localStorage:`, error);
+  }
+};
+
+// Helper to load data from localStorage
+const loadFromLocalStorage = (key: string, defaultValue: any) => {
+  try {
+    const savedData = localStorage.getItem(key);
+    return savedData ? JSON.parse(savedData) : defaultValue;
+  } catch (error) {
+    console.error(`Error loading ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
+
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => 
+    loadFromLocalStorage('campaigns', [])
+  );
+  
+  const [accountConnections, setAccountConnections] = useState<AccountConnection[]>(() => 
+    loadFromLocalStorage('accountConnections', [])
+  );
+  
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: getThirtyDaysAgo(),
     endDate: getToday()
   });
+  
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Save campaigns to localStorage whenever they change
+  useEffect(() => {
+    saveToLocalStorage('campaigns', campaigns);
+  }, [campaigns]);
+
+  // Save account connections to localStorage whenever they change
+  useEffect(() => {
+    saveToLocalStorage('accountConnections', accountConnections);
+  }, [accountConnections]);
 
   // Load accounts when the component mounts
   useEffect(() => {
@@ -56,7 +94,15 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
         setIsLoading(true);
         try {
           const accounts = await fetchGoogleAdsAccounts(tokens.access_token);
-          setAccountConnections(accounts);
+          
+          // Only add new accounts that don't already exist in our state
+          const existingIds = new Set(accountConnections.map(acc => acc.id));
+          const newAccounts = accounts.filter(acc => !existingIds.has(acc.id));
+          
+          if (newAccounts.length > 0) {
+            setAccountConnections(prev => [...prev, ...newAccounts]);
+            toast.success(`Found ${newAccounts.length} new Google Ads accounts`);
+          }
         } catch (error) {
           console.error("Failed to load accounts:", error);
         } finally {
@@ -81,17 +127,26 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
           
           for (const account of accountConnections) {
             if (account.isConnected) {
-              const accountCampaigns = await fetchCampaigns(
-                account.id,
-                tokens.access_token,
-                dateRange
-              );
-              
-              allCampaigns = [...allCampaigns, ...accountCampaigns];
+              try {
+                const accountCampaigns = await fetchCampaigns(
+                  account.id,
+                  tokens.access_token,
+                  dateRange
+                );
+                
+                allCampaigns = [...allCampaigns, ...accountCampaigns];
+              } catch (error) {
+                console.error(`Failed to load campaigns for account ${account.id}:`, error);
+              }
             }
           }
           
-          setCampaigns(allCampaigns);
+          // Merge with existing manually created campaigns
+          const existingManualCampaigns = campaigns.filter(
+            camp => !accountConnections.some(acc => acc.id === camp.accountId && acc.isConnected)
+          );
+          
+          setCampaigns([...existingManualCampaigns, ...allCampaigns]);
         } catch (error) {
           console.error("Failed to load campaigns:", error);
         } finally {
@@ -109,20 +164,41 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     ));
   };
 
-  const addCampaign = (newCampaign: Omit<Campaign, "id">) => {
+  const addCampaign = (newCampaign: Omit<Campaign, "id">): string => {
+    const id = crypto.randomUUID();
     const campaign: Campaign = {
       ...newCampaign,
-      id: crypto.randomUUID()
+      id
     };
-    setCampaigns([...campaigns, campaign]);
+    
+    setCampaigns(prev => [...prev, campaign]);
+    console.log("Campaign added successfully:", campaign);
+    return id;
   };
 
-  const addAccountConnection = (newAccount: Omit<AccountConnection, "id">) => {
+  const addAccountConnection = (newAccount: Omit<AccountConnection, "id">): string => {
+    // Generate a unique ID
+    const id = crypto.randomUUID();
+    
+    // Create the account with the generated ID
     const account: AccountConnection = {
       ...newAccount,
-      id: crypto.randomUUID()
+      id
     };
-    setAccountConnections([...accountConnections, account]);
+    
+    // Check if this account already exists (based on name or other criteria)
+    const isDuplicate = accountConnections.some(
+      existing => existing.name === account.name && existing.platform === account.platform
+    );
+    
+    if (!isDuplicate) {
+      setAccountConnections(prev => [...prev, account]);
+      console.log("Account added successfully:", account);
+    } else {
+      console.log("Skipped adding duplicate account:", account);
+    }
+    
+    return id;
   };
 
   const deleteCampaign = (id: string) => {
