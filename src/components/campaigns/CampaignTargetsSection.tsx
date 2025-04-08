@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/utils/campaignUtils";
 
@@ -28,37 +28,24 @@ const CampaignTargetsSection: React.FC<CampaignTargetsSectionProps> = ({
   targetMonthlyIncome,
   targetMonthlySpend,
 }) => {
+  // Calculate target monthly retainers based on target profit and case payout amount
+  useEffect(() => {
+    if (targetProfit && casePayoutAmount) {
+      const profit = parseFloat(targetProfit) || 0;
+      const payoutAmount = parseFloat(casePayoutAmount) || 0;
+      
+      if (payoutAmount > 0) {
+        // Calculate how many retainers needed to reach target profit
+        const retainersNeeded = Math.ceil(profit / payoutAmount);
+        setTargetMonthlyRetainers(retainersNeeded.toString());
+      }
+    }
+  }, [targetProfit, casePayoutAmount, setTargetMonthlyRetainers]);
+
   return (
     <div className="border-t pt-4">
       <h3 className="text-md font-medium mb-4">Campaign Targets</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="targetMonthlyRetainers" className="text-sm font-medium">
-            Target Monthly Retainers
-          </label>
-          <Input
-            id="targetMonthlyRetainers"
-            type="number"
-            min="0"
-            value={targetMonthlyRetainers}
-            onChange={(e) => setTargetMonthlyRetainers(e.target.value)}
-            placeholder="e.g., 10"
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="casePayoutAmount" className="text-sm font-medium">
-            Case Payout Amount ($)
-          </label>
-          <Input
-            id="casePayoutAmount"
-            type="number"
-            min="0"
-            step="0.01"
-            value={casePayoutAmount}
-            onChange={(e) => setCasePayoutAmount(e.target.value)}
-            placeholder="e.g., 5000.00"
-          />
-        </div>
         <div className="space-y-2">
           <label htmlFor="targetProfit" className="text-sm font-medium">
             Target Monthly Profit ($)
@@ -75,6 +62,38 @@ const CampaignTargetsSection: React.FC<CampaignTargetsSectionProps> = ({
           <p className="text-xs text-muted-foreground">
             Your target monthly profit from this campaign
           </p>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="casePayoutAmount" className="text-sm font-medium">
+            Case Payout Amount ($)
+          </label>
+          <Input
+            id="casePayoutAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            value={casePayoutAmount}
+            onChange={(e) => setCasePayoutAmount(e.target.value)}
+            placeholder="e.g., 5000.00"
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="targetMonthlyRetainers" className="text-sm font-medium">
+            Target Monthly Retainers
+          </label>
+          <Input
+            id="targetMonthlyRetainers"
+            type="number"
+            min="0"
+            value={targetMonthlyRetainers}
+            readOnly
+            className="bg-muted/30"
+          />
+          {targetMonthlyRetainers && targetProfit && casePayoutAmount && (
+            <p className="text-xs text-muted-foreground">
+              Estimated {targetMonthlyRetainers} retainers needed to reach ${targetProfit} profit
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <label htmlFor="targetROAS" className="text-sm font-medium">
