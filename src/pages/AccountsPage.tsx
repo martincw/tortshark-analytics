@@ -4,10 +4,17 @@ import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
-import { getStoredAuthTokens, getGoogleAuthUrl, parseOAuthError, getStoredAccounts, fetchGoogleAdsAccounts } from "@/services/googleAdsService";
+import { 
+  getStoredAuthTokens, 
+  getGoogleAuthUrl, 
+  parseOAuthError, 
+  getStoredAccounts, 
+  fetchGoogleAdsAccounts,
+  clearAuthTokens 
+} from "@/services/googleAdsService";
 import { GoogleAdsConnection } from "@/components/accounts/GoogleAdsConnection";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -29,8 +36,73 @@ const AccountsPage = () => {
   const [googleAccounts, setGoogleAccounts] = useState<AccountConnection[]>([]);
   const [authenticationAttempted, setAuthenticationAttempted] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [refreshingAccounts, setRefreshingAccounts] = useState(false);
   
   const isAuthenticated = !!getStoredAuthTokens()?.access_token;
+  
+  // Function to prevent duplicating accounts
+  const addUniqueAccounts = (accounts: AccountConnection[]) => {
+    if (!Array.isArray(accounts) || accounts.length === 0) return 0;
+    
+    // Get existing account IDs
+    const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
+    let newAccountsAdded = 0;
+    
+    // Only add accounts that don't already exist
+    for (const account of accounts) {
+      if (!existingAccountIds.has(account.id)) {
+        addAccountConnection(account);
+        console.log("Added Google account:", account.name);
+        newAccountsAdded++;
+        existingAccountIds.add(account.id);
+      }
+    }
+    
+    return newAccountsAdded;
+  };
+  
+  const refreshAccounts = async () => {
+    if (!isAuthenticated) return;
+    
+    setRefreshingAccounts(true);
+    try {
+      // First clear stored accounts to avoid accumulation
+      localStorage.removeItem("googleAdsAccounts");
+      
+      const tokens = getStoredAuthTokens();
+      if (tokens?.access_token) {
+        toast.info("Refreshing Google Ads accounts...");
+        const freshAccounts = await fetchGoogleAdsAccounts(tokens.access_token);
+        
+        if (freshAccounts && freshAccounts.length > 0) {
+          setGoogleAccounts(freshAccounts);
+          
+          // Store the fresh accounts
+          localStorage.setItem("googleAdsAccounts", JSON.stringify(freshAccounts));
+          
+          // Add unique accounts to context
+          const newAccountsAdded = addUniqueAccounts(freshAccounts);
+          
+          if (newAccountsAdded > 0) {
+            toast.success(`Found ${newAccountsAdded} new Google Ads accounts`);
+          } else {
+            toast.success("Accounts refreshed - no new accounts found");
+          }
+          
+          if (!selectedAccountId && freshAccounts.length > 0) {
+            setSelectedAccountId(freshAccounts[0].id);
+          }
+        } else {
+          toast.warning("No Google Ads accounts found");
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing accounts:", error);
+      toast.error("Failed to refresh accounts");
+    } finally {
+      setRefreshingAccounts(false);
+    }
+  };
   
   useEffect(() => {
     const fetchAccountsOnLoad = async () => {
@@ -45,18 +117,8 @@ const AccountsPage = () => {
             setGoogleAccounts(storedAccounts);
             setAuthenticationAttempted(true);
             
-            // Check for existing accountConnections and only add new ones
-            const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
-            let newAccountsAdded = 0;
-            
-            storedAccounts.forEach(account => {
-              if (!existingAccountIds.has(account.id)) {
-                addAccountConnection(account);
-                console.log("Added stored Google account:", account.name);
-                newAccountsAdded++;
-                existingAccountIds.add(account.id);
-              }
-            });
+            // Add unique accounts to context
+            const newAccountsAdded = addUniqueAccounts(storedAccounts);
             
             if (newAccountsAdded > 0) {
               toast.success(`Found ${newAccountsAdded} Google Ads accounts`);
@@ -67,45 +129,8 @@ const AccountsPage = () => {
               toast.info(`Selected account: ${storedAccounts[0].name}`);
             }
           } else {
-            const tokens = getStoredAuthTokens();
-            
-            if (tokens?.access_token) {
-              console.log("No stored accounts, fetching from API...");
-              try {
-                const freshAccounts = await fetchGoogleAdsAccounts(tokens.access_token);
-                console.log("Freshly fetched accounts:", freshAccounts);
-                
-                if (freshAccounts && freshAccounts.length > 0) {
-                  setGoogleAccounts(freshAccounts);
-                  
-                  // Check for existing accountConnections and only add new ones
-                  const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
-                  let newAccountsAdded = 0;
-                  
-                  freshAccounts.forEach(account => {
-                    if (!existingAccountIds.has(account.id)) {
-                      addAccountConnection(account);
-                      newAccountsAdded++;
-                      existingAccountIds.add(account.id);
-                    }
-                  });
-                  
-                  if (newAccountsAdded > 0) {
-                    toast.success(`Found ${newAccountsAdded} Google Ads accounts`);
-                  }
-                  
-                  if (!selectedAccountId && freshAccounts.length > 0) {
-                    setSelectedAccountId(freshAccounts[0].id);
-                  }
-                } else {
-                  console.log("No accounts found from API fetch");
-                  toast.warning("No Google Ads accounts found. You can create accounts manually.");
-                }
-              } catch (error) {
-                console.error("Error fetching fresh accounts:", error);
-                toast.error("Failed to fetch Google Ads accounts. You can create accounts manually.");
-              }
-            }
+            // No stored accounts, try to fetch from API
+            await refreshAccounts();
           }
         } catch (error) {
           console.error("Error loading accounts:", error);
@@ -117,7 +142,7 @@ const AccountsPage = () => {
     };
     
     fetchAccountsOnLoad();
-  }, [isAuthenticated, addAccountConnection, accountConnections, selectedAccountId]);
+  }, [isAuthenticated]);
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -145,17 +170,8 @@ const AccountsPage = () => {
         const newAccounts = event.detail.accounts;
         setGoogleAccounts(newAccounts);
         
-        const existingAccountIds = new Set(accountConnections.map(ac => ac.id));
-        let newAccountsAdded = 0;
-        
-        newAccounts.forEach((account: AccountConnection) => {
-          if (!existingAccountIds.has(account.id)) {
-            addAccountConnection(account);
-            console.log("Added new Google account:", account.name);
-            newAccountsAdded++;
-            existingAccountIds.add(account.id);
-          }
-        });
+        // Add unique accounts
+        const newAccountsAdded = addUniqueAccounts(newAccounts);
         
         if (newAccounts.length > 0 && !selectedAccountId) {
           setSelectedAccountId(newAccounts[0].id);
@@ -170,19 +186,13 @@ const AccountsPage = () => {
           toast.warning("No new Google Ads accounts found");
         }
       } else {
+        // Try to get accounts from storage
         const storedAccounts = getStoredAccounts();
         if (storedAccounts.length > 0) {
           setGoogleAccounts(storedAccounts);
           toast.success("Successfully connected to Google Ads");
           
-          let newAccountsAdded = 0;
-          storedAccounts.forEach(account => {
-            const exists = accountConnections.some(ac => ac.id === account.id);
-            if (!exists) {
-              addAccountConnection(account);
-              newAccountsAdded++;
-            }
-          });
+          const newAccountsAdded = addUniqueAccounts(storedAccounts);
           
           if (!selectedAccountId && storedAccounts.length > 0) {
             setSelectedAccountId(storedAccounts[0].id);
@@ -192,6 +202,7 @@ const AccountsPage = () => {
             toast.success(`Added ${newAccountsAdded} Google Ads account(s)`);
           }
         } else if (accountConnections.length === 0) {
+          // Create a default account only if we have no accounts at all
           const fallbackAccount: AccountConnection = {
             id: "fallback-" + Date.now(),
             name: "Default Google Ads Account",
@@ -216,6 +227,7 @@ const AccountsPage = () => {
       setAuthenticationAttempted(true);
       
       if (accountConnections.length === 0) {
+        // Create a default account only if we have no accounts at all
         const fallbackAccount: AccountConnection = {
           id: "fallback-" + Date.now(),
           name: "Default Google Ads Account",
@@ -315,6 +327,11 @@ const AccountsPage = () => {
     const accountName = accountConnections.find(acc => acc.id === accountId)?.name;
     toast.info(`Account selected: ${accountName}`);
   };
+  
+  const handleReset = () => {
+    clearAuthTokens();
+    window.location.reload();
+  };
 
   const connectedGoogleAccounts = accountConnections.filter(
     acc => acc.platform === "google" && acc.isConnected
@@ -322,7 +339,22 @@ const AccountsPage = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Ad Account Connections</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Ad Account Connections</h1>
+        
+        {isAuthenticated && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={refreshAccounts}
+            disabled={refreshingAccounts}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshingAccounts ? 'animate-spin' : ''}`} />
+            Refresh Accounts
+          </Button>
+        )}
+      </div>
+      
       <p className="text-muted-foreground">
         Connect your ad accounts or create campaigns manually
       </p>
@@ -342,8 +374,9 @@ const AccountsPage = () => {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Authentication Error</AlertTitle>
-          <AlertDescription>
-            {oauthError}. Please check your Google Cloud Console settings and try again.
+          <AlertDescription className="space-y-2">
+            <p>{oauthError}. Please check your Google Cloud Console settings and try again.</p>
+            <Button size="sm" variant="outline" onClick={handleReset}>Reset Connection</Button>
           </AlertDescription>
         </Alert>
       )}
@@ -372,7 +405,7 @@ const AccountsPage = () => {
         
         <ConnectedAccounts
           accountConnections={accountConnections}
-          isLoading={isLoading}
+          isLoading={isLoading || loadingAccounts}
           handleSyncAccount={handleSyncAccount}
           handleConnectGoogle={handleConnectGoogle}
           handleCreateCampaign={handleCreateCampaign}

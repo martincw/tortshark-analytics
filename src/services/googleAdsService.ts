@@ -173,7 +173,7 @@ export const parseOAuthError = (errorCode: string): string => {
   return errorMessages[errorCode] || `Authentication error: ${errorCode}`;
 };
 
-// Updated to use Supabase Edge Function
+// Updated to use Supabase Edge Function - fixed to prevent duplicates and ensure real data
 export const fetchGoogleAdsAccounts = async (
   accessToken: string
 ): Promise<AccountConnection[]> => {
@@ -229,10 +229,18 @@ export const fetchGoogleAdsAccounts = async (
       throw new Error(accountsData.error);
     }
     
+    // Ensure we have an array to work with
+    if (!Array.isArray(accountsData)) {
+      console.error("Unexpected response format:", accountsData);
+      throw new Error("Unexpected response format from Google Ads API");
+    }
+    
+    console.log("Received accounts data:", accountsData);
+    
     // Map the account data to our internal structure
     return accountsData.map((account: any) => ({
       id: account.id, // Use the fixed ID from the response
-      name: account.name || "Unnamed Account",
+      name: account.name || `Google Ads Account ${account.id}`,
       platform: "google" as const,
       isConnected: true,
       lastSynced: new Date().toISOString()
@@ -317,7 +325,7 @@ export const syncAccountData = async (
   }
 };
 
-// Store auth tokens securely with improved event handling
+// Store auth tokens securely with improved event handling and prevent duplicate accounts
 export const storeAuthTokens = (tokens: { 
   access_token: string; 
   refresh_token: string;
@@ -332,13 +340,43 @@ export const storeAuthTokens = (tokens: {
   localStorage.setItem("googleAdsTokens", JSON.stringify(storageItem));
   
   // If we have accounts, also store them separately for easy access
-  if (tokens.accounts && tokens.accounts.length > 0) {
-    localStorage.setItem("googleAdsAccounts", JSON.stringify(tokens.accounts));
-    console.log("Stored Google Ads accounts:", tokens.accounts);
+  if (tokens.accounts && Array.isArray(tokens.accounts) && tokens.accounts.length > 0) {
+    // Check if we already have stored accounts to prevent duplicates
+    const existingAccountsStr = localStorage.getItem("googleAdsAccounts");
+    let existingAccounts: AccountConnection[] = [];
+    let accountIds = new Set<string>();
+    
+    try {
+      if (existingAccountsStr) {
+        existingAccounts = JSON.parse(existingAccountsStr);
+        // Create a set of existing account IDs for quick lookup
+        accountIds = new Set(existingAccounts.map(acc => acc.id));
+      }
+    } catch (e) {
+      console.error("Error parsing existing accounts:", e);
+    }
+    
+    // Add only new accounts that don't already exist
+    const updatedAccounts = [...existingAccounts];
+    let newAccountsCount = 0;
+    
+    for (const account of tokens.accounts) {
+      if (!accountIds.has(account.id)) {
+        updatedAccounts.push(account);
+        accountIds.add(account.id);
+        newAccountsCount++;
+      }
+    }
+    
+    // Only update storage if we have new accounts
+    if (newAccountsCount > 0) {
+      localStorage.setItem("googleAdsAccounts", JSON.stringify(updatedAccounts));
+      console.log(`Stored ${newAccountsCount} new Google Ads accounts`);
+    }
     
     // Dispatch a custom event that we can listen for in other components
     window.dispatchEvent(new CustomEvent('googleAuthSuccess', { 
-      detail: { accounts: tokens.accounts }
+      detail: { accounts: updatedAccounts }
     }));
   } else {
     // Even if no accounts are found, we still dispatch success (with empty accounts array)
@@ -358,7 +396,7 @@ export const getStoredAuthTokens = () => {
   return parsedTokens;
 };
 
-// Retrieve stored Google Ads accounts
+// Retrieve stored Google Ads accounts - improved to ensure proper format
 export const getStoredAccounts = (): AccountConnection[] => {
   // First try to get accounts from dedicated storage
   const accountsStr = localStorage.getItem("googleAdsAccounts");
@@ -375,7 +413,7 @@ export const getStoredAccounts = (): AccountConnection[] => {
   
   // Fall back to accounts in the tokens
   const tokens = getStoredAuthTokens();
-  return tokens?.accounts || [];
+  return (tokens?.accounts && Array.isArray(tokens.accounts)) ? tokens.accounts : [];
 };
 
 // Check if ad platform is connected - returns true if authenticated
@@ -385,10 +423,14 @@ export const isPlatformConnected = (platform: string = "any"): boolean => {
   return true;
 };
 
-// Clear stored auth tokens (for logout)
+// Clear stored auth tokens (for logout) - improved to clear all related data
 export const clearAuthTokens = () => {
   localStorage.removeItem("googleAdsTokens");
   localStorage.removeItem("googleAdsAccounts");
+  localStorage.removeItem("googleAdsDeveloperTokenError");
   // Dispatch event to update UI
   window.dispatchEvent(new CustomEvent('googleAuthLogout'));
+  
+  // Force reload the page to ensure all state is reset
+  window.location.reload();
 };
