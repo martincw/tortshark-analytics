@@ -7,6 +7,10 @@ import { CampaignList } from "./CampaignList";
 
 export function CampaignGrid() {
   const { campaigns, isLoading } = useCampaign();
+  
+  console.log("CampaignGrid - Campaigns count:", campaigns.length);
+  console.log("CampaignGrid - Campaign IDs:", campaigns.map(c => c.id));
+  
   const {
     searchTerm,
     setSearchTerm,
@@ -17,6 +21,8 @@ export function CampaignGrid() {
     campaignTypes,
     sortedAndFilteredCampaigns
   } = useCampaignGridData(campaigns);
+  
+  console.log("CampaignGrid - Filtered campaigns count:", sortedAndFilteredCampaigns.length);
   
   const clearFilters = () => {
     setSearchTerm("");

@@ -10,6 +10,8 @@ interface CampaignListProps {
 }
 
 export function CampaignList({ campaigns, onClearFilters }: CampaignListProps) {
+  console.log("CampaignList - Rendering campaigns:", campaigns.map(c => ({id: c.id, name: c.name})));
+  
   if (campaigns.length === 0) {
     return (
       <div className="text-center py-12 border border-dashed rounded-lg">

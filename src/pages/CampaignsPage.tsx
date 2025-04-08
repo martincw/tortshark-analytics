@@ -9,6 +9,8 @@ import { useCampaign } from "@/contexts/CampaignContext";
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
+  
+  console.log("CampaignsPage - Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
 
   return (
     <div className="space-y-6">
