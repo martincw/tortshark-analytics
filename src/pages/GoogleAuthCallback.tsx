@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { handleGoogleAuthCallback, storeAuthTokens, parseOAuthError } from "@/services/googleAdsService";
@@ -91,15 +92,11 @@ const GoogleAuthCallback = () => {
           console.warn("No Google Ads accounts were returned");
           toast.warning("No Google Ads accounts were found");
           
-          // Create a default account as fallback
-          const defaultAccount = {
-            id: "ga-" + Date.now(),
-            name: "Default Google Ads Account",
-            platform: "google" as const,
-            isConnected: true,
-            lastSynced: new Date().toISOString()
-          };
-          addAccountConnection(defaultAccount);
+          // Don't create a default account - if no accounts were found,
+          // it likely means there's an issue with the API access
+          setError("No Google Ads accounts were found. Please ensure your Google account has access to Google Ads.");
+          setIsProcessing(false);
+          return;
         }
         
         setSuccess(true);
