@@ -5,7 +5,6 @@ import { Campaign, AccountConnection } from "@/types/campaign";
 // Updated to use the correct scope for Google Ads API
 const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 // Hard-coded client ID for immediate testing
 // In production, this should come from environment variables
@@ -94,18 +93,17 @@ export const openGoogleAuthPopup = (): Window | null => {
   }
 };
 
-// Updated to handle real API integration
+// Updated to use Supabase Edge Function for token exchange
 export const handleGoogleAuthCallback = async (
   code: string,
   state?: string
 ): Promise<{ access_token: string; refresh_token: string; accounts?: AccountConnection[] } | null> => {
   try {
-    console.log("Attempting to exchange code for tokens");
+    console.log("Attempting to exchange code for tokens via Edge Function");
     console.log("Code received:", code.substring(0, 10) + "...");
     
-    // Use server proxy to exchange code for tokens
-    // This avoids exposing client secret in frontend code
-    const tokenEndpoint = `${window.location.origin}/api/auth/google-token`;
+    // Use our Supabase Edge Function to exchange code for tokens
+    const tokenEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-token`;
     
     const tokenResponse = await fetch(tokenEndpoint, {
       method: 'POST',
@@ -119,13 +117,14 @@ export const handleGoogleAuthCallback = async (
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({}));
       console.error("Token exchange failed:", tokenResponse.status, errorData);
-      throw new Error(`Failed to exchange code: ${tokenResponse.statusText}`);
+      throw new Error(`Failed to exchange code: ${errorData.error || tokenResponse.statusText}`);
     }
     
     const tokenData = await tokenResponse.json();
     console.log("Received token data:", { 
       hasAccessToken: !!tokenData.access_token,
-      hasRefreshToken: !!tokenData.refresh_token
+      hasRefreshToken: !!tokenData.refresh_token,
+      expires_in: tokenData.expires_in
     });
     
     // After getting the token, fetch the accounts
@@ -143,9 +142,6 @@ export const handleGoogleAuthCallback = async (
     };
   } catch (error) {
     console.error("Error exchanging code for tokens:", error);
-    
-    // We won't return fallback accounts anymore as we want real data
-    // Instead, properly communicate the error
     return null;
   }
 };
@@ -168,13 +164,13 @@ export const parseOAuthError = (errorCode: string): string => {
   return errorMessages[errorCode] || `Authentication error: ${errorCode}`;
 };
 
-// Updated to use real API integration
+// Updated to use Supabase Edge Function
 export const fetchGoogleAdsAccounts = async (
   accessToken: string
 ): Promise<AccountConnection[]> => {
   try {
-    // Call our server-side proxy to the Google Ads API
-    const accountsEndpoint = `${window.location.origin}/api/google/accounts`;
+    // Call our Edge Function instead of direct Google API
+    const accountsEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-accounts`;
     
     const response = await fetch(accountsEndpoint, {
       method: 'GET',
@@ -187,7 +183,7 @@ export const fetchGoogleAdsAccounts = async (
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("Accounts fetch failed:", response.status, errorData);
-      throw new Error(`Failed to fetch accounts: ${response.statusText}`);
+      throw new Error(`Failed to fetch accounts: ${errorData.error || response.statusText}`);
     }
     
     const accountsData = await response.json();
@@ -207,15 +203,15 @@ export const fetchGoogleAdsAccounts = async (
   }
 };
 
-// Fetch campaign data for a specific account
+// Updated to use Supabase Edge Function
 export const fetchCampaigns = async (
   accountId: string,
   accessToken: string,
   dateRange: { startDate: string; endDate: string }
 ): Promise<Campaign[]> => {
   try {
-    // Call our server-side proxy to the Google Ads API
-    const campaignsEndpoint = `${window.location.origin}/api/google/campaigns`;
+    // Call our Edge Function instead of direct Google API
+    const campaignsEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-campaigns`;
     
     const response = await fetch(campaignsEndpoint, {
       method: 'POST',
@@ -232,7 +228,7 @@ export const fetchCampaigns = async (
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("Campaigns fetch failed:", response.status, errorData);
-      throw new Error(`Failed to fetch campaigns: ${response.statusText}`);
+      throw new Error(`Failed to fetch campaigns: ${errorData.error || response.statusText}`);
     }
     
     const campaignsData = await response.json();
@@ -244,14 +240,14 @@ export const fetchCampaigns = async (
   }
 };
 
-// Synchronize account data
+// Updated to use Supabase Edge Function
 export const syncAccountData = async (
   accountId: string,
   accessToken: string
 ): Promise<boolean> => {
   try {
-    // Call our server-side proxy to the Google Ads API
-    const syncEndpoint = `${window.location.origin}/api/google/sync`;
+    // Call our Edge Function instead of direct Google API
+    const syncEndpoint = `${import.meta.env.VITE_SUPABASE_URL || "https://msgqsgftjwpbnqenhfmc.supabase.co"}/functions/v1/google-sync`;
     
     const response = await fetch(syncEndpoint, {
       method: 'POST',
@@ -265,7 +261,7 @@ export const syncAccountData = async (
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("Account sync failed:", response.status, errorData);
-      throw new Error(`Failed to sync account: ${response.statusText}`);
+      throw new Error(`Failed to sync account: ${errorData.error || response.statusText}`);
     }
     
     const result = await response.json();
