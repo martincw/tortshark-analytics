@@ -34,41 +34,50 @@ const AddCampaignPage = () => {
   const [platform, setPlatform] = useState<"google">("google");
   const [accountId, setAccountId] = useState("");
   
-  // Campaign targets
+  // Campaign targets - Note the changed order to reflect the new calculation flow
   const [targetMonthlyRetainers, setTargetMonthlyRetainers] = useState("");
   const [casePayoutAmount, setCasePayoutAmount] = useState("");
+  const [targetProfit, setTargetProfit] = useState("");
+  const [targetROAS, setTargetROAS] = useState("");
   const [targetMonthlyIncome, setTargetMonthlyIncome] = useState("");
   const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
-  const [targetROAS, setTargetROAS] = useState("");
-  const [targetProfit, setTargetProfit] = useState("");
   
   // Include all accounts or create a manual account option
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
     : [{ id: "manual", name: "Manual Entry", platform: "google" as any, isConnected: true, lastSynced: null }];
 
-  // Calculate target income, spend and profit dynamically
+  // Calculate target income and spend based on profit and ROAS
   useEffect(() => {
-    if (targetMonthlyRetainers && casePayoutAmount) {
-      // Calculate target monthly income based on retainers and payout
-      const retainers = parseInt(targetMonthlyRetainers) || 0;
-      const payout = parseFloat(casePayoutAmount) || 0;
-      const income = retainers * payout;
-      
-      setTargetMonthlyIncome(income.toString());
-      
-      // Calculate target monthly spend based on income and ROAS
+    if (targetProfit && targetROAS && casePayoutAmount && targetMonthlyRetainers) {
+      // Convert inputs to numbers
+      const profit = parseFloat(targetProfit) || 0;
       const roas = parseFloat(targetROAS) || 0;
+      
       if (roas > 0) {
-        const spend = income / (roas / 100);
-        setTargetMonthlySpend(spend.toFixed(2));
+        // Calculate monthly spend based on profit and ROAS
+        // If Profit = Income - Spend and ROAS = Income/Spend * 100
+        // Then Spend = Profit / (ROAS/100 - 1)
+        const spend = profit / ((roas / 100) - 1);
         
-        // Calculate target profit (income - spend)
-        const profit = income - spend;
-        setTargetProfit(profit.toFixed(2));
+        // Ensure we don't divide by zero or negative numbers
+        if (isFinite(spend) && spend > 0) {
+          setTargetMonthlySpend(spend.toFixed(2));
+          
+          // Calculate monthly income (Profit + Spend)
+          const income = profit + spend;
+          setTargetMonthlyIncome(income.toFixed(2));
+        } else {
+          // Invalid calculation, reset values
+          setTargetMonthlySpend("");
+          setTargetMonthlyIncome("");
+          if (roas <= 100) {
+            toast.warning("ROAS must be greater than 100% for valid profit calculation");
+          }
+        }
       }
     }
-  }, [targetMonthlyRetainers, casePayoutAmount, targetROAS]);
+  }, [targetProfit, targetROAS, casePayoutAmount, targetMonthlyRetainers]);
 
   // Parse query parameters to set initial values
   useEffect(() => {
@@ -257,20 +266,37 @@ const AddCampaignPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
+                  <label htmlFor="targetProfit" className="text-sm font-medium">
+                    Target Monthly Profit ($)
+                  </label>
+                  <Input
+                    id="targetProfit"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={targetProfit}
+                    onChange={(e) => setTargetProfit(e.target.value)}
+                    placeholder="e.g., 25000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your target monthly profit from this campaign
+                  </p>
+                </div>
+                <div className="space-y-2">
                   <label htmlFor="targetROAS" className="text-sm font-medium">
                     Target ROAS (%)
                   </label>
                   <Input
                     id="targetROAS"
                     type="number"
-                    min="0"
+                    min="101"
                     step="0.1"
                     value={targetROAS}
                     onChange={(e) => setTargetROAS(e.target.value)}
                     placeholder="e.g., 300"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Return on ad spend (ROAS) target percentage
+                    Return on ad spend (ROAS) target percentage (must be &gt;100%)
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -283,13 +309,12 @@ const AddCampaignPage = () => {
                     min="0"
                     step="0.01"
                     value={targetMonthlyIncome}
-                    onChange={(e) => setTargetMonthlyIncome(e.target.value)}
                     readOnly
                     className="bg-muted/30"
                   />
-                  {targetMonthlyIncome && (
+                  {targetMonthlyIncome && targetMonthlyRetainers && casePayoutAmount && (
                     <p className="text-xs text-muted-foreground">
-                      {formatCurrency(parseFloat(targetMonthlyIncome))} based on {targetMonthlyRetainers} retainers at {formatCurrency(parseFloat(casePayoutAmount) || 0)} each
+                      {formatCurrency(parseFloat(targetMonthlyIncome))} income needed based on profit and ROAS targets
                     </p>
                   )}
                 </div>
@@ -303,33 +328,12 @@ const AddCampaignPage = () => {
                     min="0"
                     step="0.01"
                     value={targetMonthlySpend}
-                    onChange={(e) => setTargetMonthlySpend(e.target.value)}
                     readOnly
                     className="bg-muted/30"
                   />
                   {targetMonthlySpend && targetROAS && (
                     <p className="text-xs text-muted-foreground">
-                      {formatCurrency(parseFloat(targetMonthlySpend))} calculated for {targetROAS}% ROAS
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="targetProfit" className="text-sm font-medium">
-                    Target Monthly Profit ($)
-                  </label>
-                  <Input
-                    id="targetProfit"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={targetProfit}
-                    onChange={(e) => setTargetProfit(e.target.value)}
-                    readOnly
-                    className="bg-muted/30"
-                  />
-                  {targetProfit && (
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(parseFloat(targetProfit))} profit (Income - Ad Spend)
+                      {formatCurrency(parseFloat(targetMonthlySpend))} ad spend needed to achieve {targetROAS}% ROAS
                     </p>
                   )}
                 </div>
