@@ -40,13 +40,14 @@ const AddCampaignPage = () => {
   const [targetMonthlyIncome, setTargetMonthlyIncome] = useState("");
   const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
   const [targetROAS, setTargetROAS] = useState("");
+  const [targetProfit, setTargetProfit] = useState("");
   
   // Include all accounts or create a manual account option
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
     : [{ id: "manual", name: "Manual Entry", platform: "google" as any, isConnected: true, lastSynced: null }];
 
-  // Calculate target income and spend dynamically
+  // Calculate target income, spend and profit dynamically
   useEffect(() => {
     if (targetMonthlyRetainers && casePayoutAmount) {
       // Calculate target monthly income based on retainers and payout
@@ -61,6 +62,10 @@ const AddCampaignPage = () => {
       if (roas > 0) {
         const spend = income / (roas / 100);
         setTargetMonthlySpend(spend.toFixed(2));
+        
+        // Calculate target profit (income - spend)
+        const profit = income - spend;
+        setTargetProfit(profit.toFixed(2));
       }
     }
   }, [targetMonthlyRetainers, casePayoutAmount, targetROAS]);
@@ -132,6 +137,7 @@ const AddCampaignPage = () => {
         monthlyIncome: parseFloat(targetMonthlyIncome) || 0,
         monthlySpend: parseFloat(targetMonthlySpend) || 0,
         targetROAS: parseFloat(targetROAS) || 0,
+        targetProfit: parseFloat(targetProfit) || 0,
       },
     };
     
@@ -304,6 +310,26 @@ const AddCampaignPage = () => {
                   {targetMonthlySpend && targetROAS && (
                     <p className="text-xs text-muted-foreground">
                       {formatCurrency(parseFloat(targetMonthlySpend))} calculated for {targetROAS}% ROAS
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="targetProfit" className="text-sm font-medium">
+                    Target Monthly Profit ($)
+                  </label>
+                  <Input
+                    id="targetProfit"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={targetProfit}
+                    onChange={(e) => setTargetProfit(e.target.value)}
+                    readOnly
+                    className="bg-muted/30"
+                  />
+                  {targetProfit && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(parseFloat(targetProfit))} profit (Income - Ad Spend)
                     </p>
                   )}
                 </div>

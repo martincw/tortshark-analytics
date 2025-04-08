@@ -32,6 +32,7 @@ export interface CampaignTargets {
   monthlyIncome: number;
   monthlySpend: number;
   targetROAS: number;
+  targetProfit: number;
 }
 
 export interface CampaignMetrics {
