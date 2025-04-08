@@ -9,7 +9,6 @@ export function CampaignGrid() {
   const { campaigns, isLoading } = useCampaign();
   
   console.log("CampaignGrid - Campaigns count:", campaigns.length);
-  console.log("CampaignGrid - Campaign IDs:", campaigns.map(c => c.id));
   
   const {
     searchTerm,
@@ -23,6 +22,7 @@ export function CampaignGrid() {
   } = useCampaignGridData(campaigns);
   
   console.log("CampaignGrid - Filtered campaigns count:", sortedAndFilteredCampaigns.length);
+  console.log("CampaignGrid - Filtered campaign details:", sortedAndFilteredCampaigns);
   
   const clearFilters = () => {
     setSearchTerm("");

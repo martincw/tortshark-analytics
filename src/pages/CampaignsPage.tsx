@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { Button } from "@/components/ui/button";
 import { Plus, Link } from "lucide-react";
@@ -10,7 +10,9 @@ const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
   
-  console.log("CampaignsPage - Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
+  useEffect(() => {
+    console.log("CampaignsPage - Mounted with campaigns:", campaigns.length);
+  }, [campaigns]);
 
   return (
     <div className="space-y-6">
