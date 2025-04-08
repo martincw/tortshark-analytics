@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
@@ -105,9 +106,12 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const updateCampaign = (updatedCampaign: Campaign) => {
     console.log("Updating campaign:", updatedCampaign);
-    setCampaigns(campaigns.map(campaign => 
-      campaign.id === updatedCampaign.id ? updatedCampaign : campaign
-    ));
+    setCampaigns(prevCampaigns => 
+      prevCampaigns.map(campaign => 
+        campaign.id === updatedCampaign.id ? updatedCampaign : campaign
+      )
+    );
+    toast.success("Campaign updated successfully");
   };
 
   const addCampaign = (newCampaign: Omit<Campaign, "id">): string => {
@@ -167,6 +171,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       });
       
       console.log("Updated campaigns state:", updatedCampaigns);
+      toast.success("Stats updated successfully");
       return updatedCampaigns;
     });
   };

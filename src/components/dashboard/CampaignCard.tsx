@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,12 +37,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [quickStats, setQuickStats] = useState({
     leads: "0",
     cases: "0",
-    revenue: "0"
+    revenue: "0",
+    retainers: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
-    console.log("Navigating to campaign details for:", campaign.id);
+    console.log("Navigating to campaign details for campaign ID:", campaign.id);
     setSelectedCampaignId(campaign.id);
     navigate(`/campaign/${campaign.id}`);
   };
@@ -51,6 +51,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const handleQuickStatsSubmit = () => {
     const newLeads = parseInt(quickStats.leads) || 0;
     const newCases = parseInt(quickStats.cases) || 0;
+    const newRetainers = parseInt(quickStats.retainers) || 0;
     const newRevenue = parseFloat(quickStats.revenue) || 0;
     
     console.log("Adding quick stats:", {
@@ -58,6 +59,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       date: selectedDate.toISOString(),
       leads: newLeads,
       cases: newCases,
+      retainers: newRetainers,
       revenue: newRevenue
     });
     
@@ -65,12 +67,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       date: selectedDate.toISOString(),
       leads: newLeads, 
       cases: newCases,
-      retainers: 0,
+      retainers: newRetainers,
       revenue: newRevenue
     });
     
     setIsQuickEntryOpen(false);
-    setQuickStats({ leads: "0", cases: "0", revenue: "0" });
+    setQuickStats({ leads: "0", cases: "0", retainers: "0", revenue: "0" });
     toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
@@ -189,7 +191,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           <DialogHeader>
             <DialogTitle>Add Stats for {campaign.name}</DialogTitle>
             <DialogDescription>
-              Add leads, cases, and revenue for a specific date. These values will be added to the total.
+              Add leads, cases, retainers, and revenue for a specific date. These values will be added to the total.
             </DialogDescription>
           </DialogHeader>
           
@@ -258,6 +260,19 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 type="number"
                 value={quickStats.cases}
                 onChange={(e) => setQuickStats({...quickStats, cases: e.target.value})}
+                className="col-span-3"
+                min="0"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quick-retainers" className="text-right">
+                Retainers
+              </Label>
+              <Input
+                id="quick-retainers"
+                type="number" 
+                value={quickStats.retainers}
+                onChange={(e) => setQuickStats({...quickStats, retainers: e.target.value})}
                 className="col-span-3"
                 min="0"
               />

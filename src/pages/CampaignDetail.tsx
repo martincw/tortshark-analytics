@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -53,7 +52,7 @@ const CampaignDetail = () => {
     console.log("Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
   }, [id, setSelectedCampaignId, campaigns]);
   
-  // Find the campaign by ID - ensure we're comparing the same types
+  // Find the campaign by ID - ensure we're comparing string IDs
   const campaign = campaigns.find((c) => c.id === id);
   
   // Debug the found campaign
@@ -67,7 +66,7 @@ const CampaignDetail = () => {
   const [retainerCount, setRetainerCount] = useState("0");
   const [revenue, setRevenue] = useState("0");
   
-  // New state for daily stats dialog
+  // State for daily stats dialog
   const [isDailyStatsDialogOpen, setIsDailyStatsDialogOpen] = useState(false);
   const [dailyStats, setDailyStats] = useState({
     leads: "0",
@@ -141,17 +140,6 @@ const CampaignDetail = () => {
     }
   };
   
-  const openDailyStatsDialog = () => {
-    setDailyStats({
-      leads: "0",
-      cases: "0",
-      retainers: "0",
-      revenue: "0"
-    });
-    setSelectedDate(new Date());
-    setIsDailyStatsDialogOpen(true);
-  };
-  
   const handleSaveDailyStats = () => {
     // Parse the values
     const newLeads = parseInt(dailyStats.leads) || 0;
@@ -177,15 +165,14 @@ const CampaignDetail = () => {
       revenue: newRevenue
     });
     
-    // Update the form fields to reflect the new values
+    // Close the dialog and show a success toast
+    setIsDailyStatsDialogOpen(false);
+    
+    // Update the form fields with the new values
     setLeadCount((parseInt(leadCount) + newLeads).toString());
     setCaseCount((parseInt(caseCount) + newCases).toString());
     setRetainerCount((parseInt(retainerCount) + newRetainers).toString());
     setRevenue((parseFloat(revenue) + newRevenue).toString());
-    
-    // Close the dialog and show a success toast
-    setIsDailyStatsDialogOpen(false);
-    toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
   return (
@@ -217,7 +204,7 @@ const CampaignDetail = () => {
           ) : (
             <>
               <Button
-                onClick={openDailyStatsDialog}
+                onClick={() => setIsDailyStatsDialogOpen(true)}
                 variant="outline"
               >
                 <CalendarDays className="mr-2 h-4 w-4" />

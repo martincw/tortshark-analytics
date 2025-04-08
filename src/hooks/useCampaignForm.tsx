@@ -136,7 +136,7 @@ export const useCampaignForm = () => {
       const campaignId = addCampaign(newCampaign);
       console.log("Campaign added with ID:", campaignId);
       toast.success("Campaign added successfully");
-      navigate("/campaigns");
+      navigate(`/campaign/${campaignId}`); // Navigate to campaign detail page
     } catch (error) {
       console.error("Error adding campaign:", error);
       toast.error("Failed to add campaign. Please try again.");
