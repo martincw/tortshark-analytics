@@ -1,12 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection } from "../types/campaign";
-import { 
-  fetchGoogleAdsAccounts, 
-  fetchCampaigns, 
-  getStoredAuthTokens,
-  syncAccountData
-} from "../services/googleAdsService";
 import { toast } from "sonner";
 
 interface CampaignContextType {
@@ -21,7 +15,6 @@ interface CampaignContextType {
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
   isLoading: boolean;
-  syncAccount: (accountId: string) => Promise<boolean>;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
@@ -85,79 +78,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     saveToLocalStorage('accountConnections', accountConnections);
   }, [accountConnections]);
 
-  // Load accounts when the component mounts
-  useEffect(() => {
-    const loadAccounts = async () => {
-      const tokens = getStoredAuthTokens();
-      
-      if (tokens?.access_token) {
-        setIsLoading(true);
-        try {
-          const accounts = await fetchGoogleAdsAccounts(tokens.access_token);
-          
-          // Only add new accounts that don't already exist in our state
-          const existingIds = new Set(accountConnections.map(acc => acc.id));
-          const newAccounts = accounts.filter(acc => !existingIds.has(acc.id));
-          
-          if (newAccounts.length > 0) {
-            setAccountConnections(prev => [...prev, ...newAccounts]);
-            toast.success(`Found ${newAccounts.length} new Google Ads accounts`);
-          }
-        } catch (error) {
-          console.error("Failed to load accounts:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadAccounts();
-  }, []);
-
-  // Load campaigns when accounts or date range changes
-  useEffect(() => {
-    const loadCampaigns = async () => {
-      const tokens = getStoredAuthTokens();
-      
-      if (tokens?.access_token && accountConnections.length > 0) {
-        setIsLoading(true);
-        
-        try {
-          let allCampaigns: Campaign[] = [];
-          
-          for (const account of accountConnections) {
-            if (account.isConnected) {
-              try {
-                const accountCampaigns = await fetchCampaigns(
-                  account.id,
-                  tokens.access_token,
-                  dateRange
-                );
-                
-                allCampaigns = [...allCampaigns, ...accountCampaigns];
-              } catch (error) {
-                console.error(`Failed to load campaigns for account ${account.id}:`, error);
-              }
-            }
-          }
-          
-          // Merge with existing manually created campaigns
-          const existingManualCampaigns = campaigns.filter(
-            camp => !accountConnections.some(acc => acc.id === camp.accountId && acc.isConnected)
-          );
-          
-          setCampaigns([...existingManualCampaigns, ...allCampaigns]);
-        } catch (error) {
-          console.error("Failed to load campaigns:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadCampaigns();
-  }, [accountConnections, dateRange]);
-
   const updateCampaign = (updatedCampaign: Campaign) => {
     setCampaigns(campaigns.map(campaign => 
       campaign.id === updatedCampaign.id ? updatedCampaign : campaign
@@ -208,39 +128,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
 
-  const syncAccount = async (accountId: string): Promise<boolean> => {
-    const tokens = getStoredAuthTokens();
-    
-    if (!tokens?.access_token) {
-      return false;
-    }
-    
-    setIsLoading(true);
-    try {
-      const success = await syncAccountData(accountId, tokens.access_token);
-      
-      if (success) {
-        // Update last synced date for this account
-        setAccountConnections(accountConnections.map(account => {
-          if (account.id === accountId) {
-            return {
-              ...account,
-              lastSynced: new Date().toISOString()
-            };
-          }
-          return account;
-        }));
-      }
-      
-      return success;
-    } catch (error) {
-      console.error("Failed to sync account:", error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <CampaignContext.Provider value={{
       campaigns,
@@ -253,8 +140,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       deleteCampaign,
       selectedCampaignId,
       setSelectedCampaignId,
-      isLoading,
-      syncAccount
+      isLoading
     }}>
       {children}
     </CampaignContext.Provider>
