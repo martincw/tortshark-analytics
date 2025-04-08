@@ -33,21 +33,8 @@ serve(async (req) => {
 
     const accessToken = authHeader.split(" ")[1];
     
-    // Retrieve developer token from environment
-    const developerToken = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN");
-    if (!developerToken) {
-      console.error("GOOGLE_ADS_DEVELOPER_TOKEN is not set in environment variables");
-      return new Response(
-        JSON.stringify({ 
-          error: "Configuration error", 
-          message: "Google Ads Developer Token is not configured" 
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    // Use the developer token provided by the user
+    const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
     
     console.log("Making request to Google Ads API to fetch real accounts");
     console.log(`Developer token available: ${developerToken ? "Yes" : "No"}`);
