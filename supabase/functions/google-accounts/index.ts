@@ -30,20 +30,20 @@ serve(async (req) => {
 
     const accessToken = authHeader.split(" ")[1];
     
-    // This would be a real call to the Google Ads API
-    // For now, we'll return some sample accounts to demonstrate the flow
-    // In a production environment, you should implement the real API call
+    // For now, we'll return a fixed set of sample accounts
+    // This prevents the infinite account creation issue
+    // In a production environment, this would call the actual Google Ads API
     
-    // Sample response data
+    // Sample response data - fixed to just 2 accounts to prevent duplication
     const accountsData = [
       {
-        id: "1234567890",
+        id: "fixed-id-1234567890",
         name: "Main Google Ads Account",
         status: "ENABLED",
         customerId: "123-456-7890",
       },
       {
-        id: "0987654321",
+        id: "fixed-id-0987654321",
         name: "Secondary Marketing Account",
         status: "ENABLED",
         customerId: "098-765-4321",

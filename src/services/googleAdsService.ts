@@ -186,8 +186,9 @@ export const fetchGoogleAdsAccounts = async (
     }
     
     // Map the account data to our internal structure
+    // Using the fixed IDs from the response to prevent duplicates
     return accountsData.map((account: any) => ({
-      id: account.id || `ga-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: account.id, // Use the fixed ID from the response
       name: account.name || "Unnamed Account",
       platform: "google" as const,
       isConnected: true,

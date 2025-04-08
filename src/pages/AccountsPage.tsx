@@ -103,7 +103,7 @@ const AccountsPage = () => {
           }
         });
         
-        if (newAccounts.length > 0) {
+        if (newAccounts.length > 0 && !selectedAccountId) {
           setSelectedAccountId(newAccounts[0].id);
           toast.info(`Selected account: ${newAccounts[0].name}`);
         }
@@ -121,19 +121,23 @@ const AccountsPage = () => {
           setGoogleAccounts(storedAccounts);
           toast.success("Successfully connected to Google Ads");
           
+          let newAccountsAdded = 0;
           storedAccounts.forEach(account => {
             const exists = accountConnections.some(ac => ac.id === account.id);
             if (!exists) {
               addAccountConnection(account);
+              newAccountsAdded++;
             }
           });
           
           if (!selectedAccountId && storedAccounts.length > 0) {
             setSelectedAccountId(storedAccounts[0].id);
           }
-        } else {
-          toast.warning("Connected to Google Ads but no accounts were found");
           
+          if (newAccountsAdded > 0) {
+            toast.success(`Added ${newAccountsAdded} Google Ads account(s)`);
+          }
+        } else if (accountConnections.length === 0) {
           const fallbackAccount: AccountConnection = {
             id: "fallback-" + Date.now(),
             name: "Default Google Ads Account",
