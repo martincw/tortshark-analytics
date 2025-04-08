@@ -77,9 +77,24 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
   };
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>(() => 
-    migrateExistingCampaigns(loadFromLocalStorage('campaigns', []))
-  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
+    try {
+      console.log("Loading campaigns from localStorage");
+      const savedCampaigns = localStorage.getItem('campaigns');
+      console.log("Raw saved campaigns:", savedCampaigns);
+      
+      if (savedCampaigns) {
+        const parsedCampaigns = JSON.parse(savedCampaigns);
+        console.log("Parsed campaigns:", parsedCampaigns);
+        return migrateExistingCampaigns(parsedCampaigns);
+      }
+    } catch (error) {
+      console.error("Error loading campaigns from localStorage:", error);
+    }
+    
+    return [];
+  });
   
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>(() => 
     loadFromLocalStorage('accountConnections', [])
@@ -91,7 +106,102 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   });
   
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Add some initial demo data if there are no campaigns
+    if (campaigns.length === 0) {
+      console.log("No campaigns found, adding demo campaign");
+      const demoAccountId = crypto.randomUUID();
+      
+      // Add a demo account connection
+      const demoAccount: AccountConnection = {
+        id: demoAccountId,
+        name: "Demo Google Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString()
+      };
+      
+      setAccountConnections(prev => {
+        if (prev.length === 0) {
+          saveToLocalStorage('accountConnections', [demoAccount]);
+          return [demoAccount];
+        }
+        return prev;
+      });
+      
+      // Add demo campaigns
+      const demoCampaigns: Campaign[] = [
+        {
+          id: crypto.randomUUID(),
+          name: "Rideshare",
+          platform: "google",
+          accountId: demoAccountId,
+          accountName: "Demo Google Account",
+          stats: {
+            adSpend: 5000,
+            impressions: 50000,
+            clicks: 1000,
+            cpc: 5,
+            date: new Date().toISOString()
+          },
+          manualStats: {
+            leads: 80,
+            cases: 15,
+            retainers: 10,
+            revenue: 25000,
+            date: new Date().toISOString()
+          },
+          statsHistory: [],
+          targets: {
+            monthlyRetainers: 20,
+            casePayoutAmount: 2500,
+            monthlyIncome: 30000,
+            monthlySpend: 10000,
+            targetROAS: 300,
+            targetProfit: 20000
+          }
+        },
+        {
+          id: crypto.randomUUID(),
+          name: "LDS",
+          platform: "google",
+          accountId: demoAccountId,
+          accountName: "Demo Google Account",
+          stats: {
+            adSpend: 3500,
+            impressions: 40000,
+            clicks: 800,
+            cpc: 4.38,
+            date: new Date().toISOString()
+          },
+          manualStats: {
+            leads: 60,
+            cases: 12,
+            retainers: 8,
+            revenue: 18000,
+            date: new Date().toISOString()
+          },
+          statsHistory: [],
+          targets: {
+            monthlyRetainers: 15,
+            casePayoutAmount: 2000,
+            monthlyIncome: 22000,
+            monthlySpend: 8000,
+            targetROAS: 275,
+            targetProfit: 14000
+          }
+        }
+      ];
+      
+      setCampaigns(demoCampaigns);
+      saveToLocalStorage('campaigns', demoCampaigns);
+      console.log("Demo campaigns added:", demoCampaigns);
+    }
+    
+    // Set loading to false after initialization
+    setIsLoading(false);
+  }, []);
 
   // Save campaigns to localStorage whenever they change
   useEffect(() => {
