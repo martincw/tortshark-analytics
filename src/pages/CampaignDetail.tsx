@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -36,7 +36,14 @@ import { Label } from "@/components/ui/label";
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { campaigns, updateCampaign, deleteCampaign } = useCampaign();
+  const { campaigns, updateCampaign, deleteCampaign, setSelectedCampaignId } = useCampaign();
+  
+  // Set the selected campaign ID when this component mounts
+  useEffect(() => {
+    if (id) {
+      setSelectedCampaignId(id);
+    }
+  }, [id, setSelectedCampaignId]);
   
   const campaign = campaigns.find((c) => c.id === id);
   
@@ -54,6 +61,16 @@ const CampaignDetail = () => {
     retainers: "0",
     revenue: "0"
   });
+  
+  // Update form fields when campaign changes
+  useEffect(() => {
+    if (campaign) {
+      setLeadCount(campaign.manualStats.leads.toString());
+      setCaseCount(campaign.manualStats.cases.toString());
+      setRetainerCount(campaign.manualStats.retainers.toString());
+      setRevenue(campaign.manualStats.revenue.toString());
+    }
+  }, [campaign]);
   
   if (!campaign) {
     return (

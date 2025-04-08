@@ -1,4 +1,5 @@
-import React from "react";
+
+import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,21 +8,67 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerfo
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 interface CampaignCardProps {
   campaign: Campaign;
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
-  const { setSelectedCampaignId } = useCampaign();
+  const { setSelectedCampaignId, updateCampaign } = useCampaign();
   const navigate = useNavigate();
   const metrics = calculateMetrics(campaign);
+  
+  // State for quick entry dialog
+  const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
+  const [quickStats, setQuickStats] = useState({
+    leads: "0",
+    cases: "0",
+    revenue: "0"
+  });
   
   const handleViewDetails = () => {
     setSelectedCampaignId(campaign.id);
     navigate(`/campaign/${campaign.id}`);
+  };
+
+  const handleQuickStatsSubmit = () => {
+    // Parse the values
+    const newLeads = parseInt(quickStats.leads) || 0;
+    const newCases = parseInt(quickStats.cases) || 0;
+    const newRevenue = parseFloat(quickStats.revenue) || 0;
+    
+    // Update the campaign with the new values added to the existing ones
+    const updatedCampaign = {
+      ...campaign,
+      manualStats: {
+        ...campaign.manualStats,
+        leads: campaign.manualStats.leads + newLeads,
+        cases: campaign.manualStats.cases + newCases,
+        revenue: campaign.manualStats.revenue + newRevenue,
+        date: new Date().toISOString(), // Update the date to today
+      },
+    };
+    
+    // Update the campaign
+    updateCampaign(updatedCampaign);
+    
+    // Close the dialog and show a success toast
+    setIsQuickEntryOpen(false);
+    setQuickStats({ leads: "0", cases: "0", revenue: "0" });
+    toast.success("Stats updated successfully");
   };
 
   // Format the date
@@ -54,86 +101,154 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow border border-border/80 group">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-bold line-clamp-1">{campaign.name}</CardTitle>
-            <p className="text-sm text-muted-foreground flex items-center mt-1">
-              <Calendar className="h-3 w-3 mr-1 inline" />
-              {formattedDate}
-            </p>
+    <>
+      <Card className="overflow-hidden hover:shadow-md transition-shadow border border-border/80 group">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg font-bold line-clamp-1">{campaign.name}</CardTitle>
+              <p className="text-sm text-muted-foreground flex items-center mt-1">
+                <Calendar className="h-3 w-3 mr-1 inline" />
+                {formattedDate}
+              </p>
+            </div>
+            <Badge 
+              variant={getBadgeVariant(campaign.name)}
+              className="shrink-0"
+            >
+              Google Ads
+            </Badge>
           </div>
-          <Badge 
-            variant={getBadgeVariant(campaign.name)}
-            className="shrink-0"
-          >
-            Google Ads
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pb-0">
-        {/* Highlight ROI and Profit in a more prominent way */}
-        <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-muted-foreground">ROI</span>
-            <div className="flex items-center gap-1.5 mt-1">
-              <Percent className="h-4 w-4 text-secondary" />
-              <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                {metrics.roi.toFixed(0)}%
-              </span>
+        </CardHeader>
+        <CardContent className="pb-0">
+          {/* Highlight ROI and Profit in a more prominent way */}
+          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-muted-foreground">ROI</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Percent className="h-4 w-4 text-secondary" />
+                <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
+                  {metrics.roi.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-muted-foreground">Profit</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <DollarSign className="h-4 w-4 text-secondary" />
+                <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
+                  {metrics.profit >= 1000 
+                    ? `$${(metrics.profit / 1000).toFixed(1)}K` 
+                    : formatCurrency(metrics.profit)}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-muted-foreground">Profit</span>
-            <div className="flex items-center gap-1.5 mt-1">
-              <DollarSign className="h-4 w-4 text-secondary" />
-              <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                {metrics.profit >= 1000 
-                  ? `$${(metrics.profit / 1000).toFixed(1)}K` 
-                  : formatCurrency(metrics.profit)}
-              </span>
+          
+          <div className="grid grid-cols-2 gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Ad Spend" 
+                value={formatCurrency(campaign.stats.adSpend)} 
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Leads" 
+                value={formatNumber(campaign.manualStats.leads)} 
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Cases" 
+                value={formatNumber(campaign.manualStats.cases)} 
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Conv. Rate" 
+                value={`${conversionRate}%`} 
+              />
             </div>
           </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 mb-2">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <BadgeStat 
-              label="Ad Spend" 
-              value={formatCurrency(campaign.stats.adSpend)} 
-            />
+        </CardContent>
+        <CardFooter className="pt-4 flex justify-between gap-2">
+          <Button onClick={handleViewDetails} variant="outline" className="flex-1 group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
+            View Details
+            <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+          </Button>
+          <Button onClick={() => setIsQuickEntryOpen(true)} variant="outline" className="w-auto">
+            <PlusCircle className="h-4 w-4" />
+          </Button>
+        </CardFooter>
+      </Card>
+      
+      {/* Quick Entry Dialog */}
+      <Dialog open={isQuickEntryOpen} onOpenChange={setIsQuickEntryOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Stats for {campaign.name}</DialogTitle>
+            <DialogDescription>
+              Quickly add new leads and cases. These values will be added to the existing totals.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quick-leads" className="text-right">
+                Leads
+              </Label>
+              <Input
+                id="quick-leads"
+                type="number"
+                value={quickStats.leads}
+                onChange={(e) => setQuickStats({...quickStats, leads: e.target.value})}
+                className="col-span-3"
+                min="0"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quick-cases" className="text-right">
+                Cases
+              </Label>
+              <Input
+                id="quick-cases" 
+                type="number"
+                value={quickStats.cases}
+                onChange={(e) => setQuickStats({...quickStats, cases: e.target.value})}
+                className="col-span-3"
+                min="0"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quick-revenue" className="text-right">
+                Revenue ($)
+              </Label>
+              <Input
+                id="quick-revenue"
+                type="number" 
+                value={quickStats.revenue}
+                onChange={(e) => setQuickStats({...quickStats, revenue: e.target.value})}
+                className="col-span-3"
+                min="0"
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <BadgeStat 
-              label="Leads" 
-              value={formatNumber(campaign.manualStats.leads)} 
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            <BadgeStat 
-              label="Cases" 
-              value={formatNumber(campaign.manualStats.cases)} 
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <BadgeStat 
-              label="Conv. Rate" 
-              value={`${conversionRate}%`} 
-            />
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="pt-4">
-        <Button onClick={handleViewDetails} variant="outline" className="w-full group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
-          View Details
-          <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
-        </Button>
-      </CardFooter>
-    </Card>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsQuickEntryOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleQuickStatsSubmit}>
+              Add Stats
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
