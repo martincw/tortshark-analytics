@@ -12,6 +12,8 @@ interface CampaignContextType {
   addAccountConnection: (newAccount: Omit<AccountConnection, "id">) => string;
   deleteCampaign: (id: string) => void;
   addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => void;
+  updateStatHistoryEntry: (campaignId: string, updatedEntry: StatHistoryEntry) => void;
+  deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
   isLoading: boolean;
@@ -19,19 +21,16 @@ interface CampaignContextType {
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
 
-// Get today's date as ISO string (YYYY-MM-DD)
 const getToday = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
-// Get date 30 days ago as ISO string (YYYY-MM-DD)
 const getThirtyDaysAgo = (): string => {
   const date = new Date();
   date.setDate(date.getDate() - 30);
   return date.toISOString().split('T')[0];
 };
 
-// Helper to save data to localStorage
 const saveToLocalStorage = (key: string, data: any) => {
   try {
     console.log(`Saving ${key} to localStorage:`, data);
@@ -41,7 +40,6 @@ const saveToLocalStorage = (key: string, data: any) => {
   }
 };
 
-// Helper to load data from localStorage
 const loadFromLocalStorage = (key: string, defaultValue: any) => {
   try {
     const savedData = localStorage.getItem(key);
@@ -62,35 +60,6 @@ const loadFromLocalStorage = (key: string, defaultValue: any) => {
 };
 
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Update existing campaigns to ensure they have the targets property and statsHistory
-  const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
-    if (!Array.isArray(campaigns)) {
-      console.error("Expected campaigns to be an array, but got:", campaigns);
-      return [];
-    }
-    
-    return campaigns.map(campaign => {
-      const updatedCampaign = { ...campaign };
-      
-      if (!updatedCampaign.targets) {
-        updatedCampaign.targets = {
-          monthlyRetainers: 0,
-          casePayoutAmount: 0,
-          monthlyIncome: 0,
-          monthlySpend: 0,
-          targetROAS: 0,
-          targetProfit: 0,
-        };
-      }
-      
-      if (!updatedCampaign.statsHistory) {
-        updatedCampaign.statsHistory = [];
-      }
-      
-      return updatedCampaign;
-    });
-  };
-
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
     try {
@@ -103,7 +72,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
           const parsedCampaigns = JSON.parse(savedCampaigns);
           console.log("Parsed campaigns:", parsedCampaigns);
           
-          // Check if parsedCampaigns is an array
           if (Array.isArray(parsedCampaigns)) {
             return migrateExistingCampaigns(parsedCampaigns);
           } else {
@@ -133,7 +101,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
 
-  // Save campaigns to localStorage whenever they change
   useEffect(() => {
     if (campaigns.length > 0) {
       console.log("Saving campaigns to localStorage:", campaigns);
@@ -141,15 +108,41 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [campaigns]);
 
-  // Save account connections to localStorage whenever they change
   useEffect(() => {
     saveToLocalStorage('accountConnections', accountConnections);
   }, [accountConnections]);
 
-  // Set loading to false after initialization
   useEffect(() => {
     setIsLoading(false);
   }, []);
+
+  const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
+    if (!Array.isArray(campaigns)) {
+      console.error("Expected campaigns to be an array, but got:", campaigns);
+      return [];
+    }
+    
+    return campaigns.map(campaign => {
+      const updatedCampaign = { ...campaign };
+      
+      if (!updatedCampaign.targets) {
+        updatedCampaign.targets = {
+          monthlyRetainers: 0,
+          casePayoutAmount: 0,
+          monthlyIncome: 0,
+          monthlySpend: 0,
+          targetROAS: 0,
+          targetProfit: 0,
+        };
+      }
+      
+      if (!updatedCampaign.statsHistory) {
+        updatedCampaign.statsHistory = [];
+      }
+      
+      return updatedCampaign;
+    });
+  };
 
   const updateCampaign = (updatedCampaign: Campaign) => {
     console.log("Updating campaign:", updatedCampaign);
@@ -164,7 +157,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   const addCampaign = (newCampaign: Omit<Campaign, "id">): string => {
     const id = crypto.randomUUID();
     
-    // Ensure statsHistory is initialized
     const campaign: Campaign = {
       ...newCampaign,
       id,
@@ -175,7 +167,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     setCampaigns(prev => [...prev, campaign]);
     console.log("Campaign added successfully:", campaign);
     
-    // Save to localStorage immediately
     setTimeout(() => {
       const updatedCampaigns = [...campaigns, campaign];
       saveToLocalStorage('campaigns', updatedCampaigns);
@@ -191,7 +182,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     setCampaigns(prev => {
       const updatedCampaigns = prev.map(campaign => {
         if (campaign.id === campaignId) {
-          // Create new entry with ID and createdAt
           const newEntry: StatHistoryEntry = {
             ...entry,
             id: crypto.randomUUID(),
@@ -200,21 +190,18 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
           
           console.log("Created new entry:", newEntry);
           
-          // Get the stats history (ensure it exists)
           const statsHistory = Array.isArray(campaign.statsHistory) 
             ? campaign.statsHistory 
             : [];
           
-          // Update campaign stats
           const updatedCampaign = {
             ...campaign,
             manualStats: {
               ...campaign.manualStats,
               leads: campaign.manualStats.leads + entry.leads,
               cases: campaign.manualStats.cases + entry.cases,
-              retainers: campaign.manualStats.retainers + entry.retainers,
               revenue: campaign.manualStats.revenue + entry.revenue,
-              date: new Date().toISOString(), // Update the date to today
+              date: new Date().toISOString(),
             },
             statsHistory: [newEntry, ...statsHistory]
           };
@@ -231,17 +218,92 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
   };
 
+  const updateStatHistoryEntry = (campaignId: string, updatedEntry: StatHistoryEntry) => {
+    console.log("Updating stat history entry:", { campaignId, updatedEntry });
+    
+    setCampaigns(prev => {
+      const updatedCampaigns = prev.map(campaign => {
+        if (campaign.id === campaignId) {
+          const oldEntry = campaign.statsHistory.find(entry => entry.id === updatedEntry.id);
+          
+          if (!oldEntry) {
+            console.error("Entry not found:", updatedEntry.id);
+            return campaign;
+          }
+          
+          const leadsDiff = updatedEntry.leads - oldEntry.leads;
+          const casesDiff = updatedEntry.cases - oldEntry.cases;
+          const revenueDiff = updatedEntry.revenue - oldEntry.revenue;
+          
+          const statsHistory = campaign.statsHistory.map(entry => 
+            entry.id === updatedEntry.id ? updatedEntry : entry
+          );
+          
+          const updatedCampaign = {
+            ...campaign,
+            manualStats: {
+              ...campaign.manualStats,
+              leads: campaign.manualStats.leads + leadsDiff,
+              cases: campaign.manualStats.cases + casesDiff,
+              revenue: campaign.manualStats.revenue + revenueDiff,
+            },
+            statsHistory
+          };
+          
+          console.log("Updated campaign after entry edit:", updatedCampaign);
+          return updatedCampaign;
+        }
+        return campaign;
+      });
+      
+      toast.success("Stat history entry updated successfully");
+      return updatedCampaigns;
+    });
+  };
+
+  const deleteStatHistoryEntry = (campaignId: string, entryId: string) => {
+    console.log("Deleting stat history entry:", { campaignId, entryId });
+    
+    setCampaigns(prev => {
+      const updatedCampaigns = prev.map(campaign => {
+        if (campaign.id === campaignId) {
+          const entryToDelete = campaign.statsHistory.find(entry => entry.id === entryId);
+          
+          if (!entryToDelete) {
+            console.error("Entry not found:", entryId);
+            return campaign;
+          }
+          
+          const updatedCampaign = {
+            ...campaign,
+            manualStats: {
+              ...campaign.manualStats,
+              leads: campaign.manualStats.leads - entryToDelete.leads,
+              cases: campaign.manualStats.cases - entryToDelete.cases,
+              revenue: campaign.manualStats.revenue - entryToDelete.revenue,
+            },
+            statsHistory: campaign.statsHistory.filter(entry => entry.id !== entryId)
+          };
+          
+          console.log("Updated campaign after entry deletion:", updatedCampaign);
+          return updatedCampaign;
+        }
+        return campaign;
+      });
+      
+      toast.success("Stat history entry deleted successfully");
+      return updatedCampaigns;
+    });
+  };
+
   const addAccountConnection = (newAccount: Omit<AccountConnection, "id">): string => {
-    // Generate a unique ID
     const id = crypto.randomUUID();
     
-    // Create the account with the generated ID
     const account: AccountConnection = {
       ...newAccount,
       id
     };
     
-    // Check if this account already exists (based on name or other criteria)
     const isDuplicate = accountConnections.some(
       existing => existing.name === account.name && existing.platform === account.platform
     );
@@ -273,6 +335,8 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       addCampaign,
       addAccountConnection,
       addStatHistoryEntry,
+      updateStatHistoryEntry,
+      deleteStatHistoryEntry,
       deleteCampaign,
       selectedCampaignId,
       setSelectedCampaignId,

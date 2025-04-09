@@ -24,6 +24,8 @@ import {
   Target,
   PlusCircle,
   Calendar,
+  MoreHorizontal,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -48,11 +50,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { campaigns, updateCampaign, deleteCampaign, setSelectedCampaignId, addStatHistoryEntry, dateRange, setDateRange } = useCampaign();
+  const { 
+    campaigns, 
+    updateCampaign, 
+    deleteCampaign, 
+    setSelectedCampaignId, 
+    addStatHistoryEntry, 
+    updateStatHistoryEntry,
+    deleteStatHistoryEntry,
+    dateRange, 
+    setDateRange 
+  } = useCampaign();
   
   // Set the selected campaign ID when this component mounts
   useEffect(() => {
@@ -87,6 +105,17 @@ const CampaignDetail = () => {
     revenue: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // State for editing stats history
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editEntryData, setEditEntryData] = useState({
+    leads: "0",
+    cases: "0",
+    revenue: "0"
+  });
+  const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   
   // Update form fields when campaign changes
   useEffect(() => {
@@ -132,7 +161,6 @@ const CampaignDetail = () => {
         ...campaign.manualStats,
         leads: parseInt(leadCount) || 0,
         cases: parseInt(caseCount) || 0,
-        retainers: parseInt(caseCount) || 0, // Set retainers equal to cases since they're the same
         revenue: parseFloat(revenue) || 0,
       },
     };
@@ -166,7 +194,6 @@ const CampaignDetail = () => {
       date: selectedDate.toISOString(),
       leads: newLeads,
       cases: newCases,
-      retainers: newCases, // Set retainers equal to cases
       revenue: newRevenue
     });
     
@@ -194,6 +221,52 @@ const CampaignDetail = () => {
     setLeadCount((parseInt(leadCount) + newLeads).toString());
     setCaseCount((parseInt(caseCount) + newCases).toString());
     setRevenue((parseFloat(revenue) + newRevenue).toString());
+  };
+  
+  // Handle edit entry
+  const handleEditEntry = (entry: any) => {
+    setEditingEntryId(entry.id);
+    setEditEntryData({
+      leads: entry.leads.toString(),
+      cases: entry.cases.toString(), 
+      revenue: entry.revenue.toString()
+    });
+    setEditEntryDialogOpen(true);
+  };
+  
+  // Save edited entry
+  const handleSaveEditedEntry = () => {
+    if (!editingEntryId) return;
+    
+    const entry = campaign.statsHistory.find(e => e.id === editingEntryId);
+    if (!entry) return;
+    
+    const updatedEntry = {
+      ...entry,
+      leads: parseInt(editEntryData.leads) || 0,
+      cases: parseInt(editEntryData.cases) || 0,
+      retainers: parseInt(editEntryData.cases) || 0, // Keep retainers equal to cases
+      revenue: parseFloat(editEntryData.revenue) || 0
+    };
+    
+    updateStatHistoryEntry(campaign.id, updatedEntry);
+    setEditEntryDialogOpen(false);
+    setEditingEntryId(null);
+  };
+  
+  // Handle delete entry
+  const handleDeleteEntryConfirm = (entryId: string) => {
+    setEntryToDelete(entryId);
+    setDeleteEntryDialogOpen(true);
+  };
+  
+  // Confirm delete entry
+  const confirmDeleteEntry = () => {
+    if (!entryToDelete) return;
+    
+    deleteStatHistoryEntry(campaign.id, entryToDelete);
+    setDeleteEntryDialogOpen(false);
+    setEntryToDelete(null);
   };
 
   return (
@@ -496,6 +569,7 @@ const CampaignDetail = () => {
                     <TableHead className="font-medium">Cases</TableHead>
                     <TableHead className="font-medium">Revenue</TableHead>
                     <TableHead className="font-medium">Added On</TableHead>
+                    <TableHead className="w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -507,6 +581,29 @@ const CampaignDetail = () => {
                       <TableCell>{formatCurrency(entry.revenue)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(entry.createdAt), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditEntry(entry)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteEntryConfirm(entry.id)}
+                              className="text-error-DEFAULT"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -630,6 +727,89 @@ const CampaignDetail = () => {
             </Button>
             <Button onClick={handleSaveDailyStats}>
               Add Stats
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Stats History Entry Dialog */}
+      <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Stats Entry</DialogTitle>
+            <DialogDescription>
+              Modify the values for this stats entry. This will automatically update campaign totals.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-leads" className="text-right">
+                Leads
+              </Label>
+              <Input
+                id="edit-leads"
+                type="number"
+                value={editEntryData.leads}
+                onChange={(e) => setEditEntryData({...editEntryData, leads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-cases" className="text-right">
+                Cases
+              </Label>
+              <Input
+                id="edit-cases" 
+                type="number"
+                value={editEntryData.cases}
+                onChange={(e) => setEditEntryData({...editEntryData, cases: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-revenue" className="text-right">
+                Revenue ($)
+              </Label>
+              <Input
+                id="edit-revenue"
+                type="number" 
+                value={editEntryData.revenue}
+                onChange={(e) => setEditEntryData({...editEntryData, revenue: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEntryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEditedEntry}>
+              <Check className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Stats History Entry Confirmation Dialog */}
+      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Stats Entry</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this stats entry? This will reduce your campaign totals and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteEntryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteEntry}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Entry
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -21,12 +21,29 @@ export function DateRangePicker() {
     to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
   });
   
+  // Update local state when context changes (e.g. from other components)
+  useEffect(() => {
+    setDate({
+      from: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
+      to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
+    });
+  }, [dateRange]);
+  
   const handleDateChange = (value: DateRange | undefined) => {
     setDate(value);
-    if (value?.from && value.to) {
+    if (value?.from) {
       setDateRange({
         startDate: format(value.from, 'yyyy-MM-dd'),
-        endDate: format(value.to, 'yyyy-MM-dd'),
+        endDate: value.to ? format(value.to, 'yyyy-MM-dd') : format(value.from, 'yyyy-MM-dd'),
+      });
+    }
+  };
+
+  const handleSaveDate = () => {
+    if (date?.from) {
+      setDateRange({
+        startDate: format(date.from, 'yyyy-MM-dd'),
+        endDate: date.to ? format(date.to, 'yyyy-MM-dd') : format(date.from, 'yyyy-MM-dd'),
       });
     }
   };
@@ -59,14 +76,26 @@ export function DateRangePicker() {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={handleDateChange}
-            numberOfMonths={2}
-          />
+          <div className="p-0">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={date?.from}
+              selected={date}
+              onSelect={handleDateChange}
+              numberOfMonths={2}
+              className="pointer-events-auto"
+            />
+            <div className="p-3 border-t border-border/50 bg-muted/20">
+              <Button 
+                onClick={handleSaveDate}
+                size="sm"
+                className="w-full"
+              >
+                Apply Date Range
+              </Button>
+            </div>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
