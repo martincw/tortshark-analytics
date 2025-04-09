@@ -59,6 +59,34 @@ const loadFromLocalStorage = (key: string, defaultValue: any) => {
   }
 };
 
+const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
+  if (!Array.isArray(campaigns)) {
+    console.error("Expected campaigns to be an array, but got:", campaigns);
+    return [];
+  }
+  
+  return campaigns.map(campaign => {
+    const updatedCampaign = { ...campaign };
+    
+    if (!updatedCampaign.targets) {
+      updatedCampaign.targets = {
+        monthlyRetainers: 0,
+        casePayoutAmount: 0,
+        monthlyIncome: 0,
+        monthlySpend: 0,
+        targetROAS: 0,
+        targetProfit: 0,
+      };
+    }
+    
+    if (!updatedCampaign.statsHistory) {
+      updatedCampaign.statsHistory = [];
+    }
+    
+    return updatedCampaign;
+  });
+};
+
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
@@ -89,7 +117,7 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     return [];
   });
-  
+
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>(() => 
     loadFromLocalStorage('accountConnections', [])
   );
@@ -115,34 +143,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     setIsLoading(false);
   }, []);
-
-  const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
-    if (!Array.isArray(campaigns)) {
-      console.error("Expected campaigns to be an array, but got:", campaigns);
-      return [];
-    }
-    
-    return campaigns.map(campaign => {
-      const updatedCampaign = { ...campaign };
-      
-      if (!updatedCampaign.targets) {
-        updatedCampaign.targets = {
-          monthlyRetainers: 0,
-          casePayoutAmount: 0,
-          monthlyIncome: 0,
-          monthlySpend: 0,
-          targetROAS: 0,
-          targetProfit: 0,
-        };
-      }
-      
-      if (!updatedCampaign.statsHistory) {
-        updatedCampaign.statsHistory = [];
-      }
-      
-      return updatedCampaign;
-    });
-  };
 
   const updateCampaign = (updatedCampaign: Campaign) => {
     console.log("Updating campaign:", updatedCampaign);

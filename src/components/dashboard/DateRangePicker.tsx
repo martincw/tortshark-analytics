@@ -39,15 +39,6 @@ export function DateRangePicker() {
     }
   };
 
-  const handleSaveDate = () => {
-    if (date?.from) {
-      setDateRange({
-        startDate: format(date.from, 'yyyy-MM-dd'),
-        endDate: date.to ? format(date.to, 'yyyy-MM-dd') : format(date.from, 'yyyy-MM-dd'),
-      });
-    }
-  };
-
   return (
     <div className="grid gap-2">
       <Popover>
@@ -86,15 +77,6 @@ export function DateRangePicker() {
               numberOfMonths={2}
               className="pointer-events-auto"
             />
-            <div className="p-3 border-t border-border/50 bg-muted/20">
-              <Button 
-                onClick={handleSaveDate}
-                size="sm"
-                className="w-full"
-              >
-                Apply Date Range
-              </Button>
-            </div>
           </div>
         </PopoverContent>
       </Popover>
