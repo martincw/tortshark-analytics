@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Google } from "lucide-react";
+import Google from "./Google";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GoogleSignInProps {
