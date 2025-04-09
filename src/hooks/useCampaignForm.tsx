@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -23,18 +22,8 @@ export const useCampaignForm = () => {
   const [targetMonthlyIncome, setTargetMonthlyIncome] = useState("");
   const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
   
-  // Include all accounts or create a manual account option
-  const manualAccount: AccountConnection = { 
-    id: "manual", 
-    name: "Manual Entry", 
-    platform: "google", 
-    isConnected: true, 
-    lastSynced: null 
-  };
-  
-  const availableAccounts: AccountConnection[] = accountConnections.length > 0 
-    ? accountConnections 
-    : [manualAccount];
+  // Only use available account connections, no manual account fallback
+  const availableAccounts: AccountConnection[] = accountConnections;
 
   // Calculate target income and spend based on profit and ROAS
   useEffect(() => {
@@ -94,18 +83,19 @@ export const useCampaignForm = () => {
       return;
     }
     
-    // Use selected account or create a manual one
-    let selectedAccount = availableAccounts.find(acc => acc.id === accountId);
+    if (!accountId) {
+      toast.error("Please connect a Google Ads account first");
+      navigate("/accounts");
+      return;
+    }
+    
+    // Use selected account
+    const selectedAccount = accountConnections.find(acc => acc.id === accountId);
     
     if (!selectedAccount) {
-      // Create a manual account if none selected
-      selectedAccount = {
-        id: "manual-" + Date.now(),
-        name: "Manual Entry",
-        platform: platform,
-        isConnected: true,
-        lastSynced: null
-      };
+      toast.error("Google Ads account not found. Please connect an account.");
+      navigate("/accounts");
+      return;
     }
     
     const currentDate = new Date().toISOString().split("T")[0];
