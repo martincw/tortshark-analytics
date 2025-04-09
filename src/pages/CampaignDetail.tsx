@@ -23,6 +23,7 @@ import {
   CalendarDays,
   Target,
   PlusCircle,
+  Calendar,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import {
   Table,
   TableBody,
@@ -50,7 +52,7 @@ import {
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { campaigns, updateCampaign, deleteCampaign, setSelectedCampaignId, addStatHistoryEntry } = useCampaign();
+  const { campaigns, updateCampaign, deleteCampaign, setSelectedCampaignId, addStatHistoryEntry, dateRange, setDateRange } = useCampaign();
   
   // Set the selected campaign ID when this component mounts
   useEffect(() => {
@@ -195,54 +197,47 @@ const CampaignDetail = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Section with Campaign name and actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={() => navigate("/campaigns")}
-            variant="outline"
-            size="icon"
-            className="h-9 w-9"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+    <div className="space-y-8">
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center">
+        <Button
+          onClick={() => navigate("/campaigns")}
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground px-0"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Campaigns
+        </Button>
+      </div>
+      
+      {/* Date Range Picker and Header Section */}
+      <div className="bg-accent/20 rounded-lg p-6 shadow-sm border">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
           <h1 className="text-3xl font-bold">{campaign.name}</h1>
+          <DateRangePicker />
         </div>
-        <div className="flex gap-2">
-          {isEditing ? (
-            <>
-              <Button onClick={() => setIsEditing(false)} variant="outline">
-                <X className="mr-2 h-4 w-4" />
-                Cancel
-              </Button>
-              <Button onClick={handleSave} variant="default">
-                <Save className="mr-2 h-4 w-4" />
-                Save All
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                onClick={() => setIsDailyStatsDialogOpen(true)}
-                variant="outline"
-              >
-                <CalendarDays className="mr-2 h-4 w-4" />
-                Add Daily Stats
-              </Button>
-              <Button
-                onClick={() => setIsEditing(true)}
-                variant="outline"
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit All Stats
-              </Button>
-              <Button onClick={handleDelete} variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-            </>
-          )}
+        
+        {/* ROI Summary */}
+        <div className="flex flex-wrap gap-6 mt-4">
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">ROI</span>
+            <span className={`text-2xl font-bold ${getRoiClass()}`}>
+              {metrics.roi.toFixed(1)}%
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Total Profit</span>
+            <span className={`text-2xl font-bold ${getRoiClass()}`}>
+              {formatCurrency(metrics.profit)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Cost Per Case</span>
+            <span className={`text-2xl font-bold ${metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+              {formatCurrency(metrics.cpa)}
+            </span>
+          </div>
         </div>
       </div>
       
@@ -254,7 +249,7 @@ const CampaignDetail = () => {
           icon={<Percent className="h-5 w-5" />}
           trend={metrics.roi > 0 ? "up" : "down"}
           trendValue={metrics.roi > 200 ? "Excellent" : metrics.roi > 100 ? "Good" : metrics.roi > 0 ? "Positive" : "Needs Attention"}
-          className="border-2 border-secondary"
+          className="border-2 border-accent"
           isHighlighted={true}
           valueClassName={getRoiClass()}
         />
@@ -265,7 +260,7 @@ const CampaignDetail = () => {
           icon={<CreditCard className="h-5 w-5" />}
           trend={metrics.profit > 0 ? "up" : "down"}
           trendValue={metrics.profit > 5000 ? "High Performer" : metrics.profit > 0 ? "Profitable" : "Loss"}
-          className="border-2 border-secondary"
+          className="border-2 border-accent"
           isHighlighted={true}
           valueClassName={getRoiClass()}
         />
@@ -276,64 +271,104 @@ const CampaignDetail = () => {
           icon={<FileCheck className="h-5 w-5" />}
           trend={metrics.cpa < campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
           trendValue={metrics.cpa < campaign.targets.casePayoutAmount ? "Under Target" : "Over Target"}
-          className="border-2 border-secondary"
+          className="border-2 border-accent"
           isHighlighted={true}
           valueClassName={metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}
         />
       </div>
       
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2">
+        {isEditing ? (
+          <>
+            <Button onClick={() => setIsEditing(false)} variant="outline">
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+            <Button onClick={handleSave} variant="default">
+              <Save className="mr-2 h-4 w-4" />
+              Save All
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={() => setIsDailyStatsDialogOpen(true)}
+              variant="outline"
+            >
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Add Daily Stats
+            </Button>
+            <Button
+              onClick={() => setIsEditing(true)}
+              variant="outline"
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Stats
+            </Button>
+            <Button onClick={handleDelete} variant="destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          </>
+        )}
+      </div>
+      
       {/* Campaign Performance Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Stats and Metrics */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Performance Summary</CardTitle>
+        <Card className="shadow-md border-accent/30">
+          <CardHeader className="bg-card/50 border-b pb-3">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Performance Summary
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Ad Spend</span>
-                <span className="text-lg font-semibold">{formatCurrency(campaign.stats.adSpend)}</span>
+          <CardContent className="space-y-4 pt-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Ad Spend</span>
+                <span className="text-xl font-semibold">{formatCurrency(campaign.stats.adSpend)}</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Revenue</span>
-                <span className="text-lg font-semibold">
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
+                <span className="text-xl font-semibold">
                   {isEditing ? (
                     <Input
                       type="number"
                       value={revenue}
                       onChange={(e) => setRevenue(e.target.value)}
-                      className="h-8 w-24"
+                      className="h-8 w-full"
                     />
                   ) : (
                     formatCurrency(campaign.manualStats.revenue)
                   )}
                 </span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Leads</span>
-                <span className="text-lg font-semibold">
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Leads</span>
+                <span className="text-xl font-semibold">
                   {isEditing ? (
                     <Input
                       type="number"
                       value={leadCount}
                       onChange={(e) => setLeadCount(e.target.value)}
-                      className="h-8 w-24"
+                      className="h-8 w-full"
                     />
                   ) : (
                     formatNumber(campaign.manualStats.leads)
                   )}
                 </span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Cases</span>
-                <span className="text-lg font-semibold">
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Cases</span>
+                <span className="text-xl font-semibold">
                   {isEditing ? (
                     <Input
                       type="number"
                       value={caseCount}
                       onChange={(e) => setCaseCount(e.target.value)}
-                      className="h-8 w-24"
+                      className="h-8 w-full"
                     />
                   ) : (
                     formatNumber(campaign.manualStats.cases)
@@ -343,7 +378,7 @@ const CampaignDetail = () => {
             </div>
             
             <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Key Metrics</h4>
+              <h4 className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">Key Metrics</h4>
               <div className="grid grid-cols-2 gap-4">
                 <BadgeStat
                   label="Cost Per Lead"
@@ -369,60 +404,60 @@ const CampaignDetail = () => {
         </Card>
         
         {/* Campaign Targets */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="h-5 w-5" />
+        <Card className="shadow-md border-accent/30">
+          <CardHeader className="bg-card/50 border-b pb-3">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
               Campaign Targets
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Monthly Target</span>
-                <span className="text-lg font-semibold">{campaign.targets.monthlyRetainers} Cases</span>
+          <CardContent className="space-y-4 pt-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Monthly Target</span>
+                <span className="text-xl font-semibold">{campaign.targets.monthlyRetainers} Cases</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Case Payout</span>
-                <span className="text-lg font-semibold">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Case Payout</span>
+                <span className="text-xl font-semibold">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Target ROAS</span>
-                <span className="text-lg font-semibold">{campaign.targets.targetROAS}%</span>
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Target ROAS</span>
+                <span className="text-xl font-semibold">{campaign.targets.targetROAS}%</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Target Profit</span>
-                <span className="text-lg font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
+              <div className="bg-accent/10 rounded-lg p-4">
+                <span className="text-sm text-muted-foreground block mb-1">Target Profit</span>
+                <span className="text-xl font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
             </div>
             
-            <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Performance vs. Targets</h4>
+            <div className="mt-6 bg-accent/5 rounded-lg p-4 border">
+              <h4 className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">Performance vs. Targets</h4>
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">ROAS</span>
+                <div className="flex justify-between items-center p-2 border-b border-border/40">
+                  <span className="font-medium">ROAS</span>
                   <div className="flex items-center gap-2">
-                    <span className={metrics.roi >= campaign.targets.targetROAS ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                    <span className={metrics.roi >= campaign.targets.targetROAS ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
                       {metrics.roi.toFixed(1)}%
                     </span>
                     <span className="text-muted-foreground text-xs">vs {campaign.targets.targetROAS}%</span>
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Profit</span>
+                <div className="flex justify-between items-center p-2 border-b border-border/40">
+                  <span className="font-medium">Profit</span>
                   <div className="flex items-center gap-2">
-                    <span className={metrics.profit >= campaign.targets.targetProfit ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                    <span className={metrics.profit >= campaign.targets.targetProfit ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
                       {formatCurrency(metrics.profit)}
                     </span>
                     <span className="text-muted-foreground text-xs">vs {formatCurrency(campaign.targets.targetProfit)}</span>
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Cases</span>
+                <div className="flex justify-between items-center p-2">
+                  <span className="font-medium">Cases</span>
                   <div className="flex items-center gap-2">
-                    <span className={campaign.manualStats.cases >= campaign.targets.monthlyRetainers ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                    <span className={campaign.manualStats.cases >= campaign.targets.monthlyRetainers ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
                       {campaign.manualStats.cases}
                     </span>
                     <span className="text-muted-foreground text-xs">vs {campaign.targets.monthlyRetainers}</span>
@@ -435,9 +470,12 @@ const CampaignDetail = () => {
       </div>
       
       {/* Stats History Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Stats History</CardTitle>
+      <Card className="shadow-md border-accent/30">
+        <CardHeader className="bg-card/50 border-b pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            Stats History
+          </CardTitle>
           <Button 
             variant="outline" 
             size="sm" 
@@ -447,23 +485,23 @@ const CampaignDetail = () => {
             Add Entry
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {campaign.statsHistory && campaign.statsHistory.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Leads</TableHead>
-                    <TableHead>Cases</TableHead>
-                    <TableHead>Revenue</TableHead>
-                    <TableHead>Added On</TableHead>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-medium">Date</TableHead>
+                    <TableHead className="font-medium">Leads</TableHead>
+                    <TableHead className="font-medium">Cases</TableHead>
+                    <TableHead className="font-medium">Revenue</TableHead>
+                    <TableHead className="font-medium">Added On</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {campaign.statsHistory.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
+                    <TableRow key={entry.id} className="hover:bg-accent/5">
+                      <TableCell className="font-medium">{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
                       <TableCell>{entry.leads}</TableCell>
                       <TableCell>{entry.cases}</TableCell>
                       <TableCell>{formatCurrency(entry.revenue)}</TableCell>
@@ -476,8 +514,18 @@ const CampaignDetail = () => {
               </Table>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No history records yet. Add daily stats to track your campaign's performance over time.</p>
+            <div className="text-center py-8 bg-muted/10 rounded-lg border border-dashed">
+              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-2 opacity-50" />
+              <p className="text-muted-foreground">No history records yet. Add daily stats to track your campaign's performance over time.</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsDailyStatsDialogOpen(true)}
+                className="mt-4"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Your First Entry
+              </Button>
             </div>
           )}
         </CardContent>
