@@ -67,39 +67,12 @@ export function OverviewStats() {
   const profitTrend = getTrendDirection(aggregateStats.totalProfit);
   const roiTrend = getTrendDirection(roi);
   
-  // Calculate progress percentages for targets
-  const averageTargetROAS = filteredCampaigns.length > 0 
-    ? aggregateStats.totalTargetROAS / filteredCampaigns.length
-    : 200; // Default target ROI if no campaigns
-  
-  // Fix: Correctly calculate ROI progress percentage
-  const roiProgress = averageTargetROAS > 0
-    ? Math.min(Math.round((roi / averageTargetROAS) * 100), 100)
-    : 0;
-  
-  // Fix: Correctly calculate cases progress percentage
-  const casesProgress = aggregateStats.totalTargetRetainers > 0
-    ? Math.min(Math.round((aggregateStats.totalRetainers / aggregateStats.totalTargetRetainers) * 100), 100)
-    : 0;
-  
-  // Fix: Correctly calculate profit progress percentage
+  // Calculate profit progress percentage
   const profitProgress = aggregateStats.totalTargetProfit > 0
     ? Math.min(Math.round((aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100), 100)
     : 0;
   
-  // Determine progress bar variants based on completion percentage
-  const getRoiVariant = () => {
-    if (roiProgress >= 100) return "success";
-    if (roiProgress >= 50) return "warning";
-    return "error";
-  };
-  
-  const getCasesVariant = () => {
-    if (casesProgress >= 100) return "success";
-    if (casesProgress >= 50) return "warning";
-    return "error";
-  };
-  
+  // Determine progress bar variant based on completion percentage
   const getProfitVariant = () => {
     if (profitProgress >= 100) return "success";
     if (profitProgress >= 50) return "warning";
@@ -108,6 +81,26 @@ export function OverviewStats() {
 
   return (
     <div>
+      {/* Single profit progress bar at the top */}
+      <div className="border p-4 rounded-lg mb-6">
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium flex items-center gap-2">
+              <Target className="h-5 w-5 text-muted-foreground" />
+              Profit Progress
+            </span>
+            <span className="font-medium">{formatCurrency(aggregateStats.totalProfit)} of {formatCurrency(aggregateStats.totalTargetProfit)}</span>
+          </div>
+          <Progress 
+            value={profitProgress} 
+            size="lg" 
+            variant={getProfitVariant()} 
+            className="w-full" 
+            showValue 
+          />
+        </div>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <StatCard
           title="Total Revenue"
@@ -167,58 +160,6 @@ export function OverviewStats() {
           valueClassName={avgCostPerLead > 50 ? "text-warning-DEFAULT" : "text-foreground"}
           description={avgCostPerLead > 50 ? "Above target threshold" : "Within target range"}
         />
-      </div>
-      
-      {/* Add progress bars for targets */}
-      <div className="border p-4 rounded-lg mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Target className="h-5 w-5 text-muted-foreground" />
-          <h3 className="font-medium">Campaign Targets Progress</h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">ROI Progress</span>
-              <span className="font-medium">{roi.toFixed(0)}% of {averageTargetROAS.toFixed(0)}%</span>
-            </div>
-            <Progress 
-              value={roiProgress} 
-              size="md" 
-              variant={getRoiVariant()} 
-              className="w-full" 
-              showValue 
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Cases Progress</span>
-              <span className="font-medium">{formatNumber(aggregateStats.totalCases)} of {formatNumber(aggregateStats.totalTargetRetainers)}</span>
-            </div>
-            <Progress 
-              value={casesProgress} 
-              size="md" 
-              variant={getCasesVariant()} 
-              className="w-full" 
-              showValue 
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Profit Progress</span>
-              <span className="font-medium">{formatCurrency(aggregateStats.totalProfit)} of {formatCurrency(aggregateStats.totalTargetProfit)}</span>
-            </div>
-            <Progress 
-              value={profitProgress} 
-              size="md" 
-              variant={getProfitVariant()} 
-              className="w-full" 
-              showValue 
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerfo
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle, CalendarDays, Target } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -105,29 +105,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     }
   };
 
-  const roiProgress = campaign.targets.targetROAS > 0
-    ? Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100)
-    : 0;
-    
-  const casesProgress = campaign.targets.monthlyRetainers > 0
-    ? Math.min(Math.round((campaign.manualStats.retainers / campaign.targets.monthlyRetainers) * 100), 100)
-    : 0;
-    
   const profitProgress = campaign.targets.targetProfit > 0
     ? Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100)
     : 0;
-  
-  const getRoiVariant = () => {
-    if (roiProgress >= 100) return "success";
-    if (roiProgress >= 50) return "warning";
-    return "error";
-  };
-  
-  const getCasesVariant = () => {
-    if (casesProgress >= 100) return "success";
-    if (casesProgress >= 50) return "warning";
-    return "error";
-  };
   
   const getProfitVariant = () => {
     if (profitProgress >= 100) return "success";
@@ -211,34 +191,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           </div>
           
           <div className="border-t pt-2 mt-2">
-            <div className="flex items-center gap-2 mb-1">
-              <Target className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium">Campaign Targets</span>
-            </div>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">ROI Progress</span>
-                  <span className="font-medium">{metrics.roi.toFixed(0)}% of {campaign.targets.targetROAS}%</span>
-                </div>
-                <Progress value={roiProgress} size="sm" variant={getRoiVariant()} className="w-full" />
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Profit Progress</span>
+                <span className="font-medium">{formatCurrency(metrics.profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
-              
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Cases</span>
-                  <span className="font-medium">{campaign.manualStats.retainers} of {campaign.targets.monthlyRetainers}</span>
-                </div>
-                <Progress value={casesProgress} size="sm" variant={getCasesVariant()} className="w-full" />
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Profit</span>
-                  <span className="font-medium">{formatCurrency(metrics.profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
-                </div>
-                <Progress value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
-              </div>
+              <Progress value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
             </div>
           </div>
         </CardContent>
