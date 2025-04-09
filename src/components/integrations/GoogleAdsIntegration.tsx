@@ -18,6 +18,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AccountConnection } from "@/types/campaign";
 import GoogleSignIn from "./GoogleSignIn";
+import { getGoogleAdsCredentials, revokeGoogleAccess } from "@/services/googleAdsService";
 
 const GoogleAdsIntegration = () => {
   const { accountConnections, updateAccountConnection, addAccountConnection } = useCampaign();
@@ -31,9 +32,17 @@ const GoogleAdsIntegration = () => {
 
   const googleAdsAccounts = accountConnections.filter(account => account.platform === "google");
   
+  // Check for existing Google auth on component mount
+  useEffect(() => {
+    const credentials = getGoogleAdsCredentials();
+    if (credentials) {
+      setCustomerId(credentials.customerId);
+      setDeveloperToken(credentials.developerToken);
+    }
+  }, []);
+  
   const connectToGoogleAds = async (customerId: string, developerToken: string): Promise<boolean> => {
-    // This would be the actual Google Ads API connection
-    // In a real implementation, this would use the Google Ads API JS library
+    // In a real implementation, this would verify the Google Ads API connection
     try {
       // Simulate API request
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -141,6 +150,21 @@ const GoogleAdsIntegration = () => {
       console.error("Refresh error:", error);
     } finally {
       setIsConnecting(false);
+    }
+  };
+  
+  const handleDisconnect = async (accountId: string) => {
+    try {
+      await revokeGoogleAccess();
+      
+      updateAccountConnection(accountId, {
+        isConnected: false
+      });
+      
+      toast.success("Account disconnected successfully");
+    } catch (error) {
+      toast.error("Failed to disconnect account");
+      console.error("Disconnect error:", error);
     }
   };
   
@@ -284,16 +308,27 @@ const GoogleAdsIntegration = () => {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRefresh(account.id)}
-                      disabled={isConnecting || !account.isConnected}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh
-                    </Button>
-                    {!account.isConnected && (
+                    {account.isConnected ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRefresh(account.id)}
+                          disabled={isConnecting}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Refresh
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDisconnect(account.id)}
+                          disabled={isConnecting}
+                        >
+                          Disconnect
+                        </Button>
+                      </>
+                    ) : (
                       <Button
                         size="sm"
                         onClick={() => handleConnect(account.id)}

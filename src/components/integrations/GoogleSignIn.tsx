@@ -1,11 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Google from "./Google";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { initiateGoogleAuth, getGoogleAdsCredentials, isGoogleAuthValid } from "@/services/googleAdsService";
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
@@ -21,26 +22,54 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const isMobile = useIsMobile();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
+  // Check for existing auth on component mount
+  useEffect(() => {
+    if (isGoogleAuthValid()) {
+      const credentials = getGoogleAdsCredentials();
+      if (credentials) {
+        toast.success("Already signed in with Google");
+        onSuccess({
+          customerId: credentials.customerId,
+          developerToken: credentials.developerToken
+        });
+      }
+    }
+  }, [onSuccess]);
+
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
     
     try {
-      // Simulate Google Sign-In process
-      // In a real implementation, this would use the Google Identity Services SDK
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Initiate Google OAuth flow
+      initiateGoogleAuth();
       
-      // Mock successful sign-in with auto-filled credentials
-      const mockCredentials = {
-        customerId: "123-456-7890",
-        developerToken: "Ngh3IukgQ3ovdkH3M0smUg"
-      };
+      // Check for credentials periodically (simulating OAuth callback)
+      const checkInterval = setInterval(() => {
+        const credentials = getGoogleAdsCredentials();
+        if (credentials) {
+          clearInterval(checkInterval);
+          setIsSigningIn(false);
+          
+          toast.success("Successfully signed in with Google");
+          onSuccess({
+            customerId: credentials.customerId,
+            developerToken: credentials.developerToken
+          });
+        }
+      }, 1000);
       
-      toast.success("Successfully signed in with Google");
-      onSuccess(mockCredentials);
+      // Clear interval after 20 seconds to prevent infinite checking
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (isSigningIn) {
+          setIsSigningIn(false);
+          toast.error("Google sign-in timed out. Please try again.");
+        }
+      }, 20000);
+      
     } catch (error) {
       toast.error("Failed to sign in with Google");
       console.error("Google Sign-In error:", error);
-    } finally {
       setIsSigningIn(false);
     }
   };
@@ -65,11 +94,11 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           {isSigningIn ? "Signing in..." : "Sign in with Google"}
         </Button>
         
-        {isConnecting && (
+        {(isConnecting || isSigningIn) && (
           <div>
-            <Progress value={connectionProgress} className="h-2" />
+            <Progress value={isSigningIn ? 50 : connectionProgress} className="h-2" />
             <p className="text-xs text-center mt-2 text-muted-foreground">
-              Connecting to Google Ads...
+              {isSigningIn ? "Authenticating with Google..." : "Connecting to Google Ads..."}
             </p>
           </div>
         )}
