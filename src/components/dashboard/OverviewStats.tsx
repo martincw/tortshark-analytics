@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -9,7 +8,6 @@ import { Progress } from "@/components/ui/progress";
 export function OverviewStats() {
   const { campaigns, selectedCampaignIds } = useCampaign();
   
-  // Filter campaigns based on selection, or use all if none selected
   const filteredCampaigns = useMemo(() => {
     if (selectedCampaignIds.length === 0) {
       return campaigns;
@@ -17,7 +15,6 @@ export function OverviewStats() {
     return campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id));
   }, [campaigns, selectedCampaignIds]);
   
-  // Calculate aggregate metrics for selected campaigns
   const aggregateStats = useMemo(() => {
     const stats = {
       totalAdSpend: 0,
@@ -47,48 +44,45 @@ export function OverviewStats() {
     return stats;
   }, [filteredCampaigns]);
   
-  // Calculate ROI percentage
   const roi = aggregateStats.totalAdSpend > 0
     ? ((aggregateStats.totalRevenue / aggregateStats.totalAdSpend) * 100) - 100
     : 0;
 
-  // Calculate average cost per lead
   const avgCostPerLead = aggregateStats.totalLeads > 0
     ? aggregateStats.totalAdSpend / aggregateStats.totalLeads
     : 0;
 
-  // Calculate average cost per acquisition
   const avgCpa = aggregateStats.totalCases > 0
     ? aggregateStats.totalAdSpend / aggregateStats.totalCases
     : 0;
 
-  // Calculate month-over-month changes (placeholder for real data)
   const leadsTrend = getTrendDirection(5);
   const profitTrend = getTrendDirection(aggregateStats.totalProfit);
   const roiTrend = getTrendDirection(roi);
   
-  // Calculate profit progress percentage - fix to ensure accurate percentage
-  const profitProgress = aggregateStats.totalTargetProfit > 0
-    ? Math.max(Math.min(Math.round((aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100), 100), 0)
-    : 0;
+  const profitProgress = useMemo(() => {
+    if (aggregateStats.totalTargetProfit <= 0) return 0;
+    
+    const percentage = (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100;
+    return Math.max(Math.min(Math.round(percentage * 10) / 10, 100), 0);
+  }, [aggregateStats.totalProfit, aggregateStats.totalTargetProfit]);
   
-  // Determine progress bar variant based on completion percentage
   const getProfitVariant = () => {
     if (profitProgress >= 100) return "success";
     if (profitProgress >= 50) return "warning";
     return "error";
   };
 
-  console.log("Profit Progress:", {
+  console.log("Profit Progress FIXED:", {
     totalProfit: aggregateStats.totalProfit,
     targetProfit: aggregateStats.totalTargetProfit,
-    calculatedPercentage: aggregateStats.totalTargetProfit > 0 ? (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100 : 0,
-    finalProgress: profitProgress
+    rawPercentage: aggregateStats.totalTargetProfit > 0 ? (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100 : 0,
+    finalProgress: profitProgress,
+    type: typeof profitProgress
   });
 
   return (
     <div>
-      {/* Single profit progress bar at the top */}
       <div className="border p-4 rounded-lg mb-6">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">

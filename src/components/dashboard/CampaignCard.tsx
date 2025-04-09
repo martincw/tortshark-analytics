@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,17 +105,20 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     }
   };
 
-  // Fix to ensure accurate profit progress percentage calculation
-  const profitProgress = campaign.targets.targetProfit > 0
-    ? Math.max(Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100), 0)
-    : 0;
+  const profitProgress = useMemo(() => {
+    if (campaign.targets.targetProfit <= 0) return 0;
+    
+    const percentage = (metrics.profit / campaign.targets.targetProfit) * 100;
+    return Math.max(Math.min(Math.round(percentage * 10) / 10, 100), 0);
+  }, [metrics.profit, campaign.targets.targetProfit]);
   
-  console.log("Campaign Card Profit Progress:", {
+  console.log("Campaign Card Profit Progress FIXED:", {
     campaignName: campaign.name,
     profit: metrics.profit,
     targetProfit: campaign.targets.targetProfit,
-    calculatedPercentage: campaign.targets.targetProfit > 0 ? (metrics.profit / campaign.targets.targetProfit) * 100 : 0,
-    finalProgress: profitProgress
+    rawPercentage: campaign.targets.targetProfit > 0 ? (metrics.profit / campaign.targets.targetProfit) * 100 : 0,
+    finalProgress: profitProgress,
+    type: typeof profitProgress
   });
   
   const getProfitVariant = () => {

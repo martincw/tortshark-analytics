@@ -25,6 +25,9 @@ const Progress = React.forwardRef<
   variant = "default",
   ...props 
 }, ref) => {
+  // Ensure value is a number for progress calculations
+  const numericValue = typeof value === 'number' ? value : 0;
+  
   const getHeightClass = () => {
     switch (size) {
       case "sm": return "h-2";
@@ -60,17 +63,17 @@ const Progress = React.forwardRef<
             "h-full w-full flex-1 transition-all",
             indicatorColor || variantClass
           )}
-          style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+          style={{ transform: `translateX(-${100 - numericValue}%)` }}
         >
           {showValue && valuePosition === "inside" && size === "lg" && (
             <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">
-              {value}%
+              {numericValue.toFixed(1)}%
             </div>
           )}
         </ProgressPrimitive.Indicator>
       </ProgressPrimitive.Root>
       {showValue && valuePosition === "right" && (
-        <span className="text-sm font-medium w-10">{value}%</span>
+        <span className="text-sm font-medium w-14">{numericValue.toFixed(1)}%</span>
       )}
     </div>
   )
