@@ -97,7 +97,7 @@ const AccountsPage = () => {
       </p>
       
       {!isGoogleConnected && (
-        <Alert variant="warning" className="mb-4 bg-amber-50 border-amber-200">
+        <Alert className="mb-4 bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-500" />
           <AlertDescription className="text-amber-800 flex justify-between items-center">
             <span>You need to connect to Google Ads before adding accounts</span>
