@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [quickStats, setQuickStats] = useState({
     leads: "0",
     cases: "0",
-    retainers: "0"
+    retainers: "0",
+    revenue: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
