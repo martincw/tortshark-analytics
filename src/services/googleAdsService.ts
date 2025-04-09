@@ -5,6 +5,10 @@ import { toast } from "sonner";
 const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const REDIRECT_URI = window.location.origin + "/integrations";
 
+// In Vite, environment variables are accessed via import.meta.env
+// and need to be prefixed with VITE_
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "your-google-client-id.apps.googleusercontent.com";
+
 interface GoogleAuthResponse {
   access_token: string;
   expires_in: number;
@@ -22,7 +26,7 @@ interface GoogleAdsCredentials {
 
 export const initiateGoogleAuth = () => {
   // This would use your actual client ID from Google Cloud Console
-  const clientId = process.env.GOOGLE_CLIENT_ID || "your-google-client-id.apps.googleusercontent.com";
+  const clientId = GOOGLE_CLIENT_ID;
   
   // This is the actual Google OAuth authorization endpoint
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
