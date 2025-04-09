@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -28,13 +29,12 @@ export const Navbar: React.FC = () => {
   const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
   
   const handleCampaignSelection = (campaignId: string) => {
-    setSelectedCampaignIds(prev => {
-      if (prev.includes(campaignId)) {
-        return prev.filter(id => id !== campaignId);
-      } else {
-        return [...prev, campaignId];
-      }
-    });
+    // Fix: Directly create a new array instead of using the callback style
+    if (selectedCampaignIds.includes(campaignId)) {
+      setSelectedCampaignIds(selectedCampaignIds.filter(id => id !== campaignId));
+    } else {
+      setSelectedCampaignIds([...selectedCampaignIds, campaignId]);
+    }
   };
 
   const isCampaignSelected = (campaignId: string) => {
