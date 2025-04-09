@@ -12,6 +12,7 @@ import {
   getGoogleAdsCredentials, 
   isGoogleAuthValid 
 } from "@/services/googleAdsService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
@@ -26,6 +27,25 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check if user is logged in with Supabase
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsLoggedIn(!!data.session);
+    };
+    
+    checkLoginStatus();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Check for OAuth callback on component mount
   useEffect(() => {
@@ -39,7 +59,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         setIsSigningIn(false);
         
         if (success) {
-          const credentials = getGoogleAdsCredentials();
+          const credentials = await getGoogleAdsCredentials();
           if (credentials) {
             toast.success("Successfully signed in with Google");
             onSuccess({
@@ -57,8 +77,8 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   // Check for existing auth on component mount
   useEffect(() => {
     const checkExistingAuth = async () => {
-      if (isGoogleAuthValid()) {
-        const credentials = getGoogleAdsCredentials();
+      if (await isGoogleAuthValid()) {
+        const credentials = await getGoogleAdsCredentials();
         if (credentials) {
           toast.success("Already signed in with Google");
           onSuccess({
@@ -69,15 +89,22 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       }
     };
     
-    checkExistingAuth();
-  }, [onSuccess]);
+    if (isLoggedIn) {
+      checkExistingAuth();
+    }
+  }, [onSuccess, isLoggedIn]);
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
+    if (!isLoggedIn) {
+      toast.error("You must be logged in to connect Google Ads");
+      return;
+    }
+    
     setIsSigningIn(true);
     
     try {
       // Initiate Google OAuth flow - this will redirect the page
-      initiateGoogleAuth();
+      await initiateGoogleAuth();
     } catch (error) {
       toast.error("Failed to sign in with Google");
       console.error("Google Sign-In error:", error);
@@ -95,15 +122,22 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           Connect your Google account to access your Google Ads data
         </p>
         
-        <Button 
-          onClick={handleGoogleSignIn}
-          disabled={isSigningIn || isConnecting}
-          className="w-full"
-          variant="outline"
-        >
-          <Google className="mr-2 h-4 w-4" />
-          {isSigningIn ? "Signing in..." : "Sign in with Google"}
-        </Button>
+        {!isLoggedIn ? (
+          <div className="text-amber-600 bg-amber-50 p-4 rounded-md mb-4">
+            You must be logged in to connect your Google Ads account.
+            Please sign in to your account first.
+          </div>
+        ) : (
+          <Button 
+            onClick={handleGoogleSignIn}
+            disabled={isSigningIn || isConnecting}
+            className="w-full"
+            variant="outline"
+          >
+            <Google className="mr-2 h-4 w-4" />
+            {isSigningIn ? "Signing in..." : "Sign in with Google"}
+          </Button>
+        )}
         
         {(isConnecting || isSigningIn) && (
           <div>

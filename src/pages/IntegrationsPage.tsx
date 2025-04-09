@@ -5,26 +5,57 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleOAuthCallback } from "@/services/googleAdsService";
+import { supabase } from "@/integrations/supabase/client";
 
 const IntegrationsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("google-ads");
   const [isProcessingOAuth, setIsProcessingOAuth] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  
+  // Check if user is logged in with Supabase
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsLoggedIn(!!data.session);
+    };
+    
+    checkLoginStatus();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
   
   // Check for OAuth callback when the page loads
   useEffect(() => {
     const processOAuthCallback = async () => {
       if (window.location.search.includes('code=')) {
         setIsProcessingOAuth(true);
+        setAuthError(null);
         
-        // handleOAuthCallback is implemented in GoogleSignIn component
-        // This is just an additional check to ensure we process the callback
-        
-        setIsProcessingOAuth(false);
+        try {
+          if (!isLoggedIn) {
+            setAuthError("You must be logged in to connect Google Ads");
+            return;
+          }
+          
+          await handleOAuthCallback();
+        } catch (error) {
+          console.error("Error processing OAuth callback:", error);
+          setAuthError("Failed to process authentication. Please try again.");
+        } finally {
+          setIsProcessingOAuth(false);
+        }
       }
     };
     
     processOAuthCallback();
-  }, []);
+  }, [isLoggedIn]);
   
   return (
     <div className="space-y-6">
@@ -35,12 +66,28 @@ const IntegrationsPage = () => {
         </p>
       </div>
       
+      {!isLoggedIn && (
+        <Alert className="bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertDescription className="text-amber-800">
+            You must be logged in to manage integrations. Please sign in to your account first.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {isProcessingOAuth && (
         <Alert className="bg-blue-50 border-blue-200">
           <AlertCircle className="h-4 w-4 text-blue-500" />
           <AlertDescription className="text-blue-800">
             Processing authentication callback...
           </AlertDescription>
+        </Alert>
+      )}
+      
+      {authError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{authError}</AlertDescription>
         </Alert>
       )}
       

@@ -78,3 +78,7 @@ port = 54327
 vector_port = 54328
 # Configure one of the supported backends: postgresql, bigquery.
 backend = "postgresql"
+
+# Define a function that does not require authorization
+[functions.google-oauth]
+verify_jwt = false
