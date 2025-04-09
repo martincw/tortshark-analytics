@@ -17,6 +17,7 @@ import { RefreshCw, LinkIcon, AlertCircle } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AccountConnection } from "@/types/campaign";
+import GoogleSignIn from "./GoogleSignIn";
 
 const GoogleAdsIntegration = () => {
   const { accountConnections, updateAccountConnection, addAccountConnection } = useCampaign();
@@ -26,6 +27,7 @@ const GoogleAdsIntegration = () => {
   const [connectionProgress, setConnectionProgress] = useState<number>(0);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "success" | "error">("idle");
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [showManualEntry, setShowManualEntry] = useState<boolean>(false);
 
   const googleAdsAccounts = accountConnections.filter(account => account.platform === "google");
   
@@ -146,6 +148,12 @@ const GoogleAdsIntegration = () => {
     return id.match(/\d{3}-\d{3}-\d{4}/);
   };
 
+  const handleGoogleSignInSuccess = (credentials: { customerId: string; developerToken: string }) => {
+    setCustomerId(credentials.customerId);
+    setDeveloperToken(credentials.developerToken);
+    handleConnect();
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -158,72 +166,100 @@ const GoogleAdsIntegration = () => {
       <Alert variant="default" className="bg-amber-50 border-amber-200">
         <AlertCircle className="h-4 w-4 text-amber-500" />
         <AlertDescription className="text-amber-800">
-          This integration requires valid Google Ads API credentials. Enter your Google Ads customer ID and developer token to connect.
+          Sign in with your Google account to automatically connect to your Google Ads account
         </AlertDescription>
       </Alert>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New Google Ads Account</CardTitle>
-          <CardDescription>
-            Enter your Google Ads API credentials to connect your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="customerId">Customer ID</Label>
-            <Input
-              id="customerId"
-              placeholder="123-456-7890"
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              disabled={isConnecting}
-              className={!validateCustomerId(customerId) && customerId ? "border-red-300" : ""}
-            />
-            {!validateCustomerId(customerId) && customerId && (
-              <p className="text-xs text-red-500">
-                Invalid format. Use format: 123-456-7890
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Your 10-digit Google Ads customer ID (formatted as 123-456-7890)
-            </p>
-          </div>
+      {!showManualEntry ? (
+        <>
+          <GoogleSignIn 
+            onSuccess={handleGoogleSignInSuccess} 
+            isConnecting={isConnecting}
+            connectionProgress={connectionProgress}
+          />
           
-          <div className="space-y-2">
-            <Label htmlFor="developerToken">Developer Token</Label>
-            <Input
-              id="developerToken"
-              type="password"
-              placeholder="Enter your developer token"
-              value={developerToken}
-              onChange={(e) => setDeveloperToken(e.target.value)}
-              disabled={isConnecting}
-            />
-            <p className="text-xs text-muted-foreground">
-              Your Google Ads API developer token has been pre-filled for convenience
-            </p>
+          <div className="text-center">
+            <Button 
+              variant="link" 
+              onClick={() => setShowManualEntry(true)}
+              className="text-sm"
+            >
+              Or enter credentials manually
+            </Button>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button 
-            onClick={() => handleConnect()} 
-            disabled={isConnecting || !customerId.trim() || !developerToken.trim() || !validateCustomerId(customerId)}
-            className="w-full"
-          >
-            {isConnecting ? "Connecting..." : "Connect to Google Ads"}
-          </Button>
-        </CardFooter>
-        
-        {connectionStatus === "connecting" && (
-          <div className="px-6 pb-4">
-            <Progress value={connectionProgress} className="h-2" />
-            <p className="text-xs text-center mt-2 text-muted-foreground">
-              Connecting to Google Ads...
-            </p>
-          </div>
-        )}
-      </Card>
+        </>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Add New Google Ads Account</CardTitle>
+            <CardDescription>
+              Enter your Google Ads API credentials to connect your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerId">Customer ID</Label>
+              <Input
+                id="customerId"
+                placeholder="123-456-7890"
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                disabled={isConnecting}
+                className={!validateCustomerId(customerId) && customerId ? "border-red-300" : ""}
+              />
+              {!validateCustomerId(customerId) && customerId && (
+                <p className="text-xs text-red-500">
+                  Invalid format. Use format: 123-456-7890
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Your 10-digit Google Ads customer ID (formatted as 123-456-7890)
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="developerToken">Developer Token</Label>
+              <Input
+                id="developerToken"
+                type="password"
+                placeholder="Enter your developer token"
+                value={developerToken}
+                onChange={(e) => setDeveloperToken(e.target.value)}
+                disabled={isConnecting}
+              />
+              <p className="text-xs text-muted-foreground">
+                Your Google Ads API developer token has been pre-filled for convenience
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-3">
+            <Button 
+              onClick={() => handleConnect()} 
+              disabled={isConnecting || !customerId.trim() || !developerToken.trim() || !validateCustomerId(customerId)}
+              className="w-full"
+            >
+              {isConnecting ? "Connecting..." : "Connect to Google Ads"}
+            </Button>
+            
+            <Button 
+              variant="link" 
+              onClick={() => setShowManualEntry(false)}
+              className="text-sm"
+            >
+              Use Google Sign-In instead
+            </Button>
+          </CardFooter>
+          
+          {connectionStatus === "connecting" && (
+            <div className="px-6 pb-4">
+              <Progress value={connectionProgress} className="h-2" />
+              <p className="text-xs text-center mt-2 text-muted-foreground">
+                Connecting to Google Ads...
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
       
       {googleAdsAccounts.length > 0 && (
         <Card>

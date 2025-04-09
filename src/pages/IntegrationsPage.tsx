@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
+import LinkedInAdsIntegration from "@/components/integrations/LinkedInAdsIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,35 +33,7 @@ const IntegrationsPage = () => {
         </TabsContent>
         
         <TabsContent value="linkedin">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">LinkedIn Ads Integration</h1>
-              <p className="text-muted-foreground">
-                Connect your LinkedIn Ads accounts to import campaign data
-              </p>
-            </div>
-            
-            <Alert variant="default" className="bg-muted border-muted-foreground/30">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                LinkedIn Ads integration requires LinkedIn Marketing Developer Platform credentials.
-              </AlertDescription>
-            </Alert>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>LinkedIn Ads Access</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center py-8">
-                <p className="text-muted-foreground mb-4">
-                  LinkedIn Ads integration is available but requires setup.
-                </p>
-                <Button className="mt-2">
-                  Set Up LinkedIn Ads
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          <LinkedInAdsIntegration />
         </TabsContent>
         
         <TabsContent value="facebook">
