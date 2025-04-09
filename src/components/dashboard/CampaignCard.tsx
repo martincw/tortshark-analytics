@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +106,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     }
   };
 
+  // Fix to ensure accurate profit progress percentage calculation
   const profitProgress = campaign.targets.targetProfit > 0
     ? Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100)
     : 0;

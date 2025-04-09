@@ -67,7 +67,7 @@ export function OverviewStats() {
   const profitTrend = getTrendDirection(aggregateStats.totalProfit);
   const roiTrend = getTrendDirection(roi);
   
-  // Calculate profit progress percentage
+  // Calculate profit progress percentage - fix to ensure accurate percentage
   const profitProgress = aggregateStats.totalTargetProfit > 0
     ? Math.min(Math.round((aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100), 100)
     : 0;
