@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { StatCard } from "@/components/ui/stat-card";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Edit,
@@ -72,21 +72,17 @@ const CampaignDetail = () => {
     setDateRange 
   } = useCampaign();
   
-  // Set the selected campaign ID when this component mounts
   useEffect(() => {
     if (id) {
       setSelectedCampaignId(id);
     }
     
-    // Debug the campaign ID and campaigns
     console.log("Campaign ID from URL:", id);
     console.log("Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
   }, [id, setSelectedCampaignId, campaigns]);
   
-  // Find the campaign by ID - ensure we're comparing string IDs
   const campaign = campaigns.find((c) => c.id === id);
   
-  // Debug the found campaign
   useEffect(() => {
     console.log("Found campaign:", campaign);
   }, [campaign]);
@@ -97,7 +93,6 @@ const CampaignDetail = () => {
   const [caseCount, setCaseCount] = useState("0");
   const [revenue, setRevenue] = useState("0");
   
-  // State for daily stats dialog
   const [isDailyStatsDialogOpen, setIsDailyStatsDialogOpen] = useState(false);
   const [dailyStats, setDailyStats] = useState({
     leads: "0",
@@ -106,7 +101,6 @@ const CampaignDetail = () => {
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
-  // State for editing stats history
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntryData, setEditEntryData] = useState({
     leads: "0",
@@ -117,7 +111,6 @@ const CampaignDetail = () => {
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   
-  // Update form fields when campaign changes
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
@@ -147,7 +140,6 @@ const CampaignDetail = () => {
   
   const metrics = calculateMetrics(campaign);
 
-  // Get ROI class based on performance
   const getRoiClass = () => {
     if (metrics.roi > 200) return "text-success-DEFAULT";
     if (metrics.roi > 0) return "text-secondary"; 
@@ -179,7 +171,6 @@ const CampaignDetail = () => {
   };
   
   const handleSaveDailyStats = () => {
-    // Parse the values
     const newLeads = parseInt(dailyStats.leads) || 0;
     const newCases = parseInt(dailyStats.cases) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
@@ -197,33 +188,28 @@ const CampaignDetail = () => {
       revenue: newRevenue
     });
     
-    // Add stats history entry
     addStatHistoryEntry(campaign.id, {
       date: selectedDate.toISOString(),
       leads: newLeads,
       cases: newCases,
-      retainers: newCases, // Set retainers equal to cases
+      retainers: newCases,
       revenue: newRevenue
     });
     
-    // Close the dialog and show a success toast
     setIsDailyStatsDialogOpen(false);
     toast.success("Daily stats added successfully");
     
-    // Reset daily stats form
     setDailyStats({
       leads: "0",
       cases: "0",
       revenue: "0"
     });
     
-    // Update the form fields with the new values
     setLeadCount((parseInt(leadCount) + newLeads).toString());
     setCaseCount((parseInt(caseCount) + newCases).toString());
     setRevenue((parseFloat(revenue) + newRevenue).toString());
   };
   
-  // Handle edit entry
   const handleEditEntry = (entry: any) => {
     setEditingEntryId(entry.id);
     setEditEntryData({
@@ -234,7 +220,6 @@ const CampaignDetail = () => {
     setEditEntryDialogOpen(true);
   };
   
-  // Save edited entry
   const handleSaveEditedEntry = () => {
     if (!editingEntryId) return;
     
@@ -245,7 +230,7 @@ const CampaignDetail = () => {
       ...entry,
       leads: parseInt(editEntryData.leads) || 0,
       cases: parseInt(editEntryData.cases) || 0,
-      retainers: parseInt(editEntryData.cases) || 0, // Keep retainers equal to cases
+      retainers: parseInt(editEntryData.cases) || 0,
       revenue: parseFloat(editEntryData.revenue) || 0
     };
     
@@ -254,13 +239,11 @@ const CampaignDetail = () => {
     setEditingEntryId(null);
   };
   
-  // Handle delete entry
   const handleDeleteEntryConfirm = (entryId: string) => {
     setEntryToDelete(entryId);
     setDeleteEntryDialogOpen(true);
   };
   
-  // Confirm delete entry
   const confirmDeleteEntry = () => {
     if (!entryToDelete) return;
     
@@ -269,9 +252,30 @@ const CampaignDetail = () => {
     setEntryToDelete(null);
   };
 
+  const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
+  const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
+  const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
+  
+  const getRoiVariant = () => {
+    if (roiProgress >= 100) return "success";
+    if (roiProgress >= 70) return "warning";
+    return "error";
+  };
+  
+  const getCasesVariant = () => {
+    if (casesProgress >= 100) return "success";
+    if (casesProgress >= 70) return "warning";
+    return "error";
+  };
+  
+  const getProfitVariant = () => {
+    if (profitProgress >= 100) return "success";
+    if (profitProgress >= 70) return "warning";
+    return "error";
+  };
+
   return (
     <div className="space-y-8">
-      {/* Breadcrumb Navigation */}
       <div className="flex items-center">
         <Button
           onClick={() => navigate("/campaigns")}
@@ -284,14 +288,12 @@ const CampaignDetail = () => {
         </Button>
       </div>
       
-      {/* Date Range Picker and Header Section */}
       <div className="bg-accent/20 rounded-lg p-6 shadow-sm border">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
           <h1 className="text-3xl font-bold">{campaign.name}</h1>
           <DateRangePicker />
         </div>
         
-        {/* ROI Summary */}
         <div className="flex flex-wrap gap-6 mt-4">
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">ROI</span>
@@ -314,7 +316,6 @@ const CampaignDetail = () => {
         </div>
       </div>
       
-      {/* Key Performance Metrics - Highlighted */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Return on Investment"
@@ -350,7 +351,6 @@ const CampaignDetail = () => {
         />
       </div>
       
-      {/* Action Buttons */}
       <div className="flex justify-end gap-2">
         {isEditing ? (
           <>
@@ -387,9 +387,7 @@ const CampaignDetail = () => {
         )}
       </div>
       
-      {/* Campaign Performance Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Stats and Metrics */}
         <Card className="shadow-md border-accent/30">
           <CardHeader className="bg-card/50 border-b pb-3">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -476,7 +474,6 @@ const CampaignDetail = () => {
           </CardContent>
         </Card>
         
-        {/* Campaign Targets */}
         <Card className="shadow-md border-accent/30">
           <CardHeader className="bg-card/50 border-b pb-3">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -504,37 +501,65 @@ const CampaignDetail = () => {
               </div>
             </div>
             
-            <div className="mt-6 bg-accent/5 rounded-lg p-4 border">
-              <h4 className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">Performance vs. Targets</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-2 border-b border-border/40">
-                  <span className="font-medium">ROAS</span>
-                  <div className="flex items-center gap-2">
-                    <span className={metrics.roi >= campaign.targets.targetROAS ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
-                      {metrics.roi.toFixed(1)}%
-                    </span>
-                    <span className="text-muted-foreground text-xs">vs {campaign.targets.targetROAS}%</span>
+            <div className="mt-6 bg-accent/5 rounded-lg p-6 border">
+              <h4 className="text-sm font-medium mb-4 text-muted-foreground uppercase tracking-wider">Performance vs. Targets</h4>
+              
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">ROAS</span>
+                    <div className="flex items-center gap-2">
+                      <span className={metrics.roi >= campaign.targets.targetROAS ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
+                        {metrics.roi.toFixed(1)}%
+                      </span>
+                      <span className="text-muted-foreground text-xs">vs {campaign.targets.targetROAS}%</span>
+                    </div>
                   </div>
+                  <Progress 
+                    value={roiProgress} 
+                    variant={getRoiVariant()} 
+                    size="md" 
+                    showValue 
+                    valuePosition="inside"
+                  />
                 </div>
                 
-                <div className="flex justify-between items-center p-2 border-b border-border/40">
-                  <span className="font-medium">Profit</span>
-                  <div className="flex items-center gap-2">
-                    <span className={metrics.profit >= campaign.targets.targetProfit ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
-                      {formatCurrency(metrics.profit)}
-                    </span>
-                    <span className="text-muted-foreground text-xs">vs {formatCurrency(campaign.targets.targetProfit)}</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Cases</span>
+                    <div className="flex items-center gap-2">
+                      <span className={campaign.manualStats.cases >= campaign.targets.monthlyRetainers ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
+                        {campaign.manualStats.cases}
+                      </span>
+                      <span className="text-muted-foreground text-xs">vs {campaign.targets.monthlyRetainers}</span>
+                    </div>
                   </div>
+                  <Progress 
+                    value={casesProgress} 
+                    variant={getCasesVariant()} 
+                    size="md" 
+                    showValue 
+                    valuePosition="inside"
+                  />
                 </div>
                 
-                <div className="flex justify-between items-center p-2">
-                  <span className="font-medium">Cases</span>
-                  <div className="flex items-center gap-2">
-                    <span className={campaign.manualStats.cases >= campaign.targets.monthlyRetainers ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
-                      {campaign.manualStats.cases}
-                    </span>
-                    <span className="text-muted-foreground text-xs">vs {campaign.targets.monthlyRetainers}</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Profit</span>
+                    <div className="flex items-center gap-2">
+                      <span className={metrics.profit >= campaign.targets.targetProfit ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
+                        {formatCurrency(metrics.profit)}
+                      </span>
+                      <span className="text-muted-foreground text-xs">vs {formatCurrency(campaign.targets.targetProfit)}</span>
+                    </div>
                   </div>
+                  <Progress 
+                    value={profitProgress} 
+                    variant={getProfitVariant()} 
+                    size="md" 
+                    showValue 
+                    valuePosition="inside"
+                  />
                 </div>
               </div>
             </div>
@@ -542,7 +567,6 @@ const CampaignDetail = () => {
         </Card>
       </div>
       
-      {/* Stats History Section */}
       <Card className="shadow-md border-accent/30">
         <CardHeader className="bg-card/50 border-b pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -628,7 +652,6 @@ const CampaignDetail = () => {
         </CardContent>
       </Card>
       
-      {/* Daily Stats Dialog with Date Picker */}
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -640,7 +663,6 @@ const CampaignDetail = () => {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            {/* Date Picker */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="date-picker" className="text-right">
                 Date
@@ -732,7 +754,6 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Stats History Entry Dialog */}
       <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -793,7 +814,6 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Stats History Entry Confirmation Dialog */}
       <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

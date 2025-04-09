@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -33,18 +33,15 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const navigate = useNavigate();
   const metrics = calculateMetrics(campaign);
   
-  // State for quick entry dialog
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
   const [quickStats, setQuickStats] = useState({
     leads: "0",
     cases: "0",
-    revenue: "0",
     retainers: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
-    // Use the actual campaign.id instead of campaign.name
     console.log("Navigating to campaign details for campaign ID:", campaign.id);
     setSelectedCampaignId(campaign.id);
     navigate(`/campaign/${campaign.id}`);
@@ -105,6 +102,28 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       case "Wildfire": return "destructive";
       default: return "default";
     }
+  };
+
+  const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
+  const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
+  const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
+  
+  const getRoiVariant = () => {
+    if (roiProgress >= 100) return "success";
+    if (roiProgress >= 50) return "warning";
+    return "error";
+  };
+  
+  const getCasesVariant = () => {
+    if (casesProgress >= 100) return "success";
+    if (casesProgress >= 50) return "warning";
+    return "error";
+  };
+  
+  const getProfitVariant = () => {
+    if (profitProgress >= 100) return "success";
+    if (profitProgress >= 50) return "warning";
+    return "error";
   };
 
   return (
@@ -182,28 +201,34 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             </div>
           </div>
           
-          {/* Show campaign targets */}
           <div className="border-t pt-2 mt-2">
             <div className="flex items-center gap-2 mb-1">
               <Target className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium">Campaign Targets</span>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Target ROAS:</span>
-                <span className="font-medium">{campaign.targets.targetROAS}%</span>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">ROI Progress</span>
+                  <span className="font-medium">{metrics.roi.toFixed(0)}% of {campaign.targets.targetROAS}%</span>
+                </div>
+                <Progress value={roiProgress} size="sm" variant={getRoiVariant()} className="w-full" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Monthly Retainers:</span>
-                <span className="font-medium">{campaign.targets.monthlyRetainers}</span>
+              
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Cases</span>
+                  <span className="font-medium">{campaign.manualStats.cases} of {campaign.targets.monthlyRetainers}</span>
+                </div>
+                <Progress value={casesProgress} size="sm" variant={getCasesVariant()} className="w-full" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Case Payout:</span>
-                <span className="font-medium">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Target Profit:</span>
-                <span className="font-medium">{formatCurrency(campaign.targets.targetProfit)}</span>
+              
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Profit</span>
+                  <span className="font-medium">{formatCurrency(metrics.profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
+                </div>
+                <Progress value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
               </div>
             </div>
           </div>
