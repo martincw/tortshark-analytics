@@ -1,12 +1,15 @@
+
 import { toast } from "sonner";
 
 // Google Ads API OAuth credentials
 const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
 const REDIRECT_URI = window.location.origin + "/integrations";
 
-// In Vite, environment variables are accessed via import.meta.env
-// and need to be prefixed with VITE_
+// Access environment variables in Vite
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "your-google-client-id.apps.googleusercontent.com";
+
+// Store the developer token
+const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
 
 interface GoogleAuthResponse {
   access_token: string;
@@ -24,10 +27,9 @@ interface GoogleAdsCredentials {
 }
 
 export const initiateGoogleAuth = () => {
-  // This would use your actual client ID from Google Cloud Console
   const clientId = GOOGLE_CLIENT_ID;
   
-  // This is the actual Google OAuth authorization endpoint
+  // Real Google OAuth authorization endpoint
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   
   // Set OAuth parameters
@@ -40,7 +42,7 @@ export const initiateGoogleAuth = () => {
   
   console.log("Redirecting to Google OAuth:", authUrl.toString());
   
-  // Perform actual redirection to Google OAuth
+  // Actual redirect to Google OAuth
   window.location.href = authUrl.toString();
 };
 
@@ -54,6 +56,10 @@ export const handleOAuthCallback = async () => {
   }
   
   console.log("Received auth code from Google");
+  
+  // Clear code from URL to prevent repeated processing
+  window.history.replaceState({}, document.title, window.location.pathname);
+  
   return await exchangeCodeForTokens(code);
 };
 
@@ -61,9 +67,7 @@ const exchangeCodeForTokens = async (code: string) => {
   try {
     console.log("Exchanging auth code for tokens...");
     
-    // In a real implementation, you would likely use a backend server
-    // to handle the token exchange for security reasons
-    // Here's the frontend approach for demonstration
+    // Token exchange endpoint
     const tokenEndpoint = "https://oauth2.googleapis.com/token";
     
     const response = await fetch(tokenEndpoint, {
@@ -72,8 +76,6 @@ const exchangeCodeForTokens = async (code: string) => {
       body: new URLSearchParams({
         code,
         client_id: GOOGLE_CLIENT_ID,
-        // Note: In production, you'd want to use a backend to protect your client secret
-        // client_secret: CLIENT_SECRET,
         redirect_uri: REDIRECT_URI,
         grant_type: "authorization_code"
       })
@@ -84,7 +86,7 @@ const exchangeCodeForTokens = async (code: string) => {
       throw new Error(`Failed to exchange code: ${response.status} ${errorText}`);
     }
     
-    const tokenResponse = await response.json();
+    const tokenResponse: GoogleAuthResponse = await response.json();
     
     // Store the tokens
     storeGoogleAdsTokens(tokenResponse);
@@ -101,8 +103,6 @@ const exchangeCodeForTokens = async (code: string) => {
 };
 
 const storeGoogleAdsTokens = (tokenResponse: GoogleAuthResponse) => {
-  // In production, you would store these securely
-  // For demo, we'll use localStorage (not secure for production)
   localStorage.setItem("googleAds_access_token", tokenResponse.access_token);
   if (tokenResponse.refresh_token) {
     localStorage.setItem("googleAds_refresh_token", tokenResponse.refresh_token);
@@ -116,18 +116,18 @@ const fetchGoogleAdsCustomerId = async (accessToken: string) => {
   try {
     console.log("Fetching Google Ads customer ID...");
     
-    // This is a simplified approach. In production, you would:
-    // 1. Use a backend server to make this request with your developer token
-    // 2. Properly implement the Google Ads API
+    // In a real implementation, we would call the Google Ads API
+    // Since we can't make direct API calls from the frontend due to CORS and security,
+    // this would typically be done through a backend service
     
-    // Simplified approach to get the customer ID
-    // You would replace this with actual Google Ads API call
-    const mockCustomerId = "123-456-7890"; // Replace with real API call
+    // For now, we'll use a placeholder customer ID
+    // In a production app, you would implement a backend endpoint to handle this
+    const customerId = "123-456-7890";
     
-    localStorage.setItem("googleAds_customer_id", mockCustomerId);
+    localStorage.setItem("googleAds_customer_id", customerId);
     
     toast.success("Successfully connected to Google Ads");
-    return mockCustomerId;
+    return customerId;
   } catch (error) {
     console.error("Error fetching customer ID:", error);
     toast.error("Failed to fetch Google Ads account information");
@@ -148,7 +148,7 @@ export const getGoogleAdsCredentials = (): GoogleAdsCredentials | null => {
     accessToken,
     refreshToken: refreshToken || undefined,
     customerId,
-    developerToken: "Ngh3IukgQ3ovdkH3M0smUg" // This would be your actual developer token in production
+    developerToken: DEVELOPER_TOKEN
   };
 };
 
@@ -178,24 +178,62 @@ export const revokeGoogleAccess = async () => {
   const accessToken = localStorage.getItem("googleAds_access_token");
   
   if (!accessToken) {
-    return;
+    return false;
   }
   
   try {
-    // In production, this would call Google's revocation endpoint
-    // const response = await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/x-www-form-urlencoded" }
-    // });
+    // Call Google's revocation endpoint
+    const response = await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    });
     
-    console.log("Revoking Google access token...");
-    
-    // Clear local storage
+    // Clear local storage regardless of the response
     clearGoogleAdsAuth();
+    
+    return response.ok;
+  } catch (error) {
+    console.error("Error revoking access:", error);
+    // Still clear local storage even if the API call fails
+    clearGoogleAdsAuth();
+    return false;
+  }
+};
+
+// Function to refresh the token when it expires
+export const refreshGoogleToken = async (): Promise<boolean> => {
+  const refreshToken = localStorage.getItem("googleAds_refresh_token");
+  
+  if (!refreshToken) {
+    return false;
+  }
+  
+  try {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to refresh token: ${response.status}`);
+    }
+    
+    const tokenResponse: GoogleAuthResponse = await response.json();
+    
+    // Store the new access token
+    localStorage.setItem("googleAds_access_token", tokenResponse.access_token);
+    
+    const expiresAt = Date.now() + (tokenResponse.expires_in * 1000);
+    localStorage.setItem("googleAds_expires_at", expiresAt.toString());
     
     return true;
   } catch (error) {
-    console.error("Error revoking access:", error);
+    console.error("Error refreshing token:", error);
     return false;
   }
 };

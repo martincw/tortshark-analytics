@@ -56,25 +56,28 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
 
   // Check for existing auth on component mount
   useEffect(() => {
-    if (isGoogleAuthValid()) {
-      const credentials = getGoogleAdsCredentials();
-      if (credentials) {
-        toast.success("Already signed in with Google");
-        onSuccess({
-          customerId: credentials.customerId,
-          developerToken: credentials.developerToken
-        });
+    const checkExistingAuth = async () => {
+      if (isGoogleAuthValid()) {
+        const credentials = getGoogleAdsCredentials();
+        if (credentials) {
+          toast.success("Already signed in with Google");
+          onSuccess({
+            customerId: credentials.customerId,
+            developerToken: credentials.developerToken
+          });
+        }
       }
-    }
+    };
+    
+    checkExistingAuth();
   }, [onSuccess]);
 
   const handleGoogleSignIn = () => {
     setIsSigningIn(true);
     
     try {
-      // Initiate real Google OAuth flow
+      // Initiate Google OAuth flow - this will redirect the page
       initiateGoogleAuth();
-      // The page will redirect to Google, and then back to our callback
     } catch (error) {
       toast.error("Failed to sign in with Google");
       console.error("Google Sign-In error:", error);
