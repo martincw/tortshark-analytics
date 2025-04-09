@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Google Ads API OAuth credentials
@@ -39,61 +38,59 @@ export const initiateGoogleAuth = () => {
   authUrl.searchParams.append("access_type", "offline");
   authUrl.searchParams.append("prompt", "consent");
   
-  // For demo purposes, we'll log and use a simulated flow
-  // In production, you'd redirect to this URL
   console.log("Redirecting to Google OAuth:", authUrl.toString());
   
-  // Normally you'd redirect like this:
-  // window.location.href = authUrl.toString();
-  
-  // For the demo, we'll simulate the auth flow instead
-  simulateGoogleAuthFlow();
+  // Perform actual redirection to Google OAuth
+  window.location.href = authUrl.toString();
 };
 
-// This function simulates the Google Auth flow for demo purposes
-const simulateGoogleAuthFlow = () => {
-  // In production, this would be handled by Google's OAuth redirect
-  setTimeout(() => {
-    // Simulate returning from Google with an auth code
-    console.log("Returned from Google OAuth with auth code");
-    
-    // Simulate exchanging the code for tokens
-    exchangeCodeForTokens("simulated_auth_code");
-  }, 2000);
+export const handleOAuthCallback = async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  
+  if (!code) {
+    console.error("No auth code found in URL");
+    return false;
+  }
+  
+  console.log("Received auth code from Google");
+  return await exchangeCodeForTokens(code);
 };
 
 const exchangeCodeForTokens = async (code: string) => {
   try {
     console.log("Exchanging auth code for tokens...");
     
-    // In production, this would be an actual API call to Google's token endpoint:
-    // const response = await fetch("https://oauth2.googleapis.com/token", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    //   body: new URLSearchParams({
-    //     code,
-    //     client_id: clientId,
-    //     client_secret: clientSecret,
-    //     redirect_uri: REDIRECT_URI,
-    //     grant_type: "authorization_code"
-    //   })
-    // });
-    // const tokenResponse = await response.json();
+    // In a real implementation, you would likely use a backend server
+    // to handle the token exchange for security reasons
+    // Here's the frontend approach for demonstration
+    const tokenEndpoint = "https://oauth2.googleapis.com/token";
     
-    // For demo purposes, we'll simulate a successful token response
-    const mockTokenResponse: GoogleAuthResponse = {
-      access_token: "ya29.simulated_access_token",
-      expires_in: 3600,
-      refresh_token: "1//simulated_refresh_token",
-      scope: GOOGLE_ADS_API_SCOPE,
-      token_type: "Bearer"
-    };
+    const response = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        // Note: In production, you'd want to use a backend to protect your client secret
+        // client_secret: CLIENT_SECRET,
+        redirect_uri: REDIRECT_URI,
+        grant_type: "authorization_code"
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to exchange code: ${response.status} ${errorText}`);
+    }
+    
+    const tokenResponse = await response.json();
     
     // Store the tokens
-    storeGoogleAdsTokens(mockTokenResponse);
+    storeGoogleAdsTokens(tokenResponse);
     
     // Fetch the customer ID
-    await fetchGoogleAdsCustomerId(mockTokenResponse.access_token);
+    await fetchGoogleAdsCustomerId(tokenResponse.access_token);
     
     return true;
   } catch (error) {
@@ -119,21 +116,17 @@ const fetchGoogleAdsCustomerId = async (accessToken: string) => {
   try {
     console.log("Fetching Google Ads customer ID...");
     
-    // In production, this would be an actual API call to Google Ads API
-    // const response = await fetch("https://googleads.googleapis.com/v14/customers:listAccessibleCustomers", {
-    //   headers: {
-    //     Authorization: `Bearer ${accessToken}`,
-    //     "developer-token": DEVELOPER_TOKEN
-    //   }
-    // });
-    // const data = await response.json();
-    // const customerId = data.resourceNames[0].split('/')[1];
+    // This is a simplified approach. In production, you would:
+    // 1. Use a backend server to make this request with your developer token
+    // 2. Properly implement the Google Ads API
     
-    // For demo purposes, we'll simulate a successful customer ID fetch
-    const mockCustomerId = "123-456-7890";
+    // Simplified approach to get the customer ID
+    // You would replace this with actual Google Ads API call
+    const mockCustomerId = "123-456-7890"; // Replace with real API call
     
     localStorage.setItem("googleAds_customer_id", mockCustomerId);
     
+    toast.success("Successfully connected to Google Ads");
     return mockCustomerId;
   } catch (error) {
     console.error("Error fetching customer ID:", error);

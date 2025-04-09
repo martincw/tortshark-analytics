@@ -6,7 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Google from "./Google";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { initiateGoogleAuth, getGoogleAdsCredentials, isGoogleAuthValid } from "@/services/googleAdsService";
+import { 
+  initiateGoogleAuth, 
+  handleOAuthCallback, 
+  getGoogleAdsCredentials, 
+  isGoogleAuthValid 
+} from "@/services/googleAdsService";
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
@@ -22,6 +27,33 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const isMobile = useIsMobile();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
+  // Check for OAuth callback on component mount
+  useEffect(() => {
+    const checkForCallback = async () => {
+      // Check if this is a callback from Google OAuth
+      if (window.location.search.includes('code=')) {
+        setIsSigningIn(true);
+        
+        const success = await handleOAuthCallback();
+        
+        setIsSigningIn(false);
+        
+        if (success) {
+          const credentials = getGoogleAdsCredentials();
+          if (credentials) {
+            toast.success("Successfully signed in with Google");
+            onSuccess({
+              customerId: credentials.customerId,
+              developerToken: credentials.developerToken
+            });
+          }
+        }
+      }
+    };
+    
+    checkForCallback();
+  }, [onSuccess]);
+
   // Check for existing auth on component mount
   useEffect(() => {
     if (isGoogleAuthValid()) {
@@ -36,37 +68,13 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     }
   }, [onSuccess]);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setIsSigningIn(true);
     
     try {
-      // Initiate Google OAuth flow
+      // Initiate real Google OAuth flow
       initiateGoogleAuth();
-      
-      // Check for credentials periodically (simulating OAuth callback)
-      const checkInterval = setInterval(() => {
-        const credentials = getGoogleAdsCredentials();
-        if (credentials) {
-          clearInterval(checkInterval);
-          setIsSigningIn(false);
-          
-          toast.success("Successfully signed in with Google");
-          onSuccess({
-            customerId: credentials.customerId,
-            developerToken: credentials.developerToken
-          });
-        }
-      }, 1000);
-      
-      // Clear interval after 20 seconds to prevent infinite checking
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        if (isSigningIn) {
-          setIsSigningIn(false);
-          toast.error("Google sign-in timed out. Please try again.");
-        }
-      }, 20000);
-      
+      // The page will redirect to Google, and then back to our callback
     } catch (error) {
       toast.error("Failed to sign in with Google");
       console.error("Google Sign-In error:", error);
