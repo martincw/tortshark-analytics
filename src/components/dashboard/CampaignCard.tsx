@@ -108,8 +108,16 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
 
   // Fix to ensure accurate profit progress percentage calculation
   const profitProgress = campaign.targets.targetProfit > 0
-    ? Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100)
+    ? Math.max(Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100), 0)
     : 0;
+  
+  console.log("Campaign Card Profit Progress:", {
+    campaignName: campaign.name,
+    profit: metrics.profit,
+    targetProfit: campaign.targets.targetProfit,
+    calculatedPercentage: campaign.targets.targetProfit > 0 ? (metrics.profit / campaign.targets.targetProfit) * 100 : 0,
+    finalProgress: profitProgress
+  });
   
   const getProfitVariant = () => {
     if (profitProgress >= 100) return "success";

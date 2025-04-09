@@ -69,7 +69,7 @@ export function OverviewStats() {
   
   // Calculate profit progress percentage - fix to ensure accurate percentage
   const profitProgress = aggregateStats.totalTargetProfit > 0
-    ? Math.min(Math.round((aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100), 100)
+    ? Math.max(Math.min(Math.round((aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100), 100), 0)
     : 0;
   
   // Determine progress bar variant based on completion percentage
@@ -78,6 +78,13 @@ export function OverviewStats() {
     if (profitProgress >= 50) return "warning";
     return "error";
   };
+
+  console.log("Profit Progress:", {
+    totalProfit: aggregateStats.totalProfit,
+    targetProfit: aggregateStats.totalTargetProfit,
+    calculatedPercentage: aggregateStats.totalTargetProfit > 0 ? (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100 : 0,
+    finalProgress: profitProgress
+  });
 
   return (
     <div>
