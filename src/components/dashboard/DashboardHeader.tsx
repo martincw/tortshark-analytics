@@ -21,13 +21,21 @@ export function DashboardHeader() {
   const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
   
   const handleCampaignToggle = (campaignId: string) => {
-    setSelectedCampaignIds(prev => {
-      if (prev.includes(campaignId)) {
-        return prev.filter(id => id !== campaignId);
-      } else {
-        return [...prev, campaignId];
+    // Fix: Clone the array first, then modify it, and set the new array directly
+    const newSelectedIds = [...selectedCampaignIds];
+    
+    if (newSelectedIds.includes(campaignId)) {
+      // Remove the ID
+      const index = newSelectedIds.indexOf(campaignId);
+      if (index !== -1) {
+        newSelectedIds.splice(index, 1);
       }
-    });
+    } else {
+      // Add the ID
+      newSelectedIds.push(campaignId);
+    }
+    
+    setSelectedCampaignIds(newSelectedIds);
   };
   
   const handleSelectAll = () => {
