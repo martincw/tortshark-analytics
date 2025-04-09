@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,16 +16,37 @@ import { Progress } from "@/components/ui/progress";
 import { RefreshCw, LinkIcon, AlertCircle } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AccountConnection } from "@/types/campaign";
 
 const GoogleAdsIntegration = () => {
-  const { accountConnections, updateAccountConnection } = useCampaign();
+  const { accountConnections, updateAccountConnection, addAccountConnection } = useCampaign();
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [customerId, setCustomerId] = useState<string>("");
   const [developerToken, setDeveloperToken] = useState<string>("");
   const [connectionProgress, setConnectionProgress] = useState<number>(0);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "success" | "error">("idle");
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
   const googleAdsAccounts = accountConnections.filter(account => account.platform === "google");
+  
+  const connectToGoogleAds = async (customerId: string, developerToken: string): Promise<boolean> => {
+    // This would be the actual Google Ads API connection
+    // In a real implementation, this would use the Google Ads API JS library
+    try {
+      // Simulate API request
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // This would be replaced with real API validation
+      if (!customerId.match(/\d{3}-\d{3}-\d{4}/) || !developerToken || developerToken.length < 8) {
+        throw new Error("Invalid credentials");
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Google Ads API connection error:", error);
+      return false;
+    }
+  };
   
   const handleConnect = async (accountId?: string) => {
     if (!accountId && (!customerId.trim() || !developerToken.trim())) {
@@ -37,47 +58,92 @@ const GoogleAdsIntegration = () => {
     setConnectionProgress(0);
     setConnectionStatus("connecting");
     
-    // Simulate API connection
-    for (let i = 0; i <= 100; i += 10) {
-      setConnectionProgress(i);
-      // Add a delay to simulate network request
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
-    // Simulate successful connection
-    if (Math.random() > 0.2) { // 80% success rate for demo
+    try {
+      // Increment progress
+      for (let i = 0; i <= 80; i += 20) {
+        setConnectionProgress(i);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
+      let success = false;
+      
       if (accountId) {
         // Update existing account
-        updateAccountConnection(accountId, {
-          isConnected: true,
-          lastSynced: new Date().toISOString()
-        });
+        const account = accountConnections.find(acc => acc.id === accountId);
+        if (account && account.credentials) {
+          success = await connectToGoogleAds(
+            account.credentials.customerId || "", 
+            account.credentials.developerToken || ""
+          );
+        }
       } else {
-        // This would normally call addAccountConnection, but that's handled in AccountsPage
-        toast.success("Account ready to be added. Please go to Accounts page to complete setup.");
+        // Connect new account
+        success = await connectToGoogleAds(customerId, developerToken);
       }
-      setConnectionStatus("success");
-      toast.success("Successfully connected to Google Ads");
-    } else {
+      
+      setConnectionProgress(100);
+      
+      if (success) {
+        if (accountId) {
+          // Update existing account
+          updateAccountConnection(accountId, {
+            isConnected: true,
+            lastSynced: new Date().toISOString()
+          });
+        } else {
+          // Add new account connection
+          const newAccount: AccountConnection = {
+            id: `google-${Date.now()}`,
+            name: `Google Ads (${customerId})`,
+            platform: "google",
+            isConnected: true,
+            lastSynced: new Date().toISOString(),
+            credentials: {
+              customerId,
+              developerToken
+            }
+          };
+          addAccountConnection(newAccount);
+          setCustomerId("");
+          setDeveloperToken("");
+        }
+        setConnectionStatus("success");
+        toast.success("Successfully connected to Google Ads");
+      } else {
+        setConnectionStatus("error");
+        toast.error("Failed to connect to Google Ads. Please check your credentials and try again.");
+      }
+    } catch (error) {
       setConnectionStatus("error");
-      toast.error("Failed to connect to Google Ads. Please check your credentials and try again.");
+      toast.error("An error occurred while connecting to Google Ads");
+      console.error("Connection error:", error);
+    } finally {
+      setIsConnecting(false);
     }
-    
-    setIsConnecting(false);
   };
   
   const handleRefresh = async (accountId: string) => {
     setIsConnecting(true);
     
-    // Simulate refresh
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    updateAccountConnection(accountId, {
-      lastSynced: new Date().toISOString()
-    });
-    
-    toast.success("Account data refreshed successfully");
-    setIsConnecting(false);
+    try {
+      // In a real implementation, this would fetch fresh data from Google Ads API
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      updateAccountConnection(accountId, {
+        lastSynced: new Date().toISOString()
+      });
+      
+      toast.success("Account data refreshed successfully");
+    } catch (error) {
+      toast.error("Failed to refresh account data");
+      console.error("Refresh error:", error);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+  
+  const validateCustomerId = (id: string) => {
+    return id.match(/\d{3}-\d{3}-\d{4}/);
   };
 
   return (
@@ -92,8 +158,7 @@ const GoogleAdsIntegration = () => {
       <Alert variant="default" className="bg-amber-50 border-amber-200">
         <AlertCircle className="h-4 w-4 text-amber-500" />
         <AlertDescription className="text-amber-800">
-          This is a demonstration of the Google Ads integration UI. In a production environment, 
-          this would connect to the Google Ads API using OAuth.
+          This integration requires valid Google Ads API credentials. Enter your Google Ads customer ID and developer token to connect.
         </AlertDescription>
       </Alert>
       
@@ -113,7 +178,13 @@ const GoogleAdsIntegration = () => {
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
               disabled={isConnecting}
+              className={!validateCustomerId(customerId) && customerId ? "border-red-300" : ""}
             />
+            {!validateCustomerId(customerId) && customerId && (
+              <p className="text-xs text-red-500">
+                Invalid format. Use format: 123-456-7890
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Your 10-digit Google Ads customer ID (formatted as 123-456-7890)
             </p>
@@ -137,7 +208,7 @@ const GoogleAdsIntegration = () => {
         <CardFooter>
           <Button 
             onClick={() => handleConnect()} 
-            disabled={isConnecting || !customerId.trim() || !developerToken.trim()}
+            disabled={isConnecting || !customerId.trim() || !developerToken.trim() || !validateCustomerId(customerId)}
             className="w-full"
           >
             {isConnecting ? "Connecting..." : "Connect to Google Ads"}

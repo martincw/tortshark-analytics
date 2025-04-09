@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Campaign, GoogleAdsMetrics } from "@/types/campaign";
+import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ interface GoogleAdsMetricsProps {
 
 const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
   const { accountConnections, fetchGoogleAdsMetrics, dateRange } = useCampaign();
-  const [metrics, setMetrics] = useState<GoogleAdsMetrics[] | null>(null);
+  const [metrics, setMetrics] = useState<GoogleAdsMetricsType[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
