@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   Save,
   X,
   CalendarDays,
+  Target,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -61,6 +63,7 @@ const CampaignDetail = () => {
   }, [campaign]);
   
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddingManualStats, setIsAddingManualStats] = useState(false);
   const [leadCount, setLeadCount] = useState("0");
   const [caseCount, setCaseCount] = useState("0");
   const [retainerCount, setRetainerCount] = useState("0");
@@ -147,6 +150,11 @@ const CampaignDetail = () => {
     const newRetainers = parseInt(dailyStats.retainers) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
     
+    if (newLeads === 0 && newCases === 0 && newRetainers === 0 && newRevenue === 0) {
+      toast.error("Please enter at least one value greater than 0");
+      return;
+    }
+    
     console.log("Adding new stats history entry:", {
       campaignId: campaign.id,
       date: selectedDate.toISOString(),
@@ -167,6 +175,14 @@ const CampaignDetail = () => {
     
     // Close the dialog and show a success toast
     setIsDailyStatsDialogOpen(false);
+    
+    // Reset daily stats form
+    setDailyStats({
+      leads: "0",
+      cases: "0",
+      retainers: "0",
+      revenue: "0"
+    });
     
     // Update the form fields with the new values
     setLeadCount((parseInt(leadCount) + newLeads).toString());
@@ -225,6 +241,34 @@ const CampaignDetail = () => {
           )}
         </div>
       </div>
+      
+      {/* Campaign Targets Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Campaign Targets
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground mb-1">Monthly Retainers</span>
+            <span className="text-lg font-semibold">{campaign.targets.monthlyRetainers}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground mb-1">Case Payout</span>
+            <span className="text-lg font-semibold">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground mb-1">Target ROAS</span>
+            <span className="text-lg font-semibold">{campaign.targets.targetROAS}%</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground mb-1">Target Profit</span>
+            <span className="text-lg font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Highlight ROI and Profit metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -374,8 +418,16 @@ const CampaignDetail = () => {
       
       {/* Stats History Section */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Stats History</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setIsDailyStatsDialogOpen(true)}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Entry
+          </Button>
         </CardHeader>
         <CardContent>
           {campaign.statsHistory && campaign.statsHistory.length > 0 ? (

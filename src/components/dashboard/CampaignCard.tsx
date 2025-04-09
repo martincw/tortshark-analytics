@@ -8,7 +8,7 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerfo
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle, CalendarDays } from "lucide-react";
+import { AlertCircle, DollarSign, TrendingUp, Users, Calendar, Percent, ArrowRight, Layers, PlusCircle, CalendarDays, Target } from "lucide-react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -55,6 +55,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     const newCases = parseInt(quickStats.cases) || 0;
     const newRetainers = parseInt(quickStats.retainers) || 0;
     const newRevenue = parseFloat(quickStats.revenue) || 0;
+    
+    if (newLeads === 0 && newCases === 0 && newRetainers === 0 && newRevenue === 0) {
+      toast.error("Please enter at least one value greater than 0");
+      return;
+    }
     
     console.log("Adding quick stats:", {
       campaignId: campaign.id,
@@ -174,6 +179,32 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 label="Conv. Rate" 
                 value={`${conversionRate}%`} 
               />
+            </div>
+          </div>
+          
+          {/* Show campaign targets */}
+          <div className="border-t pt-2 mt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Target className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium">Campaign Targets</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target ROAS:</span>
+                <span className="font-medium">{campaign.targets.targetROAS}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Monthly Retainers:</span>
+                <span className="font-medium">{campaign.targets.monthlyRetainers}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Case Payout:</span>
+                <span className="font-medium">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target Profit:</span>
+                <span className="font-medium">{formatCurrency(campaign.targets.targetProfit)}</span>
+              </div>
             </div>
           </div>
         </CardContent>
