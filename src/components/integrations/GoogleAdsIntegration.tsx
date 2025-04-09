@@ -22,7 +22,7 @@ const GoogleAdsIntegration = () => {
   const { accountConnections, updateAccountConnection, addAccountConnection } = useCampaign();
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [customerId, setCustomerId] = useState<string>("");
-  const [developerToken, setDeveloperToken] = useState<string>("");
+  const [developerToken, setDeveloperToken] = useState<string>("Ngh3IukgQ3ovdkH3M0smUg");
   const [connectionProgress, setConnectionProgress] = useState<number>(0);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "success" | "error">("idle");
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -201,7 +201,7 @@ const GoogleAdsIntegration = () => {
               disabled={isConnecting}
             />
             <p className="text-xs text-muted-foreground">
-              Your Google Ads API developer token
+              Your Google Ads API developer token has been pre-filled for convenience
             </p>
           </div>
         </CardContent>
