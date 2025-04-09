@@ -38,6 +38,14 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -67,7 +75,6 @@ const CampaignDetail = () => {
   const [isAddingManualStats, setIsAddingManualStats] = useState(false);
   const [leadCount, setLeadCount] = useState("0");
   const [caseCount, setCaseCount] = useState("0");
-  const [retainerCount, setRetainerCount] = useState("0");
   const [revenue, setRevenue] = useState("0");
   
   // State for daily stats dialog
@@ -75,7 +82,6 @@ const CampaignDetail = () => {
   const [dailyStats, setDailyStats] = useState({
     leads: "0",
     cases: "0",
-    retainers: "0",
     revenue: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -85,13 +91,11 @@ const CampaignDetail = () => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
       setCaseCount(campaign.manualStats.cases.toString());
-      setRetainerCount(campaign.manualStats.retainers.toString());
       setRevenue(campaign.manualStats.revenue.toString());
       
       console.log("Updated form fields with campaign data", {
         leads: campaign.manualStats.leads,
         cases: campaign.manualStats.cases,
-        retainers: campaign.manualStats.retainers,
         revenue: campaign.manualStats.revenue
       });
     }
@@ -126,7 +130,7 @@ const CampaignDetail = () => {
         ...campaign.manualStats,
         leads: parseInt(leadCount) || 0,
         cases: parseInt(caseCount) || 0,
-        retainers: parseInt(retainerCount) || 0,
+        retainers: parseInt(caseCount) || 0, // Set retainers equal to cases since they're the same
         revenue: parseFloat(revenue) || 0,
       },
     };
@@ -148,10 +152,9 @@ const CampaignDetail = () => {
     // Parse the values
     const newLeads = parseInt(dailyStats.leads) || 0;
     const newCases = parseInt(dailyStats.cases) || 0;
-    const newRetainers = parseInt(dailyStats.retainers) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
     
-    if (newLeads === 0 && newCases === 0 && newRetainers === 0 && newRevenue === 0) {
+    if (newLeads === 0 && newCases === 0 && newRevenue === 0) {
       toast.error("Please enter at least one value greater than 0");
       return;
     }
@@ -161,7 +164,7 @@ const CampaignDetail = () => {
       date: selectedDate.toISOString(),
       leads: newLeads,
       cases: newCases,
-      retainers: newRetainers,
+      retainers: newCases, // Set retainers equal to cases
       revenue: newRevenue
     });
     
@@ -170,30 +173,30 @@ const CampaignDetail = () => {
       date: selectedDate.toISOString(),
       leads: newLeads,
       cases: newCases,
-      retainers: newRetainers,
+      retainers: newCases, // Set retainers equal to cases
       revenue: newRevenue
     });
     
     // Close the dialog and show a success toast
     setIsDailyStatsDialogOpen(false);
+    toast.success("Daily stats added successfully");
     
     // Reset daily stats form
     setDailyStats({
       leads: "0",
       cases: "0",
-      retainers: "0",
       revenue: "0"
     });
     
     // Update the form fields with the new values
     setLeadCount((parseInt(leadCount) + newLeads).toString());
     setCaseCount((parseInt(caseCount) + newCases).toString());
-    setRetainerCount((parseInt(retainerCount) + newRetainers).toString());
     setRevenue((parseFloat(revenue) + newRevenue).toString());
   };
 
   return (
     <div className="space-y-6">
+      {/* Header Section with Campaign name and actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
@@ -243,36 +246,8 @@ const CampaignDetail = () => {
         </div>
       </div>
       
-      {/* Campaign Targets Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Campaign Targets
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground mb-1">Monthly Retainers</span>
-            <span className="text-lg font-semibold">{campaign.targets.monthlyRetainers}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground mb-1">Case Payout</span>
-            <span className="text-lg font-semibold">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground mb-1">Target ROAS</span>
-            <span className="text-lg font-semibold">{campaign.targets.targetROAS}%</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground mb-1">Target Profit</span>
-            <span className="text-lg font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Highlight ROI and Profit metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Key Performance Metrics - Highlighted */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Return on Investment"
           value={`${metrics.roi.toFixed(1)}%`}
@@ -280,6 +255,7 @@ const CampaignDetail = () => {
           trend={metrics.roi > 0 ? "up" : "down"}
           trendValue={metrics.roi > 200 ? "Excellent" : metrics.roi > 100 ? "Good" : metrics.roi > 0 ? "Positive" : "Needs Attention"}
           className="border-2 border-secondary"
+          isHighlighted={true}
           valueClassName={getRoiClass()}
         />
         
@@ -290,108 +266,39 @@ const CampaignDetail = () => {
           trend={metrics.profit > 0 ? "up" : "down"}
           trendValue={metrics.profit > 5000 ? "High Performer" : metrics.profit > 0 ? "Profitable" : "Loss"}
           className="border-2 border-secondary"
+          isHighlighted={true}
           valueClassName={getRoiClass()}
         />
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Ad Spend"
-          value={formatCurrency(campaign.stats.adSpend)}
-          icon={<DollarSign className="h-5 w-5" />}
-        />
-        <StatCard
-          title="Leads"
-          value={isEditing ? (
-            <Input
-              type="number"
-              value={leadCount}
-              onChange={(e) => setLeadCount(e.target.value)}
-              className="h-8 w-24 text-lg font-bold"
-            />
-          ) : (
-            formatNumber(campaign.manualStats.leads)
-          )}
-          icon={<Users className="h-5 w-5" />}
-        />
-        <StatCard
-          title="Cases"
-          value={isEditing ? (
-            <Input
-              type="number"
-              value={caseCount}
-              onChange={(e) => setCaseCount(e.target.value)}
-              className="h-8 w-24 text-lg font-bold"
-            />
-          ) : (
-            formatNumber(campaign.manualStats.cases)
-          )}
-          icon={<FileCheck className="h-5 w-5" />}
-        />
-        <StatCard
-          title="Retainers"
-          value={isEditing ? (
-            <Input
-              type="number"
-              value={retainerCount}
-              onChange={(e) => setRetainerCount(e.target.value)}
-              className="h-8 w-24 text-lg font-bold"
-            />
-          ) : (
-            formatNumber(campaign.manualStats.retainers)
-          )}
-          icon={<TrendingUp className="h-5 w-5" />}
-        />
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Campaign Metrics</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-6">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
-              <BadgeStat
-                label="Cost Per Click"
-                value={formatCurrency(campaign.stats.cpc)}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <BadgeStat
-                label="Cost Per Lead"
-                value={formatCurrency(metrics.costPerLead)}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <FileCheck className="h-5 w-5 text-muted-foreground" />
-              <BadgeStat
-                label="Cost Per Case"
-                value={formatCurrency(metrics.cpa)}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Percent className="h-5 w-5 text-muted-foreground" />
-              <BadgeStat
-                label="Lead to Case Ratio"
-                value={`${campaign.manualStats.leads > 0 ? ((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1) : "0"}%`}
-              />
-            </div>
-          </CardContent>
-        </Card>
         
+        <StatCard
+          title="Cost Per Case"
+          value={formatCurrency(metrics.cpa)}
+          icon={<FileCheck className="h-5 w-5" />}
+          trend={metrics.cpa < campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
+          trendValue={metrics.cpa < campaign.targets.casePayoutAmount ? "Under Target" : "Over Target"}
+          className="border-2 border-secondary"
+          isHighlighted={true}
+          valueClassName={metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}
+        />
+      </div>
+      
+      {/* Campaign Performance Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Stats and Metrics */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Financial Overview</CardTitle>
+            <CardTitle className="text-lg">Performance Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-5 w-5 text-muted-foreground" />
-                <BadgeStat
-                  label="Revenue"
-                  value={isEditing ? (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Ad Spend</span>
+                <span className="text-lg font-semibold">{formatCurrency(campaign.stats.adSpend)}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Revenue</span>
+                <span className="text-lg font-semibold">
+                  {isEditing ? (
                     <Input
                       type="number"
                       value={revenue}
@@ -401,16 +308,126 @@ const CampaignDetail = () => {
                   ) : (
                     formatCurrency(campaign.manualStats.revenue)
                   )}
-                />
+                </span>
               </div>
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Leads</span>
+                <span className="text-lg font-semibold">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={leadCount}
+                      onChange={(e) => setLeadCount(e.target.value)}
+                      className="h-8 w-24"
+                    />
+                  ) : (
+                    formatNumber(campaign.manualStats.leads)
+                  )}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Cases</span>
+                <span className="text-lg font-semibold">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={caseCount}
+                      onChange={(e) => setCaseCount(e.target.value)}
+                      className="h-8 w-24"
+                    />
+                  ) : (
+                    formatNumber(campaign.manualStats.cases)
+                  )}
+                </span>
+              </div>
+            </div>
+            
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-3">Key Metrics</h4>
+              <div className="grid grid-cols-2 gap-4">
                 <BadgeStat
-                  label="Average Revenue Per Case"
+                  label="Cost Per Lead"
+                  value={formatCurrency(metrics.costPerLead)}
+                />
+                <BadgeStat
+                  label="Cost Per Case"
+                  value={formatCurrency(metrics.cpa)}
+                />
+                <BadgeStat
+                  label="Lead to Case Ratio"
+                  value={`${campaign.manualStats.leads > 0 ? ((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1) : "0"}%`}
+                />
+                <BadgeStat
+                  label="Avg. Revenue Per Case"
                   value={campaign.manualStats.cases > 0 
                     ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.cases) 
                     : "$0.00"}
                 />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Campaign Targets */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Campaign Targets
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Monthly Target</span>
+                <span className="text-lg font-semibold">{campaign.targets.monthlyRetainers} Cases</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Case Payout</span>
+                <span className="text-lg font-semibold">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Target ROAS</span>
+                <span className="text-lg font-semibold">{campaign.targets.targetROAS}%</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">Target Profit</span>
+                <span className="text-lg font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
+              </div>
+            </div>
+            
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-3">Performance vs. Targets</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">ROAS</span>
+                  <div className="flex items-center gap-2">
+                    <span className={metrics.roi >= campaign.targets.targetROAS ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                      {metrics.roi.toFixed(1)}%
+                    </span>
+                    <span className="text-muted-foreground text-xs">vs {campaign.targets.targetROAS}%</span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Profit</span>
+                  <div className="flex items-center gap-2">
+                    <span className={metrics.profit >= campaign.targets.targetProfit ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                      {formatCurrency(metrics.profit)}
+                    </span>
+                    <span className="text-muted-foreground text-xs">vs {formatCurrency(campaign.targets.targetProfit)}</span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Cases</span>
+                  <div className="flex items-center gap-2">
+                    <span className={campaign.manualStats.cases >= campaign.targets.monthlyRetainers ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                      {campaign.manualStats.cases}
+                    </span>
+                    <span className="text-muted-foreground text-xs">vs {campaign.targets.monthlyRetainers}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -433,32 +450,30 @@ const CampaignDetail = () => {
         <CardContent>
           {campaign.statsHistory && campaign.statsHistory.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-4 font-medium">Date</th>
-                    <th className="text-left py-2 px-4 font-medium">Leads</th>
-                    <th className="text-left py-2 px-4 font-medium">Cases</th>
-                    <th className="text-left py-2 px-4 font-medium">Retainers</th>
-                    <th className="text-left py-2 px-4 font-medium">Revenue</th>
-                    <th className="text-left py-2 px-4 font-medium">Added On</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Leads</TableHead>
+                    <TableHead>Cases</TableHead>
+                    <TableHead>Revenue</TableHead>
+                    <TableHead>Added On</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {campaign.statsHistory.map((entry) => (
-                    <tr key={entry.id} className="border-b hover:bg-muted/50">
-                      <td className="py-2 px-4">{format(new Date(entry.date), "MMM d, yyyy")}</td>
-                      <td className="py-2 px-4">{entry.leads}</td>
-                      <td className="py-2 px-4">{entry.cases}</td>
-                      <td className="py-2 px-4">{entry.retainers}</td>
-                      <td className="py-2 px-4">{formatCurrency(entry.revenue)}</td>
-                      <td className="py-2 px-4 text-muted-foreground text-sm">
+                    <TableRow key={entry.id}>
+                      <TableCell>{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell>{entry.leads}</TableCell>
+                      <TableCell>{entry.cases}</TableCell>
+                      <TableCell>{formatCurrency(entry.revenue)}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(entry.createdAt), "MMM d, yyyy")}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
@@ -544,18 +559,6 @@ const CampaignDetail = () => {
                 type="number"
                 value={dailyStats.cases}
                 onChange={(e) => setDailyStats({...dailyStats, cases: e.target.value})}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="daily-retainers" className="text-right">
-                Retainers
-              </Label>
-              <Input
-                id="daily-retainers"
-                type="number" 
-                value={dailyStats.retainers}
-                onChange={(e) => setDailyStats({...dailyStats, retainers: e.target.value})}
                 className="col-span-3"
               />
             </div>

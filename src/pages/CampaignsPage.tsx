@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { Button } from "@/components/ui/button";
-import { Plus, Link, Bug } from "lucide-react";
+import { Plus, Link, Bug, LayoutGrid, List } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
   const [showDebug, setShowDebug] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   
   useEffect(() => {
     console.log("CampaignsPage - Mounted with campaigns:", campaigns.length);
@@ -57,10 +58,30 @@ const CampaignsPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Mass Tort Campaigns</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your Rideshare, LDS, MD, and Wildfire tort campaigns
+            Manage your case acquisition campaigns and track performance
           </p>
         </div>
         <div className="flex gap-2">
+          <div className="flex border rounded-md overflow-hidden mr-2">
+            <Button 
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm" 
+              className="rounded-none px-3"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Grid
+            </Button>
+            <Button 
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm" 
+              className="rounded-none px-3"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4 mr-1" />
+              List
+            </Button>
+          </div>
           <Button onClick={() => navigate("/add-campaign")}>
             <Plus className="mr-2 h-4 w-4" /> Add Campaign
           </Button>
