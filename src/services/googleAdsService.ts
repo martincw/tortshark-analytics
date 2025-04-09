@@ -21,16 +21,28 @@ interface GoogleAdsCredentials {
 }
 
 export const initiateGoogleAuth = () => {
-  // This would normally use your actual client ID from Google Cloud Console
-  const clientId = "your-google-client-id.apps.googleusercontent.com"; 
+  // This would use your actual client ID from Google Cloud Console
+  const clientId = process.env.GOOGLE_CLIENT_ID || "your-google-client-id.apps.googleusercontent.com";
   
-  // For demo purposes, we're using a mock/simulated OAuth flow
-  // In production, you would use the actual Google OAuth authorization endpoint
+  // This is the actual Google OAuth authorization endpoint
+  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   
-  // Simulate redirecting to Google's OAuth consent screen
-  console.log("Redirecting to Google OAuth consent screen...");
+  // Set OAuth parameters
+  authUrl.searchParams.append("client_id", clientId);
+  authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
+  authUrl.searchParams.append("response_type", "code");
+  authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPE);
+  authUrl.searchParams.append("access_type", "offline");
+  authUrl.searchParams.append("prompt", "consent");
   
-  // Instead of redirecting, we'll simulate the auth flow
+  // For demo purposes, we'll log and use a simulated flow
+  // In production, you'd redirect to this URL
+  console.log("Redirecting to Google OAuth:", authUrl.toString());
+  
+  // Normally you'd redirect like this:
+  // window.location.href = authUrl.toString();
+  
+  // For the demo, we'll simulate the auth flow instead
   simulateGoogleAuthFlow();
 };
 
@@ -50,7 +62,20 @@ const exchangeCodeForTokens = async (code: string) => {
   try {
     console.log("Exchanging auth code for tokens...");
     
-    // In production, this would be an actual API call to Google's token endpoint
+    // In production, this would be an actual API call to Google's token endpoint:
+    // const response = await fetch("https://oauth2.googleapis.com/token", {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    //   body: new URLSearchParams({
+    //     code,
+    //     client_id: clientId,
+    //     client_secret: clientSecret,
+    //     redirect_uri: REDIRECT_URI,
+    //     grant_type: "authorization_code"
+    //   })
+    // });
+    // const tokenResponse = await response.json();
+    
     // For demo purposes, we'll simulate a successful token response
     const mockTokenResponse: GoogleAuthResponse = {
       access_token: "ya29.simulated_access_token",
@@ -91,6 +116,15 @@ const fetchGoogleAdsCustomerId = async (accessToken: string) => {
     console.log("Fetching Google Ads customer ID...");
     
     // In production, this would be an actual API call to Google Ads API
+    // const response = await fetch("https://googleads.googleapis.com/v14/customers:listAccessibleCustomers", {
+    //   headers: {
+    //     Authorization: `Bearer ${accessToken}`,
+    //     "developer-token": DEVELOPER_TOKEN
+    //   }
+    // });
+    // const data = await response.json();
+    // const customerId = data.resourceNames[0].split('/')[1];
+    
     // For demo purposes, we'll simulate a successful customer ID fetch
     const mockCustomerId = "123-456-7890";
     
@@ -117,7 +151,7 @@ export const getGoogleAdsCredentials = (): GoogleAdsCredentials | null => {
     accessToken,
     refreshToken: refreshToken || undefined,
     customerId,
-    developerToken: "Ngh3IukgQ3ovdkH3M0smUg" // This is the mock value being used in the existing code
+    developerToken: "Ngh3IukgQ3ovdkH3M0smUg" // This would be your actual developer token in production
   };
 };
 
@@ -152,6 +186,11 @@ export const revokeGoogleAccess = async () => {
   
   try {
     // In production, this would call Google's revocation endpoint
+    // const response = await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    // });
+    
     console.log("Revoking Google access token...");
     
     // Clear local storage

@@ -81,7 +81,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-muted-foreground mb-4">
-          Connect your Google account to automatically retrieve your Google Ads credentials
+          Connect your Google account to access your Google Ads data
         </p>
         
         <Button 
