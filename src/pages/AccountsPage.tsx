@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -7,14 +7,17 @@ import { AccountConnection } from "@/types/campaign";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PlusCircle, AlertCircle, ExternalLink, InfoIcon } from "lucide-react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
+import { getGoogleAdsCredentials, isGoogleAuthValid } from "@/services/googleAdsService";
 
 const AccountsPage = () => {
   const { 
@@ -27,6 +30,12 @@ const AccountsPage = () => {
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountPlatform, setNewAccountPlatform] = useState<"google">("google");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  
+  useEffect(() => {
+    // Check if Google auth is already valid
+    setIsGoogleConnected(isGoogleAuthValid());
+  }, []);
   
   const handleAddAccount = () => {
     if (!newAccountName.trim()) {
@@ -34,11 +43,23 @@ const AccountsPage = () => {
       return;
     }
     
+    if (!isGoogleConnected) {
+      toast.error("Please connect to Google Ads first");
+      navigate("/integrations");
+      return;
+    }
+    
+    const credentials = getGoogleAdsCredentials();
+    
     const newAccount: Omit<AccountConnection, "id"> = {
       name: newAccountName.trim(),
       platform: newAccountPlatform,
-      isConnected: false,
+      isConnected: Boolean(credentials),
       lastSynced: new Date().toISOString(),
+      credentials: credentials ? {
+        customerId: credentials.customerId,
+        developerToken: credentials.developerToken
+      } : undefined
     };
     
     const newAccountId = addAccountConnection(newAccount);
@@ -75,6 +96,23 @@ const AccountsPage = () => {
         Manage your Google Ads accounts and create campaigns
       </p>
       
+      {!isGoogleConnected && (
+        <Alert variant="warning" className="mb-4 bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertDescription className="text-amber-800 flex justify-between items-center">
+            <span>You need to connect to Google Ads before adding accounts</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-4 border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+              onClick={() => navigate("/integrations")}
+            >
+              Connect to Google
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -93,6 +131,7 @@ const AccountsPage = () => {
                 value={newAccountName}
                 onChange={(e) => setNewAccountName(e.target.value)}
                 placeholder="e.g., My Google Ads Account"
+                disabled={!isGoogleConnected}
               />
             </div>
             <div className="space-y-2">
@@ -101,15 +140,26 @@ const AccountsPage = () => {
                 Google Ads
               </div>
             </div>
+            
+            {!isGoogleConnected && (
+              <div className="text-sm text-muted-foreground mt-2 flex items-start gap-2">
+                <InfoIcon className="h-4 w-4 mt-0.5 text-amber-500" />
+                <span>
+                  You need to connect to Google Ads first. Go to the Integrations page to complete authentication.
+                </span>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter>
             <Button 
               onClick={handleAddAccount} 
-              className="w-full mt-4"
-              disabled={isLoading || !newAccountName.trim()}
+              className="w-full"
+              disabled={isLoading || !newAccountName.trim() || !isGoogleConnected}
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Account
             </Button>
-          </CardContent>
+          </CardFooter>
         </Card>
         
         <ConnectedAccounts

@@ -15,7 +15,9 @@ import {
   XCircle, 
   RefreshCw, 
   PlusCircle,
+  ExternalLink
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -40,6 +42,8 @@ export const ConnectedAccounts = ({
   selectedAccountId,
   onSelectAccount,
 }: ConnectedAccountsProps) => {
+  const navigate = useNavigate();
+  
   return (
     <Card>
       <CardHeader>
@@ -56,6 +60,7 @@ export const ConnectedAccounts = ({
         ) : accountConnections.length === 0 ? (
           <EmptyAccountsState 
             handleCreateCampaign={handleCreateCampaign}
+            navigate={navigate}
           />
         ) : (
           <AccountsList
@@ -64,6 +69,7 @@ export const ConnectedAccounts = ({
             handleCreateCampaign={handleCreateCampaign}
             selectedAccountId={selectedAccountId}
             onSelectAccount={onSelectAccount}
+            navigate={navigate}
           />
         )}
       </CardContent>
@@ -73,15 +79,25 @@ export const ConnectedAccounts = ({
 
 interface EmptyAccountsStateProps {
   handleCreateCampaign: () => void;
+  navigate: (path: string) => void;
 }
 
 const EmptyAccountsState = ({
   handleCreateCampaign,
+  navigate
 }: EmptyAccountsStateProps) => {
   return (
     <div className="flex flex-col items-center space-y-4 text-center text-muted-foreground py-8 border border-dashed rounded-md p-4">
       <p>No accounts added yet</p>
       <div className="flex flex-col md:flex-row gap-3 w-full max-w-xs">
+        <Button 
+          onClick={() => navigate("/integrations")}
+          variant="default" 
+          className="flex-1"
+        >
+          <ExternalLink className="mr-2 h-4 w-4" />
+          Connect Google Ads
+        </Button>
         <Button 
           onClick={handleCreateCampaign}
           variant="secondary" 
@@ -101,6 +117,7 @@ interface AccountsListProps {
   handleCreateCampaign: () => void;
   selectedAccountId?: string;
   onSelectAccount?: (accountId: string) => void;
+  navigate: (path: string) => void;
 }
 
 const AccountsList = ({
@@ -109,6 +126,7 @@ const AccountsList = ({
   handleCreateCampaign,
   selectedAccountId,
   onSelectAccount,
+  navigate
 }: AccountsListProps) => {
   return (
     <>
@@ -126,6 +144,11 @@ const AccountsList = ({
               <div className="flex items-center gap-2">
                 <span className="font-medium">{account.name}</span>
                 <Badge variant="default">Google Ads</Badge>
+                {account.isConnected ? (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Connected</Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Not Connected</Badge>
+                )}
                 {selectedAccountId === account.id && (
                   <Badge variant="outline" className="ml-2 bg-primary/10">Selected</Badge>
                 )}
@@ -136,11 +159,33 @@ const AccountsList = ({
                 </span>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              {!account.isConnected && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate("/integrations");
+                  }}
+                >
+                  Connect
+                </Button>
+              )}
+            </div>
           </div>
         ))}
       </div>
       
-      <div className="flex justify-center pt-2">
+      <div className="flex justify-between pt-4">
+        <Button 
+          onClick={() => navigate("/integrations")} 
+          variant="outline"
+        >
+          <ExternalLink className="mr-2 h-4 w-4" />
+          Manage Integrations
+        </Button>
         <Button 
           onClick={handleCreateCampaign} 
           variant="secondary"
