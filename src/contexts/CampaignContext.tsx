@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
@@ -16,6 +17,8 @@ interface CampaignContextType {
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
+  selectedCampaignIds: string[];
+  setSelectedCampaignIds: (ids: string[]) => void;
   isLoading: boolean;
 }
 
@@ -122,12 +125,36 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     loadFromLocalStorage('accountConnections', [])
   );
   
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: getThirtyDaysAgo(),
-    endDate: getToday()
+  // Load date range from localStorage or use default
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const savedDateRange = localStorage.getItem('dateRange');
+    if (savedDateRange) {
+      try {
+        return JSON.parse(savedDateRange);
+      } catch (error) {
+        console.error("Error parsing date range from localStorage:", error);
+      }
+    }
+    return {
+      startDate: getThirtyDaysAgo(),
+      endDate: getToday()
+    };
   });
   
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  
+  // Add state for multiple campaign selection for dashboard
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>(() => {
+    const savedSelectedCampaignIds = localStorage.getItem('selectedCampaignIds');
+    if (savedSelectedCampaignIds) {
+      try {
+        return JSON.parse(savedSelectedCampaignIds);
+      } catch (error) {
+        console.error("Error parsing selected campaign IDs from localStorage:", error);
+      }
+    }
+    return [];
+  });
 
   useEffect(() => {
     if (campaigns.length > 0) {
@@ -139,6 +166,11 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     saveToLocalStorage('accountConnections', accountConnections);
   }, [accountConnections]);
+  
+  // Save selected campaign IDs to localStorage
+  useEffect(() => {
+    saveToLocalStorage('selectedCampaignIds', selectedCampaignIds);
+  }, [selectedCampaignIds]);
 
   useEffect(() => {
     setIsLoading(false);
@@ -340,6 +372,8 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       deleteCampaign,
       selectedCampaignId,
       setSelectedCampaignId,
+      selectedCampaignIds,
+      setSelectedCampaignIds,
       isLoading
     }}>
       {children}

@@ -29,6 +29,14 @@ export function DateRangePicker() {
     });
   }, [dateRange]);
   
+  // Save date range to localStorage whenever it changes
+  useEffect(() => {
+    if (dateRange.startDate && dateRange.endDate) {
+      localStorage.setItem('dateRange', JSON.stringify(dateRange));
+      console.log('Date range saved to localStorage:', dateRange);
+    }
+  }, [dateRange]);
+  
   const handleDateChange = (value: DateRange | undefined) => {
     setDate(value);
     if (value?.from) {
