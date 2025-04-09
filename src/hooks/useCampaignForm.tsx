@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -25,7 +26,7 @@ export const useCampaignForm = () => {
   // Include all accounts or create a manual account option
   const availableAccounts = accountConnections.length > 0 
     ? accountConnections 
-    : [{ id: "manual", name: "Manual Entry", platform: "google" as any, isConnected: true, lastSynced: null }];
+    : [{ id: "manual", name: "Manual Entry", platform: "google", isConnected: true, lastSynced: null }];
 
   // Calculate target income and spend based on profit and ROAS
   useEffect(() => {

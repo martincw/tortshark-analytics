@@ -1,10 +1,7 @@
 
 import React, { useState } from "react";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
-import LinkedInAdsIntegration from "@/components/integrations/LinkedInAdsIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -23,17 +20,12 @@ const IntegrationsPage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full mb-6">
           <TabsTrigger value="google-ads" className="flex-1">Google Ads</TabsTrigger>
-          <TabsTrigger value="linkedin" className="flex-1">LinkedIn Ads</TabsTrigger>
           <TabsTrigger value="facebook" className="flex-1" disabled>Facebook Ads</TabsTrigger>
           <TabsTrigger value="analytics" className="flex-1" disabled>Analytics</TabsTrigger>
         </TabsList>
         
         <TabsContent value="google-ads">
           <GoogleAdsIntegration />
-        </TabsContent>
-        
-        <TabsContent value="linkedin">
-          <LinkedInAdsIntegration />
         </TabsContent>
         
         <TabsContent value="facebook">
