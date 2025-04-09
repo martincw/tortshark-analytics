@@ -13,6 +13,7 @@ import CampaignDetail from "./pages/CampaignDetail";
 import CampaignsPage from "./pages/CampaignsPage";
 import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
+import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/campaign/:id" element={<CampaignDetail />} />
               <Route path="/add-campaign" element={<AddCampaignPage />} />
               <Route path="/accounts" element={<AccountsPage />} />
+              <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Route>

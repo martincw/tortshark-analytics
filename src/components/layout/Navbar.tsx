@@ -1,70 +1,99 @@
-
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
+import { useCampaign } from "@/contexts/CampaignContext";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Settings, Users } from "lucide-react";
+import { Menu } from "lucide-react";
 
-export function Navbar() {
-  const location = useLocation();
+interface NavItem {
+  href: string;
+  label: string;
+}
+
+const navItems: NavItem[] = [
+  { href: "/", label: "Dashboard" },
+  { href: "/campaigns", label: "Campaigns" },
+  { href: "/accounts", label: "Accounts" },
+  { href: "/integrations", label: "Integrations" },
+];
+
+export const Navbar: React.FC = () => {
+  const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
   
-  const navItems = [
-    { name: "Dashboard", path: "/", icon: <LayoutDashboard className="h-4 w-4" /> },
-    { name: "Campaigns", path: "/campaigns", icon: <FileText className="h-4 w-4" /> },
-    { name: "Accounts", path: "/accounts", icon: <Users className="h-4 w-4" /> },
-    { name: "Settings", path: "/settings", icon: <Settings className="h-4 w-4" /> },
-  ];
-  
-  const isActive = (path: string) => {
-    if (path === "/" && location.pathname === "/") return true;
-    if (path !== "/" && location.pathname.startsWith(path)) return true;
-    return false;
+  const handleCampaignSelection = (campaignId: string) => {
+    setSelectedCampaignIds(prev => {
+      if (prev.includes(campaignId)) {
+        return prev.filter(id => id !== campaignId);
+      } else {
+        return [...prev, campaignId];
+      }
+    });
+  };
+
+  const isCampaignSelected = (campaignId: string) => {
+    return selectedCampaignIds.includes(campaignId);
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <Link to="/" className="flex items-center gap-2 mr-6">
-          <span className="font-bold text-xl">TortInsights</span>
+    <div className="border-b bg-background sticky top-0 z-50">
+      <div className="flex h-16 items-center px-4">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Menu">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="pr-0">
+            <SheetHeader>
+              <SheetTitle>Menu</SheetTitle>
+              <SheetDescription>
+                Manage your campaigns and account settings from here.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="grid gap-4 py-4">
+              {navItems.map((item) => (
+                <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
+                  {item.label}
+                </Link>
+              ))}
+              
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium px-4">Campaign Filters</p>
+                <div className="space-y-2 mt-2">
+                  {campaigns.map((campaign) => (
+                    <label key={campaign.id} className="flex items-center p-2 rounded-md hover:bg-secondary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mr-2 h-4 w-4"
+                        checked={isCampaignSelected(campaign.id)}
+                        onChange={() => handleCampaignSelection(campaign.id)}
+                      />
+                      {campaign.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+        <Link to="/" className="ml-4 font-bold text-xl">
+          Campaign Tracker
         </Link>
-        <nav className="hidden md:flex items-center space-x-1 text-sm font-medium flex-1">
+        <nav className="ml-auto flex items-center space-x-6">
           {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center px-4 py-2 rounded-md transition-colors",
-                isActive(item.path)
-                  ? "bg-secondary text-secondary-foreground"
-                  : "hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              {item.icon}
-              <span className="ml-2">{item.name}</span>
+            <Link key={item.href} to={item.href} className="text-sm font-medium transition-colors hover:text-primary">
+              {item.label}
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6"
-            >
-              <line x1="4" x2="20" y1="12" y2="12" />
-              <line x1="4" x2="20" y1="6" y2="6" />
-              <line x1="4" x2="20" y1="18" y2="18" />
-            </svg>
-          </Button>
-        </div>
       </div>
-    </header>
+    </div>
   );
-}
+};

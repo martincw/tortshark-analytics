@@ -56,6 +56,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -499,6 +500,10 @@ const CampaignDetail = () => {
                 <span className="text-sm text-muted-foreground block mb-1">Target Profit</span>
                 <span className="text-xl font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
+            </div>
+            
+            <div className="mt-6">
+              <GoogleAdsMetrics campaign={campaign} />
             </div>
             
             <div className="mt-6 bg-accent/5 rounded-lg p-6 border">

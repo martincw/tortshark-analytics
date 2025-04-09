@@ -1,4 +1,3 @@
-
 export interface Campaign {
   id: string;
   name: string;
@@ -64,4 +63,18 @@ export interface AccountConnection {
   platform: "google";
   isConnected: boolean;
   lastSynced: string | null; // ISO date string
+  credentials?: {
+    customerId?: string;
+    developerToken?: string;
+  };
+}
+
+export interface GoogleAdsMetrics {
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cpc: number;
+  cpl: number; // Cost per lead
+  adSpend: number;
+  date: string;
 }

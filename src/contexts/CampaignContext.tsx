@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
+import { Campaign, DateRange, AccountConnection, StatHistoryEntry, GoogleAdsMetrics } from "../types/campaign";
 import { toast } from "sonner";
 
 interface CampaignContextType {
@@ -11,10 +10,12 @@ interface CampaignContextType {
   updateCampaign: (updatedCampaign: Campaign) => void;
   addCampaign: (newCampaign: Omit<Campaign, "id">) => string;
   addAccountConnection: (newAccount: Omit<AccountConnection, "id">) => string;
+  updateAccountConnection: (id: string, updates: Partial<AccountConnection>) => void;
   deleteCampaign: (id: string) => void;
   addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => void;
   updateStatHistoryEntry: (campaignId: string, updatedEntry: StatHistoryEntry) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
+  fetchGoogleAdsMetrics: (accountId: string, dateRange: DateRange) => Promise<GoogleAdsMetrics[] | null>;
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
   selectedCampaignIds: string[];
@@ -90,6 +91,35 @@ const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
   });
 };
 
+const generateMockGoogleAdsMetrics = (startDate: string, endDate: string): GoogleAdsMetrics[] => {
+  const metrics: GoogleAdsMetrics[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const date = d.toISOString().split('T')[0];
+    const impressions = Math.floor(Math.random() * 5000) + 500;
+    const clicks = Math.floor(Math.random() * 200) + 10;
+    const adSpend = parseFloat((Math.random() * 300 + 50).toFixed(2));
+    const ctr = parseFloat(((clicks / impressions) * 100).toFixed(2));
+    const cpc = parseFloat((adSpend / clicks).toFixed(2));
+    const leads = Math.floor(Math.random() * 10) + 1;
+    const cpl = parseFloat((adSpend / leads).toFixed(2));
+    
+    metrics.push({
+      impressions,
+      clicks,
+      ctr,
+      cpc,
+      cpl,
+      adSpend,
+      date
+    });
+  }
+  
+  return metrics;
+};
+
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
@@ -125,7 +155,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     loadFromLocalStorage('accountConnections', [])
   );
   
-  // Load date range from localStorage or use default
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const savedDateRange = localStorage.getItem('dateRange');
     if (savedDateRange) {
@@ -143,7 +172,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   
-  // Add state for multiple campaign selection for dashboard
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>(() => {
     const savedSelectedCampaignIds = localStorage.getItem('selectedCampaignIds');
     if (savedSelectedCampaignIds) {
@@ -156,6 +184,36 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     return [];
   });
 
+  const fetchGoogleAdsMetrics = async (accountId: string, dateRange: DateRange): Promise<GoogleAdsMetrics[] | null> => {
+    try {
+      const account = accountConnections.find(acc => acc.id === accountId);
+      if (!account || !account.isConnected) {
+        toast.error(`Account not found or not connected: ${accountId}`);
+        return null;
+      }
+      
+      console.log(`Fetching Google Ads metrics for account ${accountId} from ${dateRange.startDate} to ${dateRange.endDate}`);
+      
+      const metrics = generateMockGoogleAdsMetrics(dateRange.startDate, dateRange.endDate);
+      
+      return metrics;
+    } catch (error) {
+      console.error("Error fetching Google Ads metrics:", error);
+      toast.error("Failed to fetch Google Ads metrics");
+      return null;
+    }
+  };
+
+  const updateAccountConnection = (id: string, updates: Partial<AccountConnection>) => {
+    setAccountConnections(prev => {
+      const updatedConnections = prev.map(conn => 
+        conn.id === id ? { ...conn, ...updates } : conn
+      );
+      saveToLocalStorage('accountConnections', updatedConnections);
+      return updatedConnections;
+    });
+  };
+
   useEffect(() => {
     if (campaigns.length > 0) {
       console.log("Saving campaigns to localStorage:", campaigns);
@@ -167,7 +225,6 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     saveToLocalStorage('accountConnections', accountConnections);
   }, [accountConnections]);
   
-  // Save selected campaign IDs to localStorage
   useEffect(() => {
     saveToLocalStorage('selectedCampaignIds', selectedCampaignIds);
   }, [selectedCampaignIds]);
@@ -366,10 +423,12 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       updateCampaign,
       addCampaign,
       addAccountConnection,
+      updateAccountConnection,
       addStatHistoryEntry,
       updateStatHistoryEntry,
       deleteStatHistoryEntry,
       deleteCampaign,
+      fetchGoogleAdsMetrics,
       selectedCampaignId,
       setSelectedCampaignId,
       selectedCampaignIds,
