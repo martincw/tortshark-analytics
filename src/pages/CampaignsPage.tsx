@@ -1,18 +1,55 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { Button } from "@/components/ui/button";
-import { Plus, Link } from "lucide-react";
+import { Plus, Link, Bug } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { toast } from "sonner";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
+  const [showDebug, setShowDebug] = useState(false);
   
   useEffect(() => {
     console.log("CampaignsPage - Mounted with campaigns:", campaigns.length);
+    if (campaigns.length === 0) {
+      // Check localStorage directly as a backup
+      const rawCampaigns = localStorage.getItem('campaigns');
+      console.log("Direct localStorage check - campaigns:", rawCampaigns);
+    }
   }, [campaigns]);
+
+  const handleDebugToggle = () => {
+    setShowDebug(!showDebug);
+  };
+
+  const handleClearLocalStorage = () => {
+    if (window.confirm("This will delete all your campaign data. Are you sure?")) {
+      localStorage.removeItem('campaigns');
+      localStorage.removeItem('accountConnections');
+      toast.success("Local storage cleared. Refresh the page to see changes.");
+    }
+  };
+
+  const inspectLocalStorage = () => {
+    const rawCampaigns = localStorage.getItem('campaigns');
+    console.log("Raw campaigns from localStorage:", rawCampaigns);
+    
+    if (rawCampaigns) {
+      try {
+        const parsedCampaigns = JSON.parse(rawCampaigns);
+        console.log("Parsed campaigns:", parsedCampaigns);
+        toast.success(`Found ${Array.isArray(parsedCampaigns) ? parsedCampaigns.length : 0} campaigns in localStorage`);
+      } catch (e) {
+        console.error("Error parsing campaigns:", e);
+        toast.error("Error parsing campaign data");
+      }
+    } else {
+      toast.error("No campaign data found in localStorage");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -23,10 +60,39 @@ const CampaignsPage = () => {
             Manage your Rideshare, LDS, MD, and Wildfire tort campaigns
           </p>
         </div>
-        <Button onClick={() => navigate("/add-campaign")}>
-          <Plus className="mr-2 h-4 w-4" /> Add Campaign
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate("/add-campaign")}>
+            <Plus className="mr-2 h-4 w-4" /> Add Campaign
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleDebugToggle}
+            title="Debug Tools"
+          >
+            <Bug className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+      
+      {showDebug && (
+        <div className="p-4 border border-dashed rounded-lg bg-muted/50">
+          <h3 className="font-medium mb-2">Debug Tools</h3>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="outline" onClick={inspectLocalStorage}>
+              Inspect LocalStorage
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+            <Button size="sm" variant="destructive" onClick={handleClearLocalStorage}>
+              Clear LocalStorage
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Use these tools to help debug issues with your campaign data
+          </p>
+        </div>
+      )}
       
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-16">

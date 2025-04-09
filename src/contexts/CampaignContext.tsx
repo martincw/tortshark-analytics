@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry } from "../types/campaign";
 import { toast } from "sonner";
@@ -35,6 +34,7 @@ const getThirtyDaysAgo = (): string => {
 // Helper to save data to localStorage
 const saveToLocalStorage = (key: string, data: any) => {
   try {
+    console.log(`Saving ${key} to localStorage:`, data);
     localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
     console.error(`Error saving ${key} to localStorage:`, error);
@@ -45,7 +45,16 @@ const saveToLocalStorage = (key: string, data: any) => {
 const loadFromLocalStorage = (key: string, defaultValue: any) => {
   try {
     const savedData = localStorage.getItem(key);
-    return savedData ? JSON.parse(savedData) : defaultValue;
+    console.log(`Loading ${key} from localStorage. Raw data:`, savedData);
+    
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      console.log(`Parsed ${key} data:`, parsedData);
+      return parsedData;
+    }
+    
+    console.log(`No ${key} found in localStorage, using default value:`, defaultValue);
+    return defaultValue;
   } catch (error) {
     console.error(`Error loading ${key} from localStorage:`, error);
     return defaultValue;
@@ -55,6 +64,11 @@ const loadFromLocalStorage = (key: string, defaultValue: any) => {
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Update existing campaigns to ensure they have the targets property and statsHistory
   const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
+    if (!Array.isArray(campaigns)) {
+      console.error("Expected campaigns to be an array, but got:", campaigns);
+      return [];
+    }
+    
     return campaigns.map(campaign => {
       const updatedCampaign = { ...campaign };
       
@@ -85,9 +99,21 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       console.log("Raw saved campaigns:", savedCampaigns);
       
       if (savedCampaigns) {
-        const parsedCampaigns = JSON.parse(savedCampaigns);
-        console.log("Parsed campaigns:", parsedCampaigns);
-        return migrateExistingCampaigns(parsedCampaigns);
+        try {
+          const parsedCampaigns = JSON.parse(savedCampaigns);
+          console.log("Parsed campaigns:", parsedCampaigns);
+          
+          // Check if parsedCampaigns is an array
+          if (Array.isArray(parsedCampaigns)) {
+            return migrateExistingCampaigns(parsedCampaigns);
+          } else {
+            console.error("Parsed campaigns is not an array:", parsedCampaigns);
+            return [];
+          }
+        } catch (parseError) {
+          console.error("Error parsing campaigns JSON:", parseError);
+          return [];
+        }
       }
     } catch (error) {
       console.error("Error loading campaigns from localStorage:", error);
@@ -109,8 +135,10 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Save campaigns to localStorage whenever they change
   useEffect(() => {
-    console.log("Saving campaigns to localStorage:", campaigns);
-    saveToLocalStorage('campaigns', campaigns);
+    if (campaigns.length > 0) {
+      console.log("Saving campaigns to localStorage:", campaigns);
+      saveToLocalStorage('campaigns', campaigns);
+    }
   }, [campaigns]);
 
   // Save account connections to localStorage whenever they change
@@ -146,6 +174,14 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     console.log("Adding new campaign:", campaign);
     setCampaigns(prev => [...prev, campaign]);
     console.log("Campaign added successfully:", campaign);
+    
+    // Save to localStorage immediately
+    setTimeout(() => {
+      const updatedCampaigns = [...campaigns, campaign];
+      saveToLocalStorage('campaigns', updatedCampaigns);
+      console.log("Updated campaigns saved to localStorage:", updatedCampaigns);
+    }, 0);
+    
     return id;
   };
 
