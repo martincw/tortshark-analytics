@@ -62,18 +62,19 @@ const LinkedInAdsIntegration = () => {
       <Card>
         <CardHeader>
           <CardTitle>Connect with LinkedIn</CardTitle>
-          <CardDescription>Sign in with your LinkedIn account to connect</CardDescription>
+          <CardDescription>Sign in with your LinkedIn account to connect your ads</CardDescription>
         </CardHeader>
-        <CardContent className="text-center py-8">
+        <CardContent className="text-center">
           <Button 
-            onClick={handleConnect} 
+            onClick={handleConnect}
             disabled={isConnecting}
             className="w-full"
           >
-            {isConnecting ? 
-              <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Connecting...</> : 
+            {isConnecting ? (
+              <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Connecting...</>
+            ) : (
               <><LinkIcon className="h-4 w-4 mr-2" /> Sign in with LinkedIn</>
-            }
+            )}
           </Button>
         </CardContent>
       </Card>
