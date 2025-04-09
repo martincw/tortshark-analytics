@@ -24,9 +24,17 @@ export const useCampaignForm = () => {
   const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
   
   // Include all accounts or create a manual account option
-  const availableAccounts = accountConnections.length > 0 
+  const manualAccount: AccountConnection = { 
+    id: "manual", 
+    name: "Manual Entry", 
+    platform: "google", 
+    isConnected: true, 
+    lastSynced: null 
+  };
+  
+  const availableAccounts: AccountConnection[] = accountConnections.length > 0 
     ? accountConnections 
-    : [{ id: "manual", name: "Manual Entry", platform: "google", isConnected: true, lastSynced: null }];
+    : [manualAccount];
 
   // Calculate target income and spend based on profit and ROAS
   useEffect(() => {
