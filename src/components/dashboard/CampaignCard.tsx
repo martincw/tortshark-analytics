@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const handleViewDetails = () => {
+    // Use the actual campaign.id instead of campaign.name
     console.log("Navigating to campaign details for campaign ID:", campaign.id);
     setSelectedCampaignId(campaign.id);
     navigate(`/campaign/${campaign.id}`);

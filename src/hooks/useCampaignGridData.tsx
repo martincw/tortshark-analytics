@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -10,14 +9,16 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   
   // Memoize the grouping operation to prevent recalculations
   const groupedCampaigns = useMemo(() => {
+    // Create a deep copy of the campaigns to avoid any reference issues
     return campaigns.reduce((acc, campaign) => {
-      const tortType = campaign.name.split(" - ")[0];
+      // Use actual campaign name instead of splitting (which was causing issues)
+      const tortType = campaign.name;
       
       if (!acc[tortType]) {
         acc[tortType] = [];
       }
       
-      acc[tortType].push(campaign);
+      acc[tortType].push({...campaign});
       return acc;
     }, {} as Record<string, Campaign[]>);
   }, [campaigns]);
@@ -25,7 +26,8 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   // Memoize the consolidated campaigns calculation
   const consolidatedCampaigns = useMemo(() => {
     return Object.entries(groupedCampaigns).map(([tortType, campaigns]) => {
-      const baseCampaign = { ...campaigns[0] };
+      // Make a deep copy of the first campaign to avoid reference issues
+      const baseCampaign = JSON.parse(JSON.stringify(campaigns[0]));
       
       const totalStats = campaigns.reduce((acc, campaign) => {
         acc.adSpend += campaign.stats.adSpend;
@@ -44,9 +46,9 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         return acc;
       }, { leads: 0, cases: 0, retainers: 0, revenue: 0, date: baseCampaign.manualStats.date });
       
+      // Keep the actual campaign ID (not using tortType as ID)
       return {
         ...baseCampaign,
-        id: tortType,
         name: tortType,
         stats: totalStats,
         manualStats: totalManualStats
