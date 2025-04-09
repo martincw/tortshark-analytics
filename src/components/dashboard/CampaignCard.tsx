@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -106,9 +105,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     }
   };
 
-  const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
-  const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
-  const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
+  const roiProgress = campaign.targets.targetROAS > 0
+    ? Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100)
+    : 0;
+    
+  const casesProgress = campaign.targets.monthlyRetainers > 0
+    ? Math.min(Math.round((campaign.manualStats.retainers / campaign.targets.monthlyRetainers) * 100), 100)
+    : 0;
+    
+  const profitProgress = campaign.targets.targetProfit > 0
+    ? Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100)
+    : 0;
   
   const getRoiVariant = () => {
     if (roiProgress >= 100) return "success";
@@ -220,7 +227,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Cases</span>
-                  <span className="font-medium">{campaign.manualStats.cases} of {campaign.targets.monthlyRetainers}</span>
+                  <span className="font-medium">{campaign.manualStats.retainers} of {campaign.targets.monthlyRetainers}</span>
                 </div>
                 <Progress value={casesProgress} size="sm" variant={getCasesVariant()} className="w-full" />
               </div>

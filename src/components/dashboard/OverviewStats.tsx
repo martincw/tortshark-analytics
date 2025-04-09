@@ -49,7 +49,7 @@ export function OverviewStats() {
   
   // Calculate ROI percentage
   const roi = aggregateStats.totalAdSpend > 0
-    ? ((aggregateStats.totalProfit / aggregateStats.totalAdSpend) * 100)
+    ? ((aggregateStats.totalRevenue / aggregateStats.totalAdSpend) * 100) - 100
     : 0;
 
   // Calculate average cost per lead
@@ -72,12 +72,17 @@ export function OverviewStats() {
     ? aggregateStats.totalTargetROAS / filteredCampaigns.length
     : 200; // Default target ROI if no campaigns
   
-  const roiProgress = Math.min(Math.round((roi / averageTargetROAS) * 100), 100);
-  
-  const casesProgress = aggregateStats.totalTargetRetainers > 0
-    ? Math.min(Math.round((aggregateStats.totalCases / aggregateStats.totalTargetRetainers) * 100), 100)
+  // Fix: Correctly calculate ROI progress percentage
+  const roiProgress = averageTargetROAS > 0
+    ? Math.min(Math.round((roi / averageTargetROAS) * 100), 100)
     : 0;
   
+  // Fix: Correctly calculate cases progress percentage
+  const casesProgress = aggregateStats.totalTargetRetainers > 0
+    ? Math.min(Math.round((aggregateStats.totalRetainers / aggregateStats.totalTargetRetainers) * 100), 100)
+    : 0;
+  
+  // Fix: Correctly calculate profit progress percentage
   const profitProgress = aggregateStats.totalTargetProfit > 0
     ? Math.min(Math.round((aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100), 100)
     : 0;

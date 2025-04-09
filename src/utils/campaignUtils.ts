@@ -16,8 +16,10 @@ export const calculateMetrics = (campaign: Campaign): CampaignMetrics => {
   
   const profit = manualStats.revenue - stats.adSpend;
   
+  // Fix: Calculate ROI as return percentage beyond 100%
+  // Example: If you spent $100 and got back $300, that's a 200% ROI
   const roi = stats.adSpend > 0 
-    ? (profit / stats.adSpend) * 100 
+    ? (manualStats.revenue / stats.adSpend) * 100 
     : 0;
 
   return {
