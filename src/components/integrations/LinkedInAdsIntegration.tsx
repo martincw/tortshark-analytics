@@ -39,7 +39,7 @@ const LinkedInAdsIntegration = () => {
       const newAccount: AccountConnection = {
         id: `linkedin-${Date.now()}`,
         name: "LinkedIn Ads Account",
-        platform: "google", // This should be 'linkedin', but the type only accepts 'google' currently
+        platform: "linkedin", // Now using the correct platform type
         isConnected: true,
         lastSynced: new Date().toISOString(),
       };

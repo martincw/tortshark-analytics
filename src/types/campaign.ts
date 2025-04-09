@@ -1,7 +1,8 @@
+
 export interface Campaign {
   id: string;
   name: string;
-  platform: "google";
+  platform: "google" | "linkedin";
   accountId: string;
   accountName: string;
   stats: CampaignStats;
@@ -60,7 +61,7 @@ export interface DateRange {
 export interface AccountConnection {
   id: string;
   name: string;
-  platform: "google";
+  platform: "google" | "linkedin";
   isConnected: boolean;
   lastSynced: string | null; // ISO date string
   credentials?: {
