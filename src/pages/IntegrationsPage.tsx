@@ -44,7 +44,10 @@ const IntegrationsPage = () => {
             return;
           }
           
-          await handleOAuthCallback();
+          const success = await handleOAuthCallback();
+          if (!success) {
+            setAuthError("Failed to process authentication. Please try again.");
+          }
         } catch (error) {
           console.error("Error processing OAuth callback:", error);
           setAuthError("Failed to process authentication. Please try again.");

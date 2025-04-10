@@ -34,10 +34,15 @@ const AccountsPage = () => {
   
   useEffect(() => {
     // Check if Google auth is already valid
-    setIsGoogleConnected(isGoogleAuthValid());
+    const checkGoogleAuth = async () => {
+      const isValid = await isGoogleAuthValid();
+      setIsGoogleConnected(isValid);
+    };
+    
+    checkGoogleAuth();
   }, []);
   
-  const handleAddAccount = () => {
+  const handleAddAccount = async () => {
     if (!newAccountName.trim()) {
       toast.error("Please enter an account name");
       return;
@@ -49,7 +54,7 @@ const AccountsPage = () => {
       return;
     }
     
-    const credentials = getGoogleAdsCredentials();
+    const credentials = await getGoogleAdsCredentials();
     
     const newAccount: Omit<AccountConnection, "id"> = {
       name: newAccountName.trim(),

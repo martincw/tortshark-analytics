@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 // Store the developer token
 const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
 
-interface GoogleAdsCredentials {
+export interface GoogleAdsCredentials {
   customerId: string;
   accessToken: string;
   refreshToken?: string;
@@ -46,7 +46,7 @@ export const initiateGoogleAuth = async () => {
   }
 };
 
-export const handleOAuthCallback = async () => {
+export const handleOAuthCallback = async (): Promise<boolean> => {
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
   

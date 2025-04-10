@@ -33,11 +33,15 @@ const GoogleAdsIntegration = () => {
   
   // Check for existing Google auth on component mount
   useEffect(() => {
-    const credentials = getGoogleAdsCredentials();
-    if (credentials) {
-      setCustomerId(credentials.customerId);
-      setDeveloperToken(credentials.developerToken);
-    }
+    const checkCredentials = async () => {
+      const credentials = await getGoogleAdsCredentials();
+      if (credentials) {
+        setCustomerId(credentials.customerId);
+        setDeveloperToken(credentials.developerToken);
+      }
+    };
+    
+    checkCredentials();
   }, []);
   
   const connectToGoogleAds = async (customerId: string, developerToken: string): Promise<boolean> => {
@@ -165,7 +169,7 @@ const GoogleAdsIntegration = () => {
     }
   };
 
-  const handleGoogleSignInSuccess = (credentials: { customerId: string; developerToken: string }) => {
+  const handleGoogleSignInSuccess = async (credentials: { customerId: string; developerToken: string }) => {
     setCustomerId(credentials.customerId);
     setDeveloperToken(credentials.developerToken);
     handleConnect();
