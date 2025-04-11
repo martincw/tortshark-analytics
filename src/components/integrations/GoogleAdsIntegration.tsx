@@ -1,262 +1,213 @@
 
 import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { RefreshCw, LinkIcon, AlertCircle } from "lucide-react";
-import { useCampaign } from "@/contexts/CampaignContext";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AccountConnection } from "@/types/campaign";
-import GoogleSignIn from "./GoogleSignIn";
-import { getGoogleAdsCredentials, revokeGoogleAccess } from "@/services/googleAdsService";
+import { toast } from "sonner";
+import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw } from "lucide-react";
+import { 
+  initiateGoogleAuth, 
+  isGoogleAuthValid, 
+  revokeGoogleAccess,
+  refreshGoogleToken
+} from "@/services/googleAdsService";
+import { useNavigate } from "react-router-dom";
 
-const GoogleAdsIntegration = () => {
-  const { accountConnections, updateAccountConnection, addAccountConnection } = useCampaign();
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [customerId, setCustomerId] = useState<string>("");
-  const [developerToken, setDeveloperToken] = useState<string>("Ngh3IukgQ3ovdkH3M0smUg");
-  const [connectionProgress, setConnectionProgress] = useState<number>(0);
-  const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "success" | "error">("idle");
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+const GoogleAdsIntegration: React.FC = () => {
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isChecking, setIsChecking] = useState<boolean>(true);
+  const [isDisconnecting, setIsDisconnecting] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const navigate = useNavigate();
 
-  const googleAdsAccounts = accountConnections.filter(account => account.platform === "google");
-  
-  // Check for existing Google auth on component mount
+  // Check if Google Ads is already connected
   useEffect(() => {
-    const checkCredentials = async () => {
-      const credentials = await getGoogleAdsCredentials();
-      if (credentials) {
-        setCustomerId(credentials.customerId);
-        setDeveloperToken(credentials.developerToken);
+    const checkConnection = async () => {
+      setIsChecking(true);
+      try {
+        const connected = await isGoogleAuthValid();
+        setIsConnected(connected);
+      } catch (error) {
+        console.error("Error checking Google connection:", error);
+      } finally {
+        setIsChecking(false);
       }
     };
     
-    checkCredentials();
+    checkConnection();
   }, []);
-  
-  const connectToGoogleAds = async (customerId: string, developerToken: string): Promise<boolean> => {
-    // In a real implementation, this would verify the Google Ads API connection
+
+  // Handle connecting to Google Ads
+  const handleConnect = async () => {
     try {
-      // Simulate API request
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // This would be replaced with real API validation
-      if (!customerId.match(/\d{3}-\d{3}-\d{4}/) || !developerToken || developerToken.length < 8) {
-        throw new Error("Invalid credentials");
-      }
-      
-      return true;
+      await initiateGoogleAuth();
     } catch (error) {
-      console.error("Google Ads API connection error:", error);
-      return false;
-    }
-  };
-  
-  const handleConnect = async (accountId?: string) => {
-    if (!accountId && (!customerId.trim() || !developerToken.trim())) {
-      toast.error("Please sign in with Google first");
-      return;
-    }
-    
-    setIsConnecting(true);
-    setConnectionProgress(0);
-    setConnectionStatus("connecting");
-    
-    try {
-      // Increment progress
-      for (let i = 0; i <= 80; i += 20) {
-        setConnectionProgress(i);
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-      
-      let success = false;
-      
-      if (accountId) {
-        // Update existing account
-        const account = accountConnections.find(acc => acc.id === accountId);
-        if (account && account.credentials) {
-          success = await connectToGoogleAds(
-            account.credentials.customerId || "", 
-            account.credentials.developerToken || ""
-          );
-        }
-      } else {
-        // Connect new account
-        success = await connectToGoogleAds(customerId, developerToken);
-      }
-      
-      setConnectionProgress(100);
-      
-      if (success) {
-        if (accountId) {
-          // Update existing account
-          updateAccountConnection(accountId, {
-            isConnected: true,
-            lastSynced: new Date().toISOString()
-          });
-        } else {
-          // Add new account connection
-          const newAccount: AccountConnection = {
-            id: `google-${Date.now()}`,
-            name: `Google Ads (${customerId})`,
-            platform: "google",
-            isConnected: true,
-            lastSynced: new Date().toISOString(),
-            credentials: {
-              customerId,
-              developerToken
-            }
-          };
-          addAccountConnection(newAccount);
-        }
-        setConnectionStatus("success");
-        toast.success("Successfully connected to Google Ads");
-      } else {
-        setConnectionStatus("error");
-        toast.error("Failed to connect to Google Ads. Please check your credentials and try again.");
-      }
-    } catch (error) {
-      setConnectionStatus("error");
-      toast.error("An error occurred while connecting to Google Ads");
-      console.error("Connection error:", error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-  
-  const handleRefresh = async (accountId: string) => {
-    setIsConnecting(true);
-    
-    try {
-      // In a real implementation, this would fetch fresh data from Google Ads API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      updateAccountConnection(accountId, {
-        lastSynced: new Date().toISOString()
-      });
-      
-      toast.success("Account data refreshed successfully");
-    } catch (error) {
-      toast.error("Failed to refresh account data");
-      console.error("Refresh error:", error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-  
-  const handleDisconnect = async (accountId: string) => {
-    try {
-      await revokeGoogleAccess();
-      
-      updateAccountConnection(accountId, {
-        isConnected: false
-      });
-      
-      toast.success("Account disconnected successfully");
-    } catch (error) {
-      toast.error("Failed to disconnect account");
-      console.error("Disconnect error:", error);
+      console.error("Error initiating Google auth:", error);
+      toast.error("Failed to connect to Google Ads");
     }
   };
 
-  const handleGoogleSignInSuccess = async (credentials: { customerId: string; developerToken: string }) => {
-    setCustomerId(credentials.customerId);
-    setDeveloperToken(credentials.developerToken);
-    handleConnect();
+  // Handle disconnecting from Google Ads
+  const handleDisconnect = async () => {
+    if (window.confirm("Are you sure you want to disconnect from Google Ads?")) {
+      setIsDisconnecting(true);
+      try {
+        const success = await revokeGoogleAccess();
+        if (success) {
+          setIsConnected(false);
+          toast.success("Successfully disconnected from Google Ads");
+        } else {
+          toast.error("Failed to disconnect from Google Ads");
+        }
+      } catch (error) {
+        console.error("Error disconnecting from Google Ads:", error);
+        toast.error("Failed to disconnect from Google Ads");
+      } finally {
+        setIsDisconnecting(false);
+      }
+    }
+  };
+
+  // Handle refreshing the token
+  const handleRefreshToken = async () => {
+    setIsRefreshing(true);
+    try {
+      const success = await refreshGoogleToken();
+      if (success) {
+        toast.success("Successfully refreshed Google Ads token");
+      } else {
+        toast.error("Failed to refresh Google Ads token");
+      }
+    } catch (error) {
+      console.error("Error refreshing Google Ads token:", error);
+      toast.error("Failed to refresh Google Ads token");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Handle navigating to accounts page
+  const handleGoToAccounts = () => {
+    navigate("/accounts");
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">Google Ads Integration</h1>
-        <p className="text-muted-foreground">
-          Connect your Google Ads accounts to automatically import campaign data
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <img 
+                src="/placeholder.svg" 
+                alt="Google Ads Logo" 
+                className="w-6 h-6"
+              />
+              Google Ads
+            </div>
+            {isConnected && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-muted text-success-DEFAULT">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Connected
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Connect to Google Ads to import campaign data and track performance.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isChecking ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+              <span>Checking connection status...</span>
+            </div>
+          ) : isConnected ? (
+            <div className="space-y-4">
+              <Alert className="bg-success-muted border-success-muted">
+                <CheckCircle2 className="h-4 w-4 text-success-DEFAULT" />
+                <AlertDescription className="text-success-DEFAULT">
+                  Your Google Ads account is connected successfully. You can now add ad accounts and import campaign data.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="flex flex-col space-y-2">
+                <h4 className="text-sm font-medium">Connected Services:</h4>
+                <ul className="list-disc list-inside text-sm text-muted-foreground pl-2">
+                  <li>Google Ads API Access</li>
+                  <li>Campaign Management</li>
+                  <li>Performance Metrics</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Connect your Google Ads account to import campaign data, track performance, and manage ads directly.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="bg-muted/50 rounded-md p-4 text-sm">
+                <h4 className="font-medium mb-2">Why connect Google Ads?</h4>
+                <ul className="list-disc list-inside text-muted-foreground pl-2 space-y-1">
+                  <li>Import campaigns automatically</li>
+                  <li>Track campaign performance metrics</li>
+                  <li>Monitor ad spend and ROI</li>
+                  <li>Access historical data</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          {isConnected ? (
+            <div className="flex gap-2 w-full">
+              <Button 
+                variant="outline" 
+                onClick={handleGoToAccounts}
+                className="flex-1"
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                Manage Ad Accounts
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleRefreshToken}
+                disabled={isRefreshing}
+                className="flex-1"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh Token'}
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+                className="flex-1"
+              >
+                <Unlink className="mr-2 h-4 w-4" />
+                {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={handleConnect} className="w-full">
+              <Link2 className="mr-2 h-4 w-4" />
+              Connect to Google Ads
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+
+      <div className="text-sm text-muted-foreground border-t pt-6">
+        <h4 className="font-medium mb-2">About Google Ads API Integration</h4>
+        <p className="mb-2">
+          This integration uses OAuth 2.0 to securely connect to your Google Ads account. We only request access to the necessary permissions needed to import and analyze your campaign data.
+        </p>
+        <p>
+          Your credentials are stored securely and you can revoke access at any time. No personal information is collected during this process.
         </p>
       </div>
-      
-      <Alert variant="default" className="bg-amber-50 border-amber-200">
-        <AlertCircle className="h-4 w-4 text-amber-500" />
-        <AlertDescription className="text-amber-800">
-          Sign in with your Google account to connect to your Google Ads API
-        </AlertDescription>
-      </Alert>
-      
-      <GoogleSignIn 
-        onSuccess={handleGoogleSignInSuccess} 
-        isConnecting={isConnecting}
-        connectionProgress={connectionProgress}
-      />
-      
-      {googleAdsAccounts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Connected Google Ads Accounts</CardTitle>
-            <CardDescription>
-              Manage your connected Google Ads accounts
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {googleAdsAccounts.map((account) => (
-                <div 
-                  key={account.id}
-                  className="flex items-center justify-between p-4 border rounded-md"
-                >
-                  <div>
-                    <h3 className="font-medium">{account.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {account.isConnected ? "Connected" : "Not connected"} 
-                      {account.lastSynced && ` • Last synced: ${new Date(account.lastSynced).toLocaleDateString()}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {account.isConnected ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRefresh(account.id)}
-                          disabled={isConnecting}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Refresh
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDisconnect(account.id)}
-                          disabled={isConnecting}
-                        >
-                          Disconnect
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnect(account.id)}
-                        disabled={isConnecting}
-                      >
-                        <LinkIcon className="h-4 w-4 mr-2" />
-                        Connect
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
