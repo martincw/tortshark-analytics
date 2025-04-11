@@ -39,20 +39,65 @@ serve(async (req) => {
     if (action === "authorize") {
       console.log("Initiating Google OAuth flow");
       
-      // Construct Google OAuth URL
-      const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-      authUrl.searchParams.append("client_id", GOOGLE_CLIENT_ID);
-      authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
-      authUrl.searchParams.append("response_type", "code");
-      authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPES);
-      authUrl.searchParams.append("access_type", "offline");
-      authUrl.searchParams.append("prompt", "consent");
-      
-      console.log("Redirect URL:", authUrl.toString());
-      
-      return new Response(JSON.stringify({ url: authUrl.toString() }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      try {
+        // Log all parameters for debugging
+        console.log("Parameters:", {
+          client_id: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
+          redirect_uri: REDIRECT_URI,
+          scopes: GOOGLE_ADS_API_SCOPES
+        });
+        
+        if (!GOOGLE_CLIENT_ID) {
+          throw new Error("GOOGLE_CLIENT_ID is not configured");
+        }
+        
+        if (!GOOGLE_CLIENT_SECRET) {
+          throw new Error("GOOGLE_CLIENT_SECRET is not configured");
+        }
+        
+        // Construct Google OAuth URL
+        const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+        authUrl.searchParams.append("client_id", GOOGLE_CLIENT_ID);
+        authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
+        authUrl.searchParams.append("response_type", "code");
+        authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPES);
+        authUrl.searchParams.append("access_type", "offline");
+        authUrl.searchParams.append("prompt", "consent");
+        
+        // Add state parameter for security
+        const state = crypto.randomUUID();
+        authUrl.searchParams.append("state", state);
+        
+        console.log("Generated OAuth URL:", authUrl.toString());
+        
+        return new Response(JSON.stringify({ 
+          url: authUrl.toString(),
+          debug: {
+            client_id_length: GOOGLE_CLIENT_ID.length,
+            redirect_uri: REDIRECT_URI,
+            has_client_secret: GOOGLE_CLIENT_SECRET.length > 0,
+            site_url: Deno.env.get("SITE_URL") || "Not set"
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Error generating OAuth URL:", error);
+        return new Response(JSON.stringify({ 
+          error: "Failed to generate OAuth URL", 
+          details: error.message,
+          env_vars_set: {
+            GOOGLE_CLIENT_ID: !!GOOGLE_CLIENT_ID,
+            GOOGLE_CLIENT_SECRET: !!GOOGLE_CLIENT_SECRET,
+            SITE_URL: !!Deno.env.get("SITE_URL"),
+            SUPABASE_URL: !!SUPABASE_URL,
+            SUPABASE_ANON_KEY: !!SUPABASE_ANON_KEY
+          }
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
     
     // Handle OAuth callback
@@ -352,7 +397,10 @@ serve(async (req) => {
     console.error("Error in google-oauth function:", error);
     
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ 
+        error: error.message || "Internal server error",
+        stack: error.stack
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
