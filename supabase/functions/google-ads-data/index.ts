@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -8,6 +9,7 @@ const GOOGLE_ADS_API_VERSION = "v15";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -18,7 +20,7 @@ async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string;
       .from("google_ads_tokens")
       .select("access_token, refresh_token, expires_at")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
     
     if (tokensError) {
       console.error("Error fetching tokens:", tokensError);
@@ -62,6 +64,10 @@ async function refreshGoogleToken(refreshToken: string): Promise<any> {
   const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
   const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
   
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    throw new Error("Google OAuth credentials not configured");
+  }
+  
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -76,7 +82,7 @@ async function refreshGoogleToken(refreshToken: string): Promise<any> {
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Token refresh failed:", errorText);
-    throw new Error("Failed to refresh token");
+    throw new Error(`Failed to refresh token: ${errorText}`);
   }
   
   return await response.json();
@@ -133,7 +139,7 @@ async function fetchCampaignMetrics(
 
 function transformCampaignMetrics(apiResponse: any): any[] {
   try {
-    if (!apiResponse.results || !Array.isArray(apiResponse.results)) {
+    if (!apiResponse || !apiResponse.results || !Array.isArray(apiResponse.results)) {
       return [];
     }
     
@@ -178,18 +184,48 @@ serve(async (req) => {
     
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
+    
+    if (!token) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized - No token provided" }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     
     if (userError || !user) {
       console.error("User authentication error:", userError);
-      throw new Error("Unauthorized");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Unauthorized", 
+          details: userError?.message 
+        }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
     
     if (action === "get-metrics") {
       const tokensResult = await getGoogleAdsToken(user.id);
       
       if (!tokensResult) {
-        throw new Error("Failed to get Google Ads authentication token");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to get Google Ads authentication token" 
+          }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
       
       const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
@@ -214,6 +250,7 @@ serve(async (req) => {
       } catch (apiError) {
         console.error("Error fetching metrics from Google Ads API:", apiError);
         
+        // Try refreshing token if available
         if (tokensResult.refreshToken) {
           try {
             const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
@@ -243,11 +280,30 @@ serve(async (req) => {
               }
             );
           } catch (refreshError) {
-            throw new Error("Failed to refresh token and retry API call");
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: "Failed to refresh token and retry API call",
+                details: refreshError.message
+              }),
+              { 
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
           }
-        } else {
-          throw apiError;
         }
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: apiError.message || "API request failed" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
     }
     
@@ -255,89 +311,57 @@ serve(async (req) => {
       const tokensResult = await getGoogleAdsToken(user.id);
       
       if (!tokensResult) {
-        throw new Error("Failed to get Google Ads authentication token");
-      }
-      
-      const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
-      
-      try {
-        const mockAccounts = [
-          {
-            id: "1234567890",
-            name: "Main Marketing Account",
-            customerId: "1234567890",
-            currency: "USD",
-            timeZone: "America/Los_Angeles",
-            status: "ENABLED"
-          },
-          {
-            id: "2345678901",
-            name: "E-commerce Campaign",
-            customerId: "2345678901",
-            currency: "USD",
-            timeZone: "America/Chicago",
-            status: "ENABLED"
-          },
-          {
-            id: "3456789012",
-            name: "Brand Awareness",
-            customerId: "3456789012",
-            currency: "USD",
-            timeZone: "America/New_York",
-            status: "ENABLED"
-          }
-        ];
-        
         return new Response(
-          JSON.stringify({ success: true, accounts: mockAccounts }),
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to get Google Ads authentication token" 
+          }),
           { 
+            status: 401,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
-      } catch (apiError) {
-        console.error("Error fetching accounts from Google Ads API:", apiError);
-        
-        if (tokensResult.refreshToken) {
-          try {
-            const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
-            
-            await supabase
-              .from("google_ads_tokens")
-              .update({
-                access_token: refreshedTokens.access_token,
-                expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
-              })
-              .eq("user_id", user.id);
-            
-            return new Response(
-              JSON.stringify({ 
-                success: true, 
-                accounts: [
-                  {
-                    id: "1234567890",
-                    name: "Main Marketing Account (Refreshed)",
-                    customerId: "1234567890",
-                    currency: "USD",
-                    timeZone: "America/Los_Angeles"
-                  }
-                ],
-                message: "Used refreshed token"
-              }),
-              { 
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
-          } catch (refreshError) {
-            throw new Error("Failed to refresh token and retry API call");
-          }
-        } else {
-          throw apiError;
-        }
       }
+      
+      // TODO: In a production environment, these accounts would come from 
+      // the actual Google Ads API. For now, we'll provide mock data.
+      const mockAccounts = [
+        {
+          id: "1234567890",
+          name: "Main Marketing Account",
+          customerId: "1234567890",
+          currency: "USD",
+          timeZone: "America/Los_Angeles",
+          status: "ENABLED"
+        },
+        {
+          id: "2345678901",
+          name: "E-commerce Campaign",
+          customerId: "2345678901",
+          currency: "USD",
+          timeZone: "America/Chicago",
+          status: "ENABLED"
+        },
+        {
+          id: "3456789012",
+          name: "Brand Awareness",
+          customerId: "3456789012",
+          currency: "USD",
+          timeZone: "America/New_York",
+          status: "ENABLED"
+        }
+      ];
+      
+      return new Response(
+        JSON.stringify({ success: true, accounts: mockAccounts }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
     
     return new Response(
-      JSON.stringify({ error: "Invalid action" }),
+      JSON.stringify({ success: false, error: "Invalid action" }),
       { 
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -347,7 +371,11 @@ serve(async (req) => {
     console.error("Error in google-ads-data function:", error);
     
     return new Response(
-      JSON.stringify({ success: false, error: error.message || "Internal server error" }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || "Internal server error",
+        stack: error.stack
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

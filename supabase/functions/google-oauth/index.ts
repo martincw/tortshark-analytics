@@ -41,36 +41,25 @@ serve(async (req) => {
     const requestData = await req.json();
     const action = requestData.action;
     
-    // Get user ID from the auth header
+    // Get user ID from the auth header if available
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
 
-    // Add detailed logging
+    // Log auth state for debugging (not user data)
     console.log("Auth header present:", Boolean(authHeader));
     console.log("Token length:", token.length);
 
-    // Only require authentication for non-callback actions
-    if (!token && action !== "callback" && action !== "authorize") {
-      console.error("No authorization token provided");
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Unauthorized - No authorization token provided" 
-        }),
-        { 
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Only validate user if token is provided
+    // Validate token when needed, but don't block authorize and callback actions
     let user = null;
     if (token) {
       try {
+        // Only attempt to get user if there's a token
         const { data, error: userError } = await supabase.auth.getUser(token);
+        
         if (userError) {
           console.error("User authentication error:", userError);
+          
+          // Only require auth for non-callback actions
           if (action !== "callback" && action !== "authorize") {
             return new Response(
               JSON.stringify({ 
@@ -90,6 +79,8 @@ serve(async (req) => {
         }
       } catch (authError) {
         console.error("Error during authentication check:", authError);
+        
+        // Only require auth for non-callback actions
         if (action !== "callback" && action !== "authorize") {
           return new Response(
             JSON.stringify({ 
@@ -229,7 +220,7 @@ serve(async (req) => {
         console.log(`Token exchange response status: ${responseStatus}`);
         console.log(`Token exchange response headers: ${JSON.stringify([...tokenResponse.headers])}`);
         
-        if (responseTextRaw.length < 200) {
+        if (responseTextRaw.length < 500) {
           // If response is small, log it fully (it's likely an error)
           console.log(`Token exchange response body: ${responseTextRaw}`);
         } else {
@@ -285,12 +276,19 @@ serve(async (req) => {
           console.error("User info error:", userInfoError);
         }
         
-        const userInfo = await userInfoResponse.json();
-        console.log("Received user info:", JSON.stringify({
-          email: userInfo.email,
-          has_id: !!userInfo.id,
-          has_name: !!userInfo.name
-        }));
+        let userInfo = {};
+        try {
+          userInfo = await userInfoResponse.json();
+          console.log("Received user info:", JSON.stringify({
+            email: userInfo.email,
+            has_id: !!userInfo.id,
+            has_name: !!userInfo.name
+          }));
+        } catch (userInfoError) {
+          console.error("Error parsing user info:", userInfoError);
+          // Continue with empty user info rather than failing
+          userInfo = { email: "unknown@example.com" };
+        }
         
         // For callback, we'll proceed even without a valid user if there's no token
         if (!user && !token) {
@@ -441,7 +439,10 @@ serve(async (req) => {
       if (!user) {
         console.error("No authenticated user for get-credentials");
         return new Response(
-          JSON.stringify({ success: false, error: "Unauthorized - No valid user session" }),
+          JSON.stringify({ 
+            success: false, 
+            error: "Unauthorized - No valid user session" 
+          }),
           { 
             status: 401,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -454,14 +455,15 @@ serve(async (req) => {
         const { data: tokens, error: tokensError } = await supabase
           .from('google_ads_tokens')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .maybeSingle();
         
         if (tokensError) {
           console.error("Error fetching tokens:", tokensError);
           throw new Error("Failed to retrieve authentication tokens");
         }
         
-        if (!tokens || tokens.length === 0) {
+        if (!tokens) {
           return new Response(
             JSON.stringify({ success: false, error: "No credentials found" }),
             { 
@@ -470,12 +472,10 @@ serve(async (req) => {
           );
         }
         
-        const tokenData = tokens[0]; // Use the first record
-        
         // Check if token is expired
-        const isExpired = new Date(tokenData.expires_at) <= new Date();
+        const isExpired = new Date(tokens.expires_at) <= new Date();
         
-        if (isExpired && tokenData.refresh_token) {
+        if (isExpired && tokens.refresh_token) {
           console.log("Token expired, refreshing...");
           
           try {
@@ -487,13 +487,14 @@ serve(async (req) => {
                 client_id: GOOGLE_CLIENT_ID,
                 client_secret: GOOGLE_CLIENT_SECRET,
                 grant_type: "refresh_token",
-                refresh_token: tokenData.refresh_token,
+                refresh_token: tokens.refresh_token,
               }),
             });
             
             if (!refreshResponse.ok) {
-              console.error("Token refresh failed:", await refreshResponse.text());
-              throw new Error("Failed to refresh token");
+              const refreshErrorText = await refreshResponse.text();
+              console.error("Token refresh failed:", refreshErrorText);
+              throw new Error(`Failed to refresh token: ${refreshErrorText}`);
             }
             
             const newTokens = await refreshResponse.json();
@@ -514,7 +515,7 @@ serve(async (req) => {
                 customerId: "1234567890", // Mock customer ID
                 developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
                 accessToken: newTokens.access_token,
-                userEmail: tokenData.email
+                userEmail: tokens.email
               }),
               { 
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -532,8 +533,8 @@ serve(async (req) => {
             success: true, 
             customerId: "1234567890", // Mock customer ID
             developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
-            accessToken: tokenData.access_token,
-            userEmail: tokenData.email
+            accessToken: tokens.access_token,
+            userEmail: tokens.email
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -572,50 +573,87 @@ serve(async (req) => {
         .from("google_ads_tokens")
         .select("refresh_token")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
       if (tokensError || !tokens || !tokens.refresh_token) {
         console.error("Error fetching refresh token:", tokensError);
-        throw new Error("No refresh token found");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "No refresh token found" 
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
       
-      // Refresh the token
-      const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: GOOGLE_CLIENT_ID,
-          client_secret: GOOGLE_CLIENT_SECRET,
-          grant_type: "refresh_token",
-          refresh_token: tokens.refresh_token,
-        }),
-      });
-      
-      if (!refreshResponse.ok) {
-        console.error("Token refresh failed:", await refreshResponse.text());
-        throw new Error("Failed to refresh token");
-      }
-      
-      const newTokens = await refreshResponse.json();
-      
-      // Update stored tokens
-      await supabase
-        .from("google_ads_tokens")
-        .update({
-          access_token: newTokens.access_token,
-          expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
-        })
-        .eq("user_id", user.id);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          accessToken: newTokens.access_token 
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      try {
+        // Refresh the token
+        const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            grant_type: "refresh_token",
+            refresh_token: tokens.refresh_token,
+          }),
+        });
+        
+        if (!refreshResponse.ok) {
+          const errorText = await refreshResponse.text();
+          console.error("Token refresh failed:", errorText);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to refresh token: ${errorText}` 
+            }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
         }
-      );
+        
+        const newTokens = await refreshResponse.json();
+        
+        // Update stored tokens
+        const { error: updateError } = await supabase
+          .from("google_ads_tokens")
+          .update({
+            access_token: newTokens.access_token,
+            expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+          })
+          .eq("user_id", user.id);
+        
+        if (updateError) {
+          console.error("Error updating token in database:", updateError);
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            accessToken: newTokens.access_token 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Unknown error refreshing token" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
     
     // Revoke access
@@ -636,23 +674,47 @@ serve(async (req) => {
         .from("google_ads_tokens")
         .select("access_token")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
       if (tokensError || !tokens) {
         console.error("Error fetching token for revocation:", tokensError);
       } else {
         // Call Google's revocation endpoint
-        await fetch(`https://oauth2.googleapis.com/revoke?token=${tokens.access_token}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
+        try {
+          const revokeResponse = await fetch(`https://oauth2.googleapis.com/revoke?token=${tokens.access_token}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          });
+          
+          if (!revokeResponse.ok) {
+            console.error("Token revocation failed:", await revokeResponse.text());
+          }
+        } catch (revokeError) {
+          console.error("Error revoking token:", revokeError);
+          // Continue anyway to clean up local storage
+        }
       }
       
       // Delete stored tokens
-      await supabase
+      const { error: deleteError } = await supabase
         .from("google_ads_tokens")
         .delete()
         .eq("user_id", user.id);
+      
+      if (deleteError) {
+        console.error("Error deleting tokens:", deleteError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to delete stored tokens",
+            details: deleteError.message
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
       
       return new Response(
         JSON.stringify({ success: true }),

@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -138,7 +139,8 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "callback",
-        code
+        code,
+        redirectUri: `${PROJECT_URL}/integrations`
       },
       headers
     });
