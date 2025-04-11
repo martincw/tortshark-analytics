@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -215,7 +216,7 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     
     const response = await supabase.functions.invoke("google-ads-data", {
       body: { 
-        action: "get-accounts",
+        action: "list-accounts",
         accessToken
       }
     });

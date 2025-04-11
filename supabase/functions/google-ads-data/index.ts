@@ -266,7 +266,8 @@ serve(async (req) => {
   }
   
   try {
-    const { action, customerId, startDate, endDate } = await req.json();
+    const requestData = await req.json();
+    const { action, customerId, startDate, endDate, accessToken } = requestData;
     
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
@@ -296,6 +297,100 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
+    }
+    
+    if (action === "list-accounts") {
+      if (!accessToken) {
+        return new Response(
+          JSON.stringify({ success: false, error: "No access token provided" }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      console.log("Listing Google Ads accounts with provided token");
+      
+      try {
+        // List accessible customers
+        const customerServiceUrl = "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers";
+        const customerResponse = await fetch(customerServiceUrl, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+          },
+        });
+        
+        console.log("Google Ads API response status:", customerResponse.status);
+        
+        if (!customerResponse.ok) {
+          const errorText = await customerResponse.text();
+          console.error("Error listing accessible customers:", errorText);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to list accessible customers: ${customerResponse.status}`,
+              details: errorText
+            }),
+            { 
+              status: customerResponse.status,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        const customerData = await customerResponse.json();
+        console.log("Accessible customers response:", customerData);
+        
+        if (!customerData.resourceNames || customerData.resourceNames.length === 0) {
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              accounts: [],
+              message: "No Google Ads accounts found for this user"
+            }),
+            { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        // Extract customer IDs from resource names
+        const accounts = customerData.resourceNames.map((resourceName: string) => {
+          // Format: customers/1234567890
+          const customerId = resourceName.split('/')[1];
+          return {
+            id: customerId,
+            name: `Google Ads Account ${customerId}`
+          };
+        });
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            accounts
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error in Google Ads API call:", error);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Error processing Google Ads API request",
+            details: error.message
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
     
     if (action === "get-metrics") {
