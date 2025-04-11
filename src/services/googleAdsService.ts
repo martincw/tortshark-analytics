@@ -282,6 +282,47 @@ export const fetchGoogleAdsMetrics = async (
   }
 };
 
+export const fetchGoogleAdsAccounts = async (): Promise<any[]> => {
+  try {
+    // Get Google Ads token
+    const credentials = await getGoogleAdsCredentials();
+    if (!credentials) {
+      console.error("No Google Ads credentials found");
+      return [];
+    }
+    
+    // Get auth token
+    const token = await getAuthToken();
+    if (!token) {
+      console.error("No auth token available");
+      return [];
+    }
+    
+    // Call the Supabase edge function to get the accounts from Google Ads API
+    console.log("Fetching Google Ads accounts");
+    const response = await supabase.functions.invoke("google-ads-data", {
+      body: { 
+        action: "get-accounts"
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    if (response.error || !response.data.success) {
+      console.error("Error fetching Google Ads accounts:", response.error || response.data.error);
+      return [];
+    }
+    
+    console.log("Received Google Ads accounts:", response.data.accounts);
+    
+    return response.data.accounts || [];
+  } catch (error) {
+    console.error("Error fetching Google Ads accounts:", error);
+    return [];
+  }
+};
+
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     const credentials = await getGoogleAdsCredentials();

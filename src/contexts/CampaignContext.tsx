@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry, GoogleAdsMetrics } from "../types/campaign";
 import { toast } from "sonner";
 import { fetchGoogleAdsMetrics as fetchGoogleAdsMetricsFromAPI } from "@/services/googleAdsService";
+import { isGoogleAuthValid, googleAdsService } from "@/services/googleAdsService";
+import { v4 as uuidv4 } from "uuid";
 
 interface CampaignContextType {
   campaigns: Campaign[];
@@ -92,8 +94,9 @@ const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
   });
 };
 
-export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export function CampaignProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState<boolean>(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
     try {
       console.log("Loading campaigns from localStorage");
@@ -197,6 +200,46 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
   };
 
+  const fetchGoogleAdsAccounts = async () => {
+    if (!isLoading) {
+      setIsLoadingAccounts(true);
+      try {
+        const isGoogleConnected = await isGoogleAuthValid();
+        
+        if (isGoogleConnected) {
+          const googleAccounts = await googleAdsService.fetchGoogleAdsAccounts();
+          
+          if (googleAccounts && googleAccounts.length > 0) {
+            const newAccounts = googleAccounts.map(account => ({
+              id: account.id || uuidv4(),
+              name: account.name,
+              platform: "google" as const,
+              isConnected: true,
+              lastSynced: new Date().toISOString(),
+              credentials: {
+                customerId: account.customerId,
+                developerToken: "Ngh3IukgQ3ovdkH3M0smUg"
+              }
+            }));
+            
+            setAccountConnections(newAccounts);
+            localStorage.setItem("accountConnections", JSON.stringify(newAccounts));
+            toast.success(`Found ${newAccounts.length} Google Ads accounts`);
+          } else {
+            setAccountConnections([]);
+            localStorage.setItem("accountConnections", JSON.stringify([]));
+            toast.info("No Google Ads accounts found");
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching Google Ads accounts:", error);
+        toast.error("Failed to fetch Google Ads accounts");
+      } finally {
+        setIsLoadingAccounts(false);
+      }
+    }
+  };
+
   useEffect(() => {
     if (campaigns.length > 0) {
       console.log("Saving campaigns to localStorage:", campaigns);
@@ -215,6 +258,12 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      fetchGoogleAdsAccounts();
+    }
+  }, [isLoading]);
 
   const updateCampaign = (updatedCampaign: Campaign) => {
     console.log("Updating campaign:", updatedCampaign);
@@ -416,7 +465,8 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       setSelectedCampaignId,
       selectedCampaignIds,
       setSelectedCampaignIds,
-      isLoading
+      isLoading: isLoading || isLoadingAccounts,
+      fetchGoogleAdsAccounts
     }}>
       {children}
     </CampaignContext.Provider>

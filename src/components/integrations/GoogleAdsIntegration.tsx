@@ -13,6 +13,7 @@ import {
 } from "@/services/googleAdsService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 const GoogleAdsIntegration: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -23,6 +24,7 @@ const GoogleAdsIntegration: React.FC = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const { user } = useAuth();
+  const { fetchGoogleAdsAccounts } = useCampaign();
   const navigate = useNavigate();
   
   const REDIRECT_URL = "https://app.tortshark.com/integrations";
@@ -94,6 +96,7 @@ const GoogleAdsIntegration: React.FC = () => {
       const success = await refreshGoogleToken();
       if (success) {
         toast.success("Successfully refreshed Google Ads token");
+        await fetchGoogleAdsAccounts();
       } else {
         toast.error("Failed to refresh Google Ads token");
       }

@@ -18,14 +18,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface ConnectedAccountsProps {
   accountConnections: AccountConnection[];
@@ -43,14 +36,30 @@ export const ConnectedAccounts = ({
   onSelectAccount,
 }: ConnectedAccountsProps) => {
   const navigate = useNavigate();
+  const { fetchGoogleAdsAccounts } = useCampaign();
+  
+  const handleRefreshAccounts = async () => {
+    await fetchGoogleAdsAccounts();
+  };
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Connected Accounts</CardTitle>
-        <CardDescription>
-          Manage your Google Ads accounts
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Connected Accounts</CardTitle>
+          <CardDescription>
+            Manage your Google Ads accounts
+          </CardDescription>
+        </div>
+        <Button 
+          variant="outline"
+          size="sm"
+          onClick={handleRefreshAccounts}
+          disabled={isLoading}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          {isLoading ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
@@ -155,7 +164,8 @@ const AccountsList = ({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {account.lastSynced && `Last updated: ${new Date(account.lastSynced).toLocaleDateString()}`}
+                  {account.customerId ? `Customer ID: ${account.customerId}` : ''}
+                  {account.lastSynced ? ` • Last updated: ${new Date(account.lastSynced).toLocaleDateString()}` : ""}
                 </span>
               </div>
             </div>
