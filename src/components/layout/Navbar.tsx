@@ -27,9 +27,13 @@ const navItems: NavItem[] = [
 ];
 
 export const Navbar: React.FC = () => {
-  const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
+  // Using optional chaining to handle the case where context isn't available yet
+  const campaignContext = useCampaign();
+  const { campaigns = [], selectedCampaignIds = [], setSelectedCampaignIds } = campaignContext || {};
   
   const handleCampaignSelection = (campaignId: string) => {
+    if (!setSelectedCampaignIds) return; // Guard clause if context not ready
+    
     // Fix: Directly create a new array instead of using the callback style
     if (selectedCampaignIds.includes(campaignId)) {
       setSelectedCampaignIds(selectedCampaignIds.filter(id => id !== campaignId));
@@ -65,22 +69,24 @@ export const Navbar: React.FC = () => {
                 </Link>
               ))}
               
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium px-4">Campaign Filters</p>
-                <div className="space-y-2 mt-2">
-                  {campaigns.map((campaign) => (
-                    <label key={campaign.id} className="flex items-center p-2 rounded-md hover:bg-secondary cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mr-2 h-4 w-4"
-                        checked={isCampaignSelected(campaign.id)}
-                        onChange={() => handleCampaignSelection(campaign.id)}
-                      />
-                      {campaign.name}
-                    </label>
-                  ))}
+              {campaigns && campaigns.length > 0 && (
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium px-4">Campaign Filters</p>
+                  <div className="space-y-2 mt-2">
+                    {campaigns.map((campaign) => (
+                      <label key={campaign.id} className="flex items-center p-2 rounded-md hover:bg-secondary cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mr-2 h-4 w-4"
+                          checked={isCampaignSelected(campaign.id)}
+                          onChange={() => handleCampaignSelection(campaign.id)}
+                        />
+                        {campaign.name}
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </SheetContent>
         </Sheet>

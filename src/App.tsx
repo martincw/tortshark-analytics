@@ -41,33 +41,33 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <CampaignProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Auth page is public */}
-              <Route path="/auth" element={<AuthPage />} />
-              
-              {/* All other routes are protected */}
-              <Route element={
-                <ProtectedRoute>
+        <BrowserRouter>
+          <Routes>
+            {/* Auth page is public */}
+            <Route path="/auth" element={<AuthPage />} />
+            
+            {/* All other routes are protected and wrapped with CampaignProvider */}
+            <Route element={
+              <ProtectedRoute>
+                <CampaignProvider>
                   <MainLayout />
-                </ProtectedRoute>
-              }>
-                <Route path="/" element={<Index />} />
-                <Route path="/campaigns" element={<CampaignsPage />} />
-                <Route path="/campaign/:id" element={<CampaignDetail />} />
-                <Route path="/add-campaign" element={<AddCampaignPage />} />
-                <Route path="/accounts" element={<AccountsPage />} />
-                <Route path="/integrations" element={<IntegrationsPage />} />
-                <Route path="/tools" element={<ToolsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </CampaignProvider>
+                </CampaignProvider>
+              </ProtectedRoute>
+            }>
+              <Route path="/" element={<Index />} />
+              <Route path="/campaigns" element={<CampaignsPage />} />
+              <Route path="/campaign/:id" element={<CampaignDetail />} />
+              <Route path="/add-campaign" element={<AddCampaignPage />} />
+              <Route path="/accounts" element={<AccountsPage />} />
+              <Route path="/integrations" element={<IntegrationsPage />} />
+              <Route path="/tools" element={<ToolsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+        <Toaster />
+        <Sonner />
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

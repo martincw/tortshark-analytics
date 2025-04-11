@@ -19,7 +19,8 @@ const IntegrationsPage = () => {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [networkError, setNetworkError] = useState<boolean>(false);
   const { user, isLoading } = useAuth();
-  const { fetchGoogleAdsAccounts } = useCampaign();
+  const campaignContext = useCampaign();
+  const fetchGoogleAdsAccounts = campaignContext?.fetchGoogleAdsAccounts;
   const navigate = useNavigate();
   
   const PROJECT_URL = "https://app.tortshark.com";
@@ -56,23 +57,25 @@ const IntegrationsPage = () => {
               description: "Successfully connected to Google Ads",
             });
             
-            try {
-              const accounts = await fetchGoogleAdsAccounts();
-              console.log("Fetched Google Ads accounts:", accounts);
-              
-              if (accounts.length > 0) {
-                toast({
-                  title: "Success",
-                  description: `Found ${accounts.length} Google Ads accounts`,
-                });
-              } else {
-                toast({
-                  title: "Info",
-                  description: "No Google Ads accounts found",
-                });
+            if (fetchGoogleAdsAccounts) {
+              try {
+                const accounts = await fetchGoogleAdsAccounts();
+                console.log("Fetched Google Ads accounts:", accounts);
+                
+                if (accounts.length > 0) {
+                  toast({
+                    title: "Success",
+                    description: `Found ${accounts.length} Google Ads accounts`,
+                  });
+                } else {
+                  toast({
+                    title: "Info",
+                    description: "No Google Ads accounts found",
+                  });
+                }
+              } catch (accountsError) {
+                console.error("Error fetching Google Ads accounts:", accountsError);
               }
-            } catch (accountsError) {
-              console.error("Error fetching Google Ads accounts:", accountsError);
             }
             
             window.history.replaceState({}, document.title, window.location.pathname);
