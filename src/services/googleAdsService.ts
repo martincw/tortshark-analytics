@@ -11,6 +11,7 @@ export interface GoogleAdsCredentials {
   accessToken: string;
   refreshToken?: string;
   developerToken: string;
+  userEmail?: string;
 }
 
 // Helper function to get the supabase JWT token
@@ -90,6 +91,11 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     if (response.data.success) {
       localStorage.setItem("googleAds_access_token", response.data.accessToken);
       localStorage.setItem("googleAds_customer_id", response.data.customerId);
+      
+      if (response.data.userEmail) {
+        localStorage.setItem("googleAds_user_email", response.data.userEmail);
+      }
+      
       return true;
     }
     
@@ -106,12 +112,14 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
     // First check local storage for cached credentials
     const accessToken = localStorage.getItem("googleAds_access_token");
     const customerId = localStorage.getItem("googleAds_customer_id");
+    const userEmail = localStorage.getItem("googleAds_user_email");
     
     if (accessToken && customerId) {
       return {
         accessToken,
         customerId,
-        developerToken: DEVELOPER_TOKEN
+        developerToken: DEVELOPER_TOKEN,
+        userEmail: userEmail || undefined
       };
     }
     
@@ -138,10 +146,15 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
     localStorage.setItem("googleAds_access_token", response.data.accessToken);
     localStorage.setItem("googleAds_customer_id", response.data.customerId);
     
+    if (response.data.userEmail) {
+      localStorage.setItem("googleAds_user_email", response.data.userEmail);
+    }
+    
     return {
       accessToken: response.data.accessToken,
       customerId: response.data.customerId,
-      developerToken: response.data.developerToken
+      developerToken: response.data.developerToken,
+      userEmail: response.data.userEmail
     };
   } catch (error) {
     console.error("Error getting Google Ads credentials:", error);
@@ -210,6 +223,7 @@ export const isGoogleAuthValid = async (): Promise<boolean> => {
 export const clearGoogleAdsAuth = () => {
   localStorage.removeItem("googleAds_access_token");
   localStorage.removeItem("googleAds_customer_id");
+  localStorage.removeItem("googleAds_user_email");
 };
 
 export const revokeGoogleAccess = async (): Promise<boolean> => {

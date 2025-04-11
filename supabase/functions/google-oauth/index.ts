@@ -10,8 +10,11 @@ const REDIRECT_URI = Deno.env.get("SITE_URL") ?
   `${Deno.env.get("SITE_URL")}/integrations` : 
   "http://localhost:3000/integrations";
 
-// Google Ads API OAuth scope
-const GOOGLE_ADS_API_SCOPE = "https://www.googleapis.com/auth/adwords";
+// Google Ads API OAuth scopes
+const GOOGLE_ADS_API_SCOPES = [
+  "https://www.googleapis.com/auth/adwords",
+  "https://www.googleapis.com/auth/userinfo.email"
+].join(" ");
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -28,10 +31,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
   
-  const url = new URL(req.url);
-  const action = url.searchParams.get("action");
-  
   try {
+    const requestData = await req.json();
+    const action = requestData.action;
+    
     // Initiate OAuth flow
     if (action === "authorize") {
       console.log("Initiating Google OAuth flow");
@@ -41,7 +44,7 @@ serve(async (req) => {
       authUrl.searchParams.append("client_id", GOOGLE_CLIENT_ID);
       authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
       authUrl.searchParams.append("response_type", "code");
-      authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPE);
+      authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPES);
       authUrl.searchParams.append("access_type", "offline");
       authUrl.searchParams.append("prompt", "consent");
       
@@ -54,7 +57,7 @@ serve(async (req) => {
     
     // Handle OAuth callback
     if (action === "callback") {
-      const code = url.searchParams.get("code") || "";
+      const code = requestData.code || "";
       
       if (!code) {
         throw new Error("No authorization code provided");
@@ -83,6 +86,15 @@ serve(async (req) => {
       
       const tokens = await tokenResponse.json();
       
+      // Get user info to get their Google ID
+      const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`
+        }
+      });
+      
+      const userInfo = await userInfoResponse.json();
+      
       // Get user ID from the auth header
       const authHeader = req.headers.get("Authorization") || "";
       const token = authHeader.replace("Bearer ", "");
@@ -109,9 +121,9 @@ serve(async (req) => {
         throw new Error("Failed to store authentication tokens");
       }
       
-      // Get or create mock customer ID for demo purposes
-      // In a real implementation, this would come from the Google Ads API
-      const customerId = "123-456-7890";
+      // In production, you would get this from the Google Ads API
+      // But for this example, we're using a test customer ID
+      const customerId = "1234567890";
       const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
       
       return new Response(
@@ -119,7 +131,8 @@ serve(async (req) => {
           success: true, 
           customerId, 
           developerToken,
-          accessToken: tokens.access_token
+          accessToken: tokens.access_token,
+          userEmail: userInfo.email
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -198,7 +211,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            customerId: "123-456-7890", // Mock customer ID
+            customerId: "1234567890", // Mock customer ID
             developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
             accessToken: newTokens.access_token
           }),
@@ -212,9 +225,72 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          customerId: "123-456-7890", // Mock customer ID
+          customerId: "1234567890", // Mock customer ID
           developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
           accessToken: tokens.access_token
+        }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
+    // Explicitly refresh token
+    if (action === "refresh-token") {
+      // Get user ID from the auth header
+      const authHeader = req.headers.get("Authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        console.error("User authentication error:", userError);
+        throw new Error("Unauthorized");
+      }
+      
+      // Get refresh token
+      const { data: tokens, error: tokensError } = await supabase
+        .from("google_ads_tokens")
+        .select("refresh_token")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (tokensError || !tokens || !tokens.refresh_token) {
+        console.error("Error fetching refresh token:", tokensError);
+        throw new Error("No refresh token found");
+      }
+      
+      // Refresh the token
+      const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          grant_type: "refresh_token",
+          refresh_token: tokens.refresh_token,
+        }),
+      });
+      
+      if (!refreshResponse.ok) {
+        console.error("Token refresh failed:", await refreshResponse.text());
+        throw new Error("Failed to refresh token");
+      }
+      
+      const newTokens = await refreshResponse.json();
+      
+      // Update stored tokens
+      await supabase
+        .from("google_ads_tokens")
+        .update({
+          access_token: newTokens.access_token,
+          expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+        })
+        .eq("user_id", user.id);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          accessToken: newTokens.access_token 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },

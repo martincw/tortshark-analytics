@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw, Mail } from "lucide-react";
 import { 
   initiateGoogleAuth, 
   isGoogleAuthValid, 
   revokeGoogleAccess,
-  refreshGoogleToken
+  refreshGoogleToken,
+  getGoogleAdsCredentials
 } from "@/services/googleAdsService";
 import { useNavigate } from "react-router-dom";
 
@@ -18,6 +19,7 @@ const GoogleAdsIntegration: React.FC = () => {
   const [isChecking, setIsChecking] = useState<boolean>(true);
   const [isDisconnecting, setIsDisconnecting] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Check if Google Ads is already connected
@@ -27,6 +29,11 @@ const GoogleAdsIntegration: React.FC = () => {
       try {
         const connected = await isGoogleAuthValid();
         setIsConnected(connected);
+        
+        if (connected) {
+          const credentials = await getGoogleAdsCredentials();
+          setUserEmail(credentials?.userEmail || null);
+        }
       } catch (error) {
         console.error("Error checking Google connection:", error);
       } finally {
@@ -55,6 +62,7 @@ const GoogleAdsIntegration: React.FC = () => {
         const success = await revokeGoogleAccess();
         if (success) {
           setIsConnected(false);
+          setUserEmail(null);
           toast.success("Successfully disconnected from Google Ads");
         } else {
           toast.error("Failed to disconnect from Google Ads");
@@ -129,6 +137,13 @@ const GoogleAdsIntegration: React.FC = () => {
                   Your Google Ads account is connected successfully. You can now add ad accounts and import campaign data.
                 </AlertDescription>
               </Alert>
+              
+              {userEmail && (
+                <div className="flex items-center gap-2 text-sm bg-muted/60 p-3 rounded-md">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>Connected with: <span className="font-medium">{userEmail}</span></span>
+                </div>
+              )}
               
               <div className="flex flex-col space-y-2">
                 <h4 className="text-sm font-medium">Connected Services:</h4>
