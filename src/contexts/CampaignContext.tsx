@@ -1,8 +1,8 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry, GoogleAdsMetrics } from "../types/campaign";
 import { toast } from "sonner";
-import { fetchGoogleAdsMetrics as fetchGoogleAdsMetricsFromAPI } from "@/services/googleAdsService";
-import { isGoogleAuthValid, googleAdsService } from "@/services/googleAdsService";
+import { fetchGoogleAdsMetrics as fetchGoogleAdsMetricsFromAPI, isGoogleAuthValid, googleAdsService } from "@/services/googleAdsService";
 import { v4 as uuidv4 } from "uuid";
 
 interface CampaignContextType {
@@ -19,6 +19,7 @@ interface CampaignContextType {
   updateStatHistoryEntry: (campaignId: string, updatedEntry: StatHistoryEntry) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   fetchGoogleAdsMetrics: (accountId: string, dateRange: DateRange) => Promise<GoogleAdsMetrics[] | null>;
+  fetchGoogleAdsAccounts: () => Promise<void>;
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
   selectedCampaignIds: string[];
@@ -216,6 +217,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
               platform: "google" as const,
               isConnected: true,
               lastSynced: new Date().toISOString(),
+              customerId: account.customerId,
               credentials: {
                 customerId: account.customerId,
                 developerToken: "Ngh3IukgQ3ovdkH3M0smUg"
@@ -461,12 +463,12 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       deleteStatHistoryEntry,
       deleteCampaign,
       fetchGoogleAdsMetrics,
+      fetchGoogleAdsAccounts,
       selectedCampaignId,
       setSelectedCampaignId,
       selectedCampaignIds,
       setSelectedCampaignIds,
-      isLoading: isLoading || isLoadingAccounts,
-      fetchGoogleAdsAccounts
+      isLoading: isLoading || isLoadingAccounts
     }}>
       {children}
     </CampaignContext.Provider>

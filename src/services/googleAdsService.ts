@@ -400,3 +400,16 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// Create an object with all the exported functions
+export const googleAdsService = {
+  initiateGoogleAuth,
+  handleOAuthCallback,
+  getGoogleAdsCredentials,
+  fetchGoogleAdsMetrics,
+  fetchGoogleAdsAccounts,
+  isGoogleAuthValid,
+  clearGoogleAdsAuth,
+  revokeGoogleAccess,
+  refreshGoogleToken
+};
