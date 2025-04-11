@@ -32,7 +32,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { fetchGoogleAdsAccounts } = useCampaign();
 
-  // Check if user is logged in with Supabase
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
@@ -55,10 +54,8 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     };
   }, []);
 
-  // Check for OAuth callback on component mount
   useEffect(() => {
     const checkForCallback = async () => {
-      // Check if this is a callback from Google OAuth
       if (window.location.search.includes('code=')) {
         setIsSigningIn(true);
         
@@ -70,7 +67,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
             if (credentials) {
               toast.success("Successfully signed in with Google");
               
-              // After successful sign-in, import Google Ads accounts
               try {
                 await fetchGoogleAdsAccounts();
                 toast.success("Google Ads accounts imported successfully");
@@ -101,7 +97,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     checkForCallback();
   }, [onSuccess, fetchGoogleAdsAccounts]);
 
-  // Check for existing auth on component mount
   useEffect(() => {
     const checkExistingAuth = async () => {
       try {
@@ -123,23 +118,17 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     checkExistingAuth();
   }, [onSuccess]);
 
-  // Configure Google login with scope for Google Ads
   const googleLogin = useGoogleLogin({
     onSuccess: async (response) => {
       setIsSigningIn(true);
       
       try {
-        console.log('Google login successful', response);
-        
-        // Store the access token temporarily
         localStorage.setItem("googleAds_access_token", response.access_token);
         
-        // Now we'll use our existing logic to process this token
         const credentials = await getGoogleAdsCredentials();
         if (credentials) {
           toast.success("Successfully signed in with Google");
           
-          // After successful sign-in, import Google Ads accounts
           try {
             await fetchGoogleAdsAccounts();
             toast.success("Google Ads accounts imported successfully");
@@ -157,7 +146,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         }
       } catch (error) {
         console.error("Google Sign-In error:", error);
-        toast.error("Failed to complete Google authentication");
+        toast.error("Failed to sign in with Google");
       } finally {
         setIsSigningIn(false);
       }
@@ -171,7 +160,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   });
 
   const handleGoogleSignIn = () => {
-    // Use the React OAuth Google login 
     googleLogin();
   };
 
