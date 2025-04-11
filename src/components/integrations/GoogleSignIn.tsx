@@ -32,8 +32,13 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   // Check if user is logged in with Supabase
   useEffect(() => {
     const checkLoginStatus = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsLoggedIn(!!data.session);
+      try {
+        const { data } = await supabase.auth.getSession();
+        setIsLoggedIn(!!data.session);
+      } catch (error) {
+        console.error("Error checking login status:", error);
+        setIsLoggedIn(false);
+      }
     };
     
     checkLoginStatus();
@@ -54,19 +59,28 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       if (window.location.search.includes('code=')) {
         setIsSigningIn(true);
         
-        const success = await handleOAuthCallback();
-        
-        setIsSigningIn(false);
-        
-        if (success) {
-          const credentials = await getGoogleAdsCredentials();
-          if (credentials) {
-            toast.success("Successfully signed in with Google");
-            onSuccess({
-              customerId: credentials.customerId,
-              developerToken: credentials.developerToken
-            });
+        try {
+          const success = await handleOAuthCallback();
+          
+          if (success) {
+            const credentials = await getGoogleAdsCredentials();
+            if (credentials) {
+              toast.success("Successfully signed in with Google");
+              onSuccess({
+                customerId: credentials.customerId,
+                developerToken: credentials.developerToken
+              });
+            } else {
+              toast.error("Failed to get Google Ads credentials");
+            }
+          } else {
+            toast.error("Failed to complete Google authentication");
           }
+        } catch (error) {
+          console.error("Error handling OAuth callback:", error);
+          toast.error("Failed to complete Google authentication");
+        } finally {
+          setIsSigningIn(false);
         }
       }
     };
@@ -77,29 +91,26 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   // Check for existing auth on component mount
   useEffect(() => {
     const checkExistingAuth = async () => {
-      if (await isGoogleAuthValid()) {
-        const credentials = await getGoogleAdsCredentials();
-        if (credentials) {
-          toast.success("Already signed in with Google");
-          onSuccess({
-            customerId: credentials.customerId,
-            developerToken: credentials.developerToken
-          });
+      try {
+        if (await isGoogleAuthValid()) {
+          const credentials = await getGoogleAdsCredentials();
+          if (credentials) {
+            toast.success("Already signed in with Google");
+            onSuccess({
+              customerId: credentials.customerId,
+              developerToken: credentials.developerToken
+            });
+          }
         }
+      } catch (error) {
+        console.error("Error checking existing auth:", error);
       }
     };
     
-    if (isLoggedIn) {
-      checkExistingAuth();
-    }
-  }, [onSuccess, isLoggedIn]);
+    checkExistingAuth();
+  }, [onSuccess]);
 
   const handleGoogleSignIn = async () => {
-    if (!isLoggedIn) {
-      toast.error("You must be logged in to connect Google Ads");
-      return;
-    }
-    
     setIsSigningIn(true);
     
     try {
@@ -122,22 +133,15 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           Connect your Google account to access your Google Ads data
         </p>
         
-        {!isLoggedIn ? (
-          <div className="text-amber-600 bg-amber-50 p-4 rounded-md mb-4">
-            You must be logged in to connect your Google Ads account.
-            Please sign in to your account first.
-          </div>
-        ) : (
-          <Button 
-            onClick={handleGoogleSignIn}
-            disabled={isSigningIn || isConnecting}
-            className="w-full"
-            variant="outline"
-          >
-            <Google className="mr-2 h-4 w-4" />
-            {isSigningIn ? "Signing in..." : "Sign in with Google"}
-          </Button>
-        )}
+        <Button 
+          onClick={handleGoogleSignIn}
+          disabled={isSigningIn || isConnecting}
+          className="w-full"
+          variant="outline"
+        >
+          <Google className="mr-2 h-4 w-4" />
+          {isSigningIn ? "Signing in..." : "Sign in with Google"}
+        </Button>
         
         {(isConnecting || isSigningIn) && (
           <div>

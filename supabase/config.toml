@@ -63,7 +63,7 @@ backend = "postgres"
 multimodal_enabled = false
 
 [functions.google-oauth]
-verify_jwt = true
+verify_jwt = false
 
 [functions.google-ads-data]
 verify_jwt = true

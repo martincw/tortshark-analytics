@@ -18,17 +18,24 @@ export interface GoogleAdsCredentials {
 
 // Helper function to get the supabase JWT token
 const getAuthToken = async (): Promise<string | null> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  } catch (error) {
+    console.warn("Error getting auth token:", error);
+    return null;
+  }
 }
 
 export const initiateGoogleAuth = async () => {
   try {
+    // Get auth token but don't fail if not available
+    let headers = {};
     const token = await getAuthToken();
-    
-    if (!token) {
-      toast.error("You must be logged in to connect Google Ads");
-      return;
+    if (token) {
+      headers = { Authorization: `Bearer ${token}` };
+    } else {
+      console.warn("No auth token available, proceeding without authentication");
     }
     
     const userEmail = localStorage.getItem("userEmail") || "";
@@ -42,9 +49,7 @@ export const initiateGoogleAuth = async () => {
         email: userEmail,
         redirectUri: `${PROJECT_URL}/integrations`
       },
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      headers
     }).catch(error => {
       console.error("Error calling Google OAuth function:", error);
       // More detailed network error handling
@@ -114,11 +119,17 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
   console.log("Received auth code from Google");
   
   try {
-    const token = await getAuthToken();
-    
-    if (!token) {
-      toast.error("You must be logged in to connect Google Ads");
-      return false;
+    // Get auth token, but don't fail if not available
+    let headers = {};
+    try {
+      const token = await getAuthToken();
+      if (token) {
+        headers = { Authorization: `Bearer ${token}` };
+      } else {
+        console.warn("No auth token available, proceeding without authentication");
+      }
+    } catch (authError) {
+      console.warn("Error getting auth token, proceeding without authentication:", authError);
     }
     
     console.log("Exchanging auth code for tokens...");
@@ -129,10 +140,10 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
         action: "callback",
         code
       },
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      headers
     });
+    
+    console.log("Edge function response:", response);
     
     if (response.error) {
       console.error("Error handling OAuth callback:", response.error);
@@ -183,17 +194,19 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
     }
     
     // If not in local storage, fetch from Supabase
+    let headers = {};
     const token = await getAuthToken();
     
-    if (!token) {
+    if (token) {
+      headers = { Authorization: `Bearer ${token}` };
+    } else {
+      console.warn("No auth token available, cannot fetch credentials from server");
       return null;
     }
     
     const response = await supabase.functions.invoke("google-oauth", {
       body: { action: "get-credentials" },
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      headers
     });
     
     if (response.error || !response.data.success) {
