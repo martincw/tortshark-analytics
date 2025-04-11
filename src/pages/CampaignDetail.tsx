@@ -148,17 +148,15 @@ const CampaignDetail = () => {
   };
   
   const handleSave = () => {
-    const updatedCampaign = {
-      ...campaign,
+    updateCampaign(campaign.id, {
       manualStats: {
         ...campaign.manualStats,
         leads: parseInt(leadCount) || 0,
         cases: parseInt(caseCount) || 0,
         revenue: parseFloat(revenue) || 0,
       },
-    };
+    });
     
-    updateCampaign(updatedCampaign);
     setIsEditing(false);
     toast.success("Campaign updated successfully");
   };

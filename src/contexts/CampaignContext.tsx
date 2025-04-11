@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useState,
@@ -10,8 +11,15 @@ import { toast } from "sonner";
 import {
   Campaign,
   AccountConnection,
+  GoogleAdsMetrics as GoogleAdsMetricsType,
+  CampaignStatEntry,
 } from "@/types/campaign";
 import { googleAdsService } from "@/services/googleAdsService";
+
+interface DateRangeType {
+  startDate: string;
+  endDate: string;
+}
 
 interface CampaignContextType {
   campaigns: Campaign[];
@@ -27,6 +35,18 @@ interface CampaignContextType {
   deleteAccountConnection: (id: string) => void;
   fetchGoogleAdsAccounts: () => Promise<AccountConnection[]>;
   isLoading: boolean;
+  
+  // Add missing properties
+  selectedCampaignId: string | null;
+  setSelectedCampaignId: (id: string | null) => void;
+  selectedCampaignIds: string[];
+  setSelectedCampaignIds: (ids: string[]) => void;
+  dateRange: DateRangeType;
+  setDateRange: (range: DateRangeType) => void;
+  addStatHistoryEntry: (campaignId: string, entry: Omit<CampaignStatEntry, "id" | "createdAt">) => void;
+  updateStatHistoryEntry: (campaignId: string, entry: CampaignStatEntry) => void;
+  deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
+  fetchGoogleAdsMetrics: (accountId: string, dateRange: DateRangeType) => Promise<GoogleAdsMetricsType[] | null>;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(
@@ -51,6 +71,30 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     return storedAccounts ? JSON.parse(storedAccounts) : [];
   });
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Add new state variables
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>(() => {
+    const storedIds = localStorage.getItem("selectedCampaignIds");
+    return storedIds ? JSON.parse(storedIds) : [];
+  });
+  
+  const [dateRange, setDateRange] = useState<DateRangeType>(() => {
+    const storedRange = localStorage.getItem("dateRange");
+    if (storedRange) {
+      return JSON.parse(storedRange);
+    }
+    
+    // Default date range (last 30 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    };
+  });
 
   useEffect(() => {
     localStorage.setItem("campaigns", JSON.stringify(campaigns));
@@ -59,10 +103,19 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
   useEffect(() => {
     localStorage.setItem("accountConnections", JSON.stringify(accountConnections));
   }, [accountConnections]);
+  
+  // Add new effects for storing selected campaign IDs
+  useEffect(() => {
+    localStorage.setItem("selectedCampaignIds", JSON.stringify(selectedCampaignIds));
+  }, [selectedCampaignIds]);
 
   const addCampaign = (campaign: Omit<Campaign, "id">): string => {
     const id = uuidv4();
-    const newCampaign = { id, ...campaign };
+    const newCampaign = { 
+      id, 
+      ...campaign,
+      statsHistory: [] // Ensure statsHistory exists
+    };
     setCampaigns([...campaigns, newCampaign]);
     return id;
   };
@@ -105,6 +158,99 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
   const deleteAccountConnection = (id: string) => {
     setAccountConnections(
       accountConnections.filter((account) => account.id !== id)
+    );
+  };
+  
+  // Add new methods for stats history management
+  const addStatHistoryEntry = (
+    campaignId: string, 
+    entry: Omit<CampaignStatEntry, "id" | "createdAt">
+  ) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (!campaign) return;
+    
+    const newEntry: CampaignStatEntry = {
+      id: uuidv4(),
+      ...entry,
+      createdAt: new Date().toISOString()
+    };
+    
+    const updatedCampaign = {
+      ...campaign,
+      statsHistory: [...(campaign.statsHistory || []), newEntry],
+      manualStats: {
+        ...campaign.manualStats,
+        leads: campaign.manualStats.leads + entry.leads,
+        cases: campaign.manualStats.cases + entry.cases,
+        retainers: campaign.manualStats.retainers + (entry.retainers || 0),
+        revenue: campaign.manualStats.revenue + entry.revenue
+      }
+    };
+    
+    setCampaigns(
+      campaigns.map(c => c.id === campaignId ? updatedCampaign : c)
+    );
+  };
+  
+  const updateStatHistoryEntry = (
+    campaignId: string,
+    updatedEntry: CampaignStatEntry
+  ) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (!campaign || !campaign.statsHistory) return;
+    
+    const oldEntry = campaign.statsHistory.find(e => e.id === updatedEntry.id);
+    if (!oldEntry) return;
+    
+    // Calculate differences for updating totals
+    const leadsDiff = updatedEntry.leads - oldEntry.leads;
+    const casesDiff = updatedEntry.cases - oldEntry.cases;
+    const retainersDiff = (updatedEntry.retainers || 0) - (oldEntry.retainers || 0);
+    const revenueDiff = updatedEntry.revenue - oldEntry.revenue;
+    
+    const updatedCampaign = {
+      ...campaign,
+      statsHistory: campaign.statsHistory.map(e => 
+        e.id === updatedEntry.id ? updatedEntry : e
+      ),
+      manualStats: {
+        ...campaign.manualStats,
+        leads: campaign.manualStats.leads + leadsDiff,
+        cases: campaign.manualStats.cases + casesDiff,
+        retainers: campaign.manualStats.retainers + retainersDiff,
+        revenue: campaign.manualStats.revenue + revenueDiff
+      }
+    };
+    
+    setCampaigns(
+      campaigns.map(c => c.id === campaignId ? updatedCampaign : c)
+    );
+  };
+  
+  const deleteStatHistoryEntry = (
+    campaignId: string,
+    entryId: string
+  ) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (!campaign || !campaign.statsHistory) return;
+    
+    const entryToDelete = campaign.statsHistory.find(e => e.id === entryId);
+    if (!entryToDelete) return;
+    
+    const updatedCampaign = {
+      ...campaign,
+      statsHistory: campaign.statsHistory.filter(e => e.id !== entryId),
+      manualStats: {
+        ...campaign.manualStats,
+        leads: campaign.manualStats.leads - entryToDelete.leads,
+        cases: campaign.manualStats.cases - entryToDelete.cases,
+        retainers: campaign.manualStats.retainers - (entryToDelete.retainers || 0),
+        revenue: campaign.manualStats.revenue - entryToDelete.revenue
+      }
+    };
+    
+    setCampaigns(
+      campaigns.map(c => c.id === campaignId ? updatedCampaign : c)
     );
   };
 
@@ -184,6 +330,31 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
       setIsLoading(false);
     }
   };
+  
+  // Add method to fetch Google Ads metrics
+  const fetchGoogleAdsMetrics = async (
+    accountId: string,
+    dateRange: DateRangeType
+  ): Promise<GoogleAdsMetricsType[] | null> => {
+    try {
+      setIsLoading(true);
+      
+      // Use the googleAdsService to fetch metrics
+      const metrics = await googleAdsService.fetchGoogleAdsMetrics(
+        accountId,
+        dateRange.startDate,
+        dateRange.endDate
+      );
+      
+      return metrics;
+    } catch (error) {
+      console.error("Error fetching Google Ads metrics:", error);
+      toast.error("Failed to fetch Google Ads metrics");
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const contextValue: CampaignContextType = {
     campaigns,
@@ -196,6 +367,17 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     deleteAccountConnection,
     fetchGoogleAdsAccounts,
     isLoading,
+    // Add new properties to the context value
+    selectedCampaignId,
+    setSelectedCampaignId,
+    selectedCampaignIds,
+    setSelectedCampaignIds,
+    dateRange,
+    setDateRange,
+    addStatHistoryEntry,
+    updateStatHistoryEntry,
+    deleteStatHistoryEntry,
+    fetchGoogleAdsMetrics
   };
 
   return (
