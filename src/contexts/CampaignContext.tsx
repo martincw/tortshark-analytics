@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Campaign, DateRange, AccountConnection, StatHistoryEntry, GoogleAdsMetrics } from "../types/campaign";
 import { toast } from "sonner";
+import { fetchGoogleAdsMetrics as fetchGoogleAdsMetricsFromAPI } from "@/services/googleAdsService";
 
 interface CampaignContextType {
   campaigns: Campaign[];
@@ -91,35 +92,6 @@ const migrateExistingCampaigns = (campaigns: any[]): Campaign[] => {
   });
 };
 
-const generateMockGoogleAdsMetrics = (startDate: string, endDate: string): GoogleAdsMetrics[] => {
-  const metrics: GoogleAdsMetrics[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const date = d.toISOString().split('T')[0];
-    const impressions = Math.floor(Math.random() * 5000) + 500;
-    const clicks = Math.floor(Math.random() * 200) + 10;
-    const adSpend = parseFloat((Math.random() * 300 + 50).toFixed(2));
-    const ctr = parseFloat(((clicks / impressions) * 100).toFixed(2));
-    const cpc = parseFloat((adSpend / clicks).toFixed(2));
-    const leads = Math.floor(Math.random() * 10) + 1;
-    const cpl = parseFloat((adSpend / leads).toFixed(2));
-    
-    metrics.push({
-      impressions,
-      clicks,
-      ctr,
-      cpc,
-      cpl,
-      adSpend,
-      date
-    });
-  }
-  
-  return metrics;
-};
-
 export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
@@ -194,7 +166,18 @@ export const CampaignProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       console.log(`Fetching Google Ads metrics for account ${accountId} from ${dateRange.startDate} to ${dateRange.endDate}`);
       
-      const metrics = generateMockGoogleAdsMetrics(dateRange.startDate, dateRange.endDate);
+      const customerId = account.credentials?.customerId;
+      if (!customerId) {
+        toast.error("Customer ID not found for this account");
+        return null;
+      }
+      
+      const metrics = await fetchGoogleAdsMetricsFromAPI(dateRange, customerId);
+      
+      if (!metrics) {
+        toast.error("Failed to fetch Google Ads metrics");
+        return null;
+      }
       
       return metrics;
     } catch (error) {

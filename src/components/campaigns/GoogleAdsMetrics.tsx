@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { fetchGoogleAdsMetrics } from "@/services/googleAdsService";
 
 interface GoogleAdsMetricsProps {
   campaign: Campaign;
 }
 
 const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
-  const { accountConnections, dateRange } = useCampaign();
+  const { accountConnections, dateRange, fetchGoogleAdsMetrics } = useCampaign();
   const [metrics, setMetrics] = useState<GoogleAdsMetricsType[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +31,7 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
     setError(null);
     
     try {
-      // Use customerId from account if available
-      const customerId = account?.credentials?.customerId;
-      const data = await fetchGoogleAdsMetrics(dateRange, customerId);
+      const data = await fetchGoogleAdsMetrics(campaign.accountId, dateRange);
       setMetrics(data);
     } catch (err) {
       setError("Failed to load Google Ads metrics");
