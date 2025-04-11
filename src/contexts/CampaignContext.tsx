@@ -323,11 +323,11 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
       setIsLoading(true);
       
       const metrics = await googleAdsService.fetchGoogleAdsMetrics(
+        accountId,
         {
           startDate: dateRange.startDate,
           endDate: dateRange.endDate
-        },
-        accountId
+        }
       );
       
       return metrics;
