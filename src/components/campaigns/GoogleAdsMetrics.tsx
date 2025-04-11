@@ -9,13 +9,14 @@ import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUti
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
+import { fetchGoogleAdsMetrics } from "@/services/googleAdsService";
 
 interface GoogleAdsMetricsProps {
   campaign: Campaign;
 }
 
 const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
-  const { accountConnections, dateRange, fetchGoogleAdsMetrics } = useCampaign();
+  const { accountConnections, dateRange } = useCampaign();
   const [metrics, setMetrics] = useState<GoogleAdsMetricsType[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);

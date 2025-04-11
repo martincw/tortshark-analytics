@@ -221,8 +221,8 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
 };
 
 export const fetchGoogleAdsMetrics = async (
-  dateRange: DateRange,
-  customerId?: string
+  customerId: string,
+  dateRange: DateRange
 ): Promise<GoogleAdsMetrics[] | null> => {
   try {
     // Get credentials
@@ -232,20 +232,18 @@ export const fetchGoogleAdsMetrics = async (
       return null;
     }
     
-    // Use provided customerId or default to the one from credentials
-    const customerIdToUse = customerId || credentials.customerId;
-    
-    // Call the Supabase edge function to get the metrics from Google Ads API
+    // Get auth token for Supabase function call
     const token = await getAuthToken();
     if (!token) {
       toast.error("Authentication token not found");
       return null;
     }
     
+    // Call the Supabase edge function to get the metrics from Google Ads API
     const response = await supabase.functions.invoke("google-ads-data", {
       body: { 
         action: "get-metrics",
-        customerId: customerIdToUse,
+        customerId: customerId,
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       },

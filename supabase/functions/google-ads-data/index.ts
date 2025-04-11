@@ -1,10 +1,10 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_ADS_API_VERSION = "v15";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -299,6 +299,16 @@ serve(async (req) => {
     }
     
     if (action === "get-metrics") {
+      if (!customerId || !startDate || !endDate) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Missing required parameters" }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
       const tokensResult = await getGoogleAdsToken(user.id);
       
       if (!tokensResult) {
@@ -314,13 +324,11 @@ serve(async (req) => {
         );
       }
       
-      const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
-      
       try {
         const apiResponse = await fetchCampaignMetrics(
           tokensResult.accessToken,
           customerId,
-          developerToken,
+          GOOGLE_ADS_DEVELOPER_TOKEN,
           startDate,
           endDate
         );
@@ -352,7 +360,7 @@ serve(async (req) => {
             const apiResponse = await fetchCampaignMetrics(
               refreshedTokens.access_token,
               customerId,
-              developerToken,
+              GOOGLE_ADS_DEVELOPER_TOKEN,
               startDate,
               endDate
             );
@@ -412,7 +420,6 @@ serve(async (req) => {
       const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
       
       try {
-        // Fetch real Google Ads accounts instead of using mock data
         const accounts = await fetchAccountsList(tokensResult.accessToken, developerToken);
         
         return new Response(
@@ -437,7 +444,6 @@ serve(async (req) => {
               })
               .eq("user_id", user.id);
             
-            // Try again with refreshed token
             const accounts = await fetchAccountsList(refreshedTokens.access_token, developerToken);
             
             return new Response(
