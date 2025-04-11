@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
@@ -9,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { handleOAuthCallback } from "@/services/googleAdsService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useCampaign } from "@/contexts/CampaignContext";
 
-// Retrieve the Google client ID from environment (make sure it's set)
 const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // Replace with your actual client ID
 
 const IntegrationsPage = () => {
@@ -20,19 +19,17 @@ const IntegrationsPage = () => {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [networkError, setNetworkError] = useState<boolean>(false);
   const { user, isLoading } = useAuth();
+  const { fetchGoogleAdsAccounts } = useCampaign();
   const navigate = useNavigate();
   
-  // Project URL for reference in guides - updated for custom domain
   const PROJECT_URL = "https://app.tortshark.com";
   
-  // Redirect to auth page if not logged in
   useEffect(() => {
     if (!isLoading && !user) {
       navigate("/auth");
     }
   }, [user, isLoading, navigate]);
   
-  // Check for OAuth callback when the page loads
   useEffect(() => {
     const processOAuthCallback = async () => {
       if (window.location.search.includes('code=')) {
@@ -55,7 +52,20 @@ const IntegrationsPage = () => {
           
           if (success) {
             toast.success("Successfully connected to Google Ads");
-            // Clear URL parameters without refreshing the page
+            
+            try {
+              const accounts = await fetchGoogleAdsAccounts();
+              console.log("Fetched Google Ads accounts:", accounts);
+              
+              if (accounts.length > 0) {
+                toast.success(`Found ${accounts.length} Google Ads accounts`);
+              } else {
+                toast.info("No Google Ads accounts found");
+              }
+            } catch (accountsError) {
+              console.error("Error fetching Google Ads accounts:", accountsError);
+            }
+            
             window.history.replaceState({}, document.title, window.location.pathname);
           } else {
             setAuthError("Failed to process authentication. Please try again.");
@@ -64,7 +74,6 @@ const IntegrationsPage = () => {
         } catch (error) {
           console.error("Error processing OAuth callback:", error);
           
-          // Check for network connection errors
           if (error.message && (
             error.message.includes("Failed to fetch") || 
             error.message.includes("NetworkError") || 
@@ -77,7 +86,6 @@ const IntegrationsPage = () => {
             setAuthError(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
           
-          // Save debug info
           if (error instanceof Error) {
             setDebugInfo({
               message: error.message,
@@ -94,9 +102,8 @@ const IntegrationsPage = () => {
     if (user) {
       processOAuthCallback();
     }
-  }, [user]);
+  }, [user, fetchGoogleAdsAccounts]);
   
-  // Show loading state while checking auth
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -106,7 +113,6 @@ const IntegrationsPage = () => {
     );
   }
   
-  // If not logged in, redirect happens in useEffect
   if (!user) {
     return null;
   }

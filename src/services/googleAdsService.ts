@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -97,10 +98,10 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
   console.log("Received auth code from Google");
   
   try {
-    // Exchange the code for tokens using our new edge function
-    const response = await supabase.functions.invoke("google-ads-accounts", {
+    // Exchange the code for tokens using our edge function
+    const response = await supabase.functions.invoke("google-oauth", {
       body: { 
-        action: "exchange-code",
+        action: "callback",
         code
       }
     });
@@ -121,14 +122,20 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     
     // Store tokens and account info in local storage
     if (response.data.success) {
-      localStorage.setItem("googleAds_access_token", response.data.tokens.access_token);
-      localStorage.setItem("googleAds_refresh_token", response.data.tokens.refresh_token);
-      localStorage.setItem("googleAds_token_expiry", response.data.tokens.expiry_date);
+      localStorage.setItem("googleAds_access_token", response.data.accessToken);
+      localStorage.setItem("googleAds_refresh_token", response.data.refreshToken);
+      localStorage.setItem("googleAds_token_expiry", response.data.expiry_date.toString());
       localStorage.setItem("userEmail", response.data.userEmail);
       
-      // If accounts are available, store the first one as default
+      // Store Google Ads accounts if available
       if (response.data.accounts && response.data.accounts.length > 0) {
+        localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
         localStorage.setItem("googleAds_account_id", response.data.accounts[0].id);
+      }
+      
+      // Log warning message if there was an error fetching accounts
+      if (response.data.warning) {
+        console.warn("Warning from Google Ads API:", response.data.warning);
       }
       
       toast.success("Successfully connected to Google Ads");
@@ -177,6 +184,27 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
 
 export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
   try {
+    // First try to get accounts from localStorage (cached from OAuth response)
+    const cachedAccounts = localStorage.getItem("googleAds_accounts");
+    
+    if (cachedAccounts) {
+      try {
+        const accounts = JSON.parse(cachedAccounts);
+        // If we have cached accounts, transform and return them
+        return accounts.map((account: any) => ({
+          id: account.id,
+          name: account.name || `Google Ads Account ${account.id}`,
+          platform: "google",
+          isConnected: true,
+          lastSynced: new Date().toISOString(),
+          customerId: account.id
+        }));
+      } catch (parseError) {
+        console.error("Error parsing cached accounts:", parseError);
+        // Continue to fetch accounts from API if parsing fails
+      }
+    }
+    
     // Get access token from local storage
     const accessToken = localStorage.getItem("googleAds_access_token");
     
@@ -204,6 +232,9 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
       toast.error(response.data.error || "Failed to fetch Google Ads accounts");
       return [];
     }
+    
+    // Store accounts in localStorage for future use
+    localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
     
     // Transform to AccountConnection format
     return response.data.accounts.map((account: any) => ({

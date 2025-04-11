@@ -19,6 +19,9 @@ const GOOGLE_ADS_API_SCOPES = [
   "profile" // Add profile scope for basic info
 ];
 
+// Developer token for Google Ads API
+const GOOGLE_ADS_DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
+
 // CORS headers for browser requests - expanded for better compatibility
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -289,24 +292,65 @@ serve(async (req) => {
           userInfo = { email: "unknown@example.com" };
         }
         
+        // List accessible Google Ads accounts
+        const accounts = [];
+        let accountsError = null;
+        
+        try {
+          console.log("Fetching Google Ads accounts");
+          const accessibleCustomersResponse = await fetch(
+            "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers",
+            {
+              headers: {
+                Authorization: `Bearer ${tokens.access_token}`,
+                "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN
+              },
+            }
+          );
+          
+          // Log full response for debugging
+          console.log(`Account list response status: ${accessibleCustomersResponse.status}`);
+          
+          if (!accessibleCustomersResponse.ok) {
+            const errorText = await accessibleCustomersResponse.text();
+            console.error("Failed to list accessible customers:", errorText);
+            accountsError = `Failed to list Google Ads accounts: ${errorText}`;
+          } else {
+            const accountsList = await accessibleCustomersResponse.json();
+            console.log("Accessible customers:", JSON.stringify(accountsList));
+            
+            // Extract accounts if any were found
+            if (accountsList.resourceNames && accountsList.resourceNames.length > 0) {
+              for (const resourceName of accountsList.resourceNames) {
+                const customerId = resourceName.split('/')[1];
+                accounts.push({
+                  id: customerId,
+                  name: `Google Ads Account ${customerId}`
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching Google Ads accounts:", error);
+          accountsError = error.message || "Unknown error fetching Google Ads accounts";
+        }
+        
         // For callback, we'll proceed even without a valid user if there's no token
         if (!user && !token) {
           console.log("No authenticated user, but proceeding with callback");
           // For now, store the tokens directly in localStorage via the return value
-          // Later when the user logs in properly, they can retrieve these tokens
-          
-          // In production, you would get this from the Google Ads API
-          // But for this example, we're using a test customer ID
-          const customerId = "1234567890";
-          const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
           
           return new Response(
             JSON.stringify({ 
               success: true, 
-              customerId, 
-              developerToken,
               accessToken: tokens.access_token,
+              refreshToken: tokens.refresh_token,
+              expiry_date: Date.now() + tokens.expires_in * 1000,
               userEmail: userInfo.email,
+              accounts: accounts,
+              developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
+              warning: accountsError,
+              tokens: tokens, // Include full tokens for client storage
               message: "Authentication successful, but no user session. Tokens returned for client storage."
             }),
             { 
@@ -332,28 +376,6 @@ serve(async (req) => {
               console.error("Exception during table creation RPC:", rpcError);
             }
             
-            // Now check if the user already has tokens stored
-            console.log("Checking for existing tokens");
-            const { data: existingTokens, error: checkError } = await supabase
-              .from('google_ads_tokens')
-              .select('*')
-              .eq('user_id', user.id);
-            
-            if (checkError) {
-              console.error("Error checking existing tokens:", checkError);
-              return new Response(
-                JSON.stringify({ 
-                  success: false, 
-                  error: "Database error while checking existing tokens",
-                  details: checkError.message
-                }),
-                { 
-                  status: 500,
-                  headers: { ...corsHeaders, "Content-Type": "application/json" },
-                }
-              );
-            }
-            
             // Define the tokens data
             const tokensData = {
               user_id: user.id,
@@ -364,27 +386,11 @@ serve(async (req) => {
               email: userInfo.email,
             };
             
-            console.log("Preparing to store tokens");
-            let storeError;
-            
-            if (existingTokens && existingTokens.length > 0) {
-              console.log("Updating existing tokens record");
-              // Update existing record
-              const { error } = await supabase
-                .from('google_ads_tokens')
-                .update(tokensData)
-                .eq('user_id', user.id);
-                
-              storeError = error;
-            } else {
-              console.log("Inserting new tokens record");
-              // Insert new record
-              const { error } = await supabase
-                .from('google_ads_tokens')
-                .insert([tokensData]);
-                
-              storeError = error;
-            }
+            console.log("Storing tokens in database");
+            // Upsert to handle both insert and update cases
+            const { error: storeError } = await supabase
+              .from('google_ads_tokens')
+              .upsert(tokensData, { onConflict: "user_id" });
             
             if (storeError) {
               console.error("Error storing tokens:", storeError);
@@ -400,18 +406,17 @@ serve(async (req) => {
           }
         }
         
-        // In production, you would get this from the Google Ads API
-        // But for this example, we're using a test customer ID
-        const customerId = "1234567890";
-        const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
-        
         return new Response(
           JSON.stringify({ 
             success: true, 
-            customerId, 
-            developerToken,
             accessToken: tokens.access_token,
-            userEmail: userInfo.email
+            refreshToken: tokens.refresh_token,
+            expiry_date: Date.now() + tokens.expires_in * 1000,
+            userEmail: userInfo.email,
+            accounts: accounts,
+            developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
+            warning: accountsError,
+            tokens: tokens // Include full tokens object
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -899,64 +904,4 @@ serve(async (req) => {
             JSON.stringify({ 
               success: false, 
               valid: false,
-              error: `Invalid token: ${errorText}` 
-            }),
-            { 
-              status: 401,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        }
-        
-        // Token is valid
-        const userInfo = await userInfoResponse.json();
-        console.log("Token validated successfully");
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            valid: true,
-            userEmail: userInfo.email
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } catch (error) {
-        console.error("Error validating token:", error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            valid: false,
-            error: error.message || "Unknown error validating token" 
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-    }
-    
-    return new Response(
-      JSON.stringify({ error: "Invalid action" }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error) {
-    console.error("Error in google-oauth function:", error);
-    
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || "Internal server error",
-        stack: error.stack
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
-});
+              error: `Invalid token: ${errorText
