@@ -1,10 +1,11 @@
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
 // Store the developer token
 const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
-// Google Maps API Key
+// Google Maps API Key - We won't use this directly in the OAuth flow
 const GOOGLE_API_KEY = "AIzaSyAmIlQctVDMGyMhn70E8Q8Zgo61DDV94fg";
 
 export interface GoogleAdsCredentials {
@@ -31,9 +32,17 @@ export const initiateGoogleAuth = async () => {
       return;
     }
     
+    const userEmail = localStorage.getItem("userEmail") || "";
+    
     // Call the Supabase edge function to get the authorization URL
     const response = await supabase.functions.invoke("google-oauth", {
-      body: { action: "authorize" },
+      body: { 
+        action: "authorize",
+        email: userEmail 
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     });
     
     if (response.error) {
@@ -42,9 +51,13 @@ export const initiateGoogleAuth = async () => {
       return;
     }
     
-    // Log the URL for debugging
+    // Enhanced logging for debugging
+    console.log("OAuth response:", response.data);
     console.log("OAuth URL:", response.data.url);
     console.log("Debug info:", response.data.debug);
+    
+    // Store the debug info in localStorage for troubleshooting
+    localStorage.setItem("oauth_debug", JSON.stringify(response.data.debug));
     
     // Redirect to Google OAuth URL
     window.location.href = response.data.url;
