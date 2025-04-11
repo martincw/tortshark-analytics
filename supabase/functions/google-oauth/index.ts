@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -14,7 +13,7 @@ const REDIRECT_URI = Deno.env.get("SITE_URL") ?
 const GOOGLE_ADS_API_SCOPES = [
   "https://www.googleapis.com/auth/adwords",
   "https://www.googleapis.com/auth/userinfo.email"
-].join(" ");
+];
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -34,20 +33,16 @@ serve(async (req) => {
   try {
     const requestData = await req.json();
     const action = requestData.action;
-    const apiKey = requestData.apiKey; // Get the API key from the request
     
     // Initiate OAuth flow
     if (action === "authorize") {
       console.log("Initiating Google OAuth flow");
       
       try {
-        // Log all parameters for debugging
-        console.log("Parameters:", {
-          client_id: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
-          redirect_uri: REDIRECT_URI,
-          scopes: GOOGLE_ADS_API_SCOPES,
-          api_key_provided: !!apiKey
-        });
+        // Log environment variables for debugging (partial values for security)
+        console.log(`Client ID starts with: ${GOOGLE_CLIENT_ID.substring(0, 4)}...`);
+        console.log(`Client Secret is set: ${Boolean(GOOGLE_CLIENT_SECRET)}`);
+        console.log(`Redirect URI: ${REDIRECT_URI}`);
         
         if (!GOOGLE_CLIENT_ID) {
           throw new Error("GOOGLE_CLIENT_ID is not configured");
@@ -62,7 +57,10 @@ serve(async (req) => {
         authUrl.searchParams.append("client_id", GOOGLE_CLIENT_ID);
         authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
         authUrl.searchParams.append("response_type", "code");
-        authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPES);
+        
+        // Join scopes with a space as required by OAuth 2.0
+        authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPES.join(" "));
+        
         authUrl.searchParams.append("access_type", "offline");
         authUrl.searchParams.append("prompt", "consent");
         
@@ -70,12 +68,7 @@ serve(async (req) => {
         const state = crypto.randomUUID();
         authUrl.searchParams.append("state", state);
         
-        // Add API key if provided
-        if (apiKey) {
-          authUrl.searchParams.append("key", apiKey);
-        }
-        
-        console.log("Generated OAuth URL:", authUrl.toString());
+        console.log("Full OAuth URL:", authUrl.toString());
         
         return new Response(JSON.stringify({ 
           url: authUrl.toString(),
@@ -83,8 +76,7 @@ serve(async (req) => {
             client_id_length: GOOGLE_CLIENT_ID.length,
             redirect_uri: REDIRECT_URI,
             has_client_secret: GOOGLE_CLIENT_SECRET.length > 0,
-            site_url: Deno.env.get("SITE_URL") || "Not set",
-            api_key_provided: !!apiKey
+            site_url: Deno.env.get("SITE_URL") || "Not set"
           }
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

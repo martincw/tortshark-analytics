@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -34,10 +33,7 @@ export const initiateGoogleAuth = async () => {
     
     // Call the Supabase edge function to get the authorization URL
     const response = await supabase.functions.invoke("google-oauth", {
-      body: { 
-        action: "authorize",
-        apiKey: GOOGLE_API_KEY
-      },
+      body: { action: "authorize" },
     });
     
     if (response.error) {
@@ -49,9 +45,6 @@ export const initiateGoogleAuth = async () => {
     // Log the URL for debugging
     console.log("OAuth URL:", response.data.url);
     console.log("Debug info:", response.data.debug);
-    
-    // Optional: Display the URL in an alert for testing
-    // alert(`OAuth URL: ${response.data.url}`);
     
     // Redirect to Google OAuth URL
     window.location.href = response.data.url;

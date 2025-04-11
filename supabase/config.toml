@@ -51,7 +51,7 @@ enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 url = "https://accounts.google.com/o/oauth2/v2/auth"
-redirect_uri = "https://localhost:3000"
+redirect_uri = "http://localhost:3000/integrations"
 
 [analytics]
 enabled = false
