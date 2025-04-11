@@ -143,7 +143,7 @@ const AccountsList = ({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium">{account.name}</span>
-                <Badge variant="default">Google Ads</Badge>
+                <Badge variant="default">{account.platform}</Badge>
                 {account.isConnected ? (
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Connected</Badge>
                 ) : (
@@ -197,3 +197,4 @@ const AccountsList = ({
     </>
   );
 };
+
