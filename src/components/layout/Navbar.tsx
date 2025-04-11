@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, Tool } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { href: "/campaigns", label: "Campaigns" },
   { href: "/accounts", label: "Accounts" },
   { href: "/integrations", label: "Integrations" },
+  { href: "/tools", label: "Tools" }, // Added Tools page to navigation
 ];
 
 export const Navbar: React.FC = () => {
@@ -88,7 +89,12 @@ export const Navbar: React.FC = () => {
         </Link>
         <nav className="ml-auto flex items-center space-x-6">
           {navItems.map((item) => (
-            <Link key={item.href} to={item.href} className="text-sm font-medium transition-colors hover:text-primary">
+            <Link 
+              key={item.href} 
+              to={item.href} 
+              className="text-sm font-medium transition-colors hover:text-primary flex items-center"
+            >
+              {item.label === "Tools" && <Tool className="h-4 w-4 mr-2" />}
               {item.label}
             </Link>
           ))}
