@@ -13,6 +13,7 @@ import {
   getGoogleAdsCredentials
 } from "@/services/googleAdsService";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const GoogleAdsIntegration: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -20,11 +21,14 @@ const GoogleAdsIntegration: React.FC = () => {
   const [isDisconnecting, setIsDisconnecting] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // Check if Google Ads is already connected
   useEffect(() => {
     const checkConnection = async () => {
+      if (!user) return;
+      
       setIsChecking(true);
       try {
         const connected = await isGoogleAuthValid();
@@ -42,7 +46,7 @@ const GoogleAdsIntegration: React.FC = () => {
     };
     
     checkConnection();
-  }, []);
+  }, [user]);
 
   // Handle connecting to Google Ads
   const handleConnect = async () => {
