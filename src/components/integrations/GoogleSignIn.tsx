@@ -11,7 +11,7 @@ import {
   handleOAuthCallback, 
   getGoogleAdsCredentials, 
   isGoogleAuthValid,
-  fetchGoogleAdsAccounts
+  listGoogleAdsAccounts // Changed from fetchGoogleAdsAccounts to listGoogleAdsAccounts
 } from "@/services/googleAdsService";
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaign } from "@/contexts/CampaignContext";

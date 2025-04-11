@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import {
   Card,
@@ -46,7 +47,7 @@ export const ConnectedAccounts = ({
         accounts.forEach(account => {
           addAccountConnection({
             name: account.name,
-            platform: account.platform || "Google Ads",
+            platform: "google", // Changed from "Google Ads" to "google" to match the expected type
             customerId: account.id,
             isConnected: true,
             lastSynced: new Date().toISOString(),

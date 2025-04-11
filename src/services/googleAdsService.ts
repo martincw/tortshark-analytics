@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -362,6 +361,9 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
   }
 };
 
+// Let's add fetchGoogleAdsAccounts as an alias to listGoogleAdsAccounts
+export const fetchGoogleAdsAccounts = listGoogleAdsAccounts;
+
 // Create an object with all the exported functions
 export const googleAdsService = {
   initiateGoogleAuth,
@@ -371,5 +373,6 @@ export const googleAdsService = {
   isGoogleAuthValid,
   refreshGoogleToken,
   listGoogleAdsAccounts,
+  fetchGoogleAdsAccounts,
   revokeGoogleAccess
 };
