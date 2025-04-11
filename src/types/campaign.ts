@@ -1,8 +1,7 @@
-
 export interface Campaign {
   id: string;
   name: string;
-  platform: "google" | "facebook" | "linkedin";
+  platform: "google";
   accountId: string;
   accountName: string;
   stats: CampaignStats;

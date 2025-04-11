@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -12,7 +11,7 @@ export const useCampaignForm = () => {
   
   // Campaign basic details
   const [campaignName, setCampaignName] = useState("");
-  const [platform, setPlatform] = useState<"google" | "facebook" | "linkedin">("google");
+  const [platform, setPlatform] = useState<"google">("google");
   const [accountId, setAccountId] = useState("");
   
   // Campaign targets

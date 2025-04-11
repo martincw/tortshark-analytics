@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +12,7 @@ import { AccountConnection } from "@/types/campaign";
 interface CampaignDetailsSectionProps {
   campaignName: string;
   setCampaignName: (value: string) => void;
-  platform: "google" | "facebook" | "linkedin";
+  platform: "google";
   accountId: string;
   setAccountId: (value: string) => void;
   availableAccounts: AccountConnection[];
