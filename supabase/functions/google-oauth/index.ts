@@ -34,6 +34,7 @@ serve(async (req) => {
   try {
     const requestData = await req.json();
     const action = requestData.action;
+    const apiKey = requestData.apiKey; // Get the API key from the request
     
     // Initiate OAuth flow
     if (action === "authorize") {
@@ -44,7 +45,8 @@ serve(async (req) => {
         console.log("Parameters:", {
           client_id: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
           redirect_uri: REDIRECT_URI,
-          scopes: GOOGLE_ADS_API_SCOPES
+          scopes: GOOGLE_ADS_API_SCOPES,
+          api_key_provided: !!apiKey
         });
         
         if (!GOOGLE_CLIENT_ID) {
@@ -68,6 +70,11 @@ serve(async (req) => {
         const state = crypto.randomUUID();
         authUrl.searchParams.append("state", state);
         
+        // Add API key if provided
+        if (apiKey) {
+          authUrl.searchParams.append("key", apiKey);
+        }
+        
         console.log("Generated OAuth URL:", authUrl.toString());
         
         return new Response(JSON.stringify({ 
@@ -76,7 +83,8 @@ serve(async (req) => {
             client_id_length: GOOGLE_CLIENT_ID.length,
             redirect_uri: REDIRECT_URI,
             has_client_secret: GOOGLE_CLIENT_SECRET.length > 0,
-            site_url: Deno.env.get("SITE_URL") || "Not set"
+            site_url: Deno.env.get("SITE_URL") || "Not set",
+            api_key_provided: !!apiKey
           }
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

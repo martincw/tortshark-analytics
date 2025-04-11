@@ -5,6 +5,8 @@ import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
 // Store the developer token
 const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
+// Google Maps API Key
+const GOOGLE_API_KEY = "AIzaSyAmIlQctVDMGyMhn70E8Q8Zgo61DDV94fg";
 
 export interface GoogleAdsCredentials {
   customerId: string;
@@ -12,6 +14,7 @@ export interface GoogleAdsCredentials {
   refreshToken?: string;
   developerToken: string;
   userEmail?: string;
+  apiKey?: string;
 }
 
 // Helper function to get the supabase JWT token
@@ -31,7 +34,10 @@ export const initiateGoogleAuth = async () => {
     
     // Call the Supabase edge function to get the authorization URL
     const response = await supabase.functions.invoke("google-oauth", {
-      body: { action: "authorize" },
+      body: { 
+        action: "authorize",
+        apiKey: GOOGLE_API_KEY
+      },
     });
     
     if (response.error) {
