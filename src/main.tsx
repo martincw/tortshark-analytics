@@ -5,8 +5,8 @@ import App from './App.tsx'
 import './index.css'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 
-// Replace the placeholder with your actual Google Client ID
-// Make sure to update this with your client ID from Google Cloud Console
+// Use your actual Google Client ID 
+// This needs to be configured in the Google Cloud Console
 const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; 
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
