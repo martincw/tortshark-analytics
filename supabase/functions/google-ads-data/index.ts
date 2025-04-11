@@ -174,6 +174,92 @@ function transformCampaignMetrics(apiResponse: any): any[] {
   }
 }
 
+async function fetchAccountsList(accessToken: string, developerToken: string): Promise<any[]> {
+  try {
+    console.log("Fetching real Google Ads accounts...");
+    
+    // First, fetch the accessible customers
+    const managerResponse = await fetch(
+      "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers",
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "developer-token": developerToken,
+        },
+      }
+    );
+    
+    if (!managerResponse.ok) {
+      const errorText = await managerResponse.text();
+      console.error("Failed to fetch accessible customers:", errorText);
+      throw new Error(`Failed to fetch accessible customers: ${errorText}`);
+    }
+    
+    const { resourceNames } = await managerResponse.json();
+    
+    if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
+      console.log("No accessible accounts found");
+      return [];
+    }
+    
+    console.log(`Found ${resourceNames.length} accessible accounts`);
+    
+    // Extract customer IDs from resource names (format: 'customers/1234567890')
+    const customerIds = resourceNames.map((name) => name.split('/')[1]);
+    
+    // Now fetch details for each customer ID
+    const accounts = await Promise.all(
+      customerIds.map(async (customerId) => {
+        try {
+          const customerResponse = await fetch(
+            `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
+            {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "developer-token": developerToken,
+              },
+            }
+          );
+          
+          if (!customerResponse.ok) {
+            console.error(`Failed to fetch details for customer ${customerId}`);
+            return null;
+          }
+          
+          const customerData = await customerResponse.json();
+          
+          return {
+            id: customerId,
+            customerId: customerId,
+            name: customerData.customer?.descriptiveName || `Account ${customerId}`,
+            currency: customerData.customer?.currencyCode || "USD",
+            timeZone: customerData.customer?.timeZone || "America/New_York",
+            status: customerData.customer?.status || "ENABLED"
+          };
+        } catch (error) {
+          console.error(`Error fetching details for customer ${customerId}:`, error);
+          return {
+            id: customerId,
+            customerId: customerId,
+            name: `Account ${customerId}`,
+            currency: "USD",
+            timeZone: "America/New_York",
+            status: "ENABLED"
+          };
+        }
+      })
+    );
+    
+    // Filter out null values (failed requests)
+    return accounts.filter(account => account !== null);
+  } catch (error) {
+    console.error("Error fetching Google Ads accounts:", error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -323,41 +409,70 @@ serve(async (req) => {
         );
       }
       
-      // TODO: In a production environment, these accounts would come from 
-      // the actual Google Ads API. For now, we'll provide mock data.
-      const mockAccounts = [
-        {
-          id: "1234567890",
-          name: "Main Marketing Account",
-          customerId: "1234567890",
-          currency: "USD",
-          timeZone: "America/Los_Angeles",
-          status: "ENABLED"
-        },
-        {
-          id: "2345678901",
-          name: "E-commerce Campaign",
-          customerId: "2345678901",
-          currency: "USD",
-          timeZone: "America/Chicago",
-          status: "ENABLED"
-        },
-        {
-          id: "3456789012",
-          name: "Brand Awareness",
-          customerId: "3456789012",
-          currency: "USD",
-          timeZone: "America/New_York",
-          status: "ENABLED"
-        }
-      ];
+      const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
       
-      return new Response(
-        JSON.stringify({ success: true, accounts: mockAccounts }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      try {
+        // Fetch real Google Ads accounts instead of using mock data
+        const accounts = await fetchAccountsList(tokensResult.accessToken, developerToken);
+        
+        return new Response(
+          JSON.stringify({ success: true, accounts }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error fetching Google Ads accounts:", error);
+        
+        // If token refresh is needed, attempt it
+        if (tokensResult.refreshToken) {
+          try {
+            const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
+            
+            await supabase
+              .from("google_ads_tokens")
+              .update({
+                access_token: refreshedTokens.access_token,
+                expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
+              })
+              .eq("user_id", user.id);
+            
+            // Try again with refreshed token
+            const accounts = await fetchAccountsList(refreshedTokens.access_token, developerToken);
+            
+            return new Response(
+              JSON.stringify({ success: true, accounts }),
+              { 
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          } catch (refreshError) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: "Failed to refresh token and retry fetching accounts",
+                details: refreshError.message
+              }),
+              { 
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          }
         }
-      );
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Failed to fetch Google Ads accounts",
+            stack: error.stack
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
     
     return new Response(
