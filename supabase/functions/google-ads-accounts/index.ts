@@ -21,9 +21,9 @@ async function fetchAccountsList(accessToken: string): Promise<any[]> {
     // Developer token for Google Ads API
     const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
     
-    // First, fetch the accessible customers
+    // First, fetch the accessible customers using the correct endpoint
     const managerResponse = await fetch(
-      "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers",
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
       {
         method: "GET",
         headers: {
@@ -74,7 +74,9 @@ async function fetchAccountsList(accessToken: string): Promise<any[]> {
               name: `Account ${customerId}`,
               currency: "USD",
               timeZone: "America/New_York",
-              status: "UNKNOWN"
+              status: "UNKNOWN",
+              platform: "Google Ads",
+              isConnected: true
             };
           }
           
