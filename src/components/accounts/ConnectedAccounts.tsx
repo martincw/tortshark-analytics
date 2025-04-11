@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import {
   Card,
@@ -19,7 +18,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { listGoogleAdsAccounts } from "@/services/googleAdsService";
 
 interface ConnectedAccountsProps {
@@ -53,9 +52,15 @@ export const ConnectedAccounts = ({
             lastSynced: new Date().toISOString(),
           });
         });
-        toast.success(`Found ${accounts.length} Google Ads accounts`);
+        toast({
+          title: "Success",
+          description: `Found ${accounts.length} Google Ads accounts`,
+        });
       } else {
-        toast.info("No Google Ads accounts found");
+        toast({
+          title: "Info",
+          description: "No Google Ads accounts found",
+        });
       }
     };
     

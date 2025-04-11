@@ -1,15 +1,12 @@
-
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
-// Store configuration in one place
 const GOOGLE_CONFIG = {
   developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
   redirectUri: "https://app.tortshark.com/integrations"
 };
 
-// Helper function to get the supabase JWT token
 const getAuthToken = async (): Promise<string | null> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -22,7 +19,6 @@ const getAuthToken = async (): Promise<string | null> => {
 
 export const initiateGoogleAuth = async () => {
   try {
-    // Get auth token but don't fail if not available
     let headers = {};
     const token = await getAuthToken();
     if (token) {
@@ -35,7 +31,6 @@ export const initiateGoogleAuth = async () => {
     
     console.log("Initiating Google OAuth flow...");
     
-    // Call the Supabase edge function to get the authorization URL
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "authorize",
@@ -58,23 +53,28 @@ export const initiateGoogleAuth = async () => {
     
     if (response.error) {
       console.error("Error initiating Google OAuth:", response.error);
-      toast.error("Failed to initiate Google authentication");
+      toast({
+        title: "Error",
+        description: "Failed to initiate Google authentication",
+        variant: "destructive",
+      });
       throw new Error(`Error initiating Google OAuth: ${response.error.message}`);
     }
     
-    // Enhanced logging for debugging
     console.log("OAuth response:", response.data);
     console.log("OAuth URL:", response.data.url);
     
-    // Store debug info in localStorage for troubleshooting
     localStorage.setItem("oauth_debug", JSON.stringify(response.data.debug));
     localStorage.setItem("oauth_ts", new Date().toISOString());
     
-    // Redirect to Google OAuth URL
     window.location.href = response.data.url;
   } catch (error) {
     console.error("Error initiating Google auth:", error);
-    toast.error(error.message || "Failed to initiate Google authentication");
+    toast({
+      title: "Error",
+      description: error.message || "Failed to initiate Google authentication",
+      variant: "destructive",
+    });
     throw error;
   }
 };
@@ -98,7 +98,6 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
   console.log("Received auth code from Google");
   
   try {
-    // Exchange the code for tokens using our edge function
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "callback",
@@ -110,49 +109,54 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     
     if (response.error) {
       console.error("Error handling OAuth callback:", response.error);
-      toast.error("Failed to complete Google authentication");
+      toast({
+        title: "Authentication Failed",
+        description: "Failed to complete Google authentication",
+        variant: "destructive",
+      });
       throw new Error(`Error exchanging code for tokens: ${response.error.message}`);
     }
     
-    // Store response data for debugging
     localStorage.setItem("oauth_callback_response", JSON.stringify(response.data));
     
-    // Clear code from URL to prevent repeated processing
     window.history.replaceState({}, document.title, window.location.pathname);
     
-    // Store tokens and account info in local storage
     if (response.data.success) {
       localStorage.setItem("googleAds_access_token", response.data.accessToken);
       localStorage.setItem("googleAds_refresh_token", response.data.refreshToken);
       localStorage.setItem("googleAds_token_expiry", response.data.expiry_date.toString());
       localStorage.setItem("userEmail", response.data.userEmail);
       
-      // Store Google Ads accounts if available
       if (response.data.accounts && response.data.accounts.length > 0) {
         localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
         localStorage.setItem("googleAds_account_id", response.data.accounts[0].id);
       }
       
-      // Log warning message if there was an error fetching accounts
       if (response.data.warning) {
         console.warn("Warning from Google Ads API:", response.data.warning);
       }
       
-      toast.success("Successfully connected to Google Ads");
+      toast({
+        title: "Success",
+        description: "Successfully connected to Google Ads",
+      });
       return true;
     }
     
     return false;
   } catch (error) {
     console.error("Error handling OAuth callback:", error);
-    toast.error("Failed to complete Google authentication");
+    toast({
+      title: "Authentication Failed",
+      description: "Failed to complete Google authentication",
+      variant: "destructive",
+    });
     throw error;
   }
 };
 
 export const getGoogleAdsCredentials = async (): Promise<any | null> => {
   try {
-    // Check local storage for cached credentials
     const accessToken = localStorage.getItem("googleAds_access_token");
     const accountId = localStorage.getItem("googleAds_account_id");
     const expiry = localStorage.getItem("googleAds_token_expiry");
@@ -161,9 +165,7 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
       return null;
     }
     
-    // Check if token is expired
     if (expiry && new Date(Number(expiry)) <= new Date()) {
-      // Token expired, try to refresh
       const refreshed = await refreshGoogleToken();
       if (!refreshed) {
         return null;
@@ -184,13 +186,11 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
 
 export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
   try {
-    // First try to get accounts from localStorage (cached from OAuth response)
     const cachedAccounts = localStorage.getItem("googleAds_accounts");
     
     if (cachedAccounts) {
       try {
         const accounts = JSON.parse(cachedAccounts);
-        // If we have cached accounts, transform and return them
         return accounts.map((account: any) => ({
           id: account.id,
           name: account.name || `Google Ads Account ${account.id}`,
@@ -201,42 +201,53 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
         }));
       } catch (parseError) {
         console.error("Error parsing cached accounts:", parseError);
-        // Continue to fetch accounts from API if parsing fails
       }
     }
     
-    // Get access token from local storage
     const accessToken = localStorage.getItem("googleAds_access_token");
     
     if (!accessToken) {
-      toast.error("Google Ads access token not found");
+      toast({
+        title: "Error",
+        description: "Google Ads access token not found",
+        variant: "destructive",
+      });
       return [];
     }
     
-    // Call our edge function to list accounts
-    const response = await supabase.functions.invoke("google-ads-accounts", {
+    console.log("Attempting to fetch Google Ads accounts");
+    
+    const response = await supabase.functions.invoke("google-ads-data", {
       body: { 
-        action: "list-accounts",
+        action: "get-accounts",
         accessToken
       }
     });
     
+    console.log("Account listing response:", response);
+    
     if (response.error) {
-      console.error("Error fetching Google Ads accounts:", response.error);
-      toast.error("Failed to fetch Google Ads accounts");
+      console.error("Error from Edge Function:", response.error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch Google Ads accounts",
+        variant: "destructive",
+      });
       return [];
     }
     
-    if (!response.data.success) {
-      console.error("Error from API:", response.data.error);
-      toast.error(response.data.error || "Failed to fetch Google Ads accounts");
+    if (!response.data || !response.data.success) {
+      console.error("Error from API:", response.data?.error || "Unknown error");
+      toast({
+        title: "Error",
+        description: response.data?.error || "Failed to fetch Google Ads accounts",
+        variant: "destructive",
+      });
       return [];
     }
     
-    // Store accounts in localStorage for future use
     localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
     
-    // Transform to AccountConnection format
     return response.data.accounts.map((account: any) => ({
       id: account.id,
       name: account.name || `Google Ads Account ${account.id}`,
@@ -247,7 +258,11 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     }));
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
-    toast.error("Failed to list Google Ads accounts");
+    toast({
+      title: "Error",
+      description: "Failed to list Google Ads accounts",
+      variant: "destructive",
+    });
     return [];
   }
 };
@@ -257,21 +272,26 @@ export const fetchGoogleAdsMetrics = async (
   dateRange: DateRange
 ): Promise<GoogleAdsMetrics[] | null> => {
   try {
-    // Get credentials
     const credentials = await getGoogleAdsCredentials();
     if (!credentials) {
-      toast.error("Google Ads credentials not found");
+      toast({
+        title: "Error",
+        description: "Google Ads credentials not found",
+        variant: "destructive",
+      });
       return null;
     }
     
-    // Get auth token for Supabase function call
     const token = await getAuthToken();
     if (!token) {
-      toast.error("Authentication token not found");
+      toast({
+        title: "Error",
+        description: "Authentication token not found",
+        variant: "destructive",
+      });
       return null;
     }
     
-    // Call the Supabase edge function to get the metrics from Google Ads API
     const response = await supabase.functions.invoke("google-ads-data", {
       body: { 
         action: "get-metrics",
@@ -286,21 +306,28 @@ export const fetchGoogleAdsMetrics = async (
     
     if (response.error || !response.data.success) {
       console.error("Error fetching Google Ads metrics:", response.error || response.data.error);
-      toast.error("Failed to fetch Google Ads metrics");
+      toast({
+        title: "Error",
+        description: "Failed to fetch Google Ads metrics",
+        variant: "destructive",
+      });
       return null;
     }
     
     return response.data.metrics;
   } catch (error) {
     console.error("Error fetching Google Ads metrics:", error);
-    toast.error("Failed to fetch Google Ads metrics");
+    toast({
+      title: "Error",
+      description: "Failed to fetch Google Ads metrics",
+      variant: "destructive",
+    });
     return null;
   }
 };
 
 export const validateGoogleToken = async (): Promise<boolean> => {
   try {
-    // Get access token from local storage
     const accessToken = localStorage.getItem("googleAds_access_token");
     
     if (!accessToken) {
@@ -310,7 +337,6 @@ export const validateGoogleToken = async (): Promise<boolean> => {
     
     console.log("Calling token validation endpoint");
     
-    // Call our edge function to validate the token
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "validate-token",
@@ -341,14 +367,11 @@ export const isGoogleAuthValid = async (): Promise<boolean> => {
       return false;
     }
     
-    // Check if token is expired
     if (expiry && new Date(Number(expiry)) <= new Date()) {
-      // Token expired, try to refresh
       const refreshed = await refreshGoogleToken();
       return refreshed;
     }
     
-    // Validate the token with Google
     const isValid = await validateGoogleToken();
     return isValid;
   } catch (error) {
@@ -368,7 +391,6 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
     
     console.log("Calling direct refresh token endpoint");
     
-    // Call our edge function with the new direct refresh action
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "refresh-direct",
@@ -383,7 +405,6 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
       return false;
     }
     
-    // Update stored tokens
     localStorage.setItem("googleAds_access_token", response.data.accessToken);
     if (response.data.expiryDate) {
       localStorage.setItem("googleAds_token_expiry", response.data.expiryDate.toString());
@@ -399,21 +420,18 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
 
 export const revokeGoogleAccess = async (): Promise<boolean> => {
   try {
-    // Get the access token to revoke
     const accessToken = localStorage.getItem("googleAds_access_token");
-    
-    // Call our edge function to revoke access
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
     
     if (accessToken) {
       console.log("Calling Google OAuth revocation endpoint");
       
-      // Call our edge function to revoke the token
+      const token = await getAuthToken();
+      const headers: Record<string, string> = {};
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
       const response = await supabase.functions.invoke("google-oauth", {
         body: { 
           action: "revoke",
@@ -429,7 +447,6 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
       }
     }
     
-    // Clear local storage regardless of API call result
     localStorage.removeItem("googleAds_access_token");
     localStorage.removeItem("googleAds_refresh_token");
     localStorage.removeItem("googleAds_token_expiry");
@@ -438,15 +455,12 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error("Error revoking access:", error);
-    // Still return true as we cleared local storage
     return true;
   }
 };
 
-// Let's add fetchGoogleAdsAccounts as an alias to listGoogleAdsAccounts
 export const fetchGoogleAdsAccounts = listGoogleAdsAccounts;
 
-// Create an object with all the exported functions
 export const googleAdsService = {
   initiateGoogleAuth,
   handleOAuthCallback,

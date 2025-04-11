@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { handleOAuthCallback } from "@/services/googleAdsService";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { useCampaign } from "@/contexts/CampaignContext";
 
 const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // Replace with your actual client ID
@@ -51,16 +51,25 @@ const IntegrationsPage = () => {
           const success = await handleOAuthCallback();
           
           if (success) {
-            toast.success("Successfully connected to Google Ads");
+            toast({
+              title: "Success",
+              description: "Successfully connected to Google Ads",
+            });
             
             try {
               const accounts = await fetchGoogleAdsAccounts();
               console.log("Fetched Google Ads accounts:", accounts);
               
               if (accounts.length > 0) {
-                toast.success(`Found ${accounts.length} Google Ads accounts`);
+                toast({
+                  title: "Success",
+                  description: `Found ${accounts.length} Google Ads accounts`,
+                });
               } else {
-                toast.info("No Google Ads accounts found");
+                toast({
+                  title: "Info",
+                  description: "No Google Ads accounts found",
+                });
               }
             } catch (accountsError) {
               console.error("Error fetching Google Ads accounts:", accountsError);

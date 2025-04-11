@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
@@ -49,10 +48,17 @@ const AccountsPage = () => {
     setIsRefreshing(true);
     try {
       await fetchGoogleAdsAccounts();
-      toast.success("Google Ads accounts refreshed");
+      toast({
+        title: "Success",
+        description: "Google Ads accounts refreshed",
+      });
     } catch (error) {
       console.error("Error refreshing accounts:", error);
-      toast.error("Failed to refresh accounts");
+      toast({
+        title: "Error",
+        description: "Failed to refresh accounts",
+        variant: "destructive",
+      });
     } finally {
       setIsRefreshing(false);
     }
@@ -69,7 +75,10 @@ const AccountsPage = () => {
   const handleSelectAccount = (accountId: string) => {
     setSelectedAccountId(accountId);
     const accountName = accountConnections.find(acc => acc.id === accountId)?.name;
-    toast.info(`Account selected: ${accountName}`);
+    toast({
+      title: "Account Selected",
+      description: `Account selected: ${accountName}`,
+    });
   };
 
   return (
