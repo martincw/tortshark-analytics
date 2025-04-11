@@ -40,6 +40,13 @@ export const initiateGoogleAuth = async () => {
       return;
     }
     
+    // Log the URL for debugging
+    console.log("OAuth URL:", response.data.url);
+    console.log("Debug info:", response.data.debug);
+    
+    // Optional: Display the URL in an alert for testing
+    // alert(`OAuth URL: ${response.data.url}`);
+    
     // Redirect to Google OAuth URL
     window.location.href = response.data.url;
   } catch (error) {
