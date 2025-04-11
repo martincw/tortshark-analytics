@@ -45,7 +45,6 @@ export const ConnectedAccounts = ({
       if (accounts && accounts.length > 0) {
         accounts.forEach(account => {
           addAccountConnection({
-            id: account.id,
             name: account.name,
             platform: account.platform || "Google Ads",
             customerId: account.id,
