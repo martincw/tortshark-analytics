@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -23,7 +22,7 @@ export const useCampaignForm = () => {
   const [targetMonthlyIncome, setTargetMonthlyIncome] = useState("");
   const [targetMonthlySpend, setTargetMonthlySpend] = useState("");
   
-  // Only use available account connections, no manual account fallback
+  // Only use imported account connections
   const availableAccounts: AccountConnection[] = accountConnections;
 
   // Calculate target income and spend based on profit and ROAS
@@ -67,10 +66,8 @@ export const useCampaignForm = () => {
       const account = accountConnections.find(acc => acc.id === preselectedAccountId);
       if (account) {
         setAccountId(preselectedAccountId);
-        // Make sure we only set platform to "google" since that's the only supported value
-        if (account.platform === "google") {
-          setPlatform("google");
-        }
+        // Make sure we only set platform to "google" since that's the only supported value for campaigns
+        setPlatform("google");
         toast.info(`Using account: ${account.name}`);
       }
     } else if (accountConnections.length > 0) {

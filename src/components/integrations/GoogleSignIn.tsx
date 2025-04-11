@@ -10,9 +10,11 @@ import {
   initiateGoogleAuth, 
   handleOAuthCallback, 
   getGoogleAdsCredentials, 
-  isGoogleAuthValid 
+  isGoogleAuthValid,
+  fetchGoogleAdsAccounts
 } from "@/services/googleAdsService";
 import { supabase } from "@/integrations/supabase/client";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
@@ -28,6 +30,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const isMobile = useIsMobile();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { fetchGoogleAdsAccounts } = useCampaign();
 
   // Check if user is logged in with Supabase
   useEffect(() => {
@@ -66,6 +69,16 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
             const credentials = await getGoogleAdsCredentials();
             if (credentials) {
               toast.success("Successfully signed in with Google");
+              
+              // After successful sign-in, import Google Ads accounts
+              try {
+                await fetchGoogleAdsAccounts();
+                toast.success("Google Ads accounts imported successfully");
+              } catch (importError) {
+                console.error("Error importing Google Ads accounts:", importError);
+                toast.error("Failed to import Google Ads accounts");
+              }
+              
               onSuccess({
                 customerId: credentials.customerId,
                 developerToken: credentials.developerToken
@@ -86,7 +99,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     };
     
     checkForCallback();
-  }, [onSuccess]);
+  }, [onSuccess, fetchGoogleAdsAccounts]);
 
   // Check for existing auth on component mount
   useEffect(() => {

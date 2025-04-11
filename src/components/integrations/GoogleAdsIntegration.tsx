@@ -42,6 +42,8 @@ const GoogleAdsIntegration: React.FC = () => {
         if (connected) {
           const credentials = await getGoogleAdsCredentials();
           setUserEmail(credentials?.userEmail || null);
+          
+          await fetchGoogleAdsAccounts();
         }
       } catch (error) {
         console.error("Error checking Google connection:", error);
@@ -52,7 +54,7 @@ const GoogleAdsIntegration: React.FC = () => {
     };
     
     checkConnection();
-  }, [user]);
+  }, [user, fetchGoogleAdsAccounts]);
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -97,6 +99,7 @@ const GoogleAdsIntegration: React.FC = () => {
       if (success) {
         toast.success("Successfully refreshed Google Ads token");
         await fetchGoogleAdsAccounts();
+        toast.success("Google Ads accounts updated");
       } else {
         toast.error("Failed to refresh Google Ads token");
       }

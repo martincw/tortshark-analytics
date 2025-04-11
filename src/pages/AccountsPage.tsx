@@ -6,9 +6,8 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { PlusCircle, AlertCircle, ExternalLink, InfoIcon } from "lucide-react";
+import { AlertCircle, ExternalLink, InfoIcon, RefreshCw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -22,59 +21,41 @@ import { getGoogleAdsCredentials, isGoogleAuthValid } from "@/services/googleAds
 const AccountsPage = () => {
   const { 
     accountConnections, 
-    addAccountConnection, 
+    fetchGoogleAdsAccounts,
     isLoading 
   } = useCampaign();
   
   const navigate = useNavigate();
-  const [newAccountName, setNewAccountName] = useState("");
-  const [newAccountPlatform, setNewAccountPlatform] = useState<"google">("google");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   useEffect(() => {
     // Check if Google auth is already valid
     const checkGoogleAuth = async () => {
       const isValid = await isGoogleAuthValid();
       setIsGoogleConnected(isValid);
+      
+      // If connected, ensure we have the latest accounts
+      if (isValid) {
+        refreshAccounts();
+      }
     };
     
     checkGoogleAuth();
   }, []);
   
-  const handleAddAccount = async () => {
-    if (!newAccountName.trim()) {
-      toast.error("Please enter an account name");
-      return;
+  const refreshAccounts = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchGoogleAdsAccounts();
+      toast.success("Google Ads accounts refreshed");
+    } catch (error) {
+      console.error("Error refreshing accounts:", error);
+      toast.error("Failed to refresh accounts");
+    } finally {
+      setIsRefreshing(false);
     }
-    
-    if (!isGoogleConnected) {
-      toast.error("Please connect to Google Ads first");
-      navigate("/integrations");
-      return;
-    }
-    
-    const credentials = await getGoogleAdsCredentials();
-    
-    const newAccount: Omit<AccountConnection, "id"> = {
-      name: newAccountName.trim(),
-      platform: newAccountPlatform,
-      isConnected: Boolean(credentials),
-      lastSynced: new Date().toISOString(),
-      credentials: credentials ? {
-        customerId: credentials.customerId,
-        developerToken: credentials.developerToken
-      } : undefined
-    };
-    
-    const newAccountId = addAccountConnection(newAccount);
-    setNewAccountName("");
-    
-    if (typeof newAccountId === 'string') {
-      setSelectedAccountId(newAccountId);
-    }
-    
-    toast.success("Account added successfully");
   };
 
   const handleCreateCampaign = () => {
@@ -94,18 +75,28 @@ const AccountsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Google Ads Account Connections</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Google Ads Accounts</h1>
+          <p className="text-muted-foreground mt-1">
+            Select accounts to create campaigns
+          </p>
+        </div>
+        
+        <Button 
+          variant="outline"
+          onClick={refreshAccounts}
+          disabled={isRefreshing || !isGoogleConnected}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh Accounts'}
+        </Button>
       </div>
-      
-      <p className="text-muted-foreground">
-        Manage your Google Ads accounts and create campaigns
-      </p>
       
       {!isGoogleConnected && (
         <Alert className="mb-4 bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-500" />
           <AlertDescription className="text-amber-800 flex justify-between items-center">
-            <span>You need to connect to Google Ads before adding accounts</span>
+            <span>You need to connect to Google Ads before managing accounts</span>
             <Button 
               variant="outline" 
               size="sm" 
@@ -118,65 +109,60 @@ const AccountsPage = () => {
         </Alert>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Add New Account</CardTitle>
-            <CardDescription>
-              Create a new Google Ads account
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="accountName" className="text-sm font-medium">
-                Account Name
-              </label>
-              <Input
-                id="accountName"
-                value={newAccountName}
-                onChange={(e) => setNewAccountName(e.target.value)}
-                placeholder="e.g., My Google Ads Account"
-                disabled={!isGoogleConnected}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Platform</label>
-              <div className="w-full p-2 border rounded-md bg-muted/30 text-sm">
-                Google Ads
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Imported Google Ads Accounts</CardTitle>
+          <CardDescription>
+            Accounts are automatically imported after connecting to Google Ads
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isGoogleConnected ? (
+            accountConnections.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Select an account to create a campaign with it
+              </p>
+            ) : (
+              <div className="bg-muted/30 p-4 rounded-md text-center">
+                <p className="text-muted-foreground mb-2">No accounts found</p>
+                <p className="text-sm text-muted-foreground">
+                  Accounts are automatically imported after connecting to Google Ads.
+                  Try refreshing if you don't see your accounts.
+                </p>
               </div>
+            )
+          ) : (
+            <div className="text-sm text-muted-foreground mt-2 flex items-start gap-2">
+              <InfoIcon className="h-4 w-4 mt-0.5 text-amber-500" />
+              <span>
+                You need to connect to Google Ads first. Go to the Integrations page to complete authentication.
+              </span>
             </div>
-            
-            {!isGoogleConnected && (
-              <div className="text-sm text-muted-foreground mt-2 flex items-start gap-2">
-                <InfoIcon className="h-4 w-4 mt-0.5 text-amber-500" />
-                <span>
-                  You need to connect to Google Ads first. Go to the Integrations page to complete authentication.
-                </span>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
+          )}
+        </CardContent>
+        {isGoogleConnected && (
+          <CardFooter className="border-t pt-4">
             <Button 
-              onClick={handleAddAccount} 
+              variant="outline" 
               className="w-full"
-              disabled={isLoading || !newAccountName.trim() || !isGoogleConnected}
+              onClick={() => navigate("/integrations")}
             >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Account
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Manage Google Ads Connection
             </Button>
           </CardFooter>
-        </Card>
-        
-        <ConnectedAccounts
-          accountConnections={accountConnections}
-          isLoading={isLoading}
-          handleCreateCampaign={handleCreateCampaign}
-          selectedAccountId={selectedAccountId || undefined}
-          onSelectAccount={handleSelectAccount}
-        />
-      </div>
+        )}
+      </Card>
+      
+      <ConnectedAccounts
+        accountConnections={accountConnections}
+        isLoading={isLoading || isRefreshing}
+        handleCreateCampaign={handleCreateCampaign}
+        selectedAccountId={selectedAccountId || undefined}
+        onSelectAccount={handleSelectAccount}
+      />
 
-      {selectedAccountId && (
+      {selectedAccountId && accountConnections.length > 0 && (
         <div className="flex justify-center">
           <Button 
             onClick={handleCreateCampaign} 
