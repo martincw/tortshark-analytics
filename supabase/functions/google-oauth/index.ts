@@ -12,11 +12,10 @@ const REDIRECT_URI = Deno.env.get("SITE_URL") ?
   "https://app.tortshark.com/integrations";
 
 // Google Ads API OAuth scopes - Updated to use valid scopes
-const GOOGLE_ADS_API_SCOPES = [
+const OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/adwords",
   "https://www.googleapis.com/auth/userinfo.email",
-  "openid", // Add openid scope which is often required
-  "profile" // Add profile scope for basic info
+  "https://www.googleapis.com/auth/userinfo.profile"
 ];
 
 // Developer token for Google Ads API
@@ -134,7 +133,7 @@ serve(async (req) => {
         authUrl.searchParams.append("response_type", "code");
         
         // Join scopes with a space as required by OAuth 2.0
-        authUrl.searchParams.append("scope", GOOGLE_ADS_API_SCOPES.join(" "));
+        authUrl.searchParams.append("scope", OAUTH_SCOPES.join(" "));
         
         authUrl.searchParams.append("access_type", "offline");
         authUrl.searchParams.append("prompt", "consent select_account");
@@ -156,7 +155,7 @@ serve(async (req) => {
             client_id_length: GOOGLE_CLIENT_ID.length,
             redirect_uri: redirectUri,
             has_client_secret: GOOGLE_CLIENT_SECRET.length > 0,
-            scopes: GOOGLE_ADS_API_SCOPES.join(" ")
+            scopes: OAUTH_SCOPES.join(" ")
           }
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

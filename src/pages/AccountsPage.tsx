@@ -15,7 +15,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { getGoogleAdsCredentials, isGoogleAuthValid } from "@/services/googleAdsService";
+import { getGoogleAdsCredentials, isGoogleAuthValid, listGoogleAdsAccounts } from "@/services/googleAdsService";
 
 const AccountsPage = () => {
   const { 
@@ -43,6 +43,27 @@ const AccountsPage = () => {
     
     checkGoogleAuth();
   }, []);
+  
+  // Add new effect to fetch accounts when Google is connected
+  useEffect(() => {
+    console.log("Google connection status:", isGoogleConnected);
+    
+    if (isGoogleConnected) {
+      console.log("Attempting to fetch Google Ads accounts");
+      listGoogleAdsAccounts()
+        .then(accounts => {
+          console.log("Accounts received:", accounts);
+          // Process accounts if needed
+          if (accounts && accounts.length > 0) {
+            toast.success(`Found ${accounts.length} Google Ads accounts`);
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching accounts:", error);
+          toast.error("Failed to fetch Google Ads accounts");
+        });
+    }
+  }, [isGoogleConnected]);
   
   const refreshAccounts = async () => {
     setIsRefreshing(true);
