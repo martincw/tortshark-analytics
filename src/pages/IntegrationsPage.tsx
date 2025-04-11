@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
@@ -8,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { handleOAuthCallback } from "@/services/googleAdsService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+// Retrieve the Google client ID from environment (make sure it's set)
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // Replace with your actual client ID
 
 const IntegrationsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("google-ads");
@@ -153,8 +157,12 @@ const IntegrationsPage = () => {
       <Alert className="bg-amber-50 border-amber-200">
         <Info className="h-4 w-4 text-amber-500" />
         <AlertDescription className="text-amber-800">
-          <p className="mb-2">Make sure you've set up the Google Cloud OAuth client properly with these exact settings:</p>
+          <p className="mb-2">When setting up the Google Cloud OAuth client, make sure to use:</p>
           <ul className="list-disc pl-5 space-y-2">
+            <li>
+              <strong>Client ID:</strong>
+              <code className="mx-1 px-1 bg-amber-100 rounded">{GOOGLE_CLIENT_ID}</code>
+            </li>
             <li>
               <strong>Authorized JavaScript origins:</strong>
               <code className="mx-1 px-1 bg-amber-100 rounded">{PROJECT_URL}</code>

@@ -11,16 +11,21 @@ import {
   handleOAuthCallback, 
   getGoogleAdsCredentials, 
   isGoogleAuthValid,
-  listGoogleAdsAccounts // Changed from fetchGoogleAdsAccounts to listGoogleAdsAccounts
+  listGoogleAdsAccounts
 } from "@/services/googleAdsService";
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { useGoogleLogin } from '@react-oauth/google';
+import { gapi } from 'gapi-script';
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
   isConnecting: boolean;
   connectionProgress: number;
 }
+
+// Google client ID - should match what's in your Google Cloud Console
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // This should be replaced with your actual client ID
 
 const GoogleSignIn: React.FC<GoogleSignInProps> = ({ 
   onSuccess, 
@@ -31,6 +36,21 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { fetchGoogleAdsAccounts } = useCampaign();
+
+  // Initialize Google API client
+  useEffect(() => {
+    const initGoogleAPI = async () => {
+      try {
+        gapi.load('client:auth2', () => {
+          console.log('Google API client loaded');
+        });
+      } catch (error) {
+        console.error('Error initializing Google API client', error);
+      }
+    };
+    
+    initGoogleAPI();
+  }, []);
 
   // Check if user is logged in with Supabase
   useEffect(() => {
@@ -123,17 +143,56 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     checkExistingAuth();
   }, [onSuccess]);
 
-  const handleGoogleSignIn = async () => {
-    setIsSigningIn(true);
-    
-    try {
-      // Initiate Google OAuth flow - this will redirect the page
-      await initiateGoogleAuth();
-    } catch (error) {
-      toast.error("Failed to sign in with Google");
+  // Configure Google login with scope for Google Ads
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (response) => {
+      setIsSigningIn(true);
+      
+      try {
+        console.log('Google login successful', response);
+        
+        // Store the access token temporarily
+        localStorage.setItem("googleAds_access_token", response.access_token);
+        
+        // Now we'll use our existing logic to process this token
+        const credentials = await getGoogleAdsCredentials();
+        if (credentials) {
+          toast.success("Successfully signed in with Google");
+          
+          // After successful sign-in, import Google Ads accounts
+          try {
+            await fetchGoogleAdsAccounts();
+            toast.success("Google Ads accounts imported successfully");
+          } catch (importError) {
+            console.error("Error importing Google Ads accounts:", importError);
+            toast.error("Failed to import Google Ads accounts");
+          }
+          
+          onSuccess({
+            customerId: credentials.customerId,
+            developerToken: credentials.developerToken
+          });
+        } else {
+          toast.error("Failed to get Google Ads credentials");
+        }
+      } catch (error) {
+        console.error("Google Sign-In error:", error);
+        toast.error("Failed to complete Google authentication");
+      } finally {
+        setIsSigningIn(false);
+      }
+    },
+    onError: (error) => {
       console.error("Google Sign-In error:", error);
-      setIsSigningIn(false);
-    }
+      toast.error("Failed to sign in with Google");
+    },
+    scope: 'https://www.googleapis.com/auth/adwords',
+    flow: 'implicit'
+  });
+
+  const handleGoogleSignIn = () => {
+    // Use the React OAuth Google login 
+    googleLogin();
   };
 
   return (
