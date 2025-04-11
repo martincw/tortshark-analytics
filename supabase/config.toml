@@ -30,8 +30,8 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000", "http://localhost:3000/integrations"]
+site_url = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com"
+additional_redirect_urls = ["https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
@@ -51,7 +51,7 @@ enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 url = "https://accounts.google.com/o/oauth2/v2/auth"
-redirect_uri = "http://localhost:3000/integrations"
+redirect_uri = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations"
 
 [analytics]
 enabled = false

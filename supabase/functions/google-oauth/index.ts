@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -6,9 +5,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
-const REDIRECT_URI = Deno.env.get("SITE_URL") ? 
-  `${Deno.env.get("SITE_URL")}/integrations` : 
-  "http://localhost:3000/integrations";
+
+// Set the redirect URI to the Lovable project URL
+const REDIRECT_URI = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations";
 
 // Google Ads API OAuth scopes
 const GOOGLE_ADS_API_SCOPES = [
@@ -48,7 +47,6 @@ serve(async (req) => {
           SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? "SET" : "MISSING",
           GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
           GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET ? "SET" : "MISSING",
-          SITE_URL: Deno.env.get("SITE_URL") || "NOT SET",
           REDIRECT_URI: REDIRECT_URI
         };
         
@@ -91,7 +89,6 @@ serve(async (req) => {
             client_id_length: GOOGLE_CLIENT_ID.length,
             redirect_uri: REDIRECT_URI,
             has_client_secret: GOOGLE_CLIENT_SECRET.length > 0,
-            site_url: Deno.env.get("SITE_URL") || "Not set",
             scopes: GOOGLE_ADS_API_SCOPES.join(" ")
           }
         }), {
@@ -105,7 +102,6 @@ serve(async (req) => {
           env_vars_set: {
             GOOGLE_CLIENT_ID: !!GOOGLE_CLIENT_ID,
             GOOGLE_CLIENT_SECRET: !!GOOGLE_CLIENT_SECRET,
-            SITE_URL: !!Deno.env.get("SITE_URL"),
             SUPABASE_URL: !!SUPABASE_URL,
             SUPABASE_ANON_KEY: !!SUPABASE_ANON_KEY
           }

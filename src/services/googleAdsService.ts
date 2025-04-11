@@ -1,12 +1,9 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
 // Store the developer token
 const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
-// Google Maps API Key - We won't use this directly in the OAuth flow
-const GOOGLE_API_KEY = "AIzaSyAmIlQctVDMGyMhn70E8Q8Zgo61DDV94fg";
 
 export interface GoogleAdsCredentials {
   customerId: string;
@@ -14,7 +11,6 @@ export interface GoogleAdsCredentials {
   refreshToken?: string;
   developerToken: string;
   userEmail?: string;
-  apiKey?: string;
 }
 
 // Helper function to get the supabase JWT token
