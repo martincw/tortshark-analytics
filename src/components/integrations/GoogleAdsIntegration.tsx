@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,9 +25,8 @@ const GoogleAdsIntegration: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  const LOVABLE_REDIRECT_URL = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations";
+  const REDIRECT_URL = "https://app.tortshark.com/integrations";
 
-  // Check if Google Ads is already connected
   useEffect(() => {
     const checkConnection = async () => {
       if (!user) return;
@@ -54,7 +52,6 @@ const GoogleAdsIntegration: React.FC = () => {
     checkConnection();
   }, [user]);
 
-  // Handle connecting to Google Ads
   const handleConnect = async () => {
     setIsConnecting(true);
     setConnectionError(null);
@@ -62,7 +59,6 @@ const GoogleAdsIntegration: React.FC = () => {
       console.log("Initiating Google Auth from integration page");
       localStorage.setItem("integration_debug_ts", new Date().toISOString());
       await initiateGoogleAuth();
-      // The page will redirect to Google, so no need to set isConnecting to false
     } catch (error) {
       console.error("Error initiating Google auth:", error);
       setConnectionError(error instanceof Error ? error.message : "Unknown error connecting to Google Ads");
@@ -71,7 +67,6 @@ const GoogleAdsIntegration: React.FC = () => {
     }
   };
 
-  // Handle disconnecting from Google Ads
   const handleDisconnect = async () => {
     if (window.confirm("Are you sure you want to disconnect from Google Ads?")) {
       setIsDisconnecting(true);
@@ -93,7 +88,6 @@ const GoogleAdsIntegration: React.FC = () => {
     }
   };
 
-  // Handle refreshing the token
   const handleRefreshToken = async () => {
     setIsRefreshing(true);
     try {
@@ -111,7 +105,6 @@ const GoogleAdsIntegration: React.FC = () => {
     }
   };
 
-  // Handle navigating to accounts page
   const handleGoToAccounts = () => {
     navigate("/accounts");
   };
@@ -187,7 +180,7 @@ const GoogleAdsIntegration: React.FC = () => {
                     <div>Error connecting to Google Ads: {connectionError}</div>
                     <div className="text-xs">
                       Make sure you've properly configured your Google Cloud OAuth client with this redirect URL:
-                      <code className="block mt-1 p-1 bg-destructive/10 rounded">{LOVABLE_REDIRECT_URL}</code>
+                      <code className="block mt-1 p-1 bg-destructive/10 rounded">{REDIRECT_URL}</code>
                     </div>
                   </AlertDescription>
                 </Alert>
@@ -211,11 +204,11 @@ const GoogleAdsIntegration: React.FC = () => {
                 <ul className="list-disc list-inside text-amber-700 pl-2 space-y-2">
                   <li>
                     <strong>Authorized JavaScript origins:</strong>
-                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com</code>
+                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://app.tortshark.com</code>
                   </li>
                   <li>
                     <strong>Authorized redirect URIs:</strong>
-                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations</code>
+                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://app.tortshark.com/integrations</code>
                   </li>
                 </ul>
                 <Button 

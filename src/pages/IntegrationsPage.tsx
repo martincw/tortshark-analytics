@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
@@ -19,8 +18,8 @@ const IntegrationsPage = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   
-  // Project URL for reference in guides
-  const PROJECT_URL = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com";
+  // Project URL for reference in guides - updated for custom domain
+  const PROJECT_URL = "https://app.tortshark.com";
   
   // Redirect to auth page if not logged in
   useEffect(() => {

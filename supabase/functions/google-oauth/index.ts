@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,8 +6,8 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
 
-// Set the redirect URI to the Lovable project URL
-const DEFAULT_REDIRECT_URI = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations";
+// Set the redirect URI to the custom domain
+const DEFAULT_REDIRECT_URI = "https://app.tortshark.com/integrations";
 
 // Google Ads API OAuth scopes
 const GOOGLE_ADS_API_SCOPES = [
@@ -136,7 +135,7 @@ serve(async (req) => {
           code,
           client_id: GOOGLE_CLIENT_ID,
           client_secret: GOOGLE_CLIENT_SECRET,
-          redirect_uri: REDIRECT_URI,
+          redirect_uri: DEFAULT_REDIRECT_URI,
           grant_type: "authorization_code",
         }),
       });
