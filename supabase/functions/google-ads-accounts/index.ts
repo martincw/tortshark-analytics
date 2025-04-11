@@ -1,10 +1,15 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { OAuth2Client } from "https://esm.sh/google-auth-library@8.7.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_ADS_API_VERSION = "v15";
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
+const REDIRECT_URI = "https://app.tortshark.com/integrations";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,9 +23,6 @@ async function fetchAccountsList(accessToken: string): Promise<any[]> {
   try {
     console.log("Fetching Google Ads accounts with provided access token");
     
-    // Developer token for Google Ads API
-    const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
-    
     // First, fetch the accessible customers using the correct endpoint
     const managerResponse = await fetch(
       `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
@@ -28,7 +30,7 @@ async function fetchAccountsList(accessToken: string): Promise<any[]> {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "developer-token": developerToken,
+          "developer-token": DEVELOPER_TOKEN,
         },
       }
     );
@@ -61,7 +63,7 @@ async function fetchAccountsList(accessToken: string): Promise<any[]> {
               method: "GET",
               headers: {
                 "Authorization": `Bearer ${accessToken}`,
-                "developer-token": developerToken,
+                "developer-token": DEVELOPER_TOKEN,
               },
             }
           );
@@ -116,6 +118,62 @@ async function fetchAccountsList(accessToken: string): Promise<any[]> {
   }
 }
 
+async function exchangeCodeForTokens(code: string) {
+  try {
+    console.log("Exchanging code for tokens...");
+    
+    const oAuth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+    
+    // Exchange authorization code for tokens
+    const tokenResponse = await oAuth2Client.getToken(code);
+    const tokens = tokenResponse.tokens;
+    
+    console.log("Successfully retrieved tokens");
+    
+    return {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expiry_date: tokens.expiry_date,
+      scope: tokens.scope
+    };
+  } catch (error) {
+    console.error("Error exchanging code for tokens:", error);
+    throw error;
+  }
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  try {
+    console.log("Refreshing access token...");
+    
+    const oAuth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+    
+    oAuth2Client.setCredentials({
+      refresh_token: refreshToken
+    });
+    
+    const tokenInfo = await oAuth2Client.getAccessToken();
+    
+    console.log("Successfully refreshed access token");
+    
+    return {
+      access_token: tokenInfo.token,
+      expiry_date: tokenInfo.res?.data.expiry_date
+    };
+  } catch (error) {
+    console.error("Error refreshing access token:", error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -123,7 +181,7 @@ serve(async (req) => {
   }
   
   try {
-    const { action, accessToken } = await req.json();
+    const { action, accessToken, code, refreshToken } = await req.json();
     
     if (action === "list-accounts") {
       if (!accessToken) {
@@ -156,6 +214,92 @@ serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: error.message || "Failed to fetch Google Ads accounts",
+            stack: error.stack
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    } else if (action === "exchange-code") {
+      if (!code) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Missing authorization code" 
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      try {
+        const tokens = await exchangeCodeForTokens(code);
+        
+        // After getting tokens, fetch the accounts
+        const accounts = await fetchAccountsList(tokens.access_token);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            tokens,
+            accounts
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error exchanging code for tokens:", error);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Failed to exchange code for tokens",
+            stack: error.stack
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    } else if (action === "refresh-token") {
+      if (!refreshToken) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Missing refresh token" 
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      try {
+        const tokens = await refreshAccessToken(refreshToken);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            tokens
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Failed to refresh token",
             stack: error.stack
           }),
           { 
