@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -268,6 +267,40 @@ export const fetchGoogleAdsMetrics = async (
   }
 };
 
+export const validateGoogleToken = async (): Promise<boolean> => {
+  try {
+    // Get access token from local storage
+    const accessToken = localStorage.getItem("googleAds_access_token");
+    
+    if (!accessToken) {
+      console.log("No access token found for validation");
+      return false;
+    }
+    
+    console.log("Calling token validation endpoint");
+    
+    // Call our edge function to validate the token
+    const response = await supabase.functions.invoke("google-oauth", {
+      body: { 
+        action: "validate-token",
+        accessToken
+      }
+    });
+    
+    console.log("Token validation response:", response);
+    
+    if (response.error || !response.data.success) {
+      console.error("Error validating token:", response.error || response.data.error);
+      return false;
+    }
+    
+    return response.data.valid;
+  } catch (error) {
+    console.error("Error validating token:", error);
+    return false;
+  }
+};
+
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     const accessToken = localStorage.getItem("googleAds_access_token");
@@ -284,7 +317,9 @@ export const isGoogleAuthValid = async (): Promise<boolean> => {
       return refreshed;
     }
     
-    return true;
+    // Validate the token with Google
+    const isValid = await validateGoogleToken();
+    return isValid;
   } catch (error) {
     console.error("Error checking Google auth validity:", error);
     return false;
@@ -390,5 +425,6 @@ export const googleAdsService = {
   refreshGoogleToken,
   listGoogleAdsAccounts,
   fetchGoogleAdsAccounts,
-  revokeGoogleAccess
+  revokeGoogleAccess,
+  validateGoogleToken
 };

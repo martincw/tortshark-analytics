@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,8 @@ import {
   isGoogleAuthValid, 
   revokeGoogleAccess,
   refreshGoogleToken,
-  getGoogleAdsCredentials
+  getGoogleAdsCredentials,
+  validateGoogleToken
 } from "@/services/googleAdsService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -109,6 +109,30 @@ const GoogleAdsIntegration: React.FC = () => {
     } catch (error) {
       console.error("Error refreshing Google Ads token:", error);
       toast.error("Failed to refresh Google Ads token");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleValidateToken = async () => {
+    setIsRefreshing(true);
+    try {
+      const isValid = await validateGoogleToken();
+      
+      if (isValid) {
+        toast.success("Google token is valid");
+      } else {
+        toast.error("Google token is invalid or expired");
+        const refreshed = await refreshGoogleToken();
+        if (refreshed) {
+          toast.success("Successfully refreshed Google token");
+        } else {
+          setIsConnected(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error validating Google token:", error);
+      toast.error("Failed to validate Google token");
     } finally {
       setIsRefreshing(false);
     }

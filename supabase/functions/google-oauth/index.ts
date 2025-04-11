@@ -59,7 +59,7 @@ serve(async (req) => {
           console.error("User authentication error:", userError);
           
           // Only require auth for non-callback actions
-          if (action !== "callback" && action !== "authorize" && action !== "refresh-direct") {
+          if (action !== "callback" && action !== "authorize" && action !== "refresh-direct" && action !== "validate-token") {
             return new Response(
               JSON.stringify({ 
                 success: false, 
@@ -80,7 +80,7 @@ serve(async (req) => {
         console.error("Error during authentication check:", authError);
         
         // Only require auth for non-callback actions
-        if (action !== "callback" && action !== "authorize" && action !== "refresh-direct") {
+        if (action !== "callback" && action !== "authorize" && action !== "refresh-direct" && action !== "validate-token") {
           return new Response(
             JSON.stringify({ 
               success: false, 
@@ -862,6 +862,80 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
+    }
+    
+    // New token validation action
+    if (action === "validate-token") {
+      const accessToken = requestData.accessToken;
+      
+      if (!accessToken) {
+        console.error("No access token provided for validation");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            valid: false,
+            error: "No access token provided" 
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      try {
+        // Validate the token by making a request to Google's userinfo endpoint
+        console.log("Validating Google access token");
+        const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        
+        if (!userInfoResponse.ok) {
+          console.error(`Token validation failed: ${userInfoResponse.status}`);
+          const errorText = await userInfoResponse.text();
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              valid: false,
+              error: `Invalid token: ${errorText}` 
+            }),
+            { 
+              status: 401,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        // Token is valid
+        const userInfo = await userInfoResponse.json();
+        console.log("Token validated successfully");
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            valid: true,
+            userEmail: userInfo.email
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error validating token:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            valid: false,
+            error: error.message || "Unknown error validating token" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
     
     return new Response(
