@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -325,6 +324,58 @@ export const fetchGoogleAdsAccounts = async (): Promise<any[]> => {
   }
 };
 
+export const listGoogleAdsAccounts = async (): Promise<any[]> => {
+  try {
+    const credentials = await getGoogleAdsCredentials();
+    if (!credentials) {
+      toast.error("Google Ads credentials not found");
+      return [];
+    }
+    
+    // Log the available credentials for debugging
+    console.log("Retrieved credentials:", {
+      hasAccessToken: Boolean(credentials.accessToken),
+      hasCustomerId: Boolean(credentials.customerId),
+      hasDeveloperToken: Boolean(credentials.developerToken)
+    });
+    
+    const token = await getAuthToken();
+    if (!token) {
+      toast.error("Authentication token not found");
+      return [];
+    }
+    
+    // Call a new edge function specifically for listing accounts
+    const response = await supabase.functions.invoke("google-ads-accounts", {
+      body: { 
+        action: "list-accounts",
+        accessToken: credentials.accessToken
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error fetching Google Ads accounts:", response.error);
+      toast.error("Failed to fetch Google Ads accounts");
+      return [];
+    }
+    
+    if (!response.data.success) {
+      console.error("Error from API:", response.data.error);
+      toast.error(response.data.error || "Failed to fetch Google Ads accounts");
+      return [];
+    }
+    
+    return response.data.accounts || [];
+  } catch (error) {
+    console.error("Error listing Google Ads accounts:", error);
+    toast.error("Failed to list Google Ads accounts");
+    return [];
+  }
+};
+
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     const credentials = await getGoogleAdsCredentials();
@@ -413,5 +464,6 @@ export const googleAdsService = {
   isGoogleAuthValid,
   clearGoogleAdsAuth,
   revokeGoogleAccess,
-  refreshGoogleToken
+  refreshGoogleToken,
+  listGoogleAdsAccounts
 };
