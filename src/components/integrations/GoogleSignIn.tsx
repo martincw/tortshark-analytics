@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,16 +15,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useGoogleLogin } from '@react-oauth/google';
-import { gapi } from 'gapi-script';
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
   isConnecting: boolean;
   connectionProgress: number;
 }
-
-// Google client ID - should match what's in your Google Cloud Console
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // This should be replaced with your actual client ID
 
 const GoogleSignIn: React.FC<GoogleSignInProps> = ({ 
   onSuccess, 
@@ -36,21 +31,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { fetchGoogleAdsAccounts } = useCampaign();
-
-  // Initialize Google API client
-  useEffect(() => {
-    const initGoogleAPI = async () => {
-      try {
-        gapi.load('client:auth2', () => {
-          console.log('Google API client loaded');
-        });
-      } catch (error) {
-        console.error('Error initializing Google API client', error);
-      }
-    };
-    
-    initGoogleAPI();
-  }, []);
 
   // Check if user is logged in with Supabase
   useEffect(() => {

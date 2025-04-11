@@ -97,7 +97,7 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
   console.log("Received auth code from Google");
   
   try {
-    // Exchange the code for tokens using our edge function
+    // Exchange the code for tokens using our new edge function
     const response = await supabase.functions.invoke("google-ads-accounts", {
       body: { 
         action: "exchange-code",
@@ -124,6 +124,7 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
       localStorage.setItem("googleAds_access_token", response.data.tokens.access_token);
       localStorage.setItem("googleAds_refresh_token", response.data.tokens.refresh_token);
       localStorage.setItem("googleAds_token_expiry", response.data.tokens.expiry_date);
+      localStorage.setItem("userEmail", response.data.userEmail);
       
       // If accounts are available, store the first one as default
       if (response.data.accounts && response.data.accounts.length > 0) {

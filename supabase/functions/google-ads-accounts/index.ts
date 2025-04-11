@@ -1,175 +1,176 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { OAuth2Client } from "https://esm.sh/google-auth-library@8.7.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const GOOGLE_ADS_API_VERSION = "v15";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
-const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
-const REDIRECT_URI = "https://app.tortshark.com/integrations";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
+const REDIRECT_URI = Deno.env.get("SITE_URL") ? 
+  `${Deno.env.get("SITE_URL")}/integrations` : 
+  "https://app.tortshark.com/integrations";
 
+// CORS headers for browser requests
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
+// Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-async function fetchAccountsList(accessToken: string): Promise<any[]> {
-  try {
-    console.log("Fetching Google Ads accounts with provided access token");
-    
-    // First, fetch the accessible customers using the correct endpoint
-    const managerResponse = await fetch(
-      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "developer-token": DEVELOPER_TOKEN,
-        },
-      }
-    );
-    
-    if (!managerResponse.ok) {
-      const errorText = await managerResponse.text();
-      console.error("Failed to fetch accessible customers:", errorText);
-      throw new Error(`Failed to fetch accessible customers: ${errorText}`);
-    }
-    
-    const { resourceNames } = await managerResponse.json();
-    
-    if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
-      console.log("No accessible accounts found");
-      return [];
-    }
-    
-    console.log(`Found ${resourceNames.length} accessible accounts:`, resourceNames);
-    
-    // Extract customer IDs from resource names (format: 'customers/1234567890')
-    const customerIds = resourceNames.map((name) => name.split('/')[1]);
-    
-    // Now fetch details for each customer ID
-    const accounts = await Promise.all(
-      customerIds.map(async (customerId) => {
-        try {
-          const customerResponse = await fetch(
-            `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
-            {
-              method: "GET",
-              headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "developer-token": DEVELOPER_TOKEN,
-              },
-            }
-          );
-          
-          if (!customerResponse.ok) {
-            console.error(`Failed to fetch details for customer ${customerId}: ${await customerResponse.text()}`);
-            return {
-              id: customerId,
-              customerId: customerId,
-              name: `Account ${customerId}`,
-              currency: "USD",
-              timeZone: "America/New_York",
-              status: "UNKNOWN",
-              platform: "Google Ads",
-              isConnected: true
-            };
-          }
-          
-          const customerData = await customerResponse.json();
-          
-          return {
-            id: customerId,
-            customerId: customerId,
-            name: customerData.customer?.descriptiveName || `Account ${customerId}`,
-            currency: customerData.customer?.currencyCode || "USD",
-            timeZone: customerData.customer?.timeZone || "America/New_York",
-            status: customerData.customer?.status || "ENABLED",
-            platform: "Google Ads",
-            isConnected: true
-          };
-        } catch (error) {
-          console.error(`Error fetching details for customer ${customerId}:`, error);
-          return {
-            id: customerId,
-            customerId: customerId,
-            name: `Account ${customerId}`,
-            currency: "USD",
-            timeZone: "America/New_York",
-            status: "ENABLED",
-            platform: "Google Ads",
-            isConnected: true
-          };
-        }
-      })
-    );
-    
-    // Filter out null values (failed requests)
-    return accounts.filter(account => account !== null);
-  } catch (error) {
-    console.error("Error fetching Google Ads accounts:", error);
-    throw error;
-  }
-}
 
 async function exchangeCodeForTokens(code: string) {
   try {
-    console.log("Exchanging code for tokens...");
-    
-    const oAuth2Client = new OAuth2Client(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI
-    );
-    
-    // Exchange authorization code for tokens
-    const tokenResponse = await oAuth2Client.getToken(code);
-    const tokens = tokenResponse.tokens;
-    
-    console.log("Successfully retrieved tokens");
-    
-    return {
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      expiry_date: tokens.expiry_date,
-      scope: tokens.scope
-    };
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: REDIRECT_URI,
+        grant_type: "authorization_code",
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error("Token exchange failed:", errorText);
+      throw new Error(`Failed to exchange code for tokens: ${errorText}`);
+    }
+
+    return await tokenResponse.json();
   } catch (error) {
     console.error("Error exchanging code for tokens:", error);
     throw error;
   }
 }
 
-async function refreshAccessToken(refreshToken: string) {
+async function getUserInfo(accessToken: string) {
   try {
-    console.log("Refreshing access token...");
-    
-    const oAuth2Client = new OAuth2Client(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI
+    const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!userInfoResponse.ok) {
+      const errorText = await userInfoResponse.text();
+      console.error("Failed to fetch user info:", errorText);
+      throw new Error(`Failed to fetch user info: ${errorText}`);
+    }
+
+    return await userInfoResponse.json();
+  } catch (error) {
+    console.error("Error fetching user info:", error);
+    throw error;
+  }
+}
+
+async function listGoogleAdsAccounts(accessToken: string) {
+  try {
+    // First, fetch the accessible customers using the Customer List API
+    const customerListResponse = await fetch(
+      "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers",
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+        },
+      }
     );
     
-    oAuth2Client.setCredentials({
-      refresh_token: refreshToken
+    if (!customerListResponse.ok) {
+      const errorText = await customerListResponse.text();
+      console.error("Failed to list accessible customers:", errorText);
+      throw new Error(`Failed to list accessible customers: ${errorText}`);
+    }
+    
+    const { resourceNames } = await customerListResponse.json();
+    
+    if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
+      console.log("No accessible accounts found");
+      return [];
+    }
+    
+    // Extract customer IDs from resource names (format: 'customers/1234567890')
+    const customerIds = resourceNames.map((name) => name.split('/')[1]);
+    
+    // Now fetch details for each customer ID
+    const accountsPromises = customerIds.map(async (customerId) => {
+      try {
+        const customerResponse = await fetch(
+          `https://googleads.googleapis.com/v15/customers/${customerId}`,
+          {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+            },
+          }
+        );
+        
+        if (!customerResponse.ok) {
+          console.error(`Failed to fetch details for customer ${customerId}`);
+          return {
+            id: customerId,
+            name: `Account ${customerId}`,
+            timeZone: "America/New_York",
+            currencyCode: "USD"
+          };
+        }
+        
+        const customerData = await customerResponse.json();
+        
+        return {
+          id: customerId,
+          name: customerData.customer?.descriptiveName || `Account ${customerId}`,
+          timeZone: customerData.customer?.timeZone || "America/New_York",
+          currencyCode: customerData.customer?.currencyCode || "USD"
+        };
+      } catch (error) {
+        console.error(`Error fetching details for customer ${customerId}:`, error);
+        return {
+          id: customerId,
+          name: `Account ${customerId}`,
+          timeZone: "America/New_York",
+          currencyCode: "USD"
+        };
+      }
     });
     
-    const tokenInfo = await oAuth2Client.getAccessToken();
-    
-    console.log("Successfully refreshed access token");
-    
-    return {
-      access_token: tokenInfo.token,
-      expiry_date: tokenInfo.res?.data.expiry_date
-    };
+    const accounts = await Promise.all(accountsPromises);
+    return accounts.filter(account => account !== null);
   } catch (error) {
-    console.error("Error refreshing access token:", error);
+    console.error("Error listing Google Ads accounts:", error);
+    // Return empty array rather than throwing an error so the rest of the flow can continue
+    return [];
+  }
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  try {
+    const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    });
+
+    if (!refreshResponse.ok) {
+      const errorText = await refreshResponse.text();
+      console.error("Token refresh failed:", errorText);
+      throw new Error(`Failed to refresh token: ${errorText}`);
+    }
+
+    return await refreshResponse.json();
+  } catch (error) {
+    console.error("Error refreshing token:", error);
     throw error;
   }
 }
@@ -181,85 +182,50 @@ serve(async (req) => {
   }
   
   try {
-    const { action, accessToken, code, refreshToken } = await req.json();
+    const { action, code, accessToken, refreshToken } = await req.json();
     
-    if (action === "list-accounts") {
-      if (!accessToken) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Missing access token" 
-          }),
-          { 
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
+    // Exchange authorization code for tokens
+    if (action === "exchange-code") {
       try {
-        // Fetch real Google Ads accounts
-        const accounts = await fetchAccountsList(accessToken);
+        if (!code) {
+          return new Response(
+            JSON.stringify({ success: false, error: "No authorization code provided" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         
-        return new Response(
-          JSON.stringify({ success: true, accounts }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } catch (error) {
-        console.error("Error fetching Google Ads accounts:", error);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: error.message || "Failed to fetch Google Ads accounts",
-            stack: error.stack
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-    } else if (action === "exchange-code") {
-      if (!code) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Missing authorization code" 
-          }),
-          { 
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
-      try {
         const tokens = await exchangeCodeForTokens(code);
+        const userInfo = await getUserInfo(tokens.access_token);
         
-        // After getting tokens, fetch the accounts
-        const accounts = await fetchAccountsList(tokens.access_token);
+        // Try to fetch Google Ads accounts
+        let accounts = [];
+        try {
+          accounts = await listGoogleAdsAccounts(tokens.access_token);
+        } catch (accountsError) {
+          console.error("Error fetching Google Ads accounts:", accountsError);
+          // Continue with empty accounts array
+        }
         
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            tokens,
+          JSON.stringify({
+            success: true,
+            tokens: {
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+              expiry_date: tokens.expiry_date || new Date(Date.now() + tokens.expires_in * 1000).getTime(),
+            },
+            userEmail: userInfo.email,
             accounts
           }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (error) {
         console.error("Error exchanging code for tokens:", error);
-        
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: error.message || "Failed to exchange code for tokens",
-            stack: error.stack
+            error: "Error exchanging code for tokens", 
+            details: error.message 
           }),
           { 
             status: 500,
@@ -267,40 +233,69 @@ serve(async (req) => {
           }
         );
       }
-    } else if (action === "refresh-token") {
-      if (!refreshToken) {
+    }
+    
+    // List Google Ads accounts
+    if (action === "list-accounts") {
+      try {
+        if (!accessToken) {
+          return new Response(
+            JSON.stringify({ success: false, error: "No access token provided" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        const accounts = await listGoogleAdsAccounts(accessToken);
+        
+        return new Response(
+          JSON.stringify({ success: true, accounts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error listing Google Ads accounts:", error);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Missing refresh token" 
+            error: "Error listing Google Ads accounts", 
+            details: error.message 
           }),
           { 
-            status: 400,
+            status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
-      
+    }
+    
+    // Refresh token
+    if (action === "refresh-token") {
       try {
+        if (!refreshToken) {
+          return new Response(
+            JSON.stringify({ success: false, error: "No refresh token provided" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
         const tokens = await refreshAccessToken(refreshToken);
         
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            tokens
+          JSON.stringify({
+            success: true,
+            tokens: {
+              access_token: tokens.access_token,
+              expiry_date: tokens.expiry_date || new Date(Date.now() + tokens.expires_in * 1000).getTime(),
+            }
           }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (error) {
         console.error("Error refreshing token:", error);
-        
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: error.message || "Failed to refresh token",
-            stack: error.stack
+            error: "Error refreshing token", 
+            details: error.message 
           }),
           { 
             status: 500,
