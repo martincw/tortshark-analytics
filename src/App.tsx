@@ -1,12 +1,13 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CampaignProvider } from "./contexts/CampaignContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { MainLayout } from "./components/layout/MainLayout";
+import { useAuth } from "./contexts/AuthContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -22,6 +23,20 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Protected route component that redirects to auth page if not authenticated
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isLoading } = useAuth();
+  
+  // While checking authentication status, show nothing or a loading indicator
+  if (isLoading) return null;
+  
+  // If not authenticated, redirect to auth page
+  if (!user) return <Navigate to="/auth" replace />;
+  
+  // If authenticated, render the children
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -31,7 +46,15 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route element={<MainLayout />}>
+              {/* Auth page is public */}
+              <Route path="/auth" element={<AuthPage />} />
+              
+              {/* All other routes are protected */}
+              <Route element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }>
                 <Route path="/" element={<Index />} />
                 <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/campaign/:id" element={<CampaignDetail />} />
@@ -40,7 +63,6 @@ const App = () => (
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/auth" element={<AuthPage />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AuthPage = () => {
   const [email, setEmail] = useState("");
@@ -18,6 +19,14 @@ const AuthPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  // Redirect to home if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +42,7 @@ const AuthPage = () => {
       if (error) throw error;
       
       toast.success("Successfully signed in!");
-      navigate("/integrations");
+      navigate("/");
     } catch (error: any) {
       setError(error.message || "Failed to sign in");
       toast.error("Failed to sign in");
@@ -52,7 +61,7 @@ const AuthPage = () => {
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin + "/integrations",
+          emailRedirectTo: window.location.origin,
         },
       });
 
@@ -69,12 +78,12 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-[80vh]">
+    <div className="flex justify-center items-center min-h-screen bg-background">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Authentication</CardTitle>
+          <CardTitle className="text-2xl font-bold">Campaign Tracker</CardTitle>
           <CardDescription>
-            Sign in or create an account to manage your integrations
+            Sign in or create an account to access your campaigns
           </CardDescription>
         </CardHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
