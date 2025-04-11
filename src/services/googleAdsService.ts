@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -46,6 +45,18 @@ export const initiateGoogleAuth = async () => {
       headers: {
         Authorization: `Bearer ${token}`
       }
+    }).catch(error => {
+      console.error("Error calling Google OAuth function:", error);
+      // More detailed network error handling
+      if (error.message && (
+        error.message.includes("Failed to fetch") || 
+        error.message.includes("NetworkError") || 
+        error.message.includes("refused to connect")
+      )) {
+        throw new Error(`Network connection error: Unable to connect to authentication service. 
+                         Please check your internet connection and firewall settings.`);
+      }
+      throw error;
     });
     
     if (response.error) {
@@ -63,11 +74,23 @@ export const initiateGoogleAuth = async () => {
     localStorage.setItem("oauth_debug", JSON.stringify(response.data.debug));
     localStorage.setItem("oauth_ts", new Date().toISOString());
     
+    // Create a ping test to check if Google is reachable
+    try {
+      const pingTest = await fetch("https://accounts.google.com/favicon.ico", {
+        mode: 'no-cors',
+        cache: 'no-cache',
+      });
+      console.log("Google accounts ping test result:", pingTest.type);
+    } catch (pingError) {
+      console.error("Unable to reach Google accounts:", pingError);
+      // Still proceed with the redirect even if ping fails
+    }
+    
     // Redirect to Google OAuth URL
     window.location.href = response.data.url;
   } catch (error) {
     console.error("Error initiating Google auth:", error);
-    toast.error("Failed to initiate Google authentication");
+    toast.error(error.message || "Failed to initiate Google authentication");
     throw error;
   }
 };

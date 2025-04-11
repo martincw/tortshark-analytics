@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Info } from "lucide-react";
+import { AlertCircle, Info, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { handleOAuthCallback } from "@/services/googleAdsService";
@@ -15,6 +15,7 @@ const IntegrationsPage = () => {
   const [isProcessingOAuth, setIsProcessingOAuth] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [networkError, setNetworkError] = useState<boolean>(false);
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   
@@ -34,6 +35,7 @@ const IntegrationsPage = () => {
       if (window.location.search.includes('code=')) {
         setIsProcessingOAuth(true);
         setAuthError(null);
+        setNetworkError(false);
         
         try {
           if (!user) {
@@ -58,7 +60,19 @@ const IntegrationsPage = () => {
           }
         } catch (error) {
           console.error("Error processing OAuth callback:", error);
-          setAuthError(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          
+          // Check for network connection errors
+          if (error.message && (
+            error.message.includes("Failed to fetch") || 
+            error.message.includes("NetworkError") || 
+            error.message.includes("refused to connect")
+          )) {
+            setNetworkError(true);
+            setAuthError(`Network error: Unable to connect to Google authentication servers. 
+                          Please check your internet connection and firewall settings.`);
+          } else {
+            setAuthError(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
           
           // Save debug info
           if (error instanceof Error) {
@@ -117,6 +131,18 @@ const IntegrationsPage = () => {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Authentication Error</AlertTitle>
           <AlertDescription>{authError}</AlertDescription>
+          {networkError && (
+            <div className="mt-4 p-3 bg-destructive/10 rounded text-sm">
+              <p className="font-medium mb-2">Troubleshooting steps:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Check your internet connection</li>
+                <li>Ensure your browser isn't blocking third-party cookies</li>
+                <li>Try using a different browser</li>
+                <li>Check if any browser extensions might be blocking the connection</li>
+                <li>Verify that accounts.google.com is not blocked by your network/firewall</li>
+              </ul>
+            </div>
+          )}
           {debugInfo && (
             <div className="mt-2 text-xs overflow-auto max-h-32 bg-destructive/10 p-2 rounded">
               <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
@@ -139,6 +165,13 @@ const IntegrationsPage = () => {
               <code className="mx-1 px-1 bg-amber-100 rounded">{PROJECT_URL}/integrations</code>
             </li>
           </ul>
+          <Button 
+            variant="link" 
+            className="text-amber-700 p-0 mt-2 h-auto" 
+            onClick={() => window.open("https://console.cloud.google.com/apis/credentials", "_blank")}
+          >
+            Open Google Cloud Console <ExternalLink className="h-3 w-3 ml-1" />
+          </Button>
         </AlertDescription>
       </Alert>
       
