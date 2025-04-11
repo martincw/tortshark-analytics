@@ -127,13 +127,24 @@ serve(async (req) => {
       const code = requestData.code || "";
       
       if (!code) {
-        throw new Error("No authorization code provided");
+        console.error("No authorization code provided");
+        return new Response(
+          JSON.stringify({ success: false, error: "No authorization code provided" }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
       
       console.log("Exchanging authorization code for tokens");
       
       try {
-        // Exchange code for tokens
+        // Use redirectUri from the request or fall back to default
+        const redirectUri = requestData.redirectUri || REDIRECT_URI;
+        console.log("Using redirect URI:", redirectUri);
+        
+        // Exchange code for tokens with comprehensive error handling
         const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -141,59 +152,120 @@ serve(async (req) => {
             code,
             client_id: GOOGLE_CLIENT_ID,
             client_secret: GOOGLE_CLIENT_SECRET,
-            redirect_uri: requestData.redirectUri || REDIRECT_URI,
+            redirect_uri: redirectUri,
             grant_type: "authorization_code",
           }),
         });
         
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text();
-          console.error("Token exchange failed:", errorText);
-          throw new Error(`Failed to exchange code: ${tokenResponse.status} ${errorText}`);
+        // Log detailed response info for debugging
+        const responseStatus = tokenResponse.status;
+        const responseTextRaw = await tokenResponse.text();
+        
+        console.log(`Token exchange response status: ${responseStatus}`);
+        console.log(`Token exchange response headers: ${JSON.stringify([...tokenResponse.headers])}`);
+        
+        if (responseTextRaw.length < 200) {
+          // If response is small, log it fully (it's likely an error)
+          console.log(`Token exchange response body: ${responseTextRaw}`);
+        } else {
+          // If response is large, only log a portion (to avoid exposing sensitive data)
+          console.log(`Token exchange response body (partial): ${responseTextRaw.substring(0, 100)}...`);
         }
         
-        const tokens = await tokenResponse.json();
+        if (!tokenResponse.ok) {
+          console.error(`Token exchange failed with status ${responseStatus} and message: ${responseTextRaw}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Token exchange failed: ${responseStatus}`,
+              details: responseTextRaw.length < 200 ? responseTextRaw : responseTextRaw.substring(0, 200) + "..."
+            }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        let tokens;
+        try {
+          tokens = JSON.parse(responseTextRaw);
+        } catch (parseError) {
+          console.error("Error parsing token response:", parseError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Error parsing token response",
+              details: parseError.message,
+              rawResponse: responseTextRaw.substring(0, 100) + "..."
+            }),
+            { 
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
         
         // Get user info to get their Google ID
+        console.log("Fetching user info with access token");
         const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
           headers: {
             Authorization: `Bearer ${tokens.access_token}`
           }
         });
         
+        if (!userInfoResponse.ok) {
+          console.error(`User info fetch failed: ${userInfoResponse.status}`);
+          const userInfoError = await userInfoResponse.text();
+          console.error("User info error:", userInfoError);
+        }
+        
         const userInfo = await userInfoResponse.json();
+        console.log("Received user info:", JSON.stringify({
+          email: userInfo.email,
+          has_id: !!userInfo.id,
+          has_name: !!userInfo.name
+        }));
         
         // Get user ID from the auth header
         const authHeader = req.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "");
+        console.log("Getting user from auth token");
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         
         if (userError || !user) {
           console.error("User authentication error:", userError);
-          throw new Error("Unauthorized");
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Unauthorized or invalid user session",
+              details: userError?.message || "No user found"
+            }),
+            { 
+              status: 401,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
         }
         
-        // Make sure the google_ads_tokens table exists before trying to insert
-        // Check if the table exists first
-        const { data: tablesData, error: tablesError } = await supabase
-          .from('google_ads_tokens')
-          .select('user_id')
-          .limit(1);
+        console.log(`User authenticated: ${user.id}`);
         
-        if (tablesError) {
-          console.error("Table check error:", tablesError);
-          console.log("Creating google_ads_tokens table if it doesn't exist");
-          
-          // Table might not exist, let's try to create it
-          const { error: createTableError } = await supabase.rpc('create_google_ads_tokens_if_not_exists');
+        // Try to create the google_ads_tokens table if it doesn't exist via RPC
+        console.log("Ensuring google_ads_tokens table exists");
+        try {
+          const { data: createTableResult, error: createTableError } = await supabase.rpc('create_google_ads_tokens_if_not_exists');
           
           if (createTableError) {
-            console.error("Error creating table:", createTableError);
-            throw new Error("Failed to create tokens table");
+            console.error("Error creating tokens table via RPC:", createTableError);
+          } else {
+            console.log("Table creation result:", createTableResult);
           }
+        } catch (rpcError) {
+          console.error("Exception during table creation RPC:", rpcError);
         }
         
         // Now check if the user already has tokens stored
+        console.log("Checking for existing tokens");
         const { data: existingTokens, error: checkError } = await supabase
           .from('google_ads_tokens')
           .select('*')
@@ -201,6 +273,17 @@ serve(async (req) => {
         
         if (checkError) {
           console.error("Error checking existing tokens:", checkError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Database error while checking existing tokens",
+              details: checkError.message
+            }),
+            { 
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
         }
         
         // Define the tokens data
@@ -210,11 +293,14 @@ serve(async (req) => {
           refresh_token: tokens.refresh_token,
           expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           scope: tokens.scope,
+          email: userInfo.email,
         };
         
+        console.log("Preparing to store tokens");
         let storeError;
         
         if (existingTokens && existingTokens.length > 0) {
+          console.log("Updating existing tokens record");
           // Update existing record
           const { error } = await supabase
             .from('google_ads_tokens')
@@ -223,6 +309,7 @@ serve(async (req) => {
             
           storeError = error;
         } else {
+          console.log("Inserting new tokens record");
           // Insert new record
           const { error } = await supabase
             .from('google_ads_tokens')
@@ -233,8 +320,21 @@ serve(async (req) => {
         
         if (storeError) {
           console.error("Error storing tokens:", storeError);
-          throw new Error("Failed to store authentication tokens");
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "Failed to store authentication tokens",
+              details: storeError.message,
+              code: storeError.code
+            }),
+            { 
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
         }
+        
+        console.log("Tokens stored successfully");
         
         // In production, you would get this from the Google Ads API
         // But for this example, we're using a test customer ID
@@ -254,11 +354,12 @@ serve(async (req) => {
           }
         );
       } catch (error) {
-        console.error("Error in callback handling:", error);
+        console.error("Exception in callback handling:", error);
         return new Response(
           JSON.stringify({ 
             success: false,
-            error: error.message || "Unknown error during authentication" 
+            error: error.message || "Unknown error during authentication",
+            stack: error.stack
           }),
           { 
             status: 500,
