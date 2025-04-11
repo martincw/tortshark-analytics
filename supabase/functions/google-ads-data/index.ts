@@ -4,8 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
-const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+const GOOGLE_ADS_API_VERSION = "v15";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -16,36 +15,182 @@ const corsHeaders = {
 // Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Generate mock metrics data
-// In a real implementation, this would call the Google Ads API
-const generateMockMetrics = (startDate: string, endDate: string) => {
-  const metrics = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  // Loop through each day in the date range
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const date = d.toISOString().split('T')[0];
-    const impressions = Math.floor(Math.random() * 5000) + 1000;
-    const clicks = Math.floor(Math.random() * 300) + 50;
-    const ctr = clicks / impressions * 100;
-    const cpc = (Math.random() * 1.5) + 0.5;
-    const adSpend = clicks * cpc;
-    const cpl = adSpend / (Math.floor(Math.random() * 10) + 1);
+/**
+ * Fetches access token for Google Ads API
+ */
+async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
+  try {
+    // Get stored tokens
+    const { data: tokens, error: tokensError } = await supabase
+      .from("google_ads_tokens")
+      .select("access_token, refresh_token, expires_at")
+      .eq("user_id", userId)
+      .single();
     
-    metrics.push({
-      impressions,
-      clicks,
-      ctr,
-      cpc,
-      cpl,
-      adSpend,
-      date
-    });
+    if (tokensError) {
+      console.error("Error fetching tokens:", tokensError);
+      throw new Error("Failed to retrieve authentication tokens");
+    }
+    
+    if (!tokens) {
+      throw new Error("No tokens found");
+    }
+    
+    // Check if token is expired
+    const isExpired = new Date(tokens.expires_at) <= new Date();
+    
+    if (isExpired && tokens.refresh_token) {
+      // Refresh token logic...
+      const refreshedTokens = await refreshGoogleToken(tokens.refresh_token);
+      
+      // Update tokens in database
+      await supabase
+        .from("google_ads_tokens")
+        .update({
+          access_token: refreshedTokens.access_token,
+          expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
+        })
+        .eq("user_id", userId);
+      
+      return { 
+        accessToken: refreshedTokens.access_token, 
+        refreshToken: tokens.refresh_token 
+      };
+    }
+    
+    return { 
+      accessToken: tokens.access_token, 
+      refreshToken: tokens.refresh_token 
+    };
+  } catch (error) {
+    console.error("Error getting Google Ads token:", error);
+    return null;
+  }
+}
+
+/**
+ * Refreshes Google OAuth token
+ */
+async function refreshGoogleToken(refreshToken: string): Promise<any> {
+  const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
+  const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+  
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Token refresh failed:", errorText);
+    throw new Error("Failed to refresh token");
   }
   
-  return metrics;
-};
+  return await response.json();
+}
+
+/**
+ * Fetches campaign metrics from Google Ads API
+ */
+async function fetchCampaignMetrics(
+  accessToken: string, 
+  customerId: string, 
+  developerToken: string,
+  startDate: string,
+  endDate: string
+): Promise<any> {
+  // Build the Google Ads API query
+  const query = `
+    SELECT 
+      campaign.id, 
+      campaign.name,
+      metrics.impressions, 
+      metrics.clicks, 
+      metrics.cost_micros, 
+      metrics.conversions, 
+      metrics.ctr,
+      metrics.average_cpc,
+      segments.date
+    FROM campaign
+    WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+    ORDER BY segments.date
+  `;
+  
+  // Make the API request
+  const response = await fetch(
+    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "developer-token": developerToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        pageSize: 10000,
+      }),
+    }
+  );
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Google Ads API request failed:", errorText);
+    throw new Error(`Google Ads API request failed: ${response.status} ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data;
+}
+
+/**
+ * Transforms raw Google Ads API response into formatted metrics
+ */
+function transformCampaignMetrics(apiResponse: any): any[] {
+  try {
+    if (!apiResponse.results || !Array.isArray(apiResponse.results)) {
+      return [];
+    }
+    
+    // Process the results to match our GoogleAdsMetrics type
+    return apiResponse.results.map((result: any) => {
+      const campaign = result.campaign || {};
+      const metrics = result.metrics || {};
+      const segments = result.segments || {};
+      
+      // Convert cost from micros (millionths of the account currency) to actual currency
+      const adSpend = parseFloat((metrics.cost_micros / 1000000).toFixed(2));
+      const ctr = parseFloat((metrics.ctr * 100).toFixed(2)); // Convert to percentage
+      const cpc = parseFloat((metrics.average_cpc / 1000000).toFixed(2)); // Convert from micros
+      
+      // Calculate cost per lead if conversions exist
+      const conversions = metrics.conversions || 0;
+      const cpl = conversions > 0 ? parseFloat((adSpend / conversions).toFixed(2)) : 0;
+      
+      return {
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        impressions: metrics.impressions || 0,
+        clicks: metrics.clicks || 0,
+        ctr, // Click-through rate as percentage
+        cpc, // Cost per click
+        cpl, // Cost per lead
+        adSpend, // Total ad spend
+        conversions, // Total conversions
+        date: segments.date // Date in YYYY-MM-DD format
+      };
+    });
+  } catch (error) {
+    console.error("Error transforming campaign metrics:", error);
+    return [];
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -54,6 +199,8 @@ serve(async (req) => {
   }
   
   try {
+    const { action, customerId, startDate, endDate } = await req.json();
+    
     // Get user ID from the auth header
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
@@ -61,102 +208,81 @@ serve(async (req) => {
     
     if (userError || !user) {
       console.error("User authentication error:", userError);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { 
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      throw new Error("Unauthorized");
     }
     
-    // Parse the request body
-    const requestData = await req.json();
-    const { action, customerId, startDate, endDate } = requestData;
-    
+    // Handle different actions
     if (action === "get-metrics") {
-      if (!customerId || !startDate || !endDate) {
+      // Get Google Ads token
+      const tokensResult = await getGoogleAdsToken(user.id);
+      
+      if (!tokensResult) {
+        throw new Error("Failed to get Google Ads authentication token");
+      }
+      
+      // Mock developer token (would typically be stored securely)
+      const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
+      
+      // Fetch metrics from Google Ads API
+      try {
+        const apiResponse = await fetchCampaignMetrics(
+          tokensResult.accessToken,
+          customerId,
+          developerToken,
+          startDate,
+          endDate
+        );
+        
+        // Transform the API response to match our expected format
+        const metrics = transformCampaignMetrics(apiResponse);
+        
         return new Response(
-          JSON.stringify({ error: "Missing required parameters" }),
+          JSON.stringify({ success: true, metrics }),
           { 
-            status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
-      }
-      
-      // Get stored tokens for the user
-      const { data: tokens, error: tokensError } = await supabase
-        .from("google_ads_tokens")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (tokensError || !tokens) {
-        console.error("Error fetching tokens:", tokensError);
-        return new Response(
-          JSON.stringify({ success: false, error: "Tokens not found" }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+      } catch (apiError) {
+        console.error("Error fetching metrics from Google Ads API:", apiError);
+        
+        // If it's the first time and we get an authentication error, try refreshing the token
+        if (tokensResult.refreshToken) {
+          try {
+            const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
+            
+            // Update tokens in database
+            await supabase
+              .from("google_ads_tokens")
+              .update({
+                access_token: refreshedTokens.access_token,
+                expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
+              })
+              .eq("user_id", user.id);
+            
+            // Try the API call again with the new token
+            const apiResponse = await fetchCampaignMetrics(
+              refreshedTokens.access_token,
+              customerId,
+              developerToken,
+              startDate,
+              endDate
+            );
+            
+            const metrics = transformCampaignMetrics(apiResponse);
+            
+            return new Response(
+              JSON.stringify({ success: true, metrics }),
+              { 
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          } catch (refreshError) {
+            throw new Error("Failed to refresh token and retry API call");
           }
-        );
-      }
-      
-      // Check if token is expired and refresh if needed
-      const isExpired = new Date(tokens.expires_at) <= new Date();
-      let accessToken = tokens.access_token;
-      
-      if (isExpired && tokens.refresh_token) {
-        console.log("Token expired, refreshing...");
-        
-        // Refresh token
-        const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: GOOGLE_CLIENT_ID,
-            client_secret: GOOGLE_CLIENT_SECRET,
-            grant_type: "refresh_token",
-            refresh_token: tokens.refresh_token,
-          }),
-        });
-        
-        if (!refreshResponse.ok) {
-          console.error("Token refresh failed:", await refreshResponse.text());
-          return new Response(
-            JSON.stringify({ success: false, error: "Failed to refresh token" }),
-            { 
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
+        } else {
+          throw apiError;
         }
-        
-        const newTokens = await refreshResponse.json();
-        accessToken = newTokens.access_token;
-        
-        // Update stored tokens
-        await supabase
-          .from("google_ads_tokens")
-          .update({
-            access_token: newTokens.access_token,
-            expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
-          })
-          .eq("user_id", user.id);
       }
-      
-      // TODO: In a real implementation, use the access token to call the Google Ads API
-      // For now, we're generating mock data
-      const metrics = generateMockMetrics(startDate, endDate);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          metrics
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
     }
     
     return new Response(
@@ -170,7 +296,7 @@ serve(async (req) => {
     console.error("Error in google-ads-data function:", error);
     
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ success: false, error: error.message || "Internal server error" }),
       { 
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
