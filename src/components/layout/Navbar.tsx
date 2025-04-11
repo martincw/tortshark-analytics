@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Tool } from "lucide-react";
+import { Menu, Wrench } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -94,7 +94,7 @@ export const Navbar: React.FC = () => {
               to={item.href} 
               className="text-sm font-medium transition-colors hover:text-primary flex items-center"
             >
-              {item.label === "Tools" && <Tool className="h-4 w-4 mr-2" />}
+              {item.label === "Tools" && <Wrench className="h-4 w-4 mr-2" />}
               {item.label}
             </Link>
           ))}
