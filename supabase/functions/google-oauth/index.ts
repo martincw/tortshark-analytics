@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,9 +11,9 @@ const REDIRECT_URI = Deno.env.get("SITE_URL") ?
   `${Deno.env.get("SITE_URL")}/integrations` : 
   "https://app.tortshark.com/integrations";
 
-// Google Ads API OAuth scopes
+// Google Ads API OAuth scopes - Modified to use read-only access
 const GOOGLE_ADS_API_SCOPES = [
-  "https://www.googleapis.com/auth/adwords",
+  "https://www.googleapis.com/auth/adwords.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
   "openid", // Add openid scope which is often required
   "profile" // Add profile scope for basic info
