@@ -1,6 +1,7 @@
 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
 // Store the developer token
 const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
@@ -148,6 +149,54 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
   }
 };
 
+export const fetchGoogleAdsMetrics = async (
+  dateRange: DateRange,
+  customerId?: string
+): Promise<GoogleAdsMetrics[] | null> => {
+  try {
+    // Get credentials
+    const credentials = await getGoogleAdsCredentials();
+    if (!credentials) {
+      toast.error("Google Ads credentials not found");
+      return null;
+    }
+    
+    // Use provided customerId or default to the one from credentials
+    const customerIdToUse = customerId || credentials.customerId;
+    
+    // Call the Supabase edge function to get the metrics from Google Ads API
+    const token = await getAuthToken();
+    if (!token) {
+      toast.error("Authentication token not found");
+      return null;
+    }
+    
+    const response = await supabase.functions.invoke("google-ads-data", {
+      body: { 
+        action: "get-metrics",
+        customerId: customerIdToUse,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    if (response.error || !response.data.success) {
+      console.error("Error fetching Google Ads metrics:", response.error || response.data.error);
+      toast.error("Failed to fetch Google Ads metrics");
+      return null;
+    }
+    
+    return response.data.metrics;
+  } catch (error) {
+    console.error("Error fetching Google Ads metrics:", error);
+    toast.error("Failed to fetch Google Ads metrics");
+    return null;
+  }
+};
+
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     const credentials = await getGoogleAdsCredentials();
@@ -195,12 +244,30 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
   }
 };
 
-// Legacy function kept for compatibility
 export const refreshGoogleToken = async (): Promise<boolean> => {
   try {
-    // This now happens automatically in the edge function
-    const credentials = await getGoogleAdsCredentials();
-    return !!credentials;
+    const token = await getAuthToken();
+    
+    if (!token) {
+      return false;
+    }
+    
+    const response = await supabase.functions.invoke("google-oauth", {
+      body: { action: "refresh-token" },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    if (response.error || !response.data.success) {
+      console.error("Error refreshing token:", response.error || response.data.error);
+      return false;
+    }
+    
+    // Update the stored access token
+    localStorage.setItem("googleAds_access_token", response.data.accessToken);
+    
+    return true;
   } catch (error) {
     console.error("Error refreshing token:", error);
     return false;

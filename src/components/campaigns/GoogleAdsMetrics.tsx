@@ -3,18 +3,18 @@ import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { fetchGoogleAdsMetrics } from "@/services/googleAdsService";
 
 interface GoogleAdsMetricsProps {
   campaign: Campaign;
 }
 
 const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
-  const { accountConnections, fetchGoogleAdsMetrics, dateRange } = useCampaign();
+  const { accountConnections, dateRange } = useCampaign();
   const [metrics, setMetrics] = useState<GoogleAdsMetricsType[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,9 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
     setError(null);
     
     try {
-      const data = await fetchGoogleAdsMetrics(campaign.accountId, dateRange);
+      // Use customerId from account if available
+      const customerId = account?.credentials?.customerId;
+      const data = await fetchGoogleAdsMetrics(dateRange, customerId);
       setMetrics(data);
     } catch (err) {
       setError("Failed to load Google Ads metrics");
