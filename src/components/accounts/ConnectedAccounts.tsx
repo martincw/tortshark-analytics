@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -38,34 +38,56 @@ export const ConnectedAccounts = ({
 }: ConnectedAccountsProps) => {
   const navigate = useNavigate();
   const { fetchGoogleAdsAccounts, addAccountConnection } = useCampaign();
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState<boolean>(false);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(false);
+  
+  useEffect(() => {
+    const checkGoogleAuth = async () => {
+      const { isGoogleAuthValid } = await import('@/services/googleAdsService');
+      const isValid = await isGoogleAuthValid();
+      setIsGoogleConnected(isValid);
+    };
+    
+    checkGoogleAuth();
+  }, []);
   
   useEffect(() => {
     const fetchAccounts = async () => {
-      const accounts = await listGoogleAdsAccounts();
-      if (accounts && accounts.length > 0) {
-        accounts.forEach(account => {
-          addAccountConnection({
-            name: account.name,
-            platform: "google", // Changed from "Google Ads" to "google" to match the expected type
-            customerId: account.id,
-            isConnected: true,
-            lastSynced: new Date().toISOString(),
-          });
-        });
-        toast({
-          title: "Success",
-          description: `Found ${accounts.length} Google Ads accounts`,
-        });
-      } else {
-        toast({
-          title: "Info",
-          description: "No Google Ads accounts found",
-        });
+      if (isGoogleConnected) {
+        setIsLoadingAccounts(true);
+        setAccountsError(null);
+        
+        try {
+          const accounts = await listGoogleAdsAccounts();
+          
+          if (accounts && accounts.length > 0) {
+            accounts.forEach(account => {
+              addAccountConnection({
+                name: account.name,
+                platform: "google",
+                customerId: account.id,
+                isConnected: true,
+                lastSynced: new Date().toISOString(),
+              });
+            });
+            toast.success(`Found ${accounts.length} Google Ads accounts`);
+          } else {
+            setAccountsError("No Google Ads accounts found for your account");
+            toast.info("No Google Ads accounts found");
+          }
+        } catch (error) {
+          console.error("Error fetching accounts:", error);
+          setAccountsError("Failed to fetch accounts: " + (error?.message || "Unknown error"));
+          toast.error("Failed to fetch Google Ads accounts");
+        } finally {
+          setIsLoadingAccounts(false);
+        }
       }
     };
     
     fetchAccounts();
-  }, [addAccountConnection]);
+  }, [isGoogleConnected, addAccountConnection]);
   
   const handleRefreshAccounts = async () => {
     await fetchGoogleAdsAccounts();

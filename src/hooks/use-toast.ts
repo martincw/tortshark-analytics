@@ -173,6 +173,43 @@ toast.dismiss = (toastId?: string) => {
   dispatch({ type: actionTypes.DISMISS_TOAST, toastId })
 }
 
+// Convenience toast methods
+toast.success = (description: string, opts?: Omit<ToasterToast, "id" | "description">) => {
+  return toast({
+    title: "Success",
+    description,
+    variant: "default",
+    ...opts,
+  });
+};
+
+toast.error = (description: string, opts?: Omit<ToasterToast, "id" | "description">) => {
+  return toast({
+    title: "Error",
+    description,
+    variant: "destructive",
+    ...opts,
+  });
+};
+
+toast.warning = (description: string, opts?: Omit<ToasterToast, "id" | "description">) => {
+  return toast({
+    title: "Warning",
+    description,
+    variant: "destructive",
+    ...opts,
+  });
+};
+
+toast.info = (description: string, opts?: Omit<ToasterToast, "id" | "description">) => {
+  return toast({
+    title: "Information",
+    description,
+    variant: "default",
+    ...opts,
+  });
+};
+
 export function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 

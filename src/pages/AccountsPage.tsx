@@ -48,17 +48,10 @@ const AccountsPage = () => {
     setIsRefreshing(true);
     try {
       await fetchGoogleAdsAccounts();
-      toast({
-        title: "Success",
-        description: "Google Ads accounts refreshed",
-      });
+      toast.success("Google Ads accounts refreshed");
     } catch (error) {
       console.error("Error refreshing accounts:", error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh accounts",
-        variant: "destructive",
-      });
+      toast.error("Failed to refresh accounts");
     } finally {
       setIsRefreshing(false);
     }

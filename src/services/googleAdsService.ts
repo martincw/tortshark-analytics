@@ -207,11 +207,7 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     const accessToken = localStorage.getItem("googleAds_access_token");
     
     if (!accessToken) {
-      toast({
-        title: "Error",
-        description: "Google Ads access token not found",
-        variant: "destructive",
-      });
+      toast.error("Google Ads access token not found");
       return [];
     }
     
@@ -228,21 +224,13 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     
     if (response.error) {
       console.error("Error from Edge Function:", response.error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch Google Ads accounts",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch Google Ads accounts: " + response.error.message);
       return [];
     }
     
     if (!response.data || !response.data.success) {
       console.error("Error from API:", response.data?.error || "Unknown error");
-      toast({
-        title: "Error",
-        description: response.data?.error || "Failed to fetch Google Ads accounts",
-        variant: "destructive",
-      });
+      toast.error(response.data?.error || "Failed to fetch Google Ads accounts");
       return [];
     }
     
@@ -250,19 +238,15 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     
     return response.data.accounts.map((account: any) => ({
       id: account.id,
+      customerId: account.id,
       name: account.name || `Google Ads Account ${account.id}`,
       platform: "google",
       isConnected: true,
       lastSynced: new Date().toISOString(),
-      customerId: account.id
     }));
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
-    toast({
-      title: "Error",
-      description: "Failed to list Google Ads accounts",
-      variant: "destructive",
-    });
+    toast.error("Failed to list Google Ads accounts");
     return [];
   }
 };

@@ -67,11 +67,7 @@ const GoogleAdsIntegration: React.FC = () => {
     } catch (error) {
       console.error("Error initiating Google auth:", error);
       setConnectionError(error instanceof Error ? error.message : "Unknown error connecting to Google Ads");
-      toast({
-        title: "Error",
-        description: "Failed to connect to Google Ads",
-        variant: "destructive",
-      });
+      toast.error("Failed to connect to Google Ads");
       setIsConnecting(false);
     }
   };
@@ -86,24 +82,13 @@ const GoogleAdsIntegration: React.FC = () => {
         if (success) {
           setIsConnected(false);
           setUserEmail(null);
-          toast({
-            title: "Success",
-            description: "Successfully disconnected from Google Ads",
-          });
+          toast.success("Successfully disconnected from Google Ads");
         } else {
-          toast({
-            title: "Error",
-            description: "Failed to disconnect from Google Ads",
-            variant: "destructive",
-          });
+          toast.error("Failed to disconnect from Google Ads");
         }
       } catch (error) {
         console.error("Error disconnecting from Google Ads:", error);
-        toast({
-          title: "Error",
-          description: "Failed to disconnect from Google Ads",
-          variant: "destructive",
-        });
+        toast.error("Failed to disconnect from Google Ads");
       } finally {
         setIsDisconnecting(false);
       }
@@ -115,29 +100,15 @@ const GoogleAdsIntegration: React.FC = () => {
     try {
       const success = await refreshGoogleToken();
       if (success) {
-        toast({
-          title: "Success",
-          description: "Successfully refreshed Google Ads token",
-        });
+        toast.success("Successfully refreshed Google Ads token");
         await fetchGoogleAdsAccounts();
-        toast({
-          title: "Success",
-          description: "Google Ads accounts updated",
-        });
+        toast.success("Google Ads accounts updated");
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to refresh Google Ads token",
-          variant: "destructive",
-        });
+        toast.error("Failed to refresh Google Ads token");
       }
     } catch (error) {
       console.error("Error refreshing Google Ads token:", error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh Google Ads token",
-        variant: "destructive",
-      });
+      toast.error("Failed to refresh Google Ads token");
     } finally {
       setIsRefreshing(false);
     }
@@ -149,33 +120,19 @@ const GoogleAdsIntegration: React.FC = () => {
       const isValid = await validateGoogleToken();
       
       if (isValid) {
-        toast({
-          title: "Success",
-          description: "Google token is valid",
-        });
+        toast.success("Google token is valid");
       } else {
-        toast({
-          title: "Warning",
-          description: "Google token is invalid or expired",
-          variant: "destructive",
-        });
+        toast.warning("Google token is invalid or expired");
         const refreshed = await refreshGoogleToken();
         if (refreshed) {
-          toast({
-            title: "Success",
-            description: "Successfully refreshed Google token",
-          });
+          toast.success("Successfully refreshed Google token");
         } else {
           setIsConnected(false);
         }
       }
     } catch (error) {
       console.error("Error validating Google token:", error);
-      toast({
-        title: "Error",
-        description: "Failed to validate Google token",
-        variant: "destructive",
-      });
+      toast.error("Failed to validate Google token");
     } finally {
       setIsRefreshing(false);
     }

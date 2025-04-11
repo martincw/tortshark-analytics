@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import {
   Campaign,
   AccountConnection,
