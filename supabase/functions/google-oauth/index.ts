@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -904,4 +905,74 @@ serve(async (req) => {
             JSON.stringify({ 
               success: false, 
               valid: false,
-              error: `Invalid token: ${errorText
+              error: `Invalid token: ${errorText}`
+            }),
+            { 
+              status: 401,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        // Token is valid
+        console.log("Token validated successfully");
+        const userInfo = await userInfoResponse.json();
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            valid: true,
+            userInfo: {
+              email: userInfo.email,
+              name: userInfo.name,
+              picture: userInfo.picture
+            }
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error validating token:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            valid: false,
+            error: error.message || "Unknown error validating token" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
+    // If we reached here, the requested action was not found
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: `Unknown action: ${action}` 
+      }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    // Handle any unexpected errors
+    console.error("Unexpected error in edge function:", error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "Internal server error",
+        details: error.message,
+        stack: error.stack
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+});
