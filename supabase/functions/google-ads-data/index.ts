@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -337,12 +338,23 @@ serve(async (req) => {
         
         console.log("Attempting to access Google Ads API");
         
+        // Return a test account once - but with a fixed set of accounts instead of dynamic generation
+        // This prevents infinite account creation on the client
+        const testAccounts = [
+          { 
+            id: "test123", 
+            name: "Test Account",
+            customerId: "test123",
+            platform: "google",
+            isConnected: true,
+            lastSynced: new Date().toISOString()
+          }
+        ];
+        
         return new Response(
           JSON.stringify({ 
             success: true, 
-            accounts: [
-              { id: "test123", name: "Test Account" }
-            ],
+            accounts: testAccounts,
             userEmail: userInfo.email
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -28,6 +28,7 @@ const AccountsPage = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasInitiallyFetched, setHasInitiallyFetched] = useState(false);
   
   useEffect(() => {
     // Check if Google auth is already valid
@@ -35,35 +36,15 @@ const AccountsPage = () => {
       const isValid = await isGoogleAuthValid();
       setIsGoogleConnected(isValid);
       
-      // If connected, ensure we have the latest accounts
-      if (isValid) {
+      // If connected and we haven't fetched accounts yet, do it once
+      if (isValid && !hasInitiallyFetched) {
         refreshAccounts();
+        setHasInitiallyFetched(true);
       }
     };
     
     checkGoogleAuth();
-  }, []);
-  
-  // Add new effect to fetch accounts when Google is connected
-  useEffect(() => {
-    console.log("Google connection status:", isGoogleConnected);
-    
-    if (isGoogleConnected) {
-      console.log("Attempting to fetch Google Ads accounts");
-      listGoogleAdsAccounts()
-        .then(accounts => {
-          console.log("Accounts received:", accounts);
-          // Process accounts if needed
-          if (accounts && accounts.length > 0) {
-            toast.success(`Found ${accounts.length} Google Ads accounts`);
-          }
-        })
-        .catch(error => {
-          console.error("Error fetching accounts:", error);
-          toast.error("Failed to fetch Google Ads accounts");
-        });
-    }
-  }, [isGoogleConnected]);
+  }, [hasInitiallyFetched]);
   
   const refreshAccounts = async () => {
     setIsRefreshing(true);

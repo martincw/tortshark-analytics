@@ -41,6 +41,7 @@ export const ConnectedAccounts = ({
   const [isLoadingAccounts, setIsLoadingAccounts] = useState<boolean>(false);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(false);
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState<boolean>(false);
   
   useEffect(() => {
     const checkGoogleAuth = async () => {
@@ -54,7 +55,7 @@ export const ConnectedAccounts = ({
   
   useEffect(() => {
     const fetchAccounts = async () => {
-      if (isGoogleConnected) {
+      if (isGoogleConnected && !hasAttemptedFetch && accountConnections.length === 0) {
         setIsLoadingAccounts(true);
         setAccountsError(null);
         
@@ -62,15 +63,20 @@ export const ConnectedAccounts = ({
           const accounts = await listGoogleAdsAccounts();
           
           if (accounts && accounts.length > 0) {
+            const existingIds = accountConnections.map(acc => acc.id);
+            
             accounts.forEach(account => {
-              addAccountConnection({
-                name: account.name,
-                platform: "google",
-                customerId: account.id,
-                isConnected: true,
-                lastSynced: new Date().toISOString(),
-              });
+              if (!existingIds.includes(account.id)) {
+                addAccountConnection({
+                  name: account.name,
+                  platform: "google",
+                  customerId: account.id,
+                  isConnected: true,
+                  lastSynced: new Date().toISOString(),
+                });
+              }
             });
+            
             toast.success(`Found ${accounts.length} Google Ads accounts`);
           } else {
             setAccountsError("No Google Ads accounts found for your account");
@@ -82,15 +88,25 @@ export const ConnectedAccounts = ({
           toast.error("Failed to fetch Google Ads accounts");
         } finally {
           setIsLoadingAccounts(false);
+          setHasAttemptedFetch(true);
         }
       }
     };
     
     fetchAccounts();
-  }, [isGoogleConnected, addAccountConnection]);
+  }, [isGoogleConnected, addAccountConnection, accountConnections, hasAttemptedFetch]);
   
   const handleRefreshAccounts = async () => {
-    await fetchGoogleAdsAccounts();
+    setIsLoadingAccounts(true);
+    try {
+      await fetchGoogleAdsAccounts();
+      toast.success("Accounts refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing accounts:", error);
+      toast.error("Failed to refresh accounts");
+    } finally {
+      setIsLoadingAccounts(false);
+    }
   };
   
   return (

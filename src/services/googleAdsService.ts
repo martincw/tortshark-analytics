@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -237,14 +236,7 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     
     localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
     
-    return response.data.accounts.map((account: any) => ({
-      id: account.id,
-      customerId: account.id,
-      name: account.name || `Google Ads Account ${account.id}`,
-      platform: "google",
-      isConnected: true,
-      lastSynced: new Date().toISOString(),
-    }));
+    return response.data.accounts;
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
     toast.error("Failed to list Google Ads accounts");
