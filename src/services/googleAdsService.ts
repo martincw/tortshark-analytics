@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -166,7 +167,8 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
     return {
       accessToken,
       customerId: accountId,
-      developerToken: GOOGLE_CONFIG.developerToken
+      developerToken: GOOGLE_CONFIG.developerToken,
+      userEmail: localStorage.getItem("userEmail")
     };
   } catch (error) {
     console.error("Error getting Google Ads credentials:", error);
@@ -298,13 +300,17 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
       return false;
     }
     
-    // Call our edge function to refresh the token
-    const response = await supabase.functions.invoke("google-ads-accounts", {
+    console.log("Calling direct refresh token endpoint");
+    
+    // Call our edge function with the new direct refresh action
+    const response = await supabase.functions.invoke("google-oauth", {
       body: { 
-        action: "refresh-token",
+        action: "refresh-direct",
         refreshToken
       }
     });
+    
+    console.log("Token refresh response:", response);
     
     if (response.error || !response.data.success) {
       console.error("Error refreshing token:", response.error || response.data.error);
@@ -312,11 +318,12 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
     }
     
     // Update stored tokens
-    localStorage.setItem("googleAds_access_token", response.data.tokens.access_token);
-    if (response.data.tokens.expiry_date) {
-      localStorage.setItem("googleAds_token_expiry", response.data.tokens.expiry_date);
+    localStorage.setItem("googleAds_access_token", response.data.accessToken);
+    if (response.data.expiryDate) {
+      localStorage.setItem("googleAds_token_expiry", response.data.expiryDate.toString());
     }
     
+    console.log("Token refreshed successfully");
     return true;
   } catch (error) {
     console.error("Error refreshing token:", error);

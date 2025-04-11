@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -60,7 +59,7 @@ serve(async (req) => {
           console.error("User authentication error:", userError);
           
           // Only require auth for non-callback actions
-          if (action !== "callback" && action !== "authorize") {
+          if (action !== "callback" && action !== "authorize" && action !== "refresh-direct") {
             return new Response(
               JSON.stringify({ 
                 success: false, 
@@ -81,7 +80,7 @@ serve(async (req) => {
         console.error("Error during authentication check:", authError);
         
         // Only require auth for non-callback actions
-        if (action !== "callback" && action !== "authorize") {
+        if (action !== "callback" && action !== "authorize" && action !== "refresh-direct") {
           return new Response(
             JSON.stringify({ 
               success: false, 
@@ -546,6 +545,109 @@ serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: error.message || "Failed to retrieve credentials" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+    
+    // New direct refresh token endpoint - matches your Next.js API route
+    if (action === "refresh-direct") {
+      console.log("Processing direct refresh token request");
+      const { refreshToken } = requestData;
+      
+      if (!refreshToken) {
+        console.error("No refresh token provided");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "No refresh token provided" 
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      try {
+        // Refresh the token directly using Google OAuth API
+        console.log("Refreshing token using Google OAuth API");
+        const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
+          }),
+        });
+        
+        if (!refreshResponse.ok) {
+          const errorText = await refreshResponse.text();
+          console.error("Token refresh failed:", refreshResponse.status, errorText);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to refresh token: ${errorText}` 
+            }),
+            { 
+              status: refreshResponse.status,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        const tokens = await refreshResponse.json();
+        console.log("Token refreshed successfully");
+        
+        // If we have a user, update the stored token
+        if (user) {
+          try {
+            const { error: updateError } = await supabase
+              .from("google_ads_tokens")
+              .update({
+                access_token: tokens.access_token,
+                expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+              })
+              .eq("user_id", user.id);
+            
+            if (updateError) {
+              console.error("Error updating token in database:", updateError);
+            } else {
+              console.log("Updated token in database");
+            }
+          } catch (dbError) {
+            console.error("Database error while updating token:", dbError);
+            // Continue anyway to return the new token
+          }
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            accessToken: tokens.access_token,
+            expiryDate: Date.now() + tokens.expires_in * 1000,
+            tokens: {
+              access_token: tokens.access_token,
+              expires_in: tokens.expires_in,
+              expiry_date: Date.now() + tokens.expires_in * 1000
+            }
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Unknown error refreshing token" 
           }),
           { 
             status: 500,
