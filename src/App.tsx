@@ -16,6 +16,7 @@ import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ToolsPage from "./pages/ToolsPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
                 <Route path="/add-campaign" element={<AddCampaignPage />} />
                 <Route path="/accounts" element={<AccountsPage />} />
                 <Route path="/integrations" element={<IntegrationsPage />} />
+                <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="*" element={<NotFound />} />
