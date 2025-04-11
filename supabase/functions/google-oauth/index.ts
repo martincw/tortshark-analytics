@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -6,8 +7,10 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
 
-// Set the redirect URI to the custom domain
-const DEFAULT_REDIRECT_URI = "https://app.tortshark.com/integrations";
+// Make redirect URI configurable through environment variables
+const REDIRECT_URI = Deno.env.get("SITE_URL") ? 
+  `${Deno.env.get("SITE_URL")}/integrations` : 
+  "https://app.tortshark.com/integrations";
 
 // Google Ads API OAuth scopes
 const GOOGLE_ADS_API_SCOPES = [
@@ -44,7 +47,7 @@ serve(async (req) => {
       
       try {
         // Use the redirect URI from the request or fall back to default
-        const redirectUri = requestData.redirectUri || DEFAULT_REDIRECT_URI;
+        const redirectUri = requestData.redirectUri || REDIRECT_URI;
         
         // Enhanced debugging for environment variables
         const envDebug = {
@@ -52,7 +55,8 @@ serve(async (req) => {
           SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? "SET" : "MISSING",
           GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
           GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET ? "SET" : "MISSING",
-          REDIRECT_URI: redirectUri
+          REDIRECT_URI: redirectUri,
+          SITE_URL: Deno.env.get("SITE_URL") || "NOT SET"
         };
         
         console.log("Environment configuration:", envDebug);
@@ -108,7 +112,8 @@ serve(async (req) => {
             GOOGLE_CLIENT_ID: !!GOOGLE_CLIENT_ID,
             GOOGLE_CLIENT_SECRET: !!GOOGLE_CLIENT_SECRET,
             SUPABASE_URL: !!SUPABASE_URL,
-            SUPABASE_ANON_KEY: !!SUPABASE_ANON_KEY
+            SUPABASE_ANON_KEY: !!SUPABASE_ANON_KEY,
+            SITE_URL: !!Deno.env.get("SITE_URL")
           }
         }), {
           status: 500,
@@ -135,7 +140,7 @@ serve(async (req) => {
           code,
           client_id: GOOGLE_CLIENT_ID,
           client_secret: GOOGLE_CLIENT_SECRET,
-          redirect_uri: DEFAULT_REDIRECT_URI,
+          redirect_uri: requestData.redirectUri || REDIRECT_URI,
           grant_type: "authorization_code",
         }),
       });
