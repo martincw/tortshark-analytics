@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -181,7 +180,7 @@ serve(async (req) => {
       }
     }
     
-    // Handle OAuth callback
+    // Handle OAuth callback - Updated with improved error handling
     if (action === "callback") {
       const code = requestData.code || "";
       
@@ -202,6 +201,14 @@ serve(async (req) => {
         // Use redirectUri from the request or fall back to default
         const redirectUri = requestData.redirectUri || REDIRECT_URI;
         console.log("Using redirect URI:", redirectUri);
+        
+        // Log the parameters for debugging
+        console.log("OAuth parameters:", {
+          code_length: code.length,
+          redirect_uri: redirectUri,
+          client_id_exists: Boolean(GOOGLE_CLIENT_ID),
+          client_secret_exists: Boolean(GOOGLE_CLIENT_SECRET)
+        });
         
         // Exchange code for tokens with comprehensive error handling
         const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
