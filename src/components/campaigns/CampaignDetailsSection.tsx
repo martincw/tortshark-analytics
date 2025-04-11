@@ -13,7 +13,7 @@ import { AccountConnection } from "@/types/campaign";
 interface CampaignDetailsSectionProps {
   campaignName: string;
   setCampaignName: (value: string) => void;
-  platform: "google";
+  platform: "google" | "facebook" | "linkedin";
   accountId: string;
   setAccountId: (value: string) => void;
   availableAccounts: AccountConnection[];

@@ -1,9 +1,8 @@
 
-
 export interface Campaign {
   id: string;
   name: string;
-  platform: "google";
+  platform: "google" | "facebook" | "linkedin";
   accountId: string;
   accountName: string;
   stats: CampaignStats;
@@ -82,4 +81,3 @@ export interface GoogleAdsMetrics {
   adSpend: number;
   date: string;
 }
-
