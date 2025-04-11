@@ -77,3 +77,7 @@ enabled = false
 port = 54327
 vector_port = 54328
 backend = "postgres"
+
+# Add configuration for google-ads-accounts function
+[functions.google-ads-accounts]
+verify_jwt = false
