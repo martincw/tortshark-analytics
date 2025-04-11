@@ -758,68 +758,106 @@ serve(async (req) => {
       }
     }
     
-    // Revoke access
+    // Enhanced revoke access action - direct token revocation
     if (action === "revoke") {
-      if (!user) {
-        console.error("No authenticated user for revoke");
+      if (!user && !requestData.accessToken) {
+        console.error("No authenticated user or access token for revoke");
         return new Response(
-          JSON.stringify({ success: false, error: "Unauthorized - No valid user session" }),
+          JSON.stringify({ success: false, error: "No access token provided" }),
           { 
-            status: 401,
+            status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
       
-      // Get access token
-      const { data: tokens, error: tokensError } = await supabase
-        .from("google_ads_tokens")
-        .select("access_token")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Get access token - either from request or from database
+      let accessToken = requestData.accessToken;
       
-      if (tokensError || !tokens) {
-        console.error("Error fetching token for revocation:", tokensError);
-      } else {
-        // Call Google's revocation endpoint
+      if (!accessToken && user) {
+        // Get access token from database
+        const { data: tokens, error: tokensError } = await supabase
+          .from("google_ads_tokens")
+          .select("access_token")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        if (tokensError) {
+          console.error("Error fetching token for revocation:", tokensError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Failed to retrieve token for revocation",
+              details: tokensError.message
+            }),
+            { 
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        if (!tokens || !tokens.access_token) {
+          console.error("No token found for revocation");
+          // We'll still delete from DB even if no token found
+        } else {
+          accessToken = tokens.access_token;
+        }
+      }
+      
+      // Revoke token if we have one
+      if (accessToken) {
         try {
-          const revokeResponse = await fetch(`https://oauth2.googleapis.com/revoke?token=${tokens.access_token}`, {
+          // Call Google's revocation endpoint directly
+          console.log("Calling Google token revocation endpoint");
+          const revokeResponse = await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
           });
           
           if (!revokeResponse.ok) {
-            console.error("Token revocation failed:", await revokeResponse.text());
+            const errorText = await revokeResponse.text();
+            console.error("Token revocation failed:", revokeResponse.status, errorText);
+            // Continue anyway to clean up local data
+          } else {
+            console.log("Token revoked successfully");
           }
         } catch (revokeError) {
           console.error("Error revoking token:", revokeError);
-          // Continue anyway to clean up local storage
+          // Continue anyway to clean up local data
         }
       }
       
-      // Delete stored tokens
-      const { error: deleteError } = await supabase
-        .from("google_ads_tokens")
-        .delete()
-        .eq("user_id", user.id);
-      
-      if (deleteError) {
-        console.error("Error deleting tokens:", deleteError);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Failed to delete stored tokens",
-            details: deleteError.message
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+      // If we have a user, delete stored tokens
+      if (user) {
+        const { error: deleteError } = await supabase
+          .from("google_ads_tokens")
+          .delete()
+          .eq("user_id", user.id);
+        
+        if (deleteError) {
+          console.error("Error deleting tokens from database:", deleteError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Failed to delete stored tokens",
+              details: deleteError.message
+            }),
+            { 
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        console.log("Deleted tokens from database");
       }
       
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ 
+          success: true,
+          message: "Token successfully revoked" 
+        }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }

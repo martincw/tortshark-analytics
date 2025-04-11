@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,7 +76,9 @@ const GoogleAdsIntegration: React.FC = () => {
     if (window.confirm("Are you sure you want to disconnect from Google Ads?")) {
       setIsDisconnecting(true);
       try {
+        console.log("Initiating Google Ads disconnect");
         const success = await revokeGoogleAccess();
+        
         if (success) {
           setIsConnected(false);
           setUserEmail(null);

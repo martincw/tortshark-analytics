@@ -333,33 +333,43 @@ export const refreshGoogleToken = async (): Promise<boolean> => {
 
 export const revokeGoogleAccess = async (): Promise<boolean> => {
   try {
-    // Clear local storage regardless of API call
+    // Get the access token to revoke
+    const accessToken = localStorage.getItem("googleAds_access_token");
+    
+    // Call our edge function to revoke access
+    const token = await getAuthToken();
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    if (accessToken) {
+      console.log("Calling Google OAuth revocation endpoint");
+      
+      // Call our edge function to revoke the token
+      const response = await supabase.functions.invoke("google-oauth", {
+        body: { 
+          action: "revoke",
+          accessToken
+        },
+        headers
+      });
+      
+      if (response.error) {
+        console.error("Error revoking access:", response.error);
+      } else {
+        console.log("Revocation response:", response.data);
+      }
+    }
+    
+    // Clear local storage regardless of API call result
     localStorage.removeItem("googleAds_access_token");
     localStorage.removeItem("googleAds_refresh_token");
     localStorage.removeItem("googleAds_token_expiry");
     localStorage.removeItem("googleAds_account_id");
     
-    // Call our edge function to revoke access
-    const token = await getAuthToken();
-    if (!token) {
-      // Still return true as we cleared local storage
-      return true;
-    }
-    
-    const response = await supabase.functions.invoke("google-oauth", {
-      body: { action: "revoke" },
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    
-    if (response.error) {
-      console.error("Error revoking access:", response.error);
-      // Still return true as we cleared local storage
-      return true;
-    }
-    
-    return response.data.success || true;
+    return true;
   } catch (error) {
     console.error("Error revoking access:", error);
     // Still return true as we cleared local storage
