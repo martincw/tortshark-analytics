@@ -3,16 +3,18 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { handleOAuthCallback } from "@/services/googleAdsService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const IntegrationsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("google-ads");
   const [isProcessingOAuth, setIsProcessingOAuth] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   
@@ -36,13 +38,33 @@ const IntegrationsPage = () => {
             return;
           }
           
+          console.log("Processing OAuth callback with code from URL");
+          const urlParams = new URLSearchParams(window.location.search);
+          console.log("State param:", urlParams.get('state'));
+          console.log("Error param:", urlParams.get('error'));
+          
           const success = await handleOAuthCallback();
-          if (!success) {
+          
+          if (success) {
+            toast.success("Successfully connected to Google Ads");
+            // Clear URL parameters without refreshing the page
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
             setAuthError("Failed to process authentication. Please try again.");
+            console.error("OAuth callback processing failed");
           }
         } catch (error) {
           console.error("Error processing OAuth callback:", error);
-          setAuthError("Failed to process authentication. Please try again.");
+          setAuthError(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          
+          // Save debug info
+          if (error instanceof Error) {
+            setDebugInfo({
+              message: error.message,
+              stack: error.stack,
+              time: new Date().toISOString()
+            });
+          }
         } finally {
           setIsProcessingOAuth(false);
         }
@@ -90,9 +112,23 @@ const IntegrationsPage = () => {
       {authError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Error</AlertTitle>
           <AlertDescription>{authError}</AlertDescription>
+          {debugInfo && (
+            <div className="mt-2 text-xs overflow-auto max-h-32 bg-destructive/10 p-2 rounded">
+              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+            </div>
+          )}
         </Alert>
       )}
+      
+      <Alert className="bg-amber-50 border-amber-200">
+        <Info className="h-4 w-4 text-amber-500" />
+        <AlertDescription className="text-amber-800">
+          Make sure you've set up the Google Cloud OAuth client properly. The authorized redirect URI should be: 
+          <code className="mx-1 px-1 bg-amber-100 rounded">https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations</code>
+        </AlertDescription>
+      </Alert>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full mb-6">

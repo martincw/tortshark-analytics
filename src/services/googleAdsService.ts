@@ -30,6 +30,8 @@ export const initiateGoogleAuth = async () => {
     
     const userEmail = localStorage.getItem("userEmail") || "";
     
+    console.log("Initiating Google OAuth flow...");
+    
     // Call the Supabase edge function to get the authorization URL
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
@@ -44,7 +46,7 @@ export const initiateGoogleAuth = async () => {
     if (response.error) {
       console.error("Error initiating Google OAuth:", response.error);
       toast.error("Failed to initiate Google authentication");
-      return;
+      throw new Error(`Error initiating Google OAuth: ${response.error.message}`);
     }
     
     // Enhanced logging for debugging
@@ -54,18 +56,27 @@ export const initiateGoogleAuth = async () => {
     
     // Store the debug info in localStorage for troubleshooting
     localStorage.setItem("oauth_debug", JSON.stringify(response.data.debug));
+    localStorage.setItem("oauth_ts", new Date().toISOString());
     
     // Redirect to Google OAuth URL
     window.location.href = response.data.url;
   } catch (error) {
     console.error("Error initiating Google auth:", error);
     toast.error("Failed to initiate Google authentication");
+    throw error;
   }
 };
 
 export const handleOAuthCallback = async (): Promise<boolean> => {
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
+  const error = urlParams.get('error');
+  
+  if (error) {
+    console.error(`OAuth error from Google: ${error}`);
+    const errorDescription = urlParams.get('error_description');
+    throw new Error(`Google OAuth error: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`);
+  }
   
   if (!code) {
     console.error("No auth code found in URL");
@@ -82,6 +93,8 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
       return false;
     }
     
+    console.log("Exchanging auth code for tokens...");
+    
     // Call the Supabase edge function to exchange the code for tokens
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
@@ -96,8 +109,11 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     if (response.error) {
       console.error("Error handling OAuth callback:", response.error);
       toast.error("Failed to complete Google authentication");
-      return false;
+      throw new Error(`Error exchanging code for tokens: ${response.error.message}`);
     }
+    
+    // Store response data for debugging
+    localStorage.setItem("oauth_callback_response", JSON.stringify(response.data));
     
     // Clear code from URL to prevent repeated processing
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -118,7 +134,7 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
   } catch (error) {
     console.error("Error handling OAuth callback:", error);
     toast.error("Failed to complete Google authentication");
-    return false;
+    throw error;
   }
 };
 

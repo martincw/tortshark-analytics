@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw, Mail } from "lucide-react";
+import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw, Mail, ExternalLink } from "lucide-react";
 import { 
   initiateGoogleAuth, 
   isGoogleAuthValid, 
@@ -18,11 +18,15 @@ import { useAuth } from "@/contexts/AuthContext";
 const GoogleAdsIntegration: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isChecking, setIsChecking] = useState<boolean>(true);
+  const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [isDisconnecting, setIsDisconnecting] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  const LOVABLE_REDIRECT_URL = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations";
 
   // Check if Google Ads is already connected
   useEffect(() => {
@@ -30,6 +34,7 @@ const GoogleAdsIntegration: React.FC = () => {
       if (!user) return;
       
       setIsChecking(true);
+      setConnectionError(null);
       try {
         const connected = await isGoogleAuthValid();
         setIsConnected(connected);
@@ -40,6 +45,7 @@ const GoogleAdsIntegration: React.FC = () => {
         }
       } catch (error) {
         console.error("Error checking Google connection:", error);
+        setConnectionError(error instanceof Error ? error.message : "Unknown error checking connection");
       } finally {
         setIsChecking(false);
       }
@@ -50,11 +56,18 @@ const GoogleAdsIntegration: React.FC = () => {
 
   // Handle connecting to Google Ads
   const handleConnect = async () => {
+    setIsConnecting(true);
+    setConnectionError(null);
     try {
+      console.log("Initiating Google Auth from integration page");
+      localStorage.setItem("integration_debug_ts", new Date().toISOString());
       await initiateGoogleAuth();
+      // The page will redirect to Google, so no need to set isConnecting to false
     } catch (error) {
       console.error("Error initiating Google auth:", error);
+      setConnectionError(error instanceof Error ? error.message : "Unknown error connecting to Google Ads");
       toast.error("Failed to connect to Google Ads");
+      setIsConnecting(false);
     }
   };
 
@@ -167,6 +180,19 @@ const GoogleAdsIntegration: React.FC = () => {
                 </AlertDescription>
               </Alert>
               
+              {connectionError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="space-y-2">
+                    <div>Error connecting to Google Ads: {connectionError}</div>
+                    <div className="text-xs">
+                      Make sure you've properly configured your Google Cloud OAuth client with this redirect URL:
+                      <code className="block mt-1 p-1 bg-destructive/10 rounded">{LOVABLE_REDIRECT_URL}</code>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <div className="bg-muted/50 rounded-md p-4 text-sm">
                 <h4 className="font-medium mb-2">Why connect Google Ads?</h4>
                 <ul className="list-disc list-inside text-muted-foreground pl-2 space-y-1">
@@ -175,6 +201,30 @@ const GoogleAdsIntegration: React.FC = () => {
                   <li>Monitor ad spend and ROI</li>
                   <li>Access historical data</li>
                 </ul>
+              </div>
+              
+              <div className="bg-amber-50 rounded-md p-4 text-sm border border-amber-100">
+                <h4 className="font-medium mb-2 text-amber-800">Google Cloud OAuth Configuration</h4>
+                <p className="text-amber-700 mb-2">
+                  To connect successfully, make sure your Google Cloud OAuth client has this configuration:
+                </p>
+                <ul className="list-disc list-inside text-amber-700 pl-2 space-y-2">
+                  <li>
+                    <strong>Authorized JavaScript origins:</strong>
+                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com</code>
+                  </li>
+                  <li>
+                    <strong>Authorized redirect URIs:</strong>
+                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations</code>
+                  </li>
+                </ul>
+                <Button 
+                  variant="link" 
+                  className="text-amber-700 p-0 mt-2 h-auto" 
+                  onClick={() => window.open("https://console.cloud.google.com/apis/credentials", "_blank")}
+                >
+                  Open Google Cloud Console <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
               </div>
             </div>
           )}
@@ -210,9 +260,13 @@ const GoogleAdsIntegration: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <Button onClick={handleConnect} className="w-full">
+            <Button 
+              onClick={handleConnect} 
+              className="w-full"
+              disabled={isConnecting}
+            >
               <Link2 className="mr-2 h-4 w-4" />
-              Connect to Google Ads
+              {isConnecting ? 'Connecting...' : 'Connect to Google Ads'}
             </Button>
           )}
         </CardFooter>
