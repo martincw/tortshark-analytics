@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useState,
@@ -12,7 +11,7 @@ import {
   Campaign,
   AccountConnection,
   GoogleAdsMetrics as GoogleAdsMetricsType,
-  CampaignStatEntry,
+  StatHistoryEntry,
 } from "@/types/campaign";
 import { googleAdsService } from "@/services/googleAdsService";
 
@@ -36,15 +35,14 @@ interface CampaignContextType {
   fetchGoogleAdsAccounts: () => Promise<AccountConnection[]>;
   isLoading: boolean;
   
-  // Add missing properties
   selectedCampaignId: string | null;
   setSelectedCampaignId: (id: string | null) => void;
   selectedCampaignIds: string[];
   setSelectedCampaignIds: (ids: string[]) => void;
   dateRange: DateRangeType;
   setDateRange: (range: DateRangeType) => void;
-  addStatHistoryEntry: (campaignId: string, entry: Omit<CampaignStatEntry, "id" | "createdAt">) => void;
-  updateStatHistoryEntry: (campaignId: string, entry: CampaignStatEntry) => void;
+  addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => void;
+  updateStatHistoryEntry: (campaignId: string, entry: StatHistoryEntry) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   fetchGoogleAdsMetrics: (accountId: string, dateRange: DateRangeType) => Promise<GoogleAdsMetricsType[] | null>;
 }
@@ -72,7 +70,6 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   
-  // Add new state variables
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>(() => {
     const storedIds = localStorage.getItem("selectedCampaignIds");
@@ -85,7 +82,6 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
       return JSON.parse(storedRange);
     }
     
-    // Default date range (last 30 days)
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
@@ -104,7 +100,6 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     localStorage.setItem("accountConnections", JSON.stringify(accountConnections));
   }, [accountConnections]);
   
-  // Add new effects for storing selected campaign IDs
   useEffect(() => {
     localStorage.setItem("selectedCampaignIds", JSON.stringify(selectedCampaignIds));
   }, [selectedCampaignIds]);
@@ -114,7 +109,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     const newCampaign = { 
       id, 
       ...campaign,
-      statsHistory: [] // Ensure statsHistory exists
+      statsHistory: [] 
     };
     setCampaigns([...campaigns, newCampaign]);
     return id;
@@ -160,16 +155,15 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
       accountConnections.filter((account) => account.id !== id)
     );
   };
-  
-  // Add new methods for stats history management
+
   const addStatHistoryEntry = (
     campaignId: string, 
-    entry: Omit<CampaignStatEntry, "id" | "createdAt">
+    entry: Omit<StatHistoryEntry, "id" | "createdAt">
   ) => {
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign) return;
     
-    const newEntry: CampaignStatEntry = {
+    const newEntry: StatHistoryEntry = {
       id: uuidv4(),
       ...entry,
       createdAt: new Date().toISOString()
@@ -194,7 +188,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
   
   const updateStatHistoryEntry = (
     campaignId: string,
-    updatedEntry: CampaignStatEntry
+    updatedEntry: StatHistoryEntry
   ) => {
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign || !campaign.statsHistory) return;
@@ -202,7 +196,6 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     const oldEntry = campaign.statsHistory.find(e => e.id === updatedEntry.id);
     if (!oldEntry) return;
     
-    // Calculate differences for updating totals
     const leadsDiff = updatedEntry.leads - oldEntry.leads;
     const casesDiff = updatedEntry.cases - oldEntry.cases;
     const retainersDiff = (updatedEntry.retainers || 0) - (oldEntry.retainers || 0);
@@ -258,18 +251,14 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     try {
       setIsLoading(true);
       
-      // Call the service to get accounts from Google Ads API
       const googleAccounts = await googleAdsService.fetchGoogleAdsAccounts();
       
       if (googleAccounts && googleAccounts.length > 0) {
         console.log("Fetched Google Ads accounts:", googleAccounts);
         
-        // Process each account from the API
         const currentTime = new Date().toISOString();
         
-        // Convert Google API accounts to our AccountConnection format
         const importedAccounts = googleAccounts.map(account => {
-          // Create a standardized format for each account
           return {
             id: account.id || crypto.randomUUID(),
             name: account.name || `Google Ads Account ${account.customerId || ''}`,
@@ -283,15 +272,12 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
           };
         });
         
-        // Merge with existing accounts, avoiding duplicates by customerId
         const existingCustomerIds = accountConnections.map(acc => acc.customerId);
         
-        // Filter to only add new accounts
         const newAccounts = importedAccounts.filter(
           acc => !existingCustomerIds.includes(acc.customerId)
         );
         
-        // Update existing accounts with latest info
         const updatedExistingAccounts = accountConnections.map(existing => {
           const matchingImport = importedAccounts.find(
             imported => imported.customerId === existing.customerId
@@ -309,10 +295,8 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
           return existing;
         });
         
-        // Set the combined account list
         setAccountConnections([...updatedExistingAccounts, ...newAccounts]);
         
-        // Save to localStorage
         localStorage.setItem(
           "accountConnections",
           JSON.stringify([...updatedExistingAccounts, ...newAccounts])
@@ -330,8 +314,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
       setIsLoading(false);
     }
   };
-  
-  // Add method to fetch Google Ads metrics
+
   const fetchGoogleAdsMetrics = async (
     accountId: string,
     dateRange: DateRangeType
@@ -339,11 +322,12 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     try {
       setIsLoading(true);
       
-      // Use the googleAdsService to fetch metrics
       const metrics = await googleAdsService.fetchGoogleAdsMetrics(
-        accountId,
-        dateRange.startDate,
-        dateRange.endDate
+        {
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        },
+        accountId
       );
       
       return metrics;
@@ -367,7 +351,6 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     deleteAccountConnection,
     fetchGoogleAdsAccounts,
     isLoading,
-    // Add new properties to the context value
     selectedCampaignId,
     setSelectedCampaignId,
     selectedCampaignIds,
