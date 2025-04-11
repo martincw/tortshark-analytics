@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,7 +8,7 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
 
 // Set the redirect URI to the Lovable project URL
-const REDIRECT_URI = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations";
+const DEFAULT_REDIRECT_URI = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations";
 
 // Google Ads API OAuth scopes
 const GOOGLE_ADS_API_SCOPES = [
@@ -41,13 +42,16 @@ serve(async (req) => {
       console.log("Initiating Google OAuth flow");
       
       try {
+        // Use the redirect URI from the request or fall back to default
+        const redirectUri = requestData.redirectUri || DEFAULT_REDIRECT_URI;
+        
         // Enhanced debugging for environment variables
         const envDebug = {
           SUPABASE_URL: SUPABASE_URL ? `${SUPABASE_URL.substring(0, 10)}...` : "MISSING",
           SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? "SET" : "MISSING",
           GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
           GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET ? "SET" : "MISSING",
-          REDIRECT_URI: REDIRECT_URI
+          REDIRECT_URI: redirectUri
         };
         
         console.log("Environment configuration:", envDebug);
@@ -63,7 +67,7 @@ serve(async (req) => {
         // Construct Google OAuth URL with more explicit parameters
         const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
         authUrl.searchParams.append("client_id", GOOGLE_CLIENT_ID);
-        authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
+        authUrl.searchParams.append("redirect_uri", redirectUri);
         authUrl.searchParams.append("response_type", "code");
         
         // Join scopes with a space as required by OAuth 2.0
@@ -87,7 +91,7 @@ serve(async (req) => {
           url: authUrl.toString(),
           debug: {
             client_id_length: GOOGLE_CLIENT_ID.length,
-            redirect_uri: REDIRECT_URI,
+            redirect_uri: redirectUri,
             has_client_secret: GOOGLE_CLIENT_SECRET.length > 0,
             scopes: GOOGLE_ADS_API_SCOPES.join(" ")
           }

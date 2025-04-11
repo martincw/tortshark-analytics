@@ -18,6 +18,9 @@ const IntegrationsPage = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   
+  // Project URL for reference in guides
+  const PROJECT_URL = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com";
+  
   // Redirect to auth page if not logged in
   useEffect(() => {
     if (!isLoading && !user) {
@@ -125,8 +128,17 @@ const IntegrationsPage = () => {
       <Alert className="bg-amber-50 border-amber-200">
         <Info className="h-4 w-4 text-amber-500" />
         <AlertDescription className="text-amber-800">
-          Make sure you've set up the Google Cloud OAuth client properly. The authorized redirect URI should be: 
-          <code className="mx-1 px-1 bg-amber-100 rounded">https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com/integrations</code>
+          <p className="mb-2">Make sure you've set up the Google Cloud OAuth client properly with these exact settings:</p>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>
+              <strong>Authorized JavaScript origins:</strong>
+              <code className="mx-1 px-1 bg-amber-100 rounded">{PROJECT_URL}</code>
+            </li>
+            <li>
+              <strong>Authorized redirect URI:</strong>
+              <code className="mx-1 px-1 bg-amber-100 rounded">{PROJECT_URL}/integrations</code>
+            </li>
+          </ul>
         </AlertDescription>
       </Alert>
       

@@ -1,9 +1,13 @@
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
 // Store the developer token
 const DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
+
+// Project URL - important for OAuth flow
+const PROJECT_URL = "https://117ae32f-ec7a-4417-80c1-cf1522c2ad9c.lovableproject.com";
 
 export interface GoogleAdsCredentials {
   customerId: string;
@@ -36,7 +40,8 @@ export const initiateGoogleAuth = async () => {
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "authorize",
-        email: userEmail 
+        email: userEmail,
+        redirectUri: `${PROJECT_URL}/integrations`
       },
       headers: {
         Authorization: `Bearer ${token}`
