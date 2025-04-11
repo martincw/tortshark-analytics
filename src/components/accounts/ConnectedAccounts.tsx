@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { toast } from "sonner";
+import { listGoogleAdsAccounts } from "@/services/googleAdsService";
 
 interface ConnectedAccountsProps {
   accountConnections: AccountConnection[];
@@ -35,7 +37,30 @@ export const ConnectedAccounts = ({
   onSelectAccount,
 }: ConnectedAccountsProps) => {
   const navigate = useNavigate();
-  const { fetchGoogleAdsAccounts } = useCampaign();
+  const { fetchGoogleAdsAccounts, addAccountConnection } = useCampaign();
+  
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      const accounts = await listGoogleAdsAccounts();
+      if (accounts && accounts.length > 0) {
+        accounts.forEach(account => {
+          addAccountConnection({
+            id: account.id,
+            name: account.name,
+            platform: account.platform || "Google Ads",
+            customerId: account.id,
+            isConnected: true,
+            lastSynced: new Date().toISOString(),
+          });
+        });
+        toast.success(`Found ${accounts.length} Google Ads accounts`);
+      } else {
+        toast.info("No Google Ads accounts found");
+      }
+    };
+    
+    fetchAccounts();
+  }, [addAccountConnection]);
   
   const handleRefreshAccounts = async () => {
     await fetchGoogleAdsAccounts();
