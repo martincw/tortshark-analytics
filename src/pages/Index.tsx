@@ -3,7 +3,6 @@ import React, { useEffect } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { OverviewStats } from "@/components/dashboard/OverviewStats";
-import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -65,13 +64,8 @@ const Index = () => {
           <TabsContent value="overview" className="space-y-6">
             <OverviewStats key={`overview-${dateKey}`} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
-              </div>
-              <div>
-                <AccountsOverview />
-              </div>
+            <div className="lg:col-span-2">
+              <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
             </div>
           </TabsContent>
 
@@ -80,13 +74,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="insights">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
-              </div>
-              <div>
-                <AccountsOverview />
-              </div>
+            <div className="lg:col-span-2">
+              <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
             </div>
             <div className="mt-6">
               <CampaignGrid key={`grid-${dateKey}`} />

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Wrench, LogOut } from "lucide-react";
+import { getPublicUrl } from "@/services/storageService";
 
 interface NavItem {
   href: string;
@@ -31,6 +32,14 @@ export const Navbar: React.FC = () => {
   const campaignContext = useCampaign();
   const { signOut } = useAuth();
   const { campaigns = [], selectedCampaignIds = [], setSelectedCampaignIds } = campaignContext || {};
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Get the logo URL from Supabase storage
+    const logoPath = "tortshark-logo.png";
+    const url = getPublicUrl("assets", logoPath);
+    setLogoUrl(url);
+  }, []);
   
   const handleCampaignSelection = (campaignId: string) => {
     if (!setSelectedCampaignIds) return;
@@ -96,11 +105,15 @@ export const Navbar: React.FC = () => {
             </SheetContent>
           </Sheet>
           <Link to="/" className="ml-4">
-            <img 
-              src="/assets/tortshark-logo.png" 
-              alt="TortShark Logo" 
-              className="h-8"
-            />
+            {logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt="TortShark Logo" 
+                className="h-8"
+              />
+            ) : (
+              <div className="h-8 w-32 bg-secondary animate-pulse rounded"></div>
+            )}
           </Link>
         </div>
         <nav className="flex items-center space-x-6">
