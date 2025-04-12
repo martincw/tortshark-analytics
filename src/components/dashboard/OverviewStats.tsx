@@ -1,7 +1,8 @@
+
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useDashboardData } from "@/contexts/DashboardContext";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface ProgressBarProps {
   label: string;
@@ -33,7 +34,7 @@ const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue,
 };
 
 export function OverviewStats() {
-  const { dashboardData } = useDashboardData();
+  const { dashboardData } = useCampaign();
 
   if (!dashboardData) {
     return <p>Loading dashboard data...</p>;
