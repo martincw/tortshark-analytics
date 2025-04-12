@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { calculateMetrics, formatCurrency, formatNumber, formatCurrencyCompact, getTrendDirection } from "@/utils/campaignUtils";
-import { DollarSign, Users, FileCheck, TrendingUp, ChevronsUp, Percent, Target } from "lucide-react";
+import { DollarSign, Users, FileCheck, TrendingUp, ChevronsUp, Percent, Target, CircleDollarSign, CreditCard, FileText, Wallet } from "lucide-react";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 
 export function OverviewStats() {
@@ -81,11 +81,11 @@ export function OverviewStats() {
 
   return (
     <div>
-      <div className="border p-4 rounded-lg mb-6">
+      <div className="border p-4 rounded-lg mb-6 bg-gradient-to-br from-background to-accent/10 shadow-sm">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="font-medium flex items-center gap-2">
-              <Target className="h-5 w-5 text-muted-foreground" />
+              <Target className="h-5 w-5 text-primary" />
               Profit Progress
             </span>
             <span className="font-medium">{formatCurrency(aggregateStats.totalProfit)} of {formatCurrency(aggregateStats.totalTargetProfit)}</span>
@@ -107,12 +107,14 @@ export function OverviewStats() {
           icon={<DollarSign className="h-5 w-5" />}
           description="Gross revenue from all campaigns"
           valueClassName="text-primary"
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
         <StatCard
           title="Total Ad Spend"
           value={formatCurrencyCompact(aggregateStats.totalAdSpend)}
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={<CreditCard className="h-5 w-5" />}
           description="Total advertising budget spent"
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
         
         <StatCard
@@ -123,6 +125,7 @@ export function OverviewStats() {
           trend={profitTrend}
           trendValue={`${profitTrend === "up" ? "Profitable" : "Loss"}`}
           isHighlighted={true}
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
         
         <StatCard
@@ -133,6 +136,7 @@ export function OverviewStats() {
           trend={roiTrend}
           trendValue={Number(roi) > 200 ? "Excellent" : Number(roi) > 100 ? "Good" : Number(roi) > 0 ? "Positive" : "Negative"}
           isHighlighted={true}
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
 
         <StatCard
@@ -141,26 +145,31 @@ export function OverviewStats() {
           icon={<Users className="h-5 w-5" />}
           trend={leadsTrend}
           trendValue="From last month"
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
         <StatCard
           title="Total Cases"
           value={formatNumber(aggregateStats.totalCases)}
           icon={<FileCheck className="h-5 w-5" />}
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
         
         <StatCard
           title="Profit Per Case"
           value={formatCurrency(profitPerCase)}
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={<CircleDollarSign className="h-5 w-5" />}
           valueClassName={profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
           description="Average profit per acquired case"
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
         
         <StatCard
           title="Avg. Cost Per Lead"
           value={formatCurrency(avgCostPerLead)}
+          icon={<FileText className="h-5 w-5" />}
           valueClassName={avgCostPerLead > 50 ? "text-warning-DEFAULT" : "text-foreground"}
           description={avgCostPerLead > 50 ? "Above target threshold" : "Within target range"}
+          className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
       </div>
     </div>

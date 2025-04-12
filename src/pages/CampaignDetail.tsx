@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,15 @@ import {
   Calendar,
   MoreHorizontal,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  FileText,
+  Wallet,
+  TrendingDown,
+  LineChart,
+  BarChart,
+  CircleDollarSign,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -282,98 +290,192 @@ const CampaignDetail = () => {
     return "error";
   };
   
-  // Calculate profit per case
   const profitPerCase = campaign.manualStats.cases > 0 
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center">
-        <Button
-          onClick={() => navigate("/campaigns")}
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-foreground px-0"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Campaigns
-        </Button>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <Button
+            onClick={() => navigate("/campaigns")}
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground px-0 mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Campaigns
+          </Button>
+          <h1 className="text-3xl font-bold">{campaign.name}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <DateRangePicker />
+          {isEditing ? (
+            <>
+              <Button onClick={() => setIsEditing(false)} variant="outline">
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button onClick={handleSave} variant="default">
+                <Save className="mr-2 h-4 w-4" />
+                Save All
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={() => setIsDailyStatsDialogOpen(true)}
+                variant="outline"
+              >
+                <CalendarDays className="mr-2 h-4 w-4" />
+                Add Stats
+              </Button>
+              <Button
+                onClick={() => setIsEditing(true)}
+                variant="outline"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Stats
+              </Button>
+              <Button onClick={handleDelete} variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
       </div>
       
-      <div className="bg-accent/20 rounded-lg p-6 shadow-sm border">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-          <h1 className="text-3xl font-bold">{campaign.name}</h1>
-          <DateRangePicker />
+      <div className="bg-gradient-to-br from-card/90 to-accent/10 rounded-xl p-6 shadow-md border">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign className="h-6 w-6 text-primary opacity-80" />
+              <h3 className="text-lg font-semibold">Financial Overview</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-sm text-muted-foreground block">Revenue</span>
+                <span className="text-2xl font-bold">{formatCurrency(campaign.manualStats.revenue)}</span>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground block">Ad Spend</span>
+                <span className="text-2xl font-bold">{formatCurrency(campaign.stats.adSpend)}</span>
+              </div>
+            </div>
+            <div className="pt-4 mt-4 border-t">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium">Profit</span>
+                <span className={`font-bold ${getRoiClass()}`}>{formatCurrency(metrics.profit)}</span>
+              </div>
+              <CustomProgressBar
+                value={profitProgress}
+                variant={getProfitVariant()}
+                size="md"
+                showValue
+                valuePosition="right"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="h-6 w-6 text-primary opacity-80" />
+              <h3 className="text-lg font-semibold">Case Acquisition</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-sm text-muted-foreground block">Leads</span>
+                <span className="text-2xl font-bold">{formatNumber(campaign.manualStats.leads)}</span>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground block">Cases</span>
+                <span className="text-2xl font-bold">{formatNumber(campaign.manualStats.cases)}</span>
+              </div>
+            </div>
+            <div className="pt-4 mt-4 border-t">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium">Target Cases</span>
+                <span className="font-bold">{campaign.manualStats.cases} of {campaign.targets.monthlyRetainers}</span>
+              </div>
+              <CustomProgressBar
+                value={casesProgress}
+                variant={getCasesVariant()}
+                size="md"
+                showValue
+                valuePosition="right"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="h-6 w-6 text-primary opacity-80" />
+              <h3 className="text-lg font-semibold">ROI Performance</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-sm text-muted-foreground block">ROI</span>
+                <span className={`text-2xl font-bold ${getRoiClass()}`}>{metrics.roi.toFixed(1)}%</span>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground block">Profit Per Case</span>
+                <span className={`text-2xl font-bold ${profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+                  {formatCurrency(profitPerCase)}
+                </span>
+              </div>
+            </div>
+            <div className="pt-4 mt-4 border-t">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium">Target ROI</span>
+                <span className="font-bold">{metrics.roi.toFixed(1)}% of {campaign.targets.targetROAS}%</span>
+              </div>
+              <CustomProgressBar
+                value={roiProgress}
+                variant={getRoiVariant()}
+                size="md"
+                showValue
+                valuePosition="right"
+              />
+            </div>
+          </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">ROI</span>
-            <span className={`text-2xl font-bold ${getRoiClass()}`}>
-              {metrics.roi.toFixed(1)}%
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Total Profit</span>
-            <span className={`text-2xl font-bold ${getRoiClass()}`}>
-              {formatCurrency(metrics.profit)}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Cost Per Case</span>
-            <span className={`text-2xl font-bold ${metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
-              {formatCurrency(metrics.cpa)}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Total Cases</span>
-            <span className="text-2xl font-bold">
-              {formatNumber(campaign.manualStats.cases)}
-            </span>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-4 border-t">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Total Leads</span>
-            <span className="text-2xl font-bold">
-              {formatNumber(campaign.manualStats.leads)}
-            </span>
-          </div>
-          <div className="flex flex-col">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 pt-4 border-t">
+          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+            <Clock className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Cost Per Lead</span>
-            <span className={`text-2xl font-bold ${metrics.costPerLead > 50 ? "text-warning-DEFAULT" : ""}`}>
+            <span className={`text-xl font-semibold ${metrics.costPerLead > 50 ? "text-warning-DEFAULT" : ""}`}>
               {formatCurrency(metrics.costPerLead)}
             </span>
           </div>
-          <div className="flex flex-col">
+          
+          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+            <FileText className="h-5 w-5 text-muted-foreground mb-2" />
+            <span className="text-sm text-muted-foreground">Cost Per Case</span>
+            <span className={`text-xl font-semibold ${metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+              {formatCurrency(metrics.cpa)}
+            </span>
+          </div>
+          
+          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+            <Wallet className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Earnings Per Lead</span>
-            <span className={`text-2xl font-bold ${campaign.manualStats.leads > 0 && campaign.manualStats.revenue / campaign.manualStats.leads > metrics.costPerLead ? "text-success-DEFAULT" : ""}`}>
+            <span className={`text-xl font-semibold ${campaign.manualStats.leads > 0 && campaign.manualStats.revenue / campaign.manualStats.leads > metrics.costPerLead ? "text-success-DEFAULT" : ""}`}>
               {campaign.manualStats.leads > 0 
                 ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.leads) 
                 : "$0.00"}
             </span>
           </div>
-          <div className="flex flex-col">
+          
+          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+            <Target className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Conversion Rate</span>
-            <span className="text-2xl font-bold">
+            <span className="text-xl font-semibold">
               {campaign.manualStats.leads > 0 
                 ? `${((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1)}%` 
                 : "0%"}
-            </span>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-4 border-t">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Total Revenue</span>
-            <span className="text-2xl font-bold">{formatCurrency(campaign.manualStats.revenue)}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Profit Per Case</span>
-            <span className={`text-2xl font-bold ${profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
-              {formatCurrency(profitPerCase)}
             </span>
           </div>
         </div>
@@ -386,7 +488,7 @@ const CampaignDetail = () => {
           icon={<Percent className="h-5 w-5" />}
           trend={metrics.roi > 0 ? "up" : "down"}
           trendValue={metrics.roi > 200 ? "Excellent" : metrics.roi > 100 ? "Good" : metrics.roi > 0 ? "Positive" : "Needs Attention"}
-          className="border-2 border-accent"
+          className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
           isHighlighted={true}
           valueClassName={getRoiClass()}
         />
@@ -397,7 +499,7 @@ const CampaignDetail = () => {
           icon={<CreditCard className="h-5 w-5" />}
           trend={metrics.profit > 0 ? "up" : "down"}
           trendValue={metrics.profit > 5000 ? "High Performer" : metrics.profit > 0 ? "Profitable" : "Loss"}
-          className="border-2 border-accent"
+          className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
           isHighlighted={true}
           valueClassName={getRoiClass()}
         />
@@ -405,54 +507,18 @@ const CampaignDetail = () => {
         <StatCard
           title="Profit Per Case"
           value={formatCurrency(profitPerCase)}
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={<CircleDollarSign className="h-5 w-5" />}
           trend={profitPerCase > campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
           trendValue={profitPerCase > campaign.targets.casePayoutAmount ? "Excellent" : "Average"}
-          className="border-2 border-accent"
+          className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
           isHighlighted={true}
           valueClassName={profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
         />
       </div>
       
-      <div className="flex justify-end gap-2">
-        {isEditing ? (
-          <>
-            <Button onClick={() => setIsEditing(false)} variant="outline">
-              <X className="mr-2 h-4 w-4" />
-              Cancel
-            </Button>
-            <Button onClick={handleSave} variant="default">
-              <Save className="mr-2 h-4 w-4" />
-              Save All
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              onClick={() => setIsDailyStatsDialogOpen(true)}
-              variant="outline"
-            >
-              <CalendarDays className="mr-2 h-4 w-4" />
-              Add Daily Stats
-            </Button>
-            <Button
-              onClick={() => setIsEditing(true)}
-              variant="outline"
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Stats
-            </Button>
-            <Button onClick={handleDelete} variant="destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          </>
-        )}
-      </div>
-      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-md border-accent/30">
-          <CardHeader className="bg-card/50 border-b pb-3">
+        <Card className="shadow-md border-accent/30 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
               Performance Summary
@@ -460,11 +526,11 @@ const CampaignDetail = () => {
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-2 gap-6">
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Ad Spend</span>
                 <span className="text-xl font-semibold">{formatCurrency(campaign.stats.adSpend)}</span>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
                 <span className="text-xl font-semibold">
                   {isEditing ? (
@@ -479,7 +545,7 @@ const CampaignDetail = () => {
                   )}
                 </span>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Leads</span>
                 <span className="text-xl font-semibold">
                   {isEditing ? (
@@ -494,7 +560,7 @@ const CampaignDetail = () => {
                   )}
                 </span>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Cases</span>
                 <span className="text-xl font-semibold">
                   {isEditing ? (
@@ -517,28 +583,32 @@ const CampaignDetail = () => {
                 <BadgeStat
                   label="Cost Per Lead"
                   value={formatCurrency(metrics.costPerLead)}
+                  className="bg-background/50"
                 />
                 <BadgeStat
                   label="Cost Per Case"
                   value={formatCurrency(metrics.cpa)}
+                  className="bg-background/50"
                 />
                 <BadgeStat
                   label="Lead to Case Ratio"
                   value={`${campaign.manualStats.leads > 0 ? ((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1) : "0"}%`}
+                  className="bg-background/50"
                 />
                 <BadgeStat
                   label="Avg. Revenue Per Case"
                   value={campaign.manualStats.cases > 0 
                     ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.cases) 
                     : "$0.00"}
+                  className="bg-background/50"
                 />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="shadow-md border-accent/30">
-          <CardHeader className="bg-card/50 border-b pb-3">
+        <Card className="shadow-md border-accent/30 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
               Campaign Targets
@@ -546,19 +616,19 @@ const CampaignDetail = () => {
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-2 gap-6">
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Monthly Target</span>
                 <span className="text-xl font-semibold">{campaign.targets.monthlyRetainers} Cases</span>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Case Payout</span>
                 <span className="text-xl font-semibold">{formatCurrency(campaign.targets.casePayoutAmount)}</span>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Target ROAS</span>
                 <span className="text-xl font-semibold">{campaign.targets.targetROAS}%</span>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4">
+              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
                 <span className="text-sm text-muted-foreground block mb-1">Target Profit</span>
                 <span className="text-xl font-semibold">{formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
@@ -568,13 +638,16 @@ const CampaignDetail = () => {
               <GoogleAdsMetrics campaign={campaign} />
             </div>
             
-            <div className="mt-6 bg-accent/5 rounded-lg p-6 border">
+            <div className="mt-6 bg-gradient-to-br from-background to-accent/10 rounded-lg p-6 border shadow-sm">
               <h4 className="text-sm font-medium mb-4 text-muted-foreground uppercase tracking-wider">Performance vs. Targets</h4>
               
               <div className="space-y-6">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">ROAS</span>
+                    <span className="font-medium flex items-center gap-1">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      ROAS
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className={metrics.roi >= campaign.targets.targetROAS ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
                         {metrics.roi.toFixed(1)}%
@@ -593,7 +666,10 @@ const CampaignDetail = () => {
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">Cases</span>
+                    <span className="font-medium flex items-center gap-1">
+                      <FileCheck className="h-4 w-4 text-muted-foreground" />
+                      Cases
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className={campaign.manualStats.cases >= campaign.targets.monthlyRetainers ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
                         {campaign.manualStats.cases}
@@ -612,7 +688,10 @@ const CampaignDetail = () => {
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">Profit</span>
+                    <span className="font-medium flex items-center gap-1">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      Profit
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className={metrics.profit >= campaign.targets.targetProfit ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
                         {formatCurrency(metrics.profit)}
@@ -634,8 +713,8 @@ const CampaignDetail = () => {
         </Card>
       </div>
       
-      <Card className="shadow-md border-accent/30">
-        <CardHeader className="bg-card/50 border-b pb-3 flex flex-row items-center justify-between">
+      <Card className="shadow-md border-accent/30 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-primary" />
             Stats History
@@ -644,6 +723,7 @@ const CampaignDetail = () => {
             variant="outline" 
             size="sm" 
             onClick={() => setIsDailyStatsDialogOpen(true)}
+            className="shadow-sm"
           >
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Entry
@@ -654,7 +734,7 @@ const CampaignDetail = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
+                  <TableRow className="bg-muted/30">
                     <TableHead className="font-medium">Date</TableHead>
                     <TableHead className="font-medium">Leads</TableHead>
                     <TableHead className="font-medium">Cases</TableHead>
