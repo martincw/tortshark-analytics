@@ -4,6 +4,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { OverviewStats } from "@/components/dashboard/OverviewStats";
 import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
+import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
@@ -28,6 +29,10 @@ const Index = () => {
       )}
       
       <OverviewStats />
+      
+      {campaigns.length > 0 && (
+        <CampaignLeaderboard />
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
