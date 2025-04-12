@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sheet,
   SheetContent,
@@ -11,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Wrench } from "lucide-react";
+import { Menu, Wrench, LogOut } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -23,18 +24,17 @@ const navItems: NavItem[] = [
   { href: "/campaigns", label: "Campaigns" },
   { href: "/accounts", label: "Accounts" },
   { href: "/integrations", label: "Integrations" },
-  { href: "/tools", label: "Tools" }, // Added Tools page to navigation
+  { href: "/tools", label: "Tools" },
 ];
 
 export const Navbar: React.FC = () => {
-  // Using optional chaining to handle the case where context isn't available yet
   const campaignContext = useCampaign();
+  const { signOut } = useAuth();
   const { campaigns = [], selectedCampaignIds = [], setSelectedCampaignIds } = campaignContext || {};
   
   const handleCampaignSelection = (campaignId: string) => {
-    if (!setSelectedCampaignIds) return; // Guard clause if context not ready
+    if (!setSelectedCampaignIds) return;
     
-    // Fix: Directly create a new array instead of using the callback style
     if (selectedCampaignIds.includes(campaignId)) {
       setSelectedCampaignIds(selectedCampaignIds.filter(id => id !== campaignId));
     } else {
@@ -46,54 +46,60 @@ export const Navbar: React.FC = () => {
     return selectedCampaignIds.includes(campaignId);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
   return (
     <div className="border-b bg-background sticky top-0 z-50">
-      <div className="flex h-16 items-center px-4">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Menu">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="pr-0">
-            <SheetHeader>
-              <SheetTitle>Menu</SheetTitle>
-              <SheetDescription>
-                Manage your campaigns and account settings from here.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="grid gap-4 py-4">
-              {navItems.map((item) => (
-                <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
-                  {item.label}
-                </Link>
-              ))}
-              
-              {campaigns && campaigns.length > 0 && (
-                <div className="border-t pt-4">
-                  <p className="text-sm font-medium px-4">Campaign Filters</p>
-                  <div className="space-y-2 mt-2">
-                    {campaigns.map((campaign) => (
-                      <label key={campaign.id} className="flex items-center p-2 rounded-md hover:bg-secondary cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="mr-2 h-4 w-4"
-                          checked={isCampaignSelected(campaign.id)}
-                          onChange={() => handleCampaignSelection(campaign.id)}
-                        />
-                        {campaign.name}
-                      </label>
-                    ))}
+      <div className="flex h-16 items-center px-4 justify-between">
+        <div className="flex items-center">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="pr-0">
+              <SheetHeader>
+                <SheetTitle>Menu</SheetTitle>
+                <SheetDescription>
+                  Manage your campaigns and account settings from here.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid gap-4 py-4">
+                {navItems.map((item) => (
+                  <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
+                    {item.label}
+                  </Link>
+                ))}
+                
+                {campaigns && campaigns.length > 0 && (
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium px-4">Campaign Filters</p>
+                    <div className="space-y-2 mt-2">
+                      {campaigns.map((campaign) => (
+                        <label key={campaign.id} className="flex items-center p-2 rounded-md hover:bg-secondary cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="mr-2 h-4 w-4"
+                            checked={isCampaignSelected(campaign.id)}
+                            onChange={() => handleCampaignSelection(campaign.id)}
+                          />
+                          {campaign.name}
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
-        <Link to="/" className="ml-4 font-bold text-xl">
-          Campaign Tracker
-        </Link>
-        <nav className="ml-auto flex items-center space-x-6">
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+          <Link to="/" className="ml-4 font-bold text-xl">
+            Campaign Tracker
+          </Link>
+        </div>
+        <nav className="flex items-center space-x-6">
           {navItems.map((item) => (
             <Link 
               key={item.href} 
@@ -104,6 +110,15 @@ export const Navbar: React.FC = () => {
               {item.label}
             </Link>
           ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="flex items-center"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
         </nav>
       </div>
     </div>
