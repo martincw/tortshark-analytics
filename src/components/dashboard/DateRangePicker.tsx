@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
@@ -38,13 +39,16 @@ export function DateRangePicker() {
   }, [dateRange]);
   
   const handleDateChange = (value: DateRange | undefined) => {
+    if (!value?.from) return;
+    
+    const newRange = {
+      startDate: format(value.from, 'yyyy-MM-dd'),
+      endDate: value.to ? format(value.to, 'yyyy-MM-dd') : format(value.from, 'yyyy-MM-dd'),
+    };
+    
     setDate(value);
-    if (value?.from) {
-      setDateRange({
-        startDate: format(value.from, 'yyyy-MM-dd'),
-        endDate: value.to ? format(value.to, 'yyyy-MM-dd') : format(value.from, 'yyyy-MM-dd'),
-      });
-    }
+    setDateRange(newRange);
+    toast.success("Date range updated");
   };
 
   return (

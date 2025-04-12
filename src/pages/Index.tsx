@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { OverviewStats } from "@/components/dashboard/OverviewStats";
@@ -10,9 +10,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 
 const Index = () => {
-  const { campaigns, selectedCampaignIds } = useCampaign();
+  const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
   
   const showSelectionAlert = selectedCampaignIds.length > 0 && selectedCampaignIds.length < campaigns.length;
+
+  // Add key prop with dateRange to force re-renders when date changes
+  const dateKey = `${dateRange.startDate}-${dateRange.endDate}`;
 
   return (
     <div className="space-y-6">
@@ -28,15 +31,15 @@ const Index = () => {
         </Alert>
       )}
       
-      <OverviewStats />
+      <OverviewStats key={`overview-${dateKey}`} />
       
       {campaigns.length > 0 && (
-        <CampaignLeaderboard />
+        <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
       )}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <CampaignGrid />
+          <CampaignGrid key={`grid-${dateKey}`} />
         </div>
         <div>
           <AccountsOverview />
