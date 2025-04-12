@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -5,7 +6,7 @@ import { calculateMetrics, formatCurrency, formatNumber, formatCurrencyCompact, 
 import { 
   DollarSign, Users, FileCheck, TrendingUp, ChevronsUp, Percent,
   Target, CircleDollarSign, CreditCard, FileText, Wallet, 
-  TrendingDown, BarChart3, ArrowUpRight, ArrowDownRight
+  TrendingDown, BarChart3, ArrowUpRight, ArrowDownRight, AlertTriangle
 } from "lucide-react";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,21 +115,19 @@ export function OverviewStats() {
     return "error";
   };
 
-  const getEfficiencyScore = () => {
-    const costPerCaseRatio = avgCpa > 0 ? (avgCpa / profitPerCase) * 100 : 0;
-    const normalizedScore = 100 - Math.min(costPerCaseRatio, 100);
-    return Number(normalizedScore.toFixed(2));
-  };
-
-  const getConversionEfficiencyScore = () => {
+  // Calculate conversion rate (leads to cases)
+  const leadConversionRate = useMemo(() => {
     if (aggregateStats.totalLeads === 0) return 0;
-    
-    const conversionRate = (aggregateStats.totalCases / aggregateStats.totalLeads) * 100;
-    return Number(Math.min(conversionRate * 5, 100).toFixed(2));
-  };
+    return Number(((aggregateStats.totalCases / aggregateStats.totalLeads) * 100).toFixed(2));
+  }, [aggregateStats.totalLeads, aggregateStats.totalCases]);
 
-  const efficiencyScore = getEfficiencyScore();
-  const conversionScore = getConversionEfficiencyScore();
+  // Cost efficiency rating - lower is better
+  const costEfficiency = useMemo(() => {
+    if (aggregateStats.totalRevenue === 0) return 0;
+    const costPerDollarRevenue = aggregateStats.totalAdSpend / aggregateStats.totalRevenue;
+    // Transform to 0-100 scale where 100 is best (0% of revenue spent on ads)
+    return Number(Math.max(0, Math.min(100, (1 - costPerDollarRevenue) * 100)).toFixed(2));
+  }, [aggregateStats.totalAdSpend, aggregateStats.totalRevenue]);
 
   return (
     <div>
@@ -154,7 +153,7 @@ export function OverviewStats() {
           </CardHeader>
           <CardContent>
             <CustomProgressBar 
-              value={profitProgress} 
+              value={Number(profitProgress)} 
               size="lg" 
               variant={getProfitVariant()} 
               className="w-full" 
@@ -185,44 +184,86 @@ export function OverviewStats() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xl flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              Campaign Efficiency Metrics
+              Key Performance Indicators
             </CardTitle>
             <CardDescription>
-              Key metrics to optimize your ad spend and conversion
+              Critical metrics that drive campaign profitability
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Lead-to-Case Conversion</span>
+                  <span className="text-sm font-medium">
+                    {leadConversionRate}% 
+                    {leadConversionRate < 10 && <AlertTriangle className="h-4 w-4 inline ml-1 text-warning-DEFAULT" />}
+                  </span>
+                </div>
                 <CustomProgressBar 
-                  value={efficiencyScore} 
+                  value={Number(leadConversionRate)} 
                   size="md" 
-                  variant={efficiencyScore >= 70 ? "success" : efficiencyScore >= 40 ? "warning" : "error"} 
-                  showValue 
-                  label="Cost Efficiency"
-                  target={70}
+                  variant={leadConversionRate >= 15 ? "success" : leadConversionRate >= 8 ? "warning" : "error"} 
+                  showValue={false}
+                  target={15}
+                  showTarget
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {efficiencyScore >= 70 
-                    ? "Good cost efficiency - maintain current cost-per-case ratio" 
-                    : "Opportunity to improve cost per case ratio"}
+                  {leadConversionRate >= 15 
+                    ? "Excellent qualification rate" 
+                    : leadConversionRate >= 8 
+                    ? "Average conversion performance" 
+                    : "Lead quality needs improvement"}
                 </p>
               </div>
               
               <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Cost Efficiency (% of revenue)</span>
+                  <span className="text-sm font-medium">
+                    {costEfficiency}%
+                  </span>
+                </div>
                 <CustomProgressBar 
-                  value={conversionScore} 
+                  value={Number(costEfficiency)} 
                   size="md" 
-                  variant={conversionScore >= 70 ? "success" : conversionScore >= 40 ? "warning" : "error"} 
-                  showValue 
-                  label="Lead-to-Case Conversion" 
-                  target={70}
+                  variant={costEfficiency >= 60 ? "success" : costEfficiency >= 30 ? "warning" : "error"} 
+                  showValue={false}
+                  target={60}
+                  showTarget
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {conversionScore >= 70 
-                    ? "Strong lead qualification - focus on scaling volume" 
-                    : "Lead quality may need attention - review qualification criteria"}
+                  {costEfficiency >= 60 
+                    ? "Profitable ad spend ratio" 
+                    : costEfficiency >= 30 
+                    ? "Moderate spending efficiency" 
+                    : "High cost-to-revenue ratio"}
                 </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="border rounded-md p-3 bg-accent/5">
+                  <div className="text-xs text-muted-foreground mb-1">Avg. Cost Per Lead</div>
+                  <div className="text-lg font-medium">
+                    {formatCurrency(avgCostPerLead)}
+                  </div>
+                  <div className="text-xs mt-1">
+                    {avgCostPerLead > 100 
+                      ? "Above target - needs optimization" 
+                      : "Within acceptable range"}
+                  </div>
+                </div>
+                <div className="border rounded-md p-3 bg-accent/5">
+                  <div className="text-xs text-muted-foreground mb-1">Avg. Cost Per Case</div>
+                  <div className="text-lg font-medium">
+                    {formatCurrency(avgCpa)}
+                  </div>
+                  <div className="text-xs mt-1">
+                    {avgCpa > 1000 
+                      ? "Above target - needs optimization" 
+                      : "Cost-effective acquisition"}
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
