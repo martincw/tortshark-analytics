@@ -87,7 +87,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
             setCasePayoutAmount={setCasePayoutAmount}
             targetProfit={targetProfit}
             setTargetProfit={setTargetProfit}
-            targetROAS={setTargetROAS}
+            targetROAS={targetROAS}
             setTargetROAS={setTargetROAS}
             targetMonthlyIncome={targetMonthlyIncome}
             targetMonthlySpend={targetMonthlySpend}
