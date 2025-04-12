@@ -95,8 +95,12 @@ export const Navbar: React.FC = () => {
               </div>
             </SheetContent>
           </Sheet>
-          <Link to="/" className="ml-4 font-bold text-xl">
-            Campaign Tracker
+          <Link to="/" className="ml-4">
+            <img 
+              src="/assets/tortshark-logo.png" 
+              alt="TortShark Logo" 
+              className="h-8"
+            />
           </Link>
         </div>
         <nav className="flex items-center space-x-6">

@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { AccountConnection } from "@/types/campaign";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
+import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, InfoIcon, RefreshCw } from "lucide-react";
@@ -95,6 +97,9 @@ const AccountsPage = () => {
           {isRefreshing ? 'Refreshing...' : 'Refresh Accounts'}
         </Button>
       </div>
+      
+      {/* Added AccountsOverview component here */}
+      <AccountsOverview />
       
       {!isGoogleConnected && (
         <Alert className="mb-4 bg-amber-50 border-amber-200">
