@@ -38,7 +38,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     leads: "0",
     cases: "0",
     retainers: "0",
-    revenue: "0"
+    revenue: "0",
+    adSpend: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
@@ -53,8 +54,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     const newCases = parseInt(quickStats.cases) || 0;
     const newRetainers = parseInt(quickStats.retainers) || 0;
     const newRevenue = parseFloat(quickStats.revenue) || 0;
+    const newAdSpend = parseFloat(quickStats.adSpend) || 0;
     
-    if (newLeads === 0 && newCases === 0 && newRetainers === 0 && newRevenue === 0) {
+    if (newLeads === 0 && newCases === 0 && newRetainers === 0 && newRevenue === 0 && newAdSpend === 0) {
       toast.error("Please enter at least one value greater than 0");
       return;
     }
@@ -65,7 +67,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       leads: newLeads,
       cases: newCases,
       retainers: newRetainers,
-      revenue: newRevenue
+      revenue: newRevenue,
+      adSpend: newAdSpend
     });
     
     addStatHistoryEntry(campaign.id, {
@@ -73,11 +76,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       leads: newLeads, 
       cases: newCases,
       retainers: newRetainers,
-      revenue: newRevenue
+      revenue: newRevenue,
+      adSpend: newAdSpend
     });
     
     setIsQuickEntryOpen(false);
-    setQuickStats({ leads: "0", cases: "0", retainers: "0", revenue: "0" });
+    setQuickStats({ leads: "0", cases: "0", retainers: "0", revenue: "0", adSpend: "0" });
     toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
@@ -109,7 +113,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     if (campaign.targets.targetProfit <= 0) return 0;
     
     const percentage = (metrics.profit / campaign.targets.targetProfit) * 100;
-    return Math.max(Math.min(Math.round(percentage * 10) / 10, 100), 0);
+    return Math.max(Math.min(percentage, 100), 0);
   }, [metrics.profit, campaign.targets.targetProfit]);
   
   console.log("Campaign Card Profit Progress FIXED:", {
@@ -228,7 +232,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           <DialogHeader>
             <DialogTitle>Add Stats for {campaign.name}</DialogTitle>
             <DialogDescription>
-              Add leads, cases, retainers, and revenue for a specific date. These values will be added to the total.
+              Add leads, cases, retainers, ad spend, and revenue for a specific date. These values will be added to the total.
             </DialogDescription>
           </DialogHeader>
           
@@ -310,6 +314,19 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 type="number" 
                 value={quickStats.retainers}
                 onChange={(e) => setQuickStats({...quickStats, retainers: e.target.value})}
+                className="col-span-3"
+                min="0"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quick-adspend" className="text-right">
+                Ad Spend ($)
+              </Label>
+              <Input
+                id="quick-adspend"
+                type="number" 
+                value={quickStats.adSpend}
+                onChange={(e) => setQuickStats({...quickStats, adSpend: e.target.value})}
                 className="col-span-3"
                 min="0"
               />

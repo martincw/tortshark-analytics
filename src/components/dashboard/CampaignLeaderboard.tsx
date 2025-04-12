@@ -20,6 +20,7 @@ interface LeaderboardMetric {
   accountName: string;
   value: number;
   formattedValue: string;
+  costPerLead?: number; // Added to show CPL
 }
 
 export function CampaignLeaderboard() {
@@ -41,6 +42,7 @@ export function CampaignLeaderboard() {
       const profitPerLead = campaign.manualStats.leads > 0 
         ? metrics.profit / campaign.manualStats.leads 
         : 0;
+      const costPerLead = metrics.costPerLead; // Get the cost per lead
 
       return {
         id: campaign.id,
@@ -48,7 +50,8 @@ export function CampaignLeaderboard() {
         accountName: campaign.accountName,
         profit: metrics.profit,
         epl,
-        profitPerLead
+        profitPerLead,
+        costPerLead
       };
     });
 
@@ -73,7 +76,8 @@ export function CampaignLeaderboard() {
         name: c.name,
         accountName: c.accountName,
         value: c.epl,
-        formattedValue: formatCurrency(c.epl)
+        formattedValue: formatCurrency(c.epl),
+        costPerLead: c.costPerLead // Include cost per lead
       }));
 
     // Sort by profit per lead (descending)
@@ -85,7 +89,8 @@ export function CampaignLeaderboard() {
         name: c.name,
         accountName: c.accountName,
         value: c.profitPerLead,
-        formattedValue: formatCurrency(c.profitPerLead)
+        formattedValue: formatCurrency(c.profitPerLead),
+        costPerLead: c.costPerLead // Include cost per lead
       }));
 
     return {
@@ -114,6 +119,7 @@ export function CampaignLeaderboard() {
             icon={<DollarSign className="h-4 w-4" />}
             leaders={leaderboardData.profitLeaders} 
             emptyMessage="No profit data available" 
+            showCostPerLead={false}
           />
           
           <LeaderboardSection 
@@ -122,6 +128,7 @@ export function CampaignLeaderboard() {
             leaders={leaderboardData.eplLeaders} 
             emptyMessage="No EPL data available" 
             tooltip="Earnings Per Lead"
+            showCostPerLead={true}
           />
           
           <LeaderboardSection 
@@ -129,6 +136,7 @@ export function CampaignLeaderboard() {
             icon={<Crown className="h-4 w-4" />}
             leaders={leaderboardData.profitPerLeadLeaders} 
             emptyMessage="No profit per lead data available" 
+            showCostPerLead={true}
           />
         </div>
       </CardContent>
@@ -142,6 +150,7 @@ interface LeaderboardSectionProps {
   leaders: LeaderboardMetric[];
   emptyMessage: string;
   tooltip?: string;
+  showCostPerLead?: boolean; // Added to control showing CPL
 }
 
 function LeaderboardSection({ 
@@ -149,7 +158,8 @@ function LeaderboardSection({
   icon, 
   leaders, 
   emptyMessage,
-  tooltip 
+  tooltip,
+  showCostPerLead = false
 }: LeaderboardSectionProps) {
   return (
     <div>
@@ -198,6 +208,11 @@ function LeaderboardSection({
                   leader.value > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
                 )}>
                   {leader.formattedValue}
+                  {showCostPerLead && leader.costPerLead !== undefined && (
+                    <div className="text-xs text-muted-foreground">
+                      CPL: {formatCurrency(leader.costPerLead)}
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

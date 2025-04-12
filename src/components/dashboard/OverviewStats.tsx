@@ -64,7 +64,7 @@ export function OverviewStats() {
     if (aggregateStats.totalTargetProfit <= 0) return 0;
     
     const percentage = (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100;
-    return Math.max(Math.min(Math.round(percentage * 10) / 10, 100), 0);
+    return Math.max(Math.min(percentage, 100), 0);
   }, [aggregateStats.totalProfit, aggregateStats.totalTargetProfit]);
   
   const getProfitVariant = () => {

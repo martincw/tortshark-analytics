@@ -178,6 +178,10 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
         cases: campaign.manualStats.cases + entry.cases,
         retainers: campaign.manualStats.retainers + (entry.retainers || 0),
         revenue: campaign.manualStats.revenue + entry.revenue
+      },
+      stats: {
+        ...campaign.stats,
+        adSpend: campaign.stats.adSpend + (entry.adSpend || 0)
       }
     };
     
@@ -200,6 +204,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     const casesDiff = updatedEntry.cases - oldEntry.cases;
     const retainersDiff = (updatedEntry.retainers || 0) - (oldEntry.retainers || 0);
     const revenueDiff = updatedEntry.revenue - oldEntry.revenue;
+    const adSpendDiff = (updatedEntry.adSpend || 0) - (oldEntry.adSpend || 0);
     
     const updatedCampaign = {
       ...campaign,
@@ -212,6 +217,10 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
         cases: campaign.manualStats.cases + casesDiff,
         retainers: campaign.manualStats.retainers + retainersDiff,
         revenue: campaign.manualStats.revenue + revenueDiff
+      },
+      stats: {
+        ...campaign.stats,
+        adSpend: campaign.stats.adSpend + adSpendDiff
       }
     };
     
@@ -239,6 +248,10 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
         cases: campaign.manualStats.cases - entryToDelete.cases,
         retainers: campaign.manualStats.retainers - (entryToDelete.retainers || 0),
         revenue: campaign.manualStats.revenue - entryToDelete.revenue
+      },
+      stats: {
+        ...campaign.stats,
+        adSpend: campaign.stats.adSpend - (entryToDelete.adSpend || 0)
       }
     };
     

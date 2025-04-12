@@ -98,7 +98,8 @@ const CampaignDetail = () => {
   const [dailyStats, setDailyStats] = useState({
     leads: "0",
     cases: "0",
-    revenue: "0"
+    revenue: "0",
+    adSpend: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
@@ -106,7 +107,8 @@ const CampaignDetail = () => {
   const [editEntryData, setEditEntryData] = useState({
     leads: "0",
     cases: "0",
-    revenue: "0"
+    revenue: "0",
+    adSpend: "0"
   });
   const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
@@ -173,8 +175,9 @@ const CampaignDetail = () => {
     const newLeads = parseInt(dailyStats.leads) || 0;
     const newCases = parseInt(dailyStats.cases) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
+    const newAdSpend = parseFloat(dailyStats.adSpend) || 0;
     
-    if (newLeads === 0 && newCases === 0 && newRevenue === 0) {
+    if (newLeads === 0 && newCases === 0 && newRevenue === 0 && newAdSpend === 0) {
       toast.error("Please enter at least one value greater than 0");
       return;
     }
@@ -184,7 +187,8 @@ const CampaignDetail = () => {
       date: selectedDate.toISOString(),
       leads: newLeads,
       cases: newCases,
-      revenue: newRevenue
+      revenue: newRevenue,
+      adSpend: newAdSpend
     });
     
     addStatHistoryEntry(campaign.id, {
@@ -192,7 +196,8 @@ const CampaignDetail = () => {
       leads: newLeads,
       cases: newCases,
       retainers: newCases,
-      revenue: newRevenue
+      revenue: newRevenue,
+      adSpend: newAdSpend
     });
     
     setIsDailyStatsDialogOpen(false);
@@ -201,7 +206,8 @@ const CampaignDetail = () => {
     setDailyStats({
       leads: "0",
       cases: "0",
-      revenue: "0"
+      revenue: "0",
+      adSpend: "0"
     });
     
     setLeadCount((parseInt(leadCount) + newLeads).toString());
@@ -214,7 +220,8 @@ const CampaignDetail = () => {
     setEditEntryData({
       leads: entry.leads.toString(),
       cases: entry.cases.toString(), 
-      revenue: entry.revenue.toString()
+      revenue: entry.revenue.toString(),
+      adSpend: (entry.adSpend || 0).toString()
     });
     setEditEntryDialogOpen(true);
   };
@@ -230,7 +237,8 @@ const CampaignDetail = () => {
       leads: parseInt(editEntryData.leads) || 0,
       cases: parseInt(editEntryData.cases) || 0,
       retainers: parseInt(editEntryData.cases) || 0,
-      revenue: parseFloat(editEntryData.revenue) || 0
+      revenue: parseFloat(editEntryData.revenue) || 0,
+      adSpend: parseFloat(editEntryData.adSpend) || 0
     };
     
     updateStatHistoryEntry(campaign.id, updatedEntry);
@@ -594,6 +602,7 @@ const CampaignDetail = () => {
                     <TableHead className="font-medium">Date</TableHead>
                     <TableHead className="font-medium">Leads</TableHead>
                     <TableHead className="font-medium">Cases</TableHead>
+                    <TableHead className="font-medium">Ad Spend</TableHead>
                     <TableHead className="font-medium">Revenue</TableHead>
                     <TableHead className="font-medium">Added On</TableHead>
                     <TableHead className="w-[80px]"></TableHead>
@@ -605,6 +614,7 @@ const CampaignDetail = () => {
                       <TableCell className="font-medium">{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
                       <TableCell>{entry.leads}</TableCell>
                       <TableCell>{entry.cases}</TableCell>
+                      <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>
                       <TableCell>{formatCurrency(entry.revenue)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(entry.createdAt), "MMM d, yyyy")}
@@ -733,6 +743,18 @@ const CampaignDetail = () => {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="daily-adspend" className="text-right">
+                Ad Spend ($)
+              </Label>
+              <Input
+                id="daily-adspend"
+                type="number" 
+                value={dailyStats.adSpend}
+                onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="daily-revenue" className="text-right">
                 Revenue ($)
               </Label>
@@ -792,6 +814,18 @@ const CampaignDetail = () => {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-adspend" className="text-right">
+                Ad Spend ($)
+              </Label>
+              <Input
+                id="edit-adspend"
+                type="number" 
+                value={editEntryData.adSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-revenue" className="text-right">
                 Revenue ($)
               </Label>
@@ -817,28 +851,4 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Delete Stats Entry</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this stats entry? This will reduce your campaign totals and cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteEntryDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteEntry}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Entry
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default CampaignDetail;
+      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen

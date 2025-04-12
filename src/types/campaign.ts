@@ -1,3 +1,4 @@
+
 export interface Campaign {
   id: string;
   name: string;
@@ -33,6 +34,7 @@ export interface StatHistoryEntry {
   cases: number;
   retainers: number;
   revenue: number;
+  adSpend?: number; // Added optional adSpend
   createdAt: string; // ISO date string of when this entry was added
 }
 
