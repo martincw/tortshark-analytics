@@ -16,6 +16,11 @@ const Index = () => {
 
   // Add key prop with dateRange to force re-renders when date changes
   const dateKey = `${dateRange.startDate}-${dateRange.endDate}`;
+  
+  // Log date range for debugging
+  useEffect(() => {
+    console.log("Dashboard updating with date range:", dateRange);
+  }, [dateRange]);
 
   return (
     <div className="space-y-6">

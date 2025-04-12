@@ -1,5 +1,4 @@
-
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -10,7 +9,7 @@ import {
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -22,15 +21,19 @@ export function DateRangePicker() {
     to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
   });
   
-  // Update local state when context changes (e.g. from other components)
+  const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
+  
   useEffect(() => {
     setDate({
       from: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
       to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
     });
+    setTempDate({
+      from: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
+      to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
+    });
   }, [dateRange]);
   
-  // Save date range to localStorage whenever it changes
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
       localStorage.setItem('dateRange', JSON.stringify(dateRange));
@@ -38,15 +41,19 @@ export function DateRangePicker() {
     }
   }, [dateRange]);
   
-  const handleDateChange = (value: DateRange | undefined) => {
-    if (!value?.from) return;
+  const handleTempDateChange = (value: DateRange | undefined) => {
+    setTempDate(value);
+  };
+
+  const handleSaveDate = () => {
+    if (!tempDate?.from) return;
     
     const newRange = {
-      startDate: format(value.from, 'yyyy-MM-dd'),
-      endDate: value.to ? format(value.to, 'yyyy-MM-dd') : format(value.from, 'yyyy-MM-dd'),
+      startDate: format(tempDate.from, 'yyyy-MM-dd'),
+      endDate: tempDate.to ? format(tempDate.to, 'yyyy-MM-dd') : format(tempDate.from, 'yyyy-MM-dd'),
     };
     
-    setDate(value);
+    setDate(tempDate);
     setDateRange(newRange);
     toast.success("Date range updated");
   };
@@ -83,12 +90,22 @@ export function DateRangePicker() {
             <Calendar
               initialFocus
               mode="range"
-              defaultMonth={date?.from}
-              selected={date}
-              onSelect={handleDateChange}
+              defaultMonth={tempDate?.from}
+              selected={tempDate}
+              onSelect={handleTempDateChange}
               numberOfMonths={2}
               className="pointer-events-auto"
             />
+            <div className="p-3 border-t border-border">
+              <Button 
+                onClick={handleSaveDate} 
+                className="w-full" 
+                disabled={!tempDate?.from}
+              >
+                <Save className="mr-2 h-4 w-4" /> 
+                Apply Date Range
+              </Button>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
