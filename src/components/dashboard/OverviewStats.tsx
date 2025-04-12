@@ -1,9 +1,10 @@
+
 import React, { useMemo } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { calculateMetrics, formatCurrency, formatNumber, formatCurrencyCompact, getTrendDirection } from "@/utils/campaignUtils";
 import { DollarSign, Users, FileCheck, TrendingUp, ChevronsUp, Percent, Target } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 
 export function OverviewStats() {
   const { campaigns, selectedCampaignIds } = useCampaign();
@@ -92,7 +93,7 @@ export function OverviewStats() {
             </span>
             <span className="font-medium">{formatCurrency(aggregateStats.totalProfit)} of {formatCurrency(aggregateStats.totalTargetProfit)}</span>
           </div>
-          <Progress 
+          <CustomProgressBar 
             value={profitProgress} 
             size="lg" 
             variant={getProfitVariant()} 

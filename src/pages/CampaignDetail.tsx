@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { StatCard } from "@/components/ui/stat-card";
 import { Progress } from "@/components/ui/progress";
+import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import {
   ArrowLeft,
   Edit,
@@ -527,7 +527,7 @@ const CampaignDetail = () => {
                       <span className="text-muted-foreground text-xs">vs {campaign.targets.targetROAS}%</span>
                     </div>
                   </div>
-                  <Progress 
+                  <CustomProgressBar 
                     value={roiProgress} 
                     variant={getRoiVariant()} 
                     size="md" 
@@ -546,7 +546,7 @@ const CampaignDetail = () => {
                       <span className="text-muted-foreground text-xs">vs {campaign.targets.monthlyRetainers}</span>
                     </div>
                   </div>
-                  <Progress 
+                  <CustomProgressBar 
                     value={casesProgress} 
                     variant={getCasesVariant()} 
                     size="md" 
@@ -565,7 +565,7 @@ const CampaignDetail = () => {
                       <span className="text-muted-foreground text-xs">vs {formatCurrency(campaign.targets.targetProfit)}</span>
                     </div>
                   </div>
-                  <Progress 
+                  <CustomProgressBar 
                     value={profitProgress} 
                     variant={getProfitVariant()} 
                     size="md" 

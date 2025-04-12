@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
+import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -151,6 +151,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             </Badge>
           </div>
         </CardHeader>
+        
         <CardContent className="pb-0">
           <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
             <div className="flex flex-col">
@@ -212,10 +213,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 <span className="text-muted-foreground">Profit Progress</span>
                 <span className="font-medium">{formatCurrency(metrics.profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
-              <Progress value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
+              <CustomProgressBar value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
             </div>
           </div>
         </CardContent>
+        
         <CardFooter className="pt-4 flex justify-between gap-2">
           <Button onClick={handleViewDetails} variant="outline" className="flex-1 group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
             View Details
