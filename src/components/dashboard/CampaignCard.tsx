@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -131,6 +132,10 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     return "error";
   };
 
+  // Calculate CPL (Cost Per Lead) and EPL (Earnings Per Lead)
+  const costPerLead = campaign.manualStats.leads > 0 ? campaign.stats.adSpend / campaign.manualStats.leads : 0;
+  const earningsPerLead = campaign.manualStats.leads > 0 ? campaign.manualStats.revenue / campaign.manualStats.leads : 0;
+
   return (
     <>
       <Card className="overflow-hidden hover:shadow-md transition-shadow border border-border/80 group">
@@ -203,6 +208,25 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               <BadgeStat 
                 label="Conv. Rate" 
                 value={`${conversionRate}%`} 
+              />
+            </div>
+          </div>
+          
+          {/* Added CPL and EPL stats */}
+          <div className="grid grid-cols-2 gap-4 mb-2 border-t pt-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Cost Per Lead" 
+                value={formatCurrency(costPerLead)} 
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Earnings Per Lead" 
+                value={formatCurrency(earningsPerLead)} 
+                className={earningsPerLead > costPerLead ? "text-success-DEFAULT" : ""}
               />
             </div>
           </div>

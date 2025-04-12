@@ -6,7 +6,6 @@ import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { StatCard } from "@/components/ui/stat-card";
-import { Progress } from "@/components/ui/progress";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import {
   ArrowLeft,
@@ -302,7 +301,7 @@ const CampaignDetail = () => {
           <DateRangePicker />
         </div>
         
-        <div className="flex flex-wrap gap-6 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">ROI</span>
             <span className={`text-2xl font-bold ${getRoiClass()}`}>
@@ -319,6 +318,43 @@ const CampaignDetail = () => {
             <span className="text-sm text-muted-foreground">Cost Per Case</span>
             <span className={`text-2xl font-bold ${metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
               {formatCurrency(metrics.cpa)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Total Cases</span>
+            <span className="text-2xl font-bold">
+              {formatNumber(campaign.manualStats.cases)}
+            </span>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-4 border-t">
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Total Leads</span>
+            <span className="text-2xl font-bold">
+              {formatNumber(campaign.manualStats.leads)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Cost Per Lead</span>
+            <span className={`text-2xl font-bold ${metrics.costPerLead > 50 ? "text-warning-DEFAULT" : ""}`}>
+              {formatCurrency(metrics.costPerLead)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Earnings Per Lead</span>
+            <span className={`text-2xl font-bold ${campaign.manualStats.leads > 0 && campaign.manualStats.revenue / campaign.manualStats.leads > metrics.costPerLead ? "text-success-DEFAULT" : ""}`}>
+              {campaign.manualStats.leads > 0 
+                ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.leads) 
+                : "$0.00"}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Conversion Rate</span>
+            <span className="text-2xl font-bold">
+              {campaign.manualStats.leads > 0 
+                ? `${((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1)}%` 
+                : "0%"}
             </span>
           </div>
         </div>
