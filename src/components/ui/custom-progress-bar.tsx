@@ -20,7 +20,7 @@ export function CustomProgressBar({
   valuePosition = "right",
 }: CustomProgressBarProps) {
   // Ensure value is between 0 and 100
-  const progressValue = Math.max(0, Math.min(100, value));
+  const progressValue = Math.max(0, Math.min(100, Number(value) || 0));
   
   const getHeightClass = () => {
     switch (size) {

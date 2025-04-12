@@ -117,15 +117,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     return Math.max(Math.min(percentage, 100), 0);
   }, [metrics.profit, campaign.targets.targetProfit]);
   
-  console.log("Campaign Card Profit Progress FIXED:", {
-    campaignName: campaign.name,
-    profit: metrics.profit,
-    targetProfit: campaign.targets.targetProfit,
-    rawPercentage: campaign.targets.targetProfit > 0 ? (metrics.profit / campaign.targets.targetProfit) * 100 : 0,
-    finalProgress: profitProgress,
-    type: typeof profitProgress
-  });
-  
   const getProfitVariant = () => {
     if (profitProgress >= 100) return "success";
     if (profitProgress >= 50) return "warning";
@@ -135,6 +126,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   // Calculate CPL (Cost Per Lead) and EPL (Earnings Per Lead)
   const costPerLead = campaign.manualStats.leads > 0 ? campaign.stats.adSpend / campaign.manualStats.leads : 0;
   const earningsPerLead = campaign.manualStats.leads > 0 ? campaign.manualStats.revenue / campaign.manualStats.leads : 0;
+  
+  // Calculate profit per case
+  const profitPerCase = campaign.manualStats.cases > 0 
+    ? metrics.profit / campaign.manualStats.cases 
+    : 0;
 
   return (
     <>
@@ -190,6 +186,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               />
             </div>
             <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Revenue" 
+                value={formatCurrency(campaign.manualStats.revenue)} 
+              />
+            </div>
+            <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <BadgeStat 
                 label="Leads" 
@@ -203,16 +206,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 value={formatNumber(campaign.manualStats.cases)} 
               />
             </div>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <BadgeStat 
-                label="Conv. Rate" 
-                value={`${conversionRate}%`} 
-              />
-            </div>
           </div>
           
-          {/* Added CPL and EPL stats */}
+          {/* CPL and EPL stats */}
           <div className="grid grid-cols-2 gap-4 mb-2 border-t pt-2">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -227,6 +223,21 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 label="Earnings Per Lead" 
                 value={formatCurrency(earningsPerLead)} 
                 className={earningsPerLead > costPerLead ? "text-success-DEFAULT" : ""}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Conv. Rate" 
+                value={`${conversionRate}%`} 
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <BadgeStat 
+                label="Profit Per Case" 
+                value={formatCurrency(profitPerCase)} 
+                className={profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
               />
             </div>
           </div>

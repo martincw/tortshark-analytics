@@ -56,6 +56,11 @@ export function OverviewStats() {
   const avgCpa = aggregateStats.totalCases > 0
     ? aggregateStats.totalAdSpend / aggregateStats.totalCases
     : 0;
+    
+  // Calculate profit per case
+  const profitPerCase = aggregateStats.totalCases > 0
+    ? aggregateStats.totalProfit / aggregateStats.totalCases
+    : 0;
 
   const leadsTrend = getTrendDirection(5);
   const profitTrend = getTrendDirection(aggregateStats.totalProfit);
@@ -73,14 +78,6 @@ export function OverviewStats() {
     if (profitProgress >= 50) return "warning";
     return "error";
   };
-
-  console.log("Profit Progress FIXED:", {
-    totalProfit: aggregateStats.totalProfit,
-    targetProfit: aggregateStats.totalTargetProfit,
-    rawPercentage: aggregateStats.totalTargetProfit > 0 ? (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100 : 0,
-    finalProgress: profitProgress,
-    type: typeof profitProgress
-  });
 
   return (
     <div>
@@ -150,10 +147,13 @@ export function OverviewStats() {
           value={formatNumber(aggregateStats.totalCases)}
           icon={<FileCheck className="h-5 w-5" />}
         />
+        
         <StatCard
-          title="Total Retainers"
-          value={formatNumber(aggregateStats.totalRetainers)}
-          icon={<TrendingUp className="h-5 w-5" />}
+          title="Profit Per Case"
+          value={formatCurrency(profitPerCase)}
+          icon={<DollarSign className="h-5 w-5" />}
+          valueClassName={profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
+          description="Average profit per acquired case"
         />
         
         <StatCard

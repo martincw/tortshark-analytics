@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -280,6 +281,11 @@ const CampaignDetail = () => {
     if (profitProgress >= 70) return "warning";
     return "error";
   };
+  
+  // Calculate profit per case
+  const profitPerCase = campaign.manualStats.cases > 0 
+    ? metrics.profit / campaign.manualStats.cases 
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -358,6 +364,19 @@ const CampaignDetail = () => {
             </span>
           </div>
         </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-4 border-t">
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Total Revenue</span>
+            <span className="text-2xl font-bold">{formatCurrency(campaign.manualStats.revenue)}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Profit Per Case</span>
+            <span className={`text-2xl font-bold ${profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+              {formatCurrency(profitPerCase)}
+            </span>
+          </div>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -384,14 +403,14 @@ const CampaignDetail = () => {
         />
         
         <StatCard
-          title="Cost Per Case"
-          value={formatCurrency(metrics.cpa)}
-          icon={<FileCheck className="h-5 w-5" />}
-          trend={metrics.cpa < campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
-          trendValue={metrics.cpa < campaign.targets.casePayoutAmount ? "Under Target" : "Over Target"}
+          title="Profit Per Case"
+          value={formatCurrency(profitPerCase)}
+          icon={<DollarSign className="h-5 w-5" />}
+          trend={profitPerCase > campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
+          trendValue={profitPerCase > campaign.targets.casePayoutAmount ? "Excellent" : "Average"}
           className="border-2 border-accent"
           isHighlighted={true}
-          valueClassName={metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}
+          valueClassName={profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
         />
       </div>
       
