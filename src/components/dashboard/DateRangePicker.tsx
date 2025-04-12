@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -48,12 +49,27 @@ export function DateRangePicker() {
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    const newRange = {
-      startDate: format(tempDate.from, 'yyyy-MM-dd'),
-      endDate: tempDate.to ? format(tempDate.to, 'yyyy-MM-dd') : format(tempDate.from, 'yyyy-MM-dd'),
+    // Fix for date offset issue - ensure we're saving the exact date selected
+    // by forcing the time to noon to avoid timezone issues
+    const fixDate = (date: Date): Date => {
+      const newDate = new Date(date);
+      newDate.setHours(12, 0, 0, 0);
+      return newDate;
     };
     
-    setDate(tempDate);
+    const fromDate = fixDate(tempDate.from);
+    const toDate = tempDate.to ? fixDate(tempDate.to) : fixDate(tempDate.from);
+    
+    const newRange = {
+      startDate: format(fromDate, 'yyyy-MM-dd'),
+      endDate: format(toDate, 'yyyy-MM-dd'),
+    };
+    
+    setDate({
+      from: fromDate,
+      to: toDate
+    });
+    
     setDateRange(newRange);
     toast.success("Date range updated");
   };
