@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -34,19 +34,57 @@ const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue,
 };
 
 export function OverviewStats() {
-  const { dashboardData } = useCampaign();
-
-  if (!dashboardData) {
-    return <p>Loading dashboard data...</p>;
-  }
-
-  const {
-    conversionRate,
-    costEfficiency,
-    cpaScore,
-    roasScore,
-    budgetUtilization,
-  } = dashboardData;
+  const { campaigns, selectedCampaignIds } = useCampaign();
+  
+  // Calculate dashboard metrics based on selected campaigns or all campaigns
+  const dashboardMetrics = useMemo(() => {
+    // If we have selected campaigns, use those, otherwise use all campaigns
+    const filteredCampaigns = selectedCampaignIds.length > 0
+      ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
+      : campaigns;
+    
+    if (filteredCampaigns.length === 0) {
+      return {
+        conversionRate: 0,
+        costEfficiency: 0,
+        cpaScore: 0,
+        roasScore: 0,
+        budgetUtilization: 0
+      };
+    }
+    
+    // Calculate aggregate metrics across campaigns
+    let totalLeads = 0;
+    let totalCases = 0;
+    let totalRetainers = 0;
+    let totalRevenue = 0;
+    let totalAdSpend = 0;
+    let totalBudget = 0;
+    
+    filteredCampaigns.forEach(campaign => {
+      totalLeads += campaign.manualStats.leads || 0;
+      totalCases += campaign.manualStats.cases || 0;
+      totalRetainers += campaign.manualStats.retainers || 0;
+      totalRevenue += campaign.manualStats.revenue || 0;
+      totalAdSpend += campaign.stats.adSpend || 0;
+      totalBudget += campaign.targets.monthlySpend || 0;
+    });
+    
+    // Calculate metrics
+    const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
+    const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
+    const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
+    const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
+    const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
+    
+    return {
+      conversionRate: Math.round(conversionRate),
+      costEfficiency: Math.round(costEfficiency),
+      cpaScore: Math.round(cpaScore),
+      roasScore: Math.round(roasScore),
+      budgetUtilization: Math.round(budgetUtilization)
+    };
+  }, [campaigns, selectedCampaignIds]);
 
   return (
     <Card>
@@ -56,27 +94,27 @@ export function OverviewStats() {
       </CardHeader>
       <CardContent className="space-y-4">
         <CustomProgressBar label="Lead-to-Case Conversion"
-                           value={Number(conversionRate)}
+                           value={dashboardMetrics.conversionRate}
                            maxValue={100}
                            color="blue" />
 
         <CustomProgressBar label="Cost Efficiency"
-                           value={Number(costEfficiency)}
+                           value={dashboardMetrics.costEfficiency}
                            maxValue={100}
                            color="green" />
 
         <CustomProgressBar label="Cost per Acquisition"
-                           value={Number(cpaScore)}
+                           value={dashboardMetrics.cpaScore}
                            maxValue={100}
                            color="amber" />
 
         <CustomProgressBar label="Return on Ad Spend"
-                           value={Number(roasScore)}
+                           value={dashboardMetrics.roasScore}
                            maxValue={100}
                            color="indigo" />
 
         <CustomProgressBar label="Campaign Budget Utilization"
-                           value={Number(budgetUtilization)}
+                           value={dashboardMetrics.budgetUtilization}
                            maxValue={100}
                            color="violet" />
       </CardContent>
