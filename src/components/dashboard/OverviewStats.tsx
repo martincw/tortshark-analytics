@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -32,7 +31,6 @@ export function OverviewStats() {
       totalTargetRetainers: 0,
       totalTargetROAS: 0,
       totalTargetProfit: 0,
-      // Previous period data (mock for now - would come from actual historical data)
       previousAdSpend: 0,
       previousLeads: 0,
       previousCases: 0,
@@ -49,8 +47,6 @@ export function OverviewStats() {
       stats.totalTargetROAS += campaign.targets.targetROAS;
       stats.totalTargetProfit += campaign.targets.targetProfit;
       
-      // Mock previous period data (for demonstration)
-      // In a real app, this would come from historical data
       stats.previousAdSpend += campaign.stats.adSpend * 0.85;
       stats.previousLeads += campaign.manualStats.leads * 0.9;
       stats.previousCases += campaign.manualStats.cases * 0.8;
@@ -60,7 +56,6 @@ export function OverviewStats() {
     stats.totalProfit = stats.totalRevenue - stats.totalAdSpend;
     const previousProfit = stats.previousRevenue - stats.previousAdSpend;
     
-    // Calculate period-over-period changes
     const adSpendChange = stats.previousAdSpend > 0 
       ? ((stats.totalAdSpend - stats.previousAdSpend) / stats.previousAdSpend) * 100 
       : 0;
@@ -110,7 +105,7 @@ export function OverviewStats() {
     if (aggregateStats.totalTargetProfit <= 0) return 0;
     
     const percentage = (aggregateStats.totalProfit / aggregateStats.totalTargetProfit) * 100;
-    return Math.max(Math.min(percentage, 100), 0);
+    return Number(Math.max(Math.min(percentage, 100), 0).toFixed(2));
   }, [aggregateStats.totalProfit, aggregateStats.totalTargetProfit]);
   
   const getProfitVariant = () => {
@@ -119,18 +114,17 @@ export function OverviewStats() {
     return "error";
   };
 
-  // Convert values to percentages for the decision matrix
   const getEfficiencyScore = () => {
     const costPerCaseRatio = avgCpa > 0 ? (avgCpa / profitPerCase) * 100 : 0;
     const normalizedScore = 100 - Math.min(costPerCaseRatio, 100);
-    return normalizedScore;
+    return Number(normalizedScore.toFixed(2));
   };
 
   const getConversionEfficiencyScore = () => {
     if (aggregateStats.totalLeads === 0) return 0;
     
     const conversionRate = (aggregateStats.totalCases / aggregateStats.totalLeads) * 100;
-    return Math.min(conversionRate * 5, 100); // Scale it so 20% conversion = 100% score
+    return Number(Math.min(conversionRate * 5, 100).toFixed(2));
   };
 
   const efficiencyScore = getEfficiencyScore();
@@ -138,9 +132,7 @@ export function OverviewStats() {
 
   return (
     <div>
-      {/* Primary KPIs with targets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Profit Progress Card */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
@@ -189,7 +181,6 @@ export function OverviewStats() {
           </CardContent>
         </Card>
 
-        {/* Campaign Efficiency Matrix */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl flex items-center gap-2">
@@ -255,7 +246,7 @@ export function OverviewStats() {
           value={formatCurrencyCompact(aggregateStats.totalAdSpend)}
           icon={<CreditCard className="h-5 w-5" />}
           description="Total advertising budget spent"
-          trend={getTrendDirection(aggregateStats.adSpendChange * -1)} // Invert so that lower spend is "up"
+          trend={getTrendDirection(aggregateStats.adSpendChange * -1)}
           trendValue={`${Math.abs(aggregateStats.adSpendChange.toFixed(1))}% ${aggregateStats.adSpendChange > 0 ? 'higher' : 'lower'} than previous`}
           className="shadow-sm border-accent/20 bg-gradient-to-br from-background to-accent/5"
         />
@@ -321,7 +312,6 @@ export function OverviewStats() {
         />
       </div>
       
-      {/* Decision Support Insights */}
       <Card className="mb-6 shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl flex items-center gap-2">
