@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -120,7 +121,7 @@ export const useCampaignForm = () => {
         revenue: 0,
         date: currentDate,
       },
-      statsHistory: [], // Explicitly initialize with empty array
+      statsHistory: [], // Explicitly ensure statsHistory is an empty array
       targets: {
         monthlyRetainers: parseInt(targetMonthlyRetainers) || 0,
         casePayoutAmount: parseFloat(casePayoutAmount) || 0,
@@ -132,7 +133,7 @@ export const useCampaignForm = () => {
     };
     
     try {
-      console.log("Adding campaign with statsHistory:", newCampaign);
+      console.log("Adding campaign with data:", newCampaign);
       const campaignId = addCampaign(newCampaign);
       console.log("Campaign added with ID:", campaignId);
       toast.success("Campaign added successfully");

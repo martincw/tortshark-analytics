@@ -4,9 +4,23 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import CampaignForm from "@/components/campaigns/CampaignForm";
+import { toast } from "sonner";
 
 const AddCampaignPage = () => {
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    console.log("AddCampaignPage mounted");
+    
+    return () => {
+      console.log("AddCampaignPage unmounted - checking if navigation occurred");
+    };
+  }, []);
+
+  const handleCancel = () => {
+    console.log("Cancelling campaign creation");
+    navigate("/campaigns");
+  };
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -22,7 +36,7 @@ const AddCampaignPage = () => {
         <h1 className="text-3xl font-bold">Add New Campaign</h1>
       </div>
       
-      <CampaignForm onCancel={() => navigate("/campaigns")} />
+      <CampaignForm onCancel={handleCancel} />
     </div>
   );
 };

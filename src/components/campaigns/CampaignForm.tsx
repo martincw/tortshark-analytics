@@ -12,6 +12,7 @@ import {
 import { useCampaignForm } from "@/hooks/useCampaignForm";
 import CampaignDetailsSection from "./CampaignDetailsSection";
 import CampaignTargetsSection from "./CampaignTargetsSection";
+import { toast } from "sonner";
 
 interface CampaignFormProps {
   onCancel: () => void;
@@ -38,6 +39,28 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
     handleSubmit
   } = useCampaignForm();
 
+  const onSubmitWithLogging = (e: React.FormEvent) => {
+    console.log("Form submission initiated with data:", {
+      campaignName,
+      platform,
+      accountId,
+      targetMonthlyRetainers,
+      casePayoutAmount,
+      targetProfit,
+      targetROAS,
+      targetMonthlyIncome,
+      targetMonthlySpend
+    });
+    
+    if (!campaignName) {
+      console.warn("Form submission prevented - missing campaign name");
+      toast.error("Please enter a campaign name");
+      return;
+    }
+    
+    handleSubmit(e);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -46,7 +69,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
           Enter the details for your new advertising campaign
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={onSubmitWithLogging}>
         <CardContent className="space-y-6">
           <CampaignDetailsSection
             campaignName={campaignName}
@@ -64,7 +87,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
             setCasePayoutAmount={setCasePayoutAmount}
             targetProfit={targetProfit}
             setTargetProfit={setTargetProfit}
-            targetROAS={targetROAS}
+            targetROAS={setTargetROAS}
             setTargetROAS={setTargetROAS}
             targetMonthlyIncome={targetMonthlyIncome}
             targetMonthlySpend={targetMonthlySpend}
