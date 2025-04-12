@@ -1,6 +1,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { Sparkles, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 interface CustomProgressBarProps {
   value: number;
@@ -10,6 +11,9 @@ interface CustomProgressBarProps {
   showValue?: boolean;
   valuePosition?: "inside" | "right";
   animate?: boolean;
+  target?: number;
+  showTarget?: boolean;
+  label?: string;
 }
 
 export function CustomProgressBar({
@@ -20,6 +24,9 @@ export function CustomProgressBar({
   showValue = false,
   valuePosition = "right",
   animate = true,
+  target,
+  showTarget = false,
+  label
 }: CustomProgressBarProps) {
   // Ensure value is between 0 and 100
   const progressValue = Math.max(0, Math.min(100, Number(value) || 0));
@@ -43,33 +50,66 @@ export function CustomProgressBar({
   
   const heightClass = getHeightClass();
   const variantClass = getVariantClass();
+
+  // Determine status icon based on progress against target (if provided)
+  const getStatusIcon = () => {
+    if (!target) return null;
+    
+    if (progressValue >= target) {
+      return <CheckCircle2 className="h-4 w-4 text-success-DEFAULT" />;
+    } else if (progressValue >= target * 0.7) {
+      return <Sparkles className="h-4 w-4 text-warning-DEFAULT" />;
+    } else {
+      return <AlertTriangle className="h-4 w-4 text-error-DEFAULT" />;
+    }
+  };
   
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div
-        className={cn(
-          "relative w-full overflow-hidden rounded-full bg-secondary/50",
-          heightClass
-        )}
-      >
+    <div className={cn("space-y-1", className)}>
+      {label && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{label}</span>
+          {getStatusIcon()}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
         <div
           className={cn(
-            "absolute left-0 top-0 h-full",
-            variantClass,
-            animate && "transition-all duration-500 ease-out"
+            "relative w-full overflow-hidden rounded-full bg-secondary/50",
+            heightClass
           )}
-          style={{ width: `${progressValue}%` }}
         >
-          {showValue && valuePosition === "inside" && size !== "sm" && (
-            <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-primary-foreground drop-shadow-sm">
-              {progressValue.toFixed(0)}%
+          <div
+            className={cn(
+              "absolute left-0 top-0 h-full",
+              variantClass,
+              animate && "transition-all duration-500 ease-out"
+            )}
+            style={{ width: `${progressValue}%` }}
+          >
+            {showValue && valuePosition === "inside" && size !== "sm" && (
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-primary-foreground drop-shadow-sm">
+                {progressValue.toFixed(0)}%
+              </div>
+            )}
+          </div>
+          
+          {/* Target indicator */}
+          {showTarget && target && (
+            <div 
+              className="absolute top-0 bottom-0 w-0.5 bg-black/50 z-10"
+              style={{ left: `${target}%` }}
+            >
+              <div className="absolute -top-5 -translate-x-1/2 text-[10px] font-medium">
+                Target
+              </div>
             </div>
           )}
         </div>
+        {showValue && valuePosition === "right" && (
+          <span className="text-sm font-semibold min-w-14 text-right">{progressValue.toFixed(0)}%</span>
+        )}
       </div>
-      {showValue && valuePosition === "right" && (
-        <span className="text-sm font-semibold min-w-14 text-right">{progressValue.toFixed(0)}%</span>
-      )}
     </div>
   );
 }
