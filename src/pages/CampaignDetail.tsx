@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -851,4 +852,28 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen
+      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Stats Entry</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this stats entry? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteEntryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmDeleteEntry} variant="destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Entry
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default CampaignDetail;
