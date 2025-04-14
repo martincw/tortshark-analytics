@@ -33,7 +33,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
     campaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
-      // Initialize stat values if selecting
       if (!allSelected && !statsData[campaign.id]) {
         setStatsData(prev => ({
           ...prev,
@@ -51,7 +50,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
       [campaignId]: !prev[campaignId]
     }));
     
-    // Initialize stat values if selecting
     if (!selectedCampaigns[campaignId] && !statsData[campaignId]) {
       setStatsData(prev => ({
         ...prev,
@@ -72,7 +70,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
     }));
   };
 
-  // Auto-calculate CPC when adSpend or clicks change
   const calculateCPC = (campaignId: string) => {
     const stats = statsData[campaignId];
     if (!stats) return;
@@ -112,7 +109,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
       
       const formattedDate = format(selectedDate, "yyyy-MM-dd");
       
-      // Update campaign_stats_history with ad_spend
       const historyUpdates = selectedCampaignIds.map(campaignId => {
         const stats = statsData[campaignId] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
@@ -123,7 +119,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
         };
       });
       
-      // Check if entries exist for this date first
       for (const update of historyUpdates) {
         const { data, error: checkError } = await supabase
           .from('campaign_stats_history')
@@ -132,13 +127,12 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
           .eq('date', update.date)
           .single();
           
-        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows found"
+        if (checkError && checkError.code !== 'PGRST116') {
           console.error("Error checking existing stats:", checkError);
           continue;
         }
         
         if (data) {
-          // Update existing entry
           const { error: updateError } = await supabase
             .from('campaign_stats_history')
             .update({ ad_spend: update.ad_spend })
@@ -148,7 +142,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
             console.error("Error updating stats history:", updateError);
           }
         } else {
-          // Create new entry with defaults for manual stats
           const { error: insertError } = await supabase
             .from('campaign_stats_history')
             .insert({
@@ -168,7 +161,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
         }
       }
       
-      // Now update campaign_stats table
       const adsStatsToAdd = selectedCampaignIds.map(campaignId => {
         const stats = statsData[campaignId] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
@@ -199,7 +191,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
       
       toast.success(`Ad stats added for ${selectedCampaignIds.length} campaigns`);
       
-      // Reset form
       setSelectedCampaigns({});
       setStatsData({});
     } catch (err) {
@@ -255,7 +246,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
                     value={statsData[campaign.id]?.adSpend || ''}
                     onChange={(e) => {
                       handleInputChange(campaign.id, 'adSpend', e.target.value);
-                      // Recalculate CPC on next render
                       setTimeout(() => calculateCPC(campaign.id), 0);
                     }}
                     disabled={!selectedCampaigns[campaign.id]}
@@ -281,7 +271,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
                     value={statsData[campaign.id]?.clicks || ''}
                     onChange={(e) => {
                       handleInputChange(campaign.id, 'clicks', e.target.value);
-                      // Recalculate CPC on next render
                       setTimeout(() => calculateCPC(campaign.id), 0);
                     }}
                     disabled={!selectedCampaigns[campaign.id]}

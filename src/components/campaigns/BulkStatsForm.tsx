@@ -35,7 +35,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
     campaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
-      // Initialize stat values if selecting
       if (!allSelected && !statsData[campaign.id]) {
         setStatsData(prev => ({
           ...prev,
@@ -53,7 +52,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
       [campaignId]: !prev[campaignId]
     }));
     
-    // Initialize stat values if selecting
     if (!selectedCampaigns[campaignId] && !statsData[campaignId]) {
       setStatsData(prev => ({
         ...prev,
@@ -95,7 +93,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
       
       const formattedDate = format(selectedDate, "yyyy-MM-dd");
       
-      // Prepare data for insertion
       const statsToAdd = selectedCampaignIds.map(campaignId => {
         const stats = statsData[campaignId] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
         
@@ -111,7 +108,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
         };
       });
       
-      // Insert into Supabase
       const { error } = await supabase
         .from('campaign_stats_history')
         .upsert(statsToAdd, { 
@@ -126,7 +122,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
         return;
       }
       
-      // Also update the manual_stats table for the latest data
       const manualStatsToAdd = selectedCampaignIds.map(campaignId => {
         const stats = statsData[campaignId] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
         
@@ -155,7 +150,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
       
       toast.success(`Stats added for ${selectedCampaignIds.length} campaigns`);
       
-      // Reset form
       setSelectedCampaigns({});
       setStatsData({});
     } catch (err) {
