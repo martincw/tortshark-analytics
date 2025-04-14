@@ -6,15 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GoogleAdsMetrics from "./GoogleAdsMetrics";
 import { WeeklyPerformanceChart } from "./WeeklyPerformanceChart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, TooltipProps } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { calculateMetrics, formatCurrency, formatPercent } from "@/utils/campaignUtils";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface CampaignPerformanceSectionProps {
   campaign: Campaign;
 }
 
 export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSectionProps) {
+  const { dateRange } = useCampaign();
   const metrics = calculateMetrics(campaign);
   
   // Calculate monthly target percentages
@@ -67,6 +69,9 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
     }
   };
 
+  // Use a key based on dateRange to force re-render when date changes
+  const chartKey = `chart-${dateRange.startDate}-${dateRange.endDate}`;
+
   return (
     <div className="grid gap-6">
       <Tabs defaultValue="weekly" className="w-full">
@@ -76,7 +81,7 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
         </TabsList>
         
         <TabsContent value="weekly" className="mt-4">
-          <WeeklyPerformanceChart campaign={campaign} />
+          <WeeklyPerformanceChart campaign={campaign} key={chartKey} />
         </TabsContent>
         
         <TabsContent value="monthly" className="mt-4">
@@ -250,7 +255,7 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
         </TabsContent>
       </Tabs>
       
-      <GoogleAdsMetrics campaign={campaign} />
+      <GoogleAdsMetrics campaign={campaign} key={`metrics-${dateRange.startDate}-${dateRange.endDate}`} />
     </div>
   );
 }

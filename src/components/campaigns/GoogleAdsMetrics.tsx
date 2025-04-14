@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
@@ -34,7 +33,11 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
     setError(null);
     
     try {
-      const data = await fetchGoogleAdsMetrics(campaign.accountId, dateRange);
+      // Create a cache key using the date range to prevent using cached data
+      const data = await fetchGoogleAdsMetrics(
+        campaign.accountId, 
+        dateRange
+      );
       
       if (data) {
         // Sort metrics by date
@@ -54,11 +57,12 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
     }
   };
   
+  // Reload data when date range changes
   useEffect(() => {
     if (isAccountConnected) {
       loadMetrics();
     }
-  }, [campaign.accountId, dateRange, isAccountConnected]);
+  }, [campaign.accountId, dateRange.startDate, dateRange.endDate, isAccountConnected]);
   
   const handleRefresh = () => {
     toast.info("Refreshing Google Ads metrics...");

@@ -34,9 +34,10 @@ const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue,
 };
 
 export function OverviewStats() {
-  const { campaigns, selectedCampaignIds } = useCampaign();
+  const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
   
   // Calculate dashboard metrics based on selected campaigns or all campaigns
+  // Use dateRange in dependency array to recalculate when it changes
   const dashboardMetrics = useMemo(() => {
     // If we have selected campaigns, use those, otherwise use all campaigns
     const filteredCampaigns = selectedCampaignIds.length > 0
@@ -84,7 +85,7 @@ export function OverviewStats() {
       roasScore: Math.round(roasScore),
       budgetUtilization: Math.round(budgetUtilization)
     };
-  }, [campaigns, selectedCampaignIds]);
+  }, [campaigns, selectedCampaignIds, dateRange.startDate, dateRange.endDate]);
 
   return (
     <Card>

@@ -32,6 +32,7 @@ export function DateRangePicker() {
   const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
+  // Update local state when dateRange prop changes
   useEffect(() => {
     setDate({
       from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
@@ -43,6 +44,7 @@ export function DateRangePicker() {
     });
   }, [dateRange]);
   
+  // Save dateRange to localStorage when it changes
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
       localStorage.setItem('dateRange', JSON.stringify(dateRange));
@@ -75,7 +77,8 @@ export function DateRangePicker() {
       to: toDate
     });
     
-    setDateRange(newRange);
+    // Force reload of campaign data by creating a new object reference
+    setDateRange({...newRange});
     setIsPopoverOpen(false);
     toast.success("Date range updated");
   };
