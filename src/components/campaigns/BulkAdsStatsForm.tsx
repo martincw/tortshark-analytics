@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,9 +47,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       
       if (!allSelected && !weeklyStatsData[campaign.id]) {
         initializeWeeklyStats(campaign.id);
-        if (!weeklyStatsData[campaign.id]) {
-          fetchExistingStats(campaign.id);
-        }
+        fetchExistingStats(campaign.id);
       }
     });
     
@@ -63,7 +60,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       [campaignId]: !prev[campaignId]
     }));
     
-    if (!selectedCampaigns[campaignId] && !weeklyStatsData[campaignId]) {
+    if (!selectedCampaigns[campaignId]) {
       initializeWeeklyStats(campaignId);
       fetchExistingStats(campaignId);
     }
