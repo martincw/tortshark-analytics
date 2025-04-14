@@ -6,21 +6,36 @@ import { Plus, Link, Bug, LayoutGrid, List } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
-  const { campaigns, accountConnections, isLoading } = useCampaign();
+  const { campaigns, isLoading, migrateFromLocalStorage } = useCampaign();
   const [showDebug, setShowDebug] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [hasLocalData, setHasLocalData] = useState(false);
   
   useEffect(() => {
-    console.log("CampaignsPage - Mounted with campaigns:", campaigns.length);
-    if (campaigns.length === 0) {
-      // Check localStorage directly as a backup
-      const rawCampaigns = localStorage.getItem('campaigns');
-      console.log("Direct localStorage check - campaigns:", rawCampaigns);
-    }
-  }, [campaigns]);
+    const checkAuth = async () => {
+      setIsCheckingAuth(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session);
+        
+        // Check if there's localStorage data to migrate
+        const storedCampaigns = localStorage.getItem("campaigns");
+        setHasLocalData(!!storedCampaigns);
+      } catch (error) {
+        console.error("Error checking auth:", error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   const handleDebugToggle = () => {
     setShowDebug(!showDebug);
@@ -51,6 +66,77 @@ const CampaignsPage = () => {
       toast.error("No campaign data found in localStorage");
     }
   };
+
+  // Show auth prompt if user is not authenticated
+  if (!isAuthenticated && !isCheckingAuth) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Mass Tort Campaigns</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your case acquisition campaigns and track performance
+            </p>
+          </div>
+        </div>
+        
+        <div className="bg-muted/30 p-8 rounded-lg text-center space-y-4">
+          <h2 className="text-2xl font-semibold">Authentication Required</h2>
+          <p className="text-muted-foreground">
+            Please sign in to view and manage your campaigns
+          </p>
+          <Button 
+            onClick={() => navigate("/auth")}
+            size="lg"
+          >
+            Sign In or Register
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show migration prompt if there's localStorage data
+  if (hasLocalData && isAuthenticated && !isLoading && !isCheckingAuth) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Mass Tort Campaigns</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your case acquisition campaigns and track performance
+            </p>
+          </div>
+        </div>
+        
+        <div className="bg-muted/30 p-8 rounded-lg text-center space-y-4">
+          <h2 className="text-2xl font-semibold">Migrate Your Campaign Data</h2>
+          <p className="text-muted-foreground">
+            We've detected campaign data in your browser's local storage. 
+            Would you like to migrate this data to your account?
+          </p>
+          <div className="flex justify-center gap-4 mt-4">
+            <Button 
+              onClick={async () => {
+                await migrateFromLocalStorage();
+                setHasLocalData(false);
+              }}
+              size="lg"
+            >
+              Migrate Data
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setHasLocalData(false)}
+              size="lg"
+            >
+              Skip Migration
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -108,6 +194,9 @@ const CampaignsPage = () => {
             <Button size="sm" variant="destructive" onClick={handleClearLocalStorage}>
               Clear LocalStorage
             </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("/tools")}>
+              Advanced Tools
+            </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             Use these tools to help debug issues with your campaign data
@@ -115,7 +204,7 @@ const CampaignsPage = () => {
         </div>
       )}
       
-      {isLoading ? (
+      {isLoading || isCheckingAuth ? (
         <div className="flex flex-col items-center justify-center py-16">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
           <p className="text-lg font-medium">Loading campaigns...</p>
