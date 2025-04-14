@@ -234,7 +234,9 @@ const CampaignDetail = () => {
   const onCalendarSelect = (date: Date | undefined) => {
     if (date) {
       console.log("Selected date in add dialog:", date);
-      setSelectedDate(date);
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(12, 0, 0, 0);
+      setSelectedDate(normalizedDate);
       setCalendarOpen(false);
     }
   };
@@ -242,7 +244,9 @@ const CampaignDetail = () => {
   const onEditCalendarSelect = (date: Date | undefined) => {
     if (date) {
       console.log("Selected edit date:", date);
-      setEditDate(date);
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(12, 0, 0, 0);
+      setEditDate(normalizedDate);
       setEditCalendarOpen(false);
     }
   };
@@ -258,6 +262,7 @@ const CampaignDetail = () => {
     });
     
     const entryDate = new Date(entry.date);
+    entryDate.setHours(12, 0, 0, 0);
     console.log("Original entry date:", entryDate);
     setEditDate(entryDate);
     
@@ -275,7 +280,7 @@ const CampaignDetail = () => {
     const dateToUse = new Date(editDate);
     dateToUse.setHours(12, 0, 0, 0);
     
-    console.log("Formatted date to save:", dateToUse.toISOString());
+    console.log("Formatted date to save:", dateToUse.toISOString(), "Format string:", format(dateToUse, "yyyy-MM-dd"));
     
     const updatedEntry = {
       ...entry,

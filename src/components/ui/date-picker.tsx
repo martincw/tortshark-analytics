@@ -18,6 +18,18 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
+  // Create a handler that normalizes the date to noon to avoid timezone issues
+  const handleSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      // Set time to noon to avoid timezone issues
+      const normalizedDate = new Date(selectedDate);
+      normalizedDate.setHours(12, 0, 0, 0);
+      onSelect(normalizedDate);
+    } else {
+      onSelect(undefined);
+    }
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -37,7 +49,7 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onSelect}
+          onSelect={handleSelect}
           initialFocus
           className="pointer-events-auto"
         />
