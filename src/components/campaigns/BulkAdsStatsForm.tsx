@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     campaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
-      if (!allSelected && !weeklyStatsData[campaign.id]) {
+      if (!allSelected) {
         initializeWeeklyStats(campaign.id);
         fetchExistingStats(campaign.id);
       }

@@ -46,7 +46,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     campaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
-      if (!allSelected && !weeklyStatsData[campaign.id]) {
+      if (!allSelected) {
         initializeWeeklyStats(campaign.id);
         fetchExistingStats(campaign.id);
       }
