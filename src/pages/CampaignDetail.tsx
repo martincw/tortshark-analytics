@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -779,4 +780,262 @@ const CampaignDetail = () => {
                       <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>
                       <TableCell>{formatCurrency(entry.revenue)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(entry.createdAt), "MMM d, y
+                        {format(new Date(entry.createdAt), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditEntry(entry)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteEntryConfirm(entry.id)}
+                              className="text-error-DEFAULT"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No stats history available yet. Add your first entry.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Daily Stats</DialogTitle>
+            <DialogDescription>
+              Enter the stats for a specific date. These will be added to the campaign totals.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="date" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={onCalendarSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="leads" className="text-right">
+                Leads
+              </Label>
+              <Input 
+                id="leads" 
+                type="number" 
+                className="col-span-3" 
+                value={dailyStats.leads}
+                onChange={(e) => setDailyStats({...dailyStats, leads: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="cases" className="text-right">
+                Cases
+              </Label>
+              <Input 
+                id="cases" 
+                type="number" 
+                className="col-span-3" 
+                value={dailyStats.cases}
+                onChange={(e) => setDailyStats({...dailyStats, cases: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="revenue" className="text-right">
+                Revenue
+              </Label>
+              <div className="col-span-3 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input 
+                  id="revenue" 
+                  type="number" 
+                  className="col-span-3 pl-7" 
+                  value={dailyStats.revenue}
+                  onChange={(e) => setDailyStats({...dailyStats, revenue: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="adSpend" className="text-right">
+                Ad Spend
+              </Label>
+              <div className="col-span-3 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input 
+                  id="adSpend" 
+                  type="number" 
+                  className="col-span-3 pl-7" 
+                  value={dailyStats.adSpend}
+                  onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDailyStatsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveDailyStats}>Save Stats</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Stats Entry</DialogTitle>
+            <DialogDescription>
+              Update the stats for this entry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="editDate" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover open={editCalendarOpen} onOpenChange={setEditCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !editDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={editDate}
+                      onSelect={onEditCalendarSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="editLeads" className="text-right">
+                Leads
+              </Label>
+              <Input 
+                id="editLeads" 
+                type="number" 
+                className="col-span-3" 
+                value={editEntryData.leads}
+                onChange={(e) => setEditEntryData({...editEntryData, leads: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="editCases" className="text-right">
+                Cases
+              </Label>
+              <Input 
+                id="editCases" 
+                type="number" 
+                className="col-span-3" 
+                value={editEntryData.cases}
+                onChange={(e) => setEditEntryData({...editEntryData, cases: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="editRevenue" className="text-right">
+                Revenue
+              </Label>
+              <div className="col-span-3 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input 
+                  id="editRevenue" 
+                  type="number" 
+                  className="col-span-3 pl-7" 
+                  value={editEntryData.revenue}
+                  onChange={(e) => setEditEntryData({...editEntryData, revenue: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="editAdSpend" className="text-right">
+                Ad Spend
+              </Label>
+              <div className="col-span-3 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input 
+                  id="editAdSpend" 
+                  type="number" 
+                  className="col-span-3 pl-7" 
+                  value={editEntryData.adSpend}
+                  onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEntryDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEditedEntry}>Update Stats</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Stats Entry</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this stats entry? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex space-x-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteEntryDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDeleteEntry}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Entry
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default CampaignDetail;
