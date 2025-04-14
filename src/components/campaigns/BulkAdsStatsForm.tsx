@@ -33,7 +33,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
-  const [activeDay, setActiveDay] = useState<number>(0); // 0-6 for the week days
+  const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
   // Generate dates for the week
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
@@ -244,8 +244,9 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     }
   };
   
-  const currentDateKey = format(weekDates[activeDay], "yyyy-MM-dd");
-  const formattedActiveDate = format(weekDates[activeDay], "EEE, MMM d");
+  // Get the current date based on the active day index
+  const currentDateKey = format(weekDates[parseInt(activeDay)], "yyyy-MM-dd");
+  const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
 
   return (
     <div className="space-y-6">
@@ -261,18 +262,18 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       </div>
 
       <div className="mb-4">
-        <TabsList className="w-full justify-start">
-          {weekDates.map((date, index) => (
-            <TabsTrigger 
-              key={index}
-              value={index.toString()}
-              onClick={() => setActiveDay(index)}
-              className={activeDay === index ? "bg-primary text-primary-foreground" : ""}
-            >
-              {format(date, "EEE, d")}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <Tabs defaultValue="0" value={activeDay} onValueChange={setActiveDay}>
+          <TabsList className="w-full justify-start">
+            {weekDates.map((date, index) => (
+              <TabsTrigger 
+                key={index}
+                value={index.toString()}
+              >
+                {format(date, "EEE, d")}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <p className="mt-2 text-sm text-muted-foreground">
           Entering stats for: <span className="font-semibold">{formattedActiveDate}</span>
         </p>
@@ -365,3 +366,4 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     </div>
   );
 };
+
