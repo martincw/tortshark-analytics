@@ -153,7 +153,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
             return {
               id: campaign.id,
               name: campaign.name,
-              platform: campaign.platform,
+              platform: campaign.platform as "google" | "facebook" | "linkedin",
               accountId: campaign.account_id,
               accountName: campaign.account_name,
               stats: statsData ? {
@@ -207,7 +207,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
                 targetROAS: 0,
                 targetProfit: 0
               }
-            };
+            } as Campaign;
           }));
           
           setCampaigns(fullCampaigns);
@@ -231,7 +231,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
             isConnected: connection.is_connected,
             lastSynced: connection.last_synced,
             customerId: connection.customer_id,
-            credentials: connection.credentials
+            credentials: connection.credentials as AccountConnection['credentials']
           }));
           
           setAccountConnections(mappedConnections);
@@ -510,7 +510,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
           return {
             id: campaign.id,
             name: campaign.name,
-            platform: campaign.platform,
+            platform: campaign.platform as "google" | "facebook" | "linkedin",
             accountId: campaign.account_id,
             accountName: campaign.account_name,
             stats: statsData ? {
@@ -564,7 +564,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
               targetROAS: 0,
               targetProfit: 0
             }
-          };
+          } as Campaign;
         }));
         
         setCampaigns(fullCampaigns);
@@ -588,7 +588,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
           isConnected: connection.is_connected,
           lastSynced: connection.last_synced,
           customerId: connection.customer_id,
-          credentials: connection.credentials
+          credentials: connection.credentials as AccountConnection['credentials']
         }));
         
         setAccountConnections(mappedConnections);

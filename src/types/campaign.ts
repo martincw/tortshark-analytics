@@ -2,7 +2,7 @@
 export interface Campaign {
   id: string;
   name: string;
-  platform: "google";
+  platform: "google" | "facebook" | "linkedin"; // Update to match available platforms
   accountId: string;
   accountName: string;
   stats: CampaignStats;
@@ -70,7 +70,7 @@ export interface AccountConnection {
     customerId?: string;
     developerToken?: string;
     accessToken?: string;
-  };
+  } | Record<string, any>; // Update to allow any object structure
 }
 
 export interface GoogleAdsMetrics {
