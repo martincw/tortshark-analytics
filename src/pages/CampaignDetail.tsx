@@ -236,9 +236,7 @@ const CampaignDetail = () => {
   const onCalendarSelect = (date: Date | undefined) => {
     if (date) {
       console.log("Selected date in add dialog:", date);
-      const normalizedDate = new Date(date);
-      normalizedDate.setHours(12, 0, 0, 0);
-      setSelectedDate(normalizedDate);
+      setSelectedDate(date);
       setCalendarOpen(false);
     }
   };
@@ -246,9 +244,7 @@ const CampaignDetail = () => {
   const onEditCalendarSelect = (date: Date | undefined) => {
     if (date) {
       console.log("Selected edit date:", date);
-      const normalizedDate = new Date(date);
-      normalizedDate.setHours(12, 0, 0, 0);
-      setEditDate(normalizedDate);
+      setEditDate(date);
       setEditCalendarOpen(false);
     }
   };
@@ -279,10 +275,7 @@ const CampaignDetail = () => {
     
     console.log("Saving edited entry. Current edit date:", editDate);
     
-    const dateToUse = new Date(editDate);
-    dateToUse.setHours(12, 0, 0, 0);
-    
-    const formattedDate = format(dateToUse, "yyyy-MM-dd");
+    const formattedDate = format(editDate, "yyyy-MM-dd");
     
     console.log("Formatted date to save:", formattedDate);
     
@@ -796,7 +789,9 @@ const CampaignDetail = () => {
                 <TableBody>
                   {campaign.statsHistory.map((entry) => (
                     <TableRow key={entry.id} className="hover:bg-accent/5">
-                      <TableCell className="font-medium">{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="font-medium">
+                        {format(new Date(entry.date + 'T12:00:00'), "MMM d, yyyy")}
+                      </TableCell>
                       <TableCell>{entry.leads}</TableCell>
                       <TableCell>{entry.cases}</TableCell>
                       <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>

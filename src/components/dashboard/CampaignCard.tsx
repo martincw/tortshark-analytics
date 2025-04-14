@@ -63,10 +63,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       return;
     }
     
-    const dateToUse = new Date(selectedDate);
-    dateToUse.setHours(12, 0, 0, 0);
-    
-    const formattedDate = format(dateToUse, "yyyy-MM-dd");
+    const formattedDate = format(selectedDate, "yyyy-MM-dd");
     
     console.log("Adding quick stats:", {
       campaignId: campaign.id,
@@ -89,7 +86,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     
     setIsQuickEntryOpen(false);
     setQuickStats({ leads: "0", cases: "0", retainers: "0", revenue: "0", adSpend: "0" });
-    toast.success(`Stats for ${format(dateToUse, "MMM d, yyyy")} added successfully`);
+    toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
   };
 
   const onCalendarSelect = (date: Date | undefined) => {
