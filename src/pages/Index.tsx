@@ -8,9 +8,12 @@ import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, ArrowRight } from "lucide-react";
+import { InfoIcon, ArrowRight, DollarSign, Users, Flag, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency, formatPercent, formatNumber } from "@/utils/campaignUtils";
+import { StatCard } from "@/components/ui/stat-card";
 
 const Index = () => {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
@@ -27,6 +30,66 @@ const Index = () => {
   }, [dateRange]);
 
   const hasNoData = campaigns.length === 0;
+
+  // Calculate aggregated metrics across all campaigns
+  const aggregatedMetrics = React.useMemo(() => {
+    if (campaigns.length === 0) return null;
+    
+    // Filter campaigns based on selection if needed
+    const filteredCampaigns = selectedCampaignIds.length > 0
+      ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
+      : campaigns;
+      
+    // Initialize metrics
+    let totalLeads = 0;
+    let totalCases = 0;
+    let totalRevenue = 0;
+    let totalAdSpend = 0;
+    let totalTargetRetainers = 0;
+    let totalTargetSpend = 0;
+    let totalTargetIncome = 0;
+    
+    // Aggregate metrics
+    filteredCampaigns.forEach(campaign => {
+      totalLeads += campaign.manualStats.leads || 0;
+      totalCases += campaign.manualStats.cases || 0;
+      totalRevenue += campaign.manualStats.revenue || 0;
+      totalAdSpend += campaign.stats.adSpend || 0;
+      totalTargetRetainers += campaign.targets.monthlyRetainers || 0;
+      totalTargetSpend += campaign.targets.monthlySpend || 0;
+      totalTargetIncome += campaign.targets.monthlyIncome || 0;
+    });
+    
+    // Calculate derived metrics
+    const cpl = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
+    const cpa = totalCases > 0 ? totalAdSpend / totalCases : 0;
+    const profit = totalRevenue - totalAdSpend;
+    const roi = totalAdSpend > 0 ? (totalRevenue / totalAdSpend) * 100 : 0;
+    const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+    
+    // Calculate progress percentages
+    const leadProgress = totalTargetRetainers > 0 ? Math.min(100, (totalCases / totalTargetRetainers) * 100) : 0;
+    const spendProgress = totalTargetSpend > 0 ? Math.min(100, (totalAdSpend / totalTargetSpend) * 100) : 0;
+    const revenueProgress = totalTargetIncome > 0 ? Math.min(100, (totalRevenue / totalTargetIncome) * 100) : 0;
+    
+    return {
+      totalLeads,
+      totalCases,
+      totalRevenue,
+      totalAdSpend,
+      cpl,
+      cpa, 
+      profit,
+      roi,
+      profitMargin,
+      leadProgress,
+      spendProgress,
+      revenueProgress,
+      totalTargetRetainers,
+      totalTargetSpend,
+      totalTargetIncome
+    };
+  }, [campaigns, selectedCampaignIds]);
 
   return (
     <div className="space-y-6">
@@ -63,6 +126,66 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {aggregatedMetrics && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatCard 
+                  title="Total Revenue" 
+                  value={formatCurrency(aggregatedMetrics.totalRevenue)}
+                  description={`${formatPercent(aggregatedMetrics.revenueProgress)} of target`}
+                  icon={<DollarSign className="h-5 w-5" />}
+                  trend={aggregatedMetrics.revenueProgress >= 50 ? "up" : "neutral"}
+                  trendValue={`Target: ${formatCurrency(aggregatedMetrics.totalTargetIncome)}`}
+                  isHighlighted={true}
+                />
+                <StatCard 
+                  title="Total Ad Spend" 
+                  value={formatCurrency(aggregatedMetrics.totalAdSpend)}
+                  description={`${formatPercent(aggregatedMetrics.spendProgress)} of budget`}
+                  icon={<TrendingUp className="h-5 w-5" />}
+                  trend={aggregatedMetrics.spendProgress <= 90 ? "neutral" : "down"}
+                  trendValue={`Budget: ${formatCurrency(aggregatedMetrics.totalTargetSpend)}`}
+                />
+                <StatCard 
+                  title="Total Profit" 
+                  value={formatCurrency(aggregatedMetrics.profit)}
+                  description={`${formatPercent(aggregatedMetrics.profitMargin)} margin`}
+                  icon={<DollarSign className="h-5 w-5" />}
+                  trend={aggregatedMetrics.profit > 0 ? "up" : "down"}
+                  trendValue={aggregatedMetrics.profit > 0 ? "Profitable" : "Loss"}
+                  valueClassName={aggregatedMetrics.profit > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
+                />
+              </div>
+            )}
+
+            {aggregatedMetrics && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard 
+                  title="ROI" 
+                  value={formatPercent(aggregatedMetrics.roi)}
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  valueClassName={aggregatedMetrics.roi >= 200 ? "text-success-DEFAULT" : 
+                                 aggregatedMetrics.roi >= 100 ? "text-secondary" : "text-error-DEFAULT"}
+                />
+                <StatCard 
+                  title="Total Leads" 
+                  value={formatNumber(aggregatedMetrics.totalLeads)}
+                  icon={<Users className="h-4 w-4" />}
+                />
+                <StatCard 
+                  title="Total Cases" 
+                  value={formatNumber(aggregatedMetrics.totalCases)}
+                  description={`${formatPercent(aggregatedMetrics.leadProgress)} of target`}
+                  icon={<Flag className="h-4 w-4" />}
+                />
+                <StatCard 
+                  title="Case Cost (CPA)" 
+                  value={formatCurrency(aggregatedMetrics.cpa)}
+                  description={`Lead Cost: ${formatCurrency(aggregatedMetrics.cpl)}`}
+                  icon={<DollarSign className="h-4 w-4" />}
+                />
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
                 <OverviewStats key={`overview-${dateKey}`} />
