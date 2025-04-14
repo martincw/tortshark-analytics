@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -113,7 +114,7 @@ export function BulkStatsForm({ children }: BulkStatsFormProps) {
           ],
         };
 
-        await updateCampaign({
+        await updateCampaign(campaignToUpdate.id, {
           ...campaignToUpdate,
           manualStats: updatedManualStats,
         });
@@ -234,7 +235,6 @@ export function BulkStatsForm({ children }: BulkStatsFormProps) {
                       id={campaign.id}
                       checked={selectedCampaigns.includes(campaign.id)}
                       onCheckedChange={() => handleCheckboxChange(campaign.id)}
-                      selected={selectedCampaigns.includes(campaign.id) === true}
                     />
                   </TableCell>
                   <TableCell>

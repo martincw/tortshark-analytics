@@ -100,8 +100,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
 
   const getProfitabilityClass = () => {
-    if (metrics.roi > 200) return "text-success-DEFAULT font-bold";
-    if (metrics.roi > 0) return "text-secondary font-bold";
+    if (metrics.roas > 2) return "text-success-DEFAULT font-bold";
+    if (metrics.roas > 1) return "text-secondary font-bold";
     return "text-error-DEFAULT font-bold";
   };
 
@@ -163,13 +163,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </CardHeader>
         
         <CardContent className="pb-0">
-          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
+          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roas)}`}>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">ROI</span>
+              <span className="text-xs font-medium text-muted-foreground">ROAS</span>
               <div className="flex items-center gap-1.5 mt-1">
                 <Percent className="h-4 w-4 text-secondary" />
                 <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                  {metrics.roi.toFixed(0)}%
+                  {formatROAS(metrics.roas)}
                 </span>
               </div>
             </div>

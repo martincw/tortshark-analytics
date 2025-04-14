@@ -1,8 +1,8 @@
 
 import React, { useMemo } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
-import { Crown, TrendingUp, DollarSign, Award } from "lucide-react";
+import { calculateMetrics, formatCurrency, formatROAS } from "@/utils/campaignUtils";
+import { Crown, TrendingUp, DollarSign, Award, CirclePercent } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -21,6 +21,7 @@ interface LeaderboardMetric {
   value: number;
   formattedValue: string;
   costPerLead?: number; // Added to show CPL
+  secondaryValue?: string;
 }
 
 export function CampaignLeaderboard() {
@@ -30,7 +31,8 @@ export function CampaignLeaderboard() {
     if (!campaigns.length) return {
       profitLeaders: [],
       eplLeaders: [],
-      profitPerLeadLeaders: []
+      conversionRateLeaders: [],
+      roasLeaders: []
     };
 
     // Calculate metrics for each campaign
@@ -43,6 +45,9 @@ export function CampaignLeaderboard() {
         ? metrics.profit / campaign.manualStats.leads 
         : 0;
       const costPerLead = metrics.costPerLead; // Get the cost per lead
+      const conversionRate = campaign.manualStats.leads > 0
+        ? (campaign.manualStats.cases / campaign.manualStats.leads) * 100
+        : 0;
 
       return {
         id: campaign.id,
@@ -51,7 +56,9 @@ export function CampaignLeaderboard() {
         profit: metrics.profit,
         epl,
         profitPerLead,
-        costPerLead
+        costPerLead,
+        conversionRate,
+        roas: metrics.roas
       };
     });
 
@@ -79,24 +86,38 @@ export function CampaignLeaderboard() {
         formattedValue: formatCurrency(c.epl),
         costPerLead: c.costPerLead // Include cost per lead
       }));
-
-    // Sort by profit per lead (descending)
-    const profitPerLeadLeaders = [...campaignsWithMetrics]
-      .sort((a, b) => b.profitPerLead - a.profitPerLead)
+      
+    // Sort by conversion rate (descending)
+    const conversionRateLeaders = [...campaignsWithMetrics]
+      .sort((a, b) => b.conversionRate - a.conversionRate)
       .slice(0, 5)
       .map(c => ({
         id: c.id,
         name: c.name,
         accountName: c.accountName,
-        value: c.profitPerLead,
-        formattedValue: formatCurrency(c.profitPerLead),
-        costPerLead: c.costPerLead // Include cost per lead
+        value: c.conversionRate,
+        formattedValue: `${c.conversionRate.toFixed(1)}%`,
+        secondaryValue: c.conversionRate > 0 ? `${Math.round(100/c.conversionRate)} leads per case` : 'N/A'
+      }));
+      
+    // Sort by ROAS (descending)
+    const roasLeaders = [...campaignsWithMetrics]
+      .sort((a, b) => b.roas - a.roas)
+      .slice(0, 5)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        accountName: c.accountName,
+        value: c.roas,
+        formattedValue: formatROAS(c.roas),
+        secondaryValue: formatCurrency(c.profit)
       }));
 
     return {
       profitLeaders,
       eplLeaders,
-      profitPerLeadLeaders
+      conversionRateLeaders,
+      roasLeaders
     };
   }, [campaigns]);
 
@@ -105,15 +126,15 @@ export function CampaignLeaderboard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm border-accent/30">
+      <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b">
         <CardTitle className="flex items-center gap-2">
           <Award className="h-5 w-5 text-primary" />
           Campaign Leaderboard
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <CardContent className="p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <LeaderboardSection 
             title="Highest Profit" 
             icon={<DollarSign className="h-4 w-4" />}
@@ -123,19 +144,29 @@ export function CampaignLeaderboard() {
           />
           
           <LeaderboardSection 
-            title="Highest EPL" 
+            title="Highest ROAS" 
             icon={<TrendingUp className="h-4 w-4" />}
-            leaders={leaderboardData.eplLeaders} 
-            emptyMessage="No EPL data available" 
-            tooltip="Earnings Per Lead"
-            showCostPerLead={true}
+            leaders={leaderboardData.roasLeaders} 
+            emptyMessage="No ROAS data available" 
+            showSecondaryValue={true}
+            secondaryLabel="Profit"
           />
           
           <LeaderboardSection 
-            title="Highest Profit Per Lead" 
+            title="Highest Conversion" 
+            icon={<CirclePercent className="h-4 w-4" />}
+            leaders={leaderboardData.conversionRateLeaders} 
+            emptyMessage="No conversion rate data available" 
+            showSecondaryValue={true}
+            secondaryLabel="Efficiency"
+          />
+          
+          <LeaderboardSection 
+            title="Highest EPL" 
             icon={<Crown className="h-4 w-4" />}
-            leaders={leaderboardData.profitPerLeadLeaders} 
-            emptyMessage="No profit per lead data available" 
+            leaders={leaderboardData.eplLeaders} 
+            emptyMessage="No EPL data available" 
+            tooltip="Earnings Per Lead"
             showCostPerLead={true}
           />
         </div>
@@ -150,7 +181,9 @@ interface LeaderboardSectionProps {
   leaders: LeaderboardMetric[];
   emptyMessage: string;
   tooltip?: string;
-  showCostPerLead?: boolean; // Added to control showing CPL
+  showCostPerLead?: boolean;
+  showSecondaryValue?: boolean;
+  secondaryLabel?: string;
 }
 
 function LeaderboardSection({ 
@@ -159,7 +192,9 @@ function LeaderboardSection({
   leaders, 
   emptyMessage,
   tooltip,
-  showCostPerLead = false
+  showCostPerLead = false,
+  showSecondaryValue = false,
+  secondaryLabel = ""
 }: LeaderboardSectionProps) {
   return (
     <div>
@@ -211,6 +246,11 @@ function LeaderboardSection({
                   {showCostPerLead && leader.costPerLead !== undefined && (
                     <div className="text-xs text-muted-foreground">
                       CPL: {formatCurrency(leader.costPerLead)}
+                    </div>
+                  )}
+                  {showSecondaryValue && leader.secondaryValue && (
+                    <div className="text-xs text-muted-foreground">
+                      {secondaryLabel}: {leader.secondaryValue}
                     </div>
                   )}
                 </TableCell>

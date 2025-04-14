@@ -4,10 +4,11 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { AggregateStats } from "@/components/dashboard/AggregateStats";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
+import { OverviewStats } from "@/components/dashboard/OverviewStats";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, ArrowRight } from "lucide-react";
+import { InfoIcon, ArrowRight, LayoutDashboard, ListChecks, LineChart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -56,16 +57,30 @@ const Index = () => {
       ) : (
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="insights">Insights</TabsTrigger>
+            <TabsTrigger value="overview" className="flex items-center gap-1.5">
+              <LayoutDashboard className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="campaigns" className="flex items-center gap-1.5">
+              <ListChecks className="h-4 w-4" />
+              Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="insights" className="flex items-center gap-1.5">
+              <LineChart className="h-4 w-4" />
+              Insights
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <AggregateStats key={`aggregate-${dateKey}`} />
-            <div className="lg:col-span-2">
-              <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="col-span-2">
+                <AggregateStats key={`aggregate-${dateKey}`} />
+              </div>
+              <div className="md:col-span-1">
+                <OverviewStats key={`overview-${dateKey}`} />
+              </div>
             </div>
+            <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
           </TabsContent>
 
           <TabsContent value="campaigns">
@@ -73,10 +88,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="insights">
-            <div className="lg:col-span-2">
+            <div className="space-y-6">
               <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
-            </div>
-            <div className="mt-6">
               <CampaignGrid key={`grid-${dateKey}`} />
             </div>
           </TabsContent>
