@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -261,6 +262,12 @@ export const fetchGoogleAdsMetrics = async (
         description: "Authentication token not found",
         variant: "destructive",
       });
+      return null;
+    }
+    
+    // Ensure we have actual date values before proceeding
+    if (!dateRange.startDate || !dateRange.endDate) {
+      console.log("Date range is missing start or end date, can't fetch metrics");
       return null;
     }
     

@@ -80,6 +80,7 @@ export function OverviewStats() {
         // Filter statsHistory by date range
         const filteredStats = campaign.statsHistory.filter(stat => {
           const statDate = parseISO(stat.date);
+          // We need to check if the date is within our range
           return isWithinInterval(statDate, { start: startDate, end: endDate });
         });
         
