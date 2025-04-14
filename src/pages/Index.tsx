@@ -2,9 +2,8 @@
 import React, { useEffect } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
-import { OverviewStats } from "@/components/dashboard/OverviewStats";
+import { AggregateStats } from "@/components/dashboard/AggregateStats";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
-import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -63,15 +62,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
-                <OverviewStats key={`overview-${dateKey}`} />
-              </div>
-              <div>
-                <AccountsOverview />
-              </div>
-            </div>
-            
+            <AggregateStats key={`aggregate-${dateKey}`} />
             <div className="lg:col-span-2">
               <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
             </div>
