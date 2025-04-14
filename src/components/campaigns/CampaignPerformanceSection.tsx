@@ -196,6 +196,55 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
                   </div>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div className="bg-accent/10 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium mb-2">Cost Per Case Breakdown</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cost Per Case</span>
+                      <div className="text-lg font-semibold mt-0.5">{formatCurrency(metrics.cpa)}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Target Payout</span>
+                      <div className="text-lg font-semibold mt-0.5">{formatCurrency(campaign.targets.casePayoutAmount)}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Profit Per Case</span>
+                      <div className={`text-lg font-semibold mt-0.5 ${campaign.targets.casePayoutAmount > metrics.cpa ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+                        {formatCurrency(campaign.targets.casePayoutAmount - metrics.cpa)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cases Needed</span>
+                      <div className="text-lg font-semibold mt-0.5">
+                        {metrics.cpa > 0 ? Math.ceil(campaign.stats.adSpend / metrics.cpa) : 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-accent/10 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium mb-2">Conversion Metrics</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Lead → Case Rate</span>
+                      <div className="text-lg font-semibold mt-0.5">
+                        {campaign.manualStats.leads > 0 ? 
+                          `${((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1)}%` : 
+                          "0%"}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Avg Revenue/Case</span>
+                      <div className="text-lg font-semibold mt-0.5">
+                        {campaign.manualStats.cases > 0 ? 
+                          formatCurrency(campaign.manualStats.revenue / campaign.manualStats.cases) : 
+                          "$0.00"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
