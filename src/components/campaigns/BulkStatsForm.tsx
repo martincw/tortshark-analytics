@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,29 +6,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
-import { StatHistoryEntry } from "@/types/campaign";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface BulkStatsFormProps {
-  selectedDate: Date;
+  startDate: Date;
 }
 
-export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) => {
+type DailyStats = {
+  leads: number;
+  cases: number;
+  retainers: number;
+  revenue: number;
+};
+
+type WeeklyStats = {
+  [key: string]: DailyStats; // key is the date string in format YYYY-MM-DD
+};
+
+export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const { campaigns } = useCampaign();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
-  const [statsData, setStatsData] = useState<Record<string, {
-    leads: number;
-    cases: number;
-    retainers: number;
-    revenue: number;
-  }>>({});
-
+  const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({}); // campaign_id -> { date -> stats }
+  const [activeDay, setActiveDay] = useState<number>(0); // 0-6 for the week days
+  
+  // Generate dates for the week
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  
   const handleSelectAll = () => {
     const allSelected = campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
     const newSelected = {};
@@ -35,11 +46,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
     campaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
-      if (!allSelected && !statsData[campaign.id]) {
-        setStatsData(prev => ({
-          ...prev,
-          [campaign.id]: { leads: 0, cases: 0, retainers: 0, revenue: 0 }
-        }));
+      if (!allSelected && !weeklyStatsData[campaign.id]) {
+        initializeWeeklyStats(campaign.id);
       }
     });
     
@@ -52,24 +60,43 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
       [campaignId]: !prev[campaignId]
     }));
     
-    if (!selectedCampaigns[campaignId] && !statsData[campaignId]) {
-      setStatsData(prev => ({
-        ...prev,
-        [campaignId]: { leads: 0, cases: 0, retainers: 0, revenue: 0 }
-      }));
+    if (!selectedCampaigns[campaignId] && !weeklyStatsData[campaignId]) {
+      initializeWeeklyStats(campaignId);
     }
   };
 
-  const handleInputChange = (campaignId: string, field: string, value: string) => {
+  const initializeWeeklyStats = (campaignId: string) => {
+    const emptyWeekStats: WeeklyStats = {};
+    
+    weekDates.forEach(date => {
+      const dateKey = format(date, "yyyy-MM-dd");
+      emptyWeekStats[dateKey] = { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+    });
+    
+    setWeeklyStatsData(prev => ({
+      ...prev,
+      [campaignId]: emptyWeekStats
+    }));
+  };
+
+  const handleInputChange = (campaignId: string, dateKey: string, field: string, value: string) => {
     const numValue = value === '' ? 0 : parseFloat(value);
     
-    setStatsData(prev => ({
-      ...prev,
-      [campaignId]: {
-        ...(prev[campaignId] || { leads: 0, cases: 0, retainers: 0, revenue: 0 }),
-        [field]: numValue
-      }
-    }));
+    setWeeklyStatsData(prev => {
+      const campaignStats = prev[campaignId] || {};
+      const dayStats = campaignStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+      
+      return {
+        ...prev,
+        [campaignId]: {
+          ...campaignStats,
+          [dateKey]: {
+            ...dayStats,
+            [field]: numValue
+          }
+        }
+      };
+    });
   };
 
   const handleSubmit = async () => {
@@ -91,26 +118,33 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
         return;
       }
       
-      const formattedDate = format(selectedDate, "yyyy-MM-dd");
+      const allStatsToAdd = [];
       
-      const statsToAdd = selectedCampaignIds.map(campaignId => {
-        const stats = statsData[campaignId] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+      // Prepare all stats entries for the week
+      for (const campaignId of selectedCampaignIds) {
+        const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
-        return {
-          id: uuidv4(),
-          campaign_id: campaignId,
-          date: formattedDate,
-          leads: stats.leads || 0,
-          cases: stats.cases || 0,
-          retainers: stats.retainers || 0,
-          revenue: stats.revenue || 0,
-          created_at: new Date().toISOString()
-        };
-      });
+        for (const date of weekDates) {
+          const dateKey = format(date, "yyyy-MM-dd");
+          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+          
+          allStatsToAdd.push({
+            id: uuidv4(),
+            campaign_id: campaignId,
+            date: dateKey,
+            leads: dayStats.leads || 0,
+            cases: dayStats.cases || 0,
+            retainers: dayStats.retainers || 0,
+            revenue: dayStats.revenue || 0,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
       
+      // Insert all stats at once
       const { error } = await supabase
         .from('campaign_stats_history')
-        .upsert(statsToAdd, { 
+        .upsert(allStatsToAdd, { 
           onConflict: 'campaign_id,date',
           ignoreDuplicates: false
         });
@@ -122,17 +156,20 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
         return;
       }
       
+      // Update current stats with the most recent day's data
+      const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
       const manualStatsToAdd = selectedCampaignIds.map(campaignId => {
-        const stats = statsData[campaignId] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+        const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
+        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
         
         return {
           id: uuidv4(),
           campaign_id: campaignId,
-          date: formattedDate,
-          leads: stats.leads || 0,
-          cases: stats.cases || 0,
-          retainers: stats.retainers || 0,
-          revenue: stats.revenue || 0
+          date: recentDateKey,
+          leads: recentStats.leads || 0,
+          cases: recentStats.cases || 0,
+          retainers: recentStats.retainers || 0,
+          revenue: recentStats.revenue || 0
         };
       });
       
@@ -148,10 +185,10 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
         toast.error("Failed to update current stats: " + manualError.message);
       }
       
-      toast.success(`Stats added for ${selectedCampaignIds.length} campaigns`);
+      toast.success(`Stats added for ${selectedCampaignIds.length} campaigns for the entire week`);
       
       setSelectedCampaigns({});
-      setStatsData({});
+      setWeeklyStatsData({});
     } catch (err) {
       console.error("Error in submission:", err);
       toast.error("An unexpected error occurred");
@@ -159,6 +196,9 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
       setLoading(false);
     }
   };
+
+  const currentDateKey = format(weekDates[activeDay], "yyyy-MM-dd");
+  const formattedActiveDate = format(weekDates[activeDay], "EEE, MMM d");
 
   return (
     <div className="space-y-6">
@@ -171,6 +211,24 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
         <label htmlFor="select-all" className="text-sm font-medium">
           Select All Campaigns
         </label>
+      </div>
+
+      <div className="mb-4">
+        <TabsList className="w-full justify-start">
+          {weekDates.map((date, index) => (
+            <TabsTrigger 
+              key={index}
+              value={index.toString()}
+              onClick={() => setActiveDay(index)}
+              className={activeDay === index ? "bg-primary text-primary-foreground" : ""}
+            >
+              {format(date, "EEE, d")}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Entering stats for: <span className="font-semibold">{formattedActiveDate}</span>
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -201,8 +259,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
                   <Input
                     type="number"
                     min="0"
-                    value={statsData[campaign.id]?.leads || ''}
-                    onChange={(e) => handleInputChange(campaign.id, 'leads', e.target.value)}
+                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.leads || ''}
+                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'leads', e.target.value)}
                     disabled={!selectedCampaigns[campaign.id]}
                     placeholder="0"
                   />
@@ -212,8 +270,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
                   <Input
                     type="number"
                     min="0"
-                    value={statsData[campaign.id]?.cases || ''}
-                    onChange={(e) => handleInputChange(campaign.id, 'cases', e.target.value)}
+                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cases || ''}
+                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cases', e.target.value)}
                     disabled={!selectedCampaigns[campaign.id]}
                     placeholder="0"
                   />
@@ -223,8 +281,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
                   <Input
                     type="number"
                     min="0"
-                    value={statsData[campaign.id]?.retainers || ''}
-                    onChange={(e) => handleInputChange(campaign.id, 'retainers', e.target.value)}
+                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.retainers || ''}
+                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'retainers', e.target.value)}
                     disabled={!selectedCampaigns[campaign.id]}
                     placeholder="0"
                   />
@@ -234,8 +292,9 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ selectedDate }) =>
                   <Input
                     type="number"
                     min="0"
-                    value={statsData[campaign.id]?.revenue || ''}
-                    onChange={(e) => handleInputChange(campaign.id, 'revenue', e.target.value)}
+                    step="0.01"
+                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.revenue || ''}
+                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'revenue', e.target.value)}
                     disabled={!selectedCampaigns[campaign.id]}
                     placeholder="0"
                   />

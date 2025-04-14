@@ -8,15 +8,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/components/ui/use-toast";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const BulkStatsPage = () => {
-  const { toast } = useToast();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const endDate = addDays(startDate, 6); // 7 days total (start date + 6 more days)
+
+  const moveWeek = (direction: 'previous' | 'next') => {
+    setStartDate(prevDate => {
+      const offset = direction === 'previous' ? -7 : 7;
+      return addDays(prevDate, offset);
+    });
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -24,11 +31,39 @@ const BulkStatsPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Bulk Campaign Stats</h1>
           <p className="text-muted-foreground mt-1">
-            Add daily stats for multiple campaigns at once
+            Add daily stats for multiple campaigns for the week
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <DatePicker date={selectedDate} onSelect={setSelectedDate} />
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => moveWeek('previous')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="text-center">
+              <p className="font-medium">Week of {format(startDate, "MMM d")}</p>
+              <p className="text-sm text-muted-foreground">
+                {format(startDate, "MMM d")} - {format(endDate, "MMM d, yyyy")}
+              </p>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => moveWeek('next')}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <DatePicker 
+            date={startDate} 
+            onSelect={setStartDate} 
+          />
         </div>
       </div>
 
@@ -43,12 +78,11 @@ const BulkStatsPage = () => {
             <CardHeader>
               <CardTitle>Bulk Manual Stats</CardTitle>
               <CardDescription>
-                Add leads, cases, retainers, and revenue for multiple campaigns at once.
-                The date selected is {format(selectedDate, "MMMM d, yyyy")}.
+                Add leads, cases, retainers, and revenue for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(endDate, "MMMM d, yyyy")}.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BulkStatsForm selectedDate={selectedDate} />
+              <BulkStatsForm startDate={startDate} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -58,12 +92,11 @@ const BulkStatsPage = () => {
             <CardHeader>
               <CardTitle>Bulk Ad Stats</CardTitle>
               <CardDescription>
-                Add ad spend, impressions, clicks, and CPC for multiple campaigns at once.
-                The date selected is {format(selectedDate, "MMMM d, yyyy")}.
+                Add ad spend, impressions, clicks, and CPC for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(endDate, "MMMM d, yyyy")}.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BulkAdsStatsForm selectedDate={selectedDate} />
+              <BulkAdsStatsForm startDate={startDate} />
             </CardContent>
           </Card>
         </TabsContent>
