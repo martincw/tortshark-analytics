@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Campaign } from "@/types/campaign";
-import { format, subDays, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import {
   Bar,
@@ -35,18 +35,15 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
     let startDateForCalc, endDateForCalc;
     
     if (hasDateRange) {
-      // Create date objects from the date strings with exact time boundaries
-      startDateForCalc = new Date(`${dateRange.startDate}T00:00:00.000`);
-      endDateForCalc = new Date(`${dateRange.endDate}T23:59:59.999`);
+      // Create date objects with time set to start/end of day to ensure full day coverage
+      startDateForCalc = startOfDay(new Date(dateRange.startDate));
+      endDateForCalc = endOfDay(new Date(dateRange.endDate));
       
       console.log(`WeeklyPerformanceChart: Using date range ${startDateForCalc.toISOString()} to ${endDateForCalc.toISOString()}`);
     } else {
       // Default to last 4 weeks if no date range
-      endDateForCalc = new Date();
-      endDateForCalc.setHours(23, 59, 59, 999);
-      
-      startDateForCalc = subDays(endDateForCalc, 28);
-      startDateForCalc.setHours(0, 0, 0, 0);
+      endDateForCalc = endOfDay(new Date());
+      startDateForCalc = startOfDay(subDays(endDateForCalc, 28));
     }
     
     // Calculate number of weeks in the range

@@ -1,8 +1,9 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { isWithinInterval, parseISO } from "date-fns";
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 
 interface ProgressBarProps {
   label: string;
@@ -61,9 +62,9 @@ export function OverviewStats() {
     
     // If we have both dates, filter by them
     if (startDateStr && endDateStr) {
-      // We're using YYYY-MM-DD format, need to create Date objects that span the full day
-      const startDate = new Date(`${startDateStr}T00:00:00.000`);
-      const endDate = new Date(`${endDateStr}T23:59:59.999`);
+      // Create date objects with time set to start/end of day to ensure full day coverage
+      const startDate = startOfDay(new Date(startDateStr));
+      const endDate = endOfDay(new Date(endDateStr));
       
       console.log(`OverviewStats date objects: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       

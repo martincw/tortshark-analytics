@@ -23,7 +23,7 @@ export function DateRangePicker() {
     
     // Create a date with the exact YYYY-MM-DD values
     const [year, month, day] = dateStr.split('-').map(Number);
-    // Month is 0-indexed in JavaScript Date
+    // Month is 0-indexed in JavaScript Date, so subtract 1 from month
     return new Date(year, month - 1, day, 12, 0, 0);
   };
   
@@ -67,7 +67,7 @@ export function DateRangePicker() {
     // Format dates as ISO date strings (YYYY-MM-DD) to avoid timezone issues
     const formatDateToYYYYMMDD = (date: Date): string => {
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0'); // Add 1 as months are 0-indexed
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };

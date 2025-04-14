@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
