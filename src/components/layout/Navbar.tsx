@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,8 +13,6 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Wrench, LogOut } from "lucide-react";
-import { getPublicUrl } from "@/services/storageService";
-import { uploadLogoToStorage, checkLogoExists } from "@/utils/uploadLogoUtil";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -29,49 +28,14 @@ const navItems: NavItem[] = [
   { href: "/tools", label: "Tools" },
 ];
 
+// Direct logo URL
+const LOGO_URL = "https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png";
+
 export const Navbar: React.FC = () => {
   const campaignContext = useCampaign();
   const { signOut } = useAuth();
   const { campaigns = [], selectedCampaignIds = [], setSelectedCampaignIds } = campaignContext || {};
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [isLogoLoading, setIsLogoLoading] = useState(true);
-  
-  useEffect(() => {
-    const fetchLogo = async () => {
-      try {
-        setIsLogoLoading(true);
-        const logoPath = "tortshark-logo.png";
-        
-        const exists = await checkLogoExists();
-        
-        if (exists) {
-          console.log("Logo found in storage");
-          const url = getPublicUrl("assets", logoPath);
-          setLogoUrl(url);
-        } else {
-          console.log("Logo not found in storage, uploading...");
-          const uploadSuccess = await uploadLogoToStorage();
-          
-          if (uploadSuccess) {
-            const newUrl = getPublicUrl("assets", logoPath);
-            setLogoUrl(newUrl);
-            console.log("Logo uploaded successfully, new URL:", newUrl);
-          } else {
-            console.error("Failed to upload logo, using static logo");
-            setLogoUrl("https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png");
-          }
-        }
-      } catch (error) {
-        console.error("Error loading logo:", error);
-        toast.error("Could not load the logo");
-        setLogoUrl("https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png");
-      } finally {
-        setIsLogoLoading(false);
-      }
-    };
-    
-    fetchLogo();
-  }, []);
+  const [logoError, setLogoError] = useState(false);
   
   const handleCampaignSelection = (campaignId: string) => {
     if (!setSelectedCampaignIds) return;
@@ -89,6 +53,12 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut();
+  };
+
+  const handleLogoError = () => {
+    console.error("Error loading logo from URL");
+    setLogoError(true);
+    toast.error("Could not load the logo");
   };
 
   return (
@@ -137,21 +107,15 @@ export const Navbar: React.FC = () => {
             </SheetContent>
           </Sheet>
           <Link to="/" className="ml-4">
-            {isLogoLoading ? (
-              <div className="h-8 w-32 bg-secondary animate-pulse rounded"></div>
-            ) : logoUrl ? (
+            {logoError ? (
+              <div className="h-8 px-2 flex items-center text-primary font-bold">TortShark</div>
+            ) : (
               <img 
-                src={logoUrl} 
+                src={LOGO_URL} 
                 alt="TortShark Logo" 
                 className="h-8"
-                onError={(e) => {
-                  console.error("Image failed to load:", e);
-                  const imgElement = e.target as HTMLImageElement;
-                  imgElement.src = "https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png";
-                }}
+                onError={handleLogoError}
               />
-            ) : (
-              <div className="h-8 w-32 bg-secondary animate-pulse rounded"></div>
             )}
           </Link>
         </div>
