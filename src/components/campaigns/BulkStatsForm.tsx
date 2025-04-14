@@ -1,391 +1,255 @@
 import React, { useState, useEffect } from "react";
-import { useCampaign } from "@/contexts/CampaignContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Campaign } from "@/types/campaign";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { format, addDays } from "date-fns";
-import { v4 as uuidv4 } from "uuid";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCampaign } from "@/contexts/CampaignContext";
+import { format } from 'date-fns';
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
 
 interface BulkStatsFormProps {
-  startDate: Date;
+  children: React.ReactNode;
 }
 
-type DailyStats = {
-  leads: number;
-  cases: number;
-  revenue: number;
-  adSpend: number;
-};
+export function BulkStatsForm({ children }: BulkStatsFormProps) {
+  const [open, setOpen] = useState(false);
+  const [leads, setLeads] = useState("");
+  const [cases, setCases] = useState("");
+  const [retainers, setRetainers] = useState("");
+  const [revenue, setRevenue] = useState("");
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [date, setDate] = React.useState<Date>();
+  const { toast } = useToast();
+  const { campaigns, updateCampaign } = useCampaign();
 
-type WeeklyStats = {
-  [key: string]: DailyStats; // key is the date string in format YYYY-MM-DD
-};
-
-export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
-  const { campaigns } = useCampaign();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
-  const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({});
-  const [activeDay, setActiveDay] = useState<string>("0");
-  
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
-  
-  const handleSelectAll = () => {
-    const areAllSelected = campaigns.length > 0 && 
-      campaigns.every(campaign => selectedCampaigns[campaign.id] === true);
-    
-    const newSelected: Record<string, boolean> = {};
-    
-    campaigns.forEach(campaign => {
-      newSelected[campaign.id] = !areAllSelected;
-      
-      if (!areAllSelected) {
-        initializeWeeklyStats(campaign.id);
-        fetchExistingStats(campaign.id);
-      }
-    });
-    
-    setSelectedCampaigns(newSelected);
-  };
-
-  const handleSelectCampaign = (campaignId: string) => {
-    const isSelected = selectedCampaigns[campaignId] === true;
-    
-    setSelectedCampaigns(prev => ({
-      ...prev,
-      [campaignId]: !isSelected
-    }));
-    
-    if (!isSelected) {
-      initializeWeeklyStats(campaignId);
-      fetchExistingStats(campaignId);
-    }
-  };
-
-  const initializeWeeklyStats = (campaignId: string) => {
-    const emptyWeekStats: WeeklyStats = {};
-    
-    weekDates.forEach(date => {
-      const dateKey = format(date, "yyyy-MM-dd");
-      emptyWeekStats[dateKey] = { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-    });
-    
-    setWeeklyStatsData(prev => ({
-      ...prev,
-      [campaignId]: emptyWeekStats
-    }));
-  };
-
-  const fetchExistingStats = async (campaignId: string) => {
-    if (!user) return;
-    
-    setLoadingStats(true);
-    
-    try {
-      const dateStrings = weekDates.map(date => format(date, "yyyy-MM-dd"));
-      
-      const { data, error } = await supabase
-        .from('campaign_stats_history')
-        .select('id, date, leads, cases, revenue, ad_spend')
-        .eq('campaign_id', campaignId)
-        .in('date', dateStrings);
-        
-      if (error) {
-        console.error("Error fetching stats:", error);
-        return;
-      }
-      
-      if (data && data.length > 0) {
-        setWeeklyStatsData(prev => {
-          const campaignStats = { ...prev[campaignId] } || {};
-          
-          data.forEach(stat => {
-            const dateKey = format(new Date(stat.date), "yyyy-MM-dd");
-            campaignStats[dateKey] = {
-              leads: stat.leads || 0,
-              cases: stat.cases || 0,
-              revenue: stat.revenue || 0,
-              adSpend: stat.ad_spend || 0
-            };
-          });
-          
-          return {
-            ...prev,
-            [campaignId]: campaignStats
-          };
-        });
-      }
-    } catch (err) {
-      console.error("Error fetching existing stats:", err);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
-
-  const handleInputChange = (campaignId: string, dateKey: string, field: string, value: string) => {
-    const numValue = value === '' ? 0 : parseFloat(value);
-    
-    setWeeklyStatsData(prev => {
-      const campaignStats = prev[campaignId] || {};
-      const dayStats = campaignStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-      
-      return {
-        ...prev,
-        [campaignId]: {
-          ...campaignStats,
-          [dateKey]: {
-            ...dayStats,
-            [field]: numValue
-          }
-        }
-      };
-    });
+  const handleCheckboxChange = (campaignId: string) => {
+    setSelectedCampaigns((prevSelected) =>
+      prevSelected.includes(campaignId)
+        ? prevSelected.filter((id) => id !== campaignId)
+        : [...prevSelected, campaignId]
+    );
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast.error("You must be logged in to add stats");
+    if (selectedCampaigns.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one campaign.",
+        variant: "destructive",
+      });
       return;
     }
-    
-    setLoading(true);
-    
-    try {
-      const selectedCampaignIds = Object.entries(selectedCampaigns)
-        .filter(([_, isSelected]) => isSelected)
-        .map(([id]) => id);
-      
-      if (selectedCampaignIds.length === 0) {
-        toast.error("Please select at least one campaign");
-        setLoading(false);
-        return;
-      }
-      
-      const allStatsToAdd = [];
-      
-      for (const campaignId of selectedCampaignIds) {
-        const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        
-        for (const date of weekDates) {
-          const dateKey = format(date, "yyyy-MM-dd");
-          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-          
-          const { data: existingData, error: checkError } = await supabase
-            .from('campaign_stats_history')
-            .select('id')
-            .eq('campaign_id', campaignId)
-            .eq('date', dateKey)
-            .maybeSingle();
-            
-          const id = existingData?.id || uuidv4();
-          
-          allStatsToAdd.push({
-            id: id,
-            campaign_id: campaignId,
-            date: dateKey,
-            leads: dayStats.leads || 0,
-            cases: dayStats.cases || 0,
-            retainers: dayStats.cases || 0,
-            revenue: dayStats.revenue || 0,
-            ad_spend: dayStats.adSpend || 0,
-            created_at: new Date().toISOString()
-          });
-        }
-      }
-      
-      const { error } = await supabase
-        .from('campaign_stats_history')
-        .upsert(allStatsToAdd, { 
-          onConflict: 'id',
-          ignoreDuplicates: false
-        });
-        
-      if (error) {
-        console.error("Error adding stats:", error);
-        toast.error("Failed to add stats: " + error.message);
-        setLoading(false);
-        return;
-      }
-      
-      const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
-      const manualStatsToAdd = [];
-      
-      for (const campaignId of selectedCampaignIds) {
-        const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-        
-        const { data: existingManual, error: manualCheckError } = await supabase
-          .from('campaign_manual_stats')
-          .select('id')
-          .eq('campaign_id', campaignId)
-          .maybeSingle();
-          
-        const manualId = existingManual?.id || uuidv4();
-        
-        manualStatsToAdd.push({
-          id: manualId,
-          campaign_id: campaignId,
-          date: recentDateKey,
-          leads: recentStats.leads || 0,
-          cases: recentStats.cases || 0,
-          retainers: recentStats.cases || 0,
-          revenue: recentStats.revenue || 0
-        });
-      }
-      
-      const { error: manualError } = await supabase
-        .from('campaign_manual_stats')
-        .upsert(manualStatsToAdd, { 
-          onConflict: 'id',
-          ignoreDuplicates: false
-        });
-        
-      if (manualError) {
-        console.error("Error updating manual stats:", manualError);
-        toast.error("Failed to update current stats: " + manualError.message);
-      }
-      
-      toast.success(`Stats added for ${selectedCampaignIds.length} campaigns for the entire week`);
-      
-      setSelectedCampaigns({});
-      setWeeklyStatsData({});
-    } catch (err) {
-      console.error("Error in submission:", err);
-      toast.error("An unexpected error occurred");
-    } finally {
-      setLoading(false);
+
+    const leadsValue = parseInt(leads, 10) || 0;
+    const casesValue = parseInt(cases, 10) || 0;
+    const retainersValue = parseInt(retainers, 10) || 0;
+    const revenueValue = parseFloat(revenue) || 0;
+
+    if (isNaN(leadsValue) || isNaN(casesValue) || isNaN(retainersValue) || isNaN(revenueValue)) {
+      toast({
+        title: "Error",
+        description: "Please enter valid numeric values for all fields.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    if (!date) {
+      toast({
+        title: "Error",
+        description: "Please select a date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const isoDate = date.toISOString();
+
+    selectedCampaigns.forEach(async (campaignId) => {
+      const campaignToUpdate = campaigns.find((campaign) => campaign.id === campaignId);
+
+      if (campaignToUpdate) {
+        const updatedManualStats = {
+          ...campaignToUpdate.manualStats,
+          leads: (campaignToUpdate.manualStats.leads || 0) + leadsValue,
+          cases: (campaignToUpdate.manualStats.cases || 0) + casesValue,
+          retainers: (campaignToUpdate.manualStats.retainers || 0) + retainersValue,
+          revenue: (campaignToUpdate.manualStats.revenue || 0) + revenueValue,
+          history: [
+            ...(campaignToUpdate.manualStats.history || []),
+            {
+              date: isoDate,
+              leads: leadsValue,
+              cases: casesValue,
+              retainers: retainersValue,
+              revenue: revenueValue,
+            },
+          ],
+        };
+
+        await updateCampaign({
+          ...campaignToUpdate,
+          manualStats: updatedManualStats,
+        });
+      }
+    });
+
+    toast({
+      title: "Success",
+      description: "Campaigns updated successfully.",
+    });
+    setOpen(false);
   };
 
-  const currentDateKey = format(weekDates[parseInt(activeDay)], "yyyy-MM-dd");
-  const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="select-all"
-          checked={campaigns.length > 0 && campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
-          onCheckedChange={handleSelectAll}
-        />
-        <label htmlFor="select-all" className="text-sm font-medium">
-          Select All Campaigns
-        </label>
-      </div>
-
-      <div className="mb-4">
-        <Tabs defaultValue="0" value={activeDay} onValueChange={setActiveDay}>
-          <TabsList className="w-full justify-start">
-            {weekDates.map((date, index) => (
-              <TabsTrigger 
-                key={index}
-                value={index.toString()}
-              >
-                {format(date, "EEE, d")}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Entering stats for: <span className="font-semibold">{formattedActiveDate}</span>
-        </p>
-      </div>
-
-      {loadingStats ? (
-        <div className="text-center py-4">Loading existing stats...</div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
-            <div className="col-span-2">Campaign</div>
-            <div className="col-span-1 text-center">Leads</div>
-            <div className="col-span-1 text-center">Cases</div>
-            <div className="col-span-1 text-center">Revenue ($)</div>
-            <div className="col-span-1 text-center">Ad Spend ($)</div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[825px]">
+        <DialogHeader>
+          <DialogTitle>Update Campaign Stats</DialogTitle>
+          <DialogDescription>
+            Add leads, cases, retainers, and revenue to selected campaigns.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="leads" className="text-right">
+              Leads
+            </Label>
+            <Input
+              type="number"
+              id="leads"
+              value={leads}
+              onChange={(e) => setLeads(e.target.value)}
+              className="col-span-3"
+            />
           </div>
-
-          {campaigns.map((campaign) => (
-            <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-6 gap-4 items-center">
-                  <div className="col-span-2 flex items-center space-x-2">
-                    <Checkbox
-                      id={`select-${campaign.id}`}
-                      checked={selectedCampaigns[campaign.id] === true}
-                      onCheckedChange={() => handleSelectCampaign(campaign.id)}
-                    />
-                    <label htmlFor={`select-${campaign.id}`} className="font-medium">
-                      {campaign.name}
-                    </label>
-                  </div>
-                  
-                  <div className="col-span-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.leads || ''}
-                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'leads', e.target.value)}
-                      disabled={!selectedCampaigns[campaign.id]}
-                      placeholder="0"
-                    />
-                  </div>
-                  
-                  <div className="col-span-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cases || ''}
-                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cases', e.target.value)}
-                      disabled={!selectedCampaigns[campaign.id]}
-                      placeholder="0"
-                    />
-                  </div>
-                  
-                  <div className="col-span-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.revenue || ''}
-                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'revenue', e.target.value)}
-                      disabled={!selectedCampaigns[campaign.id]}
-                      placeholder="0"
-                    />
-                  </div>
-                  
-                  <div className="col-span-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
-                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
-                      disabled={!selectedCampaigns[campaign.id]}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="cases" className="text-right">
+              Cases
+            </Label>
+            <Input
+              type="number"
+              id="cases"
+              value={cases}
+              onChange={(e) => setCases(e.target.value)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="retainers" className="text-right">
+              Retainers
+            </Label>
+            <Input
+              type="number"
+              id="retainers"
+              value={retainers}
+              onChange={(e) => setRetainers(e.target.value)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="revenue" className="text-right">
+              Revenue
+            </Label>
+            <Input
+              type="number"
+              id="revenue"
+              value={revenue}
+              onChange={(e) => setRevenue(e.target.value)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="date" className="text-right">
+              Date
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-      )}
-
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSubmit} 
-          disabled={loading || loadingStats || Object.values(selectedCampaigns).filter(Boolean).length === 0}
-        >
-          {loading ? "Saving..." : "Save All Stats"}
+        <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
+          <Table>
+            <TableCaption>Select campaigns to update.</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Select</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Account</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {campaigns.map((campaign) => (
+                <TableRow key={campaign.id}>
+                  <TableCell className="font-medium">
+                    <Checkbox
+                      id={campaign.id}
+                      checked={selectedCampaigns.includes(campaign.id)}
+                      onCheckedChange={() => handleCheckboxChange(campaign.id)}
+                      selected={selectedCampaigns.includes(campaign.id) === true}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Label htmlFor={campaign.id}>{campaign.name}</Label>
+                  </TableCell>
+                  <TableCell>{campaign.accountName}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <Button type="submit" onClick={handleSubmit}>
+          Update Campaigns
         </Button>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-};
+}
