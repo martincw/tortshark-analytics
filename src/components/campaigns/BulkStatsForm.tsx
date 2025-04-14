@@ -41,8 +41,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
   
   const handleSelectAll = () => {
-    const allSelected = campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
-    const newSelected = {};
+    const allSelected = campaigns.length > 0 && campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
+    const newSelected: Record<string, boolean> = {};
     
     campaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
@@ -57,14 +57,14 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   };
 
   const handleSelectCampaign = (campaignId: string) => {
-    const isCurrentlySelected = !!selectedCampaigns[campaignId];
+    const currentValue = selectedCampaigns[campaignId] ?? false;
     
     setSelectedCampaigns(prev => ({
       ...prev,
-      [campaignId]: !isCurrentlySelected
+      [campaignId]: !currentValue
     }));
     
-    if (!isCurrentlySelected) {
+    if (!currentValue) {
       initializeWeeklyStats(campaignId);
       fetchExistingStats(campaignId);
     }
