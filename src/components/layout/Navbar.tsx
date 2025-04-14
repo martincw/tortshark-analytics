@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Menu, Wrench, LogOut } from "lucide-react";
 import { getPublicUrl } from "@/services/storageService";
-import { uploadLogoToStorage } from "@/utils/uploadLogoUtil";
+import { uploadLogoToStorage, checkLogoExists } from "@/utils/uploadLogoUtil";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -42,12 +42,11 @@ export const Navbar: React.FC = () => {
         setIsLogoLoading(true);
         const logoPath = "tortshark-logo.png";
         
-        const url = getPublicUrl("assets", logoPath);
+        const exists = await checkLogoExists();
         
-        const response = await fetch(url, { method: 'HEAD' });
-        
-        if (response.ok) {
-          console.log("Logo found in storage:", url);
+        if (exists) {
+          console.log("Logo found in storage");
+          const url = getPublicUrl("assets", logoPath);
           setLogoUrl(url);
         } else {
           console.log("Logo not found in storage, uploading...");
@@ -58,14 +57,14 @@ export const Navbar: React.FC = () => {
             setLogoUrl(newUrl);
             console.log("Logo uploaded successfully, new URL:", newUrl);
           } else {
-            console.error("Failed to upload logo");
-            setLogoUrl("/assets/tortshark-logo.png");
+            console.error("Failed to upload logo, using static logo");
+            setLogoUrl("https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png");
           }
         }
       } catch (error) {
         console.error("Error loading logo:", error);
         toast.error("Could not load the logo");
-        setLogoUrl("/assets/tortshark-logo.png");
+        setLogoUrl("https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png");
       } finally {
         setIsLogoLoading(false);
       }
@@ -148,7 +147,7 @@ export const Navbar: React.FC = () => {
                 onError={(e) => {
                   console.error("Image failed to load:", e);
                   const imgElement = e.target as HTMLImageElement;
-                  imgElement.src = "/assets/tortshark-logo.png";
+                  imgElement.src = "https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png";
                 }}
               />
             ) : (

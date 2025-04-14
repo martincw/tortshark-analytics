@@ -6,11 +6,17 @@ export const uploadLogoToStorage = async () => {
   try {
     console.log("Starting logo upload process...");
     
-    // Use the new logo URL
-    const logoUrl = "http://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.png";
+    // Use the TortShark logo URL directly
+    const logoUrl = "https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png";
+    
+    console.log("Fetching logo from:", logoUrl);
     
     // Fetch the logo from the specified URL
-    const logoResponse = await fetch(logoUrl);
+    const logoResponse = await fetch(logoUrl, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
     
     if (!logoResponse.ok) {
       console.error(`Failed to fetch logo: ${logoResponse.status} ${logoResponse.statusText}`);
@@ -19,6 +25,7 @@ export const uploadLogoToStorage = async () => {
     }
 
     const logoBlob = await logoResponse.blob();
+    console.log("Logo fetched successfully, size:", logoBlob.size);
     
     // Upload to Supabase storage
     const { data, error } = await supabase.storage
