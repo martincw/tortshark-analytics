@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,12 +55,14 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   };
 
   const handleSelectCampaign = (campaignId: string) => {
+    const isCurrentlySelected = !!selectedCampaigns[campaignId];
+    
     setSelectedCampaigns(prev => ({
       ...prev,
-      [campaignId]: !prev[campaignId]
+      [campaignId]: !isCurrentlySelected
     }));
     
-    if (!selectedCampaigns[campaignId]) {
+    if (!isCurrentlySelected) {
       initializeWeeklyStats(campaignId);
       fetchExistingStats(campaignId);
     }
