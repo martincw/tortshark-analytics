@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Campaign } from "@/types/campaign";
-import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerformanceBgClass } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent, formatROAS, getPerformanceBgClass } from "@/utils/campaignUtils";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
@@ -89,8 +88,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
 
   const getProfitabilityClass = () => {
-    if (metrics.roi > 200) return "text-success-DEFAULT font-bold";
-    if (metrics.roi > 0) return "text-secondary font-bold";
+    if (metrics.roas > 2) return "text-success-DEFAULT font-bold";
+    if (metrics.roas > 1) return "text-secondary font-bold";
     return "text-error-DEFAULT font-bold";
   };
 
@@ -123,11 +122,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     return "error";
   };
 
-  // Calculate CPL (Cost Per Lead) and EPL (Earnings Per Lead)
   const costPerLead = campaign.manualStats.leads > 0 ? campaign.stats.adSpend / campaign.manualStats.leads : 0;
   const earningsPerLead = campaign.manualStats.leads > 0 ? campaign.manualStats.revenue / campaign.manualStats.leads : 0;
   
-  // Calculate profit per case
   const profitPerCase = campaign.manualStats.cases > 0 
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
@@ -154,13 +151,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </CardHeader>
         
         <CardContent className="pb-0">
-          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
+          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roas)}`}>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">ROI</span>
+              <span className="text-xs font-medium text-muted-foreground">ROAS</span>
               <div className="flex items-center gap-1.5 mt-1">
                 <Percent className="h-4 w-4 text-secondary" />
                 <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                  {metrics.roi.toFixed(0)}%
+                  {formatROAS(metrics.roas)}
                 </span>
               </div>
             </div>
@@ -208,7 +205,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             </div>
           </div>
           
-          {/* CPL and EPL stats */}
           <div className="grid grid-cols-2 gap-4 mb-2 border-t pt-2">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />

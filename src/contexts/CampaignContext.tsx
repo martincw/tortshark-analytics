@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useContext,
   ReactNode,
+  useMemo,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/hooks/use-toast";
@@ -45,6 +46,7 @@ interface CampaignContextType {
   updateStatHistoryEntry: (campaignId: string, entry: StatHistoryEntry) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   fetchGoogleAdsMetrics: (accountId: string, dateRange: DateRangeType) => Promise<GoogleAdsMetricsType[] | null>;
+  campaignTypes: string[];
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(
@@ -353,6 +355,11 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     }
   };
 
+  const campaignTypes = useMemo(() => {
+    if (!campaigns || campaigns.length === 0) return [];
+    return Array.from(new Set(campaigns.map(campaign => campaign.name)));
+  }, [campaigns]);
+
   const contextValue: CampaignContextType = {
     campaigns,
     accountConnections,
@@ -373,7 +380,8 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
     addStatHistoryEntry,
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
-    fetchGoogleAdsMetrics
+    fetchGoogleAdsMetrics,
+    campaignTypes
   };
 
   return (

@@ -5,6 +5,7 @@ export interface Campaign {
   platform: "google";
   accountId: string;
   accountName: string;
+  campaignType?: string; // Add optional campaignType field
   stats: CampaignStats;
   manualStats: ManualStats;
   statsHistory: StatHistoryEntry[];
@@ -25,6 +26,7 @@ export interface ManualStats {
   retainers: number;
   revenue: number;
   date: string; // ISO date string
+  history?: StatHistoryEntry[]; // Add optional history field
 }
 
 export interface StatHistoryEntry {
@@ -52,6 +54,7 @@ export interface CampaignMetrics {
   cpa: number; // Cost per acquisition (case)
   profit: number;
   roi: number; // Return on investment percentage
+  roas: number; // Return on ad spend (added this field)
 }
 
 export interface DateRange {
