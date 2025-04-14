@@ -124,7 +124,7 @@ async function refreshAccessToken(refreshToken: string) {
 
 async function listGoogleAdsAccounts(accessToken: string) {
   try {
-    console.log("Listing Google Ads accounts");
+    console.log("Listing real Google Ads accounts");
     
     // For simplicity and since we can't directly use the Google Ads API in Deno Edge Functions,
     // we'll use a REST call to the Google Ads API

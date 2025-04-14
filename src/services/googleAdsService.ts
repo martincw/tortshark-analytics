@@ -186,24 +186,6 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
 
 export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
   try {
-    const cachedAccounts = localStorage.getItem("googleAds_accounts");
-    
-    if (cachedAccounts) {
-      try {
-        const accounts = JSON.parse(cachedAccounts);
-        return accounts.map((account: any) => ({
-          id: account.id,
-          name: account.name || `Google Ads Account ${account.id}`,
-          platform: "google",
-          isConnected: true,
-          lastSynced: new Date().toISOString(),
-          customerId: account.id
-        }));
-      } catch (parseError) {
-        console.error("Error parsing cached accounts:", parseError);
-      }
-    }
-    
     const accessToken = localStorage.getItem("googleAds_access_token");
     
     if (!accessToken) {
@@ -211,9 +193,9 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
       return [];
     }
     
-    console.log("Attempting to fetch Google Ads accounts");
+    console.log("Fetching Google Ads accounts from Google API");
     
-    const response = await supabase.functions.invoke("google-ads-data", {
+    const response = await supabase.functions.invoke("google-ads-accounts", {
       body: { 
         action: "list-accounts",
         accessToken
@@ -234,9 +216,22 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
       return [];
     }
     
-    localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
+    if (response.data.accounts && response.data.accounts.length > 0) {
+      localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
+      
+      const mappedAccounts = response.data.accounts.map((account: any) => ({
+        id: account.id,
+        name: account.name || `Google Ads Account ${account.id}`,
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString(),
+        customerId: account.id
+      }));
+      
+      return mappedAccounts;
+    }
     
-    return response.data.accounts;
+    return [];
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
     toast.error("Failed to list Google Ads accounts");

@@ -226,7 +226,17 @@ async function fetchAccountsList(accessToken: string, developerToken: string): P
           
           if (!customerResponse.ok) {
             console.error(`Failed to fetch details for customer ${customerId}`);
-            return null;
+            return {
+              id: customerId,
+              customerId: customerId,
+              name: `Account ${customerId}`,
+              currency: "USD",
+              timeZone: "America/New_York",
+              status: "ENABLED",
+              platform: "google",
+              isConnected: true,
+              lastSynced: new Date().toISOString()
+            };
           }
           
           const customerData = await customerResponse.json();
@@ -237,7 +247,10 @@ async function fetchAccountsList(accessToken: string, developerToken: string): P
             name: customerData.customer?.descriptiveName || `Account ${customerId}`,
             currency: customerData.customer?.currencyCode || "USD",
             timeZone: customerData.customer?.timeZone || "America/New_York",
-            status: customerData.customer?.status || "ENABLED"
+            status: customerData.customer?.status || "ENABLED",
+            platform: "google",
+            isConnected: true,
+            lastSynced: new Date().toISOString()
           };
         } catch (error) {
           console.error(`Error fetching details for customer ${customerId}:`, error);
@@ -247,7 +260,10 @@ async function fetchAccountsList(accessToken: string, developerToken: string): P
             name: `Account ${customerId}`,
             currency: "USD",
             timeZone: "America/New_York",
-            status: "ENABLED"
+            status: "ENABLED",
+            platform: "google",
+            isConnected: true,
+            lastSynced: new Date().toISOString()
           };
         }
       })
@@ -338,23 +354,13 @@ serve(async (req) => {
         
         console.log("Attempting to access Google Ads API");
         
-        // Return a test account once - but with a fixed set of accounts instead of dynamic generation
-        // This prevents infinite account creation on the client
-        const testAccounts = [
-          { 
-            id: "test123", 
-            name: "Test Account",
-            customerId: "test123",
-            platform: "google",
-            isConnected: true,
-            lastSynced: new Date().toISOString()
-          }
-        ];
+        // Fetch real accounts from Google Ads API
+        const accounts = await fetchAccountsList(accessToken, GOOGLE_ADS_DEVELOPER_TOKEN);
         
         return new Response(
           JSON.stringify({ 
             success: true, 
-            accounts: testAccounts,
+            accounts,
             userEmail: userInfo.email
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
