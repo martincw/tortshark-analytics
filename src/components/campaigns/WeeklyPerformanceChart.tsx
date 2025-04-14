@@ -18,6 +18,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface WeeklyPerformanceChartProps {
   campaign: Campaign;
@@ -153,12 +154,13 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
                 <ChartTooltip
                   content={
                     <ChartTooltipContent 
-                      formatter={(value, name, props) => {
-                        const item = props.payload;
-                        const metricName = name.replace('Percentage', '');
+                      formatter={(value: ValueType, name: NameType, props: any) => {
+                        const stringName = String(name);
+                        const metricName = stringName.replace('Percentage', '');
                         
-                        if (name.includes('Percentage')) {
-                          return [`${value.toFixed(0)}% of target`, chartConfig[metricName].label];
+                        if (stringName.includes('Percentage')) {
+                          const numValue = Number(value);
+                          return [`${numValue.toFixed(0)}% of target`, chartConfig[metricName as keyof typeof chartConfig]?.label || metricName];
                         }
                         
                         return [value, name];
@@ -171,29 +173,32 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
                   }
                 />
                 <Legend 
-                  formatter={(value) => chartConfig[value.replace('Percentage', '')].label}
+                  formatter={(value: string) => {
+                    const metricName = value.replace('Percentage', '');
+                    return chartConfig[metricName as keyof typeof chartConfig]?.label || value;
+                  }}
                 />
                 <Bar 
                   dataKey="leadsPercentage" 
-                  name="leads" 
+                  name="leadsPercentage" 
                   fill="var(--color-leads)"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar 
                   dataKey="casesPercentage" 
-                  name="cases" 
+                  name="casesPercentage" 
                   fill="var(--color-cases)"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar 
                   dataKey="revenuePercentage" 
-                  name="revenue" 
+                  name="revenuePercentage" 
                   fill="var(--color-revenue)"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar 
                   dataKey="adSpendPercentage" 
-                  name="adSpend" 
+                  name="adSpendPercentage" 
                   fill="var(--color-adSpend)"
                   radius={[4, 4, 0, 0]}
                 />

@@ -6,8 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GoogleAdsMetrics from "./GoogleAdsMetrics";
 import { WeeklyPerformanceChart } from "./WeeklyPerformanceChart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, TooltipProps } from "recharts";
 import { calculateMetrics, formatCurrency, formatPercent } from "@/utils/campaignUtils";
+import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface CampaignPerformanceSectionProps {
   campaign: Campaign;
@@ -113,25 +114,29 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
                       <ChartTooltip
                         content={
                           <ChartTooltipContent 
-                            formatter={(value, name, props) => {
+                            formatter={(value: ValueType, name: NameType, props: any) => {
                               if (name === "leads") {
-                                return [`${value.toFixed(0)}% (${props.payload.actualLeads}/${props.payload.targetLeads})`, "Leads"];
+                                const numValue = Number(value);
+                                return [`${numValue.toFixed(0)}% (${props.payload.actualLeads}/${props.payload.targetLeads})`, "Leads"];
                               }
                               if (name === "cases") {
-                                return [`${value.toFixed(0)}% (${props.payload.actualCases}/${props.payload.targetCases})`, "Cases"];
+                                const numValue = Number(value);
+                                return [`${numValue.toFixed(0)}% (${props.payload.actualCases}/${props.payload.targetCases})`, "Cases"];
                               }
                               if (name === "revenue") {
-                                return [`${value.toFixed(0)}% (${formatCurrency(props.payload.actualRevenue)}/${formatCurrency(props.payload.targetRevenue)})`, "Revenue"];
+                                const numValue = Number(value);
+                                return [`${numValue.toFixed(0)}% (${formatCurrency(props.payload.actualRevenue)}/${formatCurrency(props.payload.targetRevenue)})`, "Revenue"];
                               }
                               if (name === "adSpend") {
-                                return [`${value.toFixed(0)}% (${formatCurrency(props.payload.actualAdSpend)}/${formatCurrency(props.payload.targetAdSpend)})`, "Ad Spend"];
+                                const numValue = Number(value);
+                                return [`${numValue.toFixed(0)}% (${formatCurrency(props.payload.actualAdSpend)}/${formatCurrency(props.payload.targetAdSpend)})`, "Ad Spend"];
                               }
                               return [value, name];
                             }}
                           />
                         }
                       />
-                      <Legend formatter={(value) => chartConfig[value].label} />
+                      <Legend formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label || value} />
                       <Bar 
                         dataKey="leads" 
                         name="leads"
