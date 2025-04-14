@@ -94,19 +94,24 @@ export const useCampaignForm = () => {
       return;
     }
     
-    if (!accountId) {
-      toast.error("Please connect a Google Ads account first");
-      navigate("/accounts");
-      return;
-    }
-    
-    // Use selected account
-    const selectedAccount = accountConnections.find(acc => acc.id === accountId);
-    
-    if (!selectedAccount) {
-      toast.error("Google Ads account not found. Please connect an account.");
-      navigate("/accounts");
-      return;
+    // For manual entry, we don't need a connected account
+    let selectedAccount;
+    if (accountId === "manual") {
+      // Create a dummy account for manual entries
+      selectedAccount = {
+        id: "manual",
+        name: "Manual Entry",
+        platform: "google",
+        isConnected: false
+      };
+    } else {
+      // For non-manual entries, verify the selected account exists
+      selectedAccount = accountConnections.find(acc => acc.id === accountId);
+      
+      if (!selectedAccount) {
+        toast.error("Google Ads account not found. Please connect an account or select Manual Entry.");
+        return;
+      }
     }
     
     const currentDate = new Date().toISOString().split("T")[0];

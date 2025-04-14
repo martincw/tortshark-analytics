@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AccountConnection } from "@/types/campaign";
+import { Info } from "lucide-react";
 
 interface CampaignDetailsSectionProps {
   campaignName: string;
@@ -71,9 +73,14 @@ const CampaignDetailsSection: React.FC<CampaignDetailsSectionProps> = ({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground mt-1">
-          Manual account creation only. No automatic syncing available.
-        </p>
+        <div className="flex items-start gap-1 mt-1">
+          <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            {accountId === "manual" 
+              ? "Manual entry mode lets you track campaigns without connecting to Google Ads. Stats must be entered manually."
+              : "Connected accounts will sync performance data automatically."}
+          </p>
+        </div>
       </div>
     </div>
   );
