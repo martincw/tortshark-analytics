@@ -9,6 +9,7 @@ export function CampaignGrid() {
   const { campaigns, isLoading } = useCampaign();
   
   console.log("CampaignGrid - Campaigns count:", campaigns.length);
+  console.log("CampaignGrid - Campaigns details:", campaigns);
   
   const {
     searchTerm,

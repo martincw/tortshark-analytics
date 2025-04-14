@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Campaign,
   AccountConnection,
@@ -61,9 +61,22 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
   children,
 }) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
-    const storedCampaigns = localStorage.getItem("campaigns");
-    return storedCampaigns ? JSON.parse(storedCampaigns) : [];
+    try {
+      console.log("Loading campaigns from localStorage");
+      const storedCampaigns = localStorage.getItem("campaigns");
+      console.log("Raw localStorage campaigns:", storedCampaigns);
+      if (storedCampaigns) {
+        const parsedCampaigns = JSON.parse(storedCampaigns);
+        console.log("Parsed campaigns:", parsedCampaigns);
+        return Array.isArray(parsedCampaigns) ? parsedCampaigns : [];
+      }
+      return [];
+    } catch (error) {
+      console.error("Error loading campaigns from localStorage:", error);
+      return [];
+    }
   });
+  
   const [accountConnections, setAccountConnections] = useState<
     AccountConnection[]
   >(() => {
@@ -95,7 +108,13 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({
   });
 
   useEffect(() => {
-    localStorage.setItem("campaigns", JSON.stringify(campaigns));
+    try {
+      console.log("Saving campaigns to localStorage:", campaigns);
+      localStorage.setItem("campaigns", JSON.stringify(campaigns));
+    } catch (error) {
+      console.error("Error saving campaigns to localStorage:", error);
+      toast.error("Failed to save campaign data");
+    }
   }, [campaigns]);
 
   useEffect(() => {

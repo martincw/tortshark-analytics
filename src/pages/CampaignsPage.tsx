@@ -10,15 +10,19 @@ import { toast } from "sonner";
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const { campaigns, accountConnections, isLoading } = useCampaign();
-  const [showDebug, setShowDebug] = useState(false);
+  const [showDebug, setShowDebug] = useState(true); // Set to true to show debug tools by default
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   
   useEffect(() => {
     console.log("CampaignsPage - Mounted with campaigns:", campaigns.length);
-    if (campaigns.length === 0) {
-      // Check localStorage directly as a backup
-      const rawCampaigns = localStorage.getItem('campaigns');
-      console.log("Direct localStorage check - campaigns:", rawCampaigns);
+    console.log("CampaignsPage - Campaign details:", campaigns);
+    
+    // Check localStorage directly as a backup
+    const rawCampaigns = localStorage.getItem('campaigns');
+    console.log("Direct localStorage check - campaigns:", rawCampaigns);
+    
+    if (campaigns.length === 0 && rawCampaigns) {
+      toast.info("Found campaigns in localStorage but they're not loaded in the app. Try refreshing the page.");
     }
   }, [campaigns]);
 
@@ -50,6 +54,11 @@ const CampaignsPage = () => {
     } else {
       toast.error("No campaign data found in localStorage");
     }
+  };
+
+  const resetAppState = () => {
+    // Force a re-initialization of the app by reloading the page
+    window.location.reload();
   };
 
   return (
@@ -102,8 +111,8 @@ const CampaignsPage = () => {
             <Button size="sm" variant="outline" onClick={inspectLocalStorage}>
               Inspect LocalStorage
             </Button>
-            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
-              Refresh Page
+            <Button size="sm" variant="outline" onClick={resetAppState}>
+              Refresh App
             </Button>
             <Button size="sm" variant="destructive" onClick={handleClearLocalStorage}>
               Clear LocalStorage
