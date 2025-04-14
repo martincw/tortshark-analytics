@@ -32,14 +32,26 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
     // Use the selected date range if available, otherwise use the last 4 weeks
     const hasDateRange = dateRange.startDate && dateRange.endDate;
     
-    // Set proper time values to get full day coverage
-    const endDateForCalc = hasDateRange ? new Date(dateRange.endDate) : new Date();
-    if (hasDateRange) endDateForCalc.setHours(23, 59, 59, 999);
+    // Create proper date objects from date strings - set time to ensure full day coverage
+    let startDateForCalc, endDateForCalc;
     
-    const startDateForCalc = hasDateRange ? new Date(dateRange.startDate) : subDays(endDateForCalc, 28);
-    if (hasDateRange) startDateForCalc.setHours(0, 0, 0, 0);
-    
-    console.log(`WeeklyPerformanceChart generating chart data from ${startDateForCalc.toISOString()} to ${endDateForCalc.toISOString()}`);
+    if (hasDateRange) {
+      // Create date objects from the date strings
+      startDateForCalc = new Date(dateRange.startDate);
+      startDateForCalc.setHours(0, 0, 0, 0);  // Start of day
+      
+      endDateForCalc = new Date(dateRange.endDate);
+      endDateForCalc.setHours(23, 59, 59, 999);  // End of day
+      
+      console.log(`WeeklyPerformanceChart: Using date range ${startDateForCalc.toISOString()} to ${endDateForCalc.toISOString()}`);
+    } else {
+      // Default to last 4 weeks if no date range
+      endDateForCalc = new Date();
+      endDateForCalc.setHours(23, 59, 59, 999);
+      
+      startDateForCalc = subDays(endDateForCalc, 28);
+      startDateForCalc.setHours(0, 0, 0, 0);
+    }
     
     // Calculate number of weeks in the range
     const weeksToShow = Math.ceil((endDateForCalc.getTime() - startDateForCalc.getTime()) / (7 * 24 * 60 * 60 * 1000));

@@ -55,26 +55,31 @@ export function OverviewStats() {
     }
     
     // Parse date strings to Date objects for filtering
-    const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
-    const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+    const startDateStr = dateRange.startDate;
+    const endDateStr = dateRange.endDate;
     
-    // Set times to start/end of day to ensure full day coverage
-    if (startDate) startDate.setHours(0, 0, 0, 0);
-    if (endDate) endDate.setHours(23, 59, 59, 999);
-
-    console.log(`OverviewStats filtering by date range: ${startDate?.toISOString()} to ${endDate?.toISOString()}`);
-
-    // Calculate aggregate metrics across campaigns
-    let totalLeads = 0;
-    let totalCases = 0;
-    let totalRetainers = 0;
-    let totalRevenue = 0;
-    let totalAdSpend = 0;
-    let totalBudget = 0;
+    console.log(`OverviewStats filtering by date range: ${startDateStr} to ${endDateStr}`);
     
-    filteredCampaigns.forEach(campaign => {
-      // Filter stats by date if date range is provided
-      if (startDate && endDate) {
+    // If we have both dates, filter by them
+    if (startDateStr && endDateStr) {
+      // We're using YYYY-MM-DD format, so we need to create Date objects that span the full day
+      const startDate = new Date(startDateStr);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(endDateStr);
+      endDate.setHours(23, 59, 59, 999);
+      
+      console.log(`OverviewStats date objects: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      
+      // Calculate aggregate metrics across campaigns
+      let totalLeads = 0;
+      let totalCases = 0;
+      let totalRetainers = 0;
+      let totalRevenue = 0;
+      let totalAdSpend = 0;
+      let totalBudget = 0;
+      
+      filteredCampaigns.forEach(campaign => {
         // Filter statsHistory by date range
         const filteredStats = campaign.statsHistory.filter(stat => {
           const statDate = parseISO(stat.date);
@@ -89,34 +94,57 @@ export function OverviewStats() {
         totalRetainers += filteredStats.reduce((sum, stat) => sum + stat.retainers, 0);
         totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
         totalAdSpend += filteredStats.reduce((sum, stat) => sum + stat.adSpend, 0);
-      } else {
-        // If no date range, use the summary stats
+        
+        totalBudget += campaign.targets.monthlySpend || 0;
+      });
+      
+      console.log(`OverviewStats metrics for date range: Leads=${totalLeads}, Cases=${totalCases}, Revenue=${totalRevenue}, AdSpend=${totalAdSpend}`);
+      
+      // Calculate metrics
+      const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
+      const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
+      const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
+      const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
+      const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
+      
+      return {
+        conversionRate: Math.round(conversionRate),
+        costEfficiency: Math.round(costEfficiency),
+        cpaScore: Math.round(cpaScore),
+        roasScore: Math.round(roasScore),
+        budgetUtilization: Math.round(budgetUtilization)
+      };
+    } else {
+      // If no date range, use the summary stats (fallback)
+      let totalLeads = 0;
+      let totalCases = 0;
+      let totalAdSpend = 0;
+      let totalRevenue = 0;
+      let totalBudget = 0;
+      
+      filteredCampaigns.forEach(campaign => {
         totalLeads += campaign.manualStats.leads || 0;
         totalCases += campaign.manualStats.cases || 0;
-        totalRetainers += campaign.manualStats.retainers || 0;
         totalRevenue += campaign.manualStats.revenue || 0;
         totalAdSpend += campaign.stats.adSpend || 0;
-      }
+        totalBudget += campaign.targets.monthlySpend || 0;
+      });
       
-      totalBudget += campaign.targets.monthlySpend || 0;
-    });
-    
-    console.log(`OverviewStats metrics for date range: Leads=${totalLeads}, Cases=${totalCases}, Revenue=${totalRevenue}, AdSpend=${totalAdSpend}`);
-    
-    // Calculate metrics
-    const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
-    const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
-    const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
-    const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
-    const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
-    
-    return {
-      conversionRate: Math.round(conversionRate),
-      costEfficiency: Math.round(costEfficiency),
-      cpaScore: Math.round(cpaScore),
-      roasScore: Math.round(roasScore),
-      budgetUtilization: Math.round(budgetUtilization)
-    };
+      // Calculate metrics
+      const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
+      const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
+      const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
+      const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
+      const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
+      
+      return {
+        conversionRate: Math.round(conversionRate),
+        costEfficiency: Math.round(costEfficiency),
+        cpaScore: Math.round(cpaScore),
+        roasScore: Math.round(roasScore),
+        budgetUtilization: Math.round(budgetUtilization)
+      };
+    }
   }, [campaigns, selectedCampaignIds, dateRange.startDate, dateRange.endDate]);
 
   return (

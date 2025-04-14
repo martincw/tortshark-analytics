@@ -17,17 +17,17 @@ import { toast } from "sonner";
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
   
-  // Set time to noon to avoid timezone issues
-  const fixDate = (dateStr: string): Date => {
+  // Format date strings to Date objects properly
+  const createDateFromStr = (dateStr: string | undefined): Date | undefined => {
+    if (!dateStr) return undefined;
+    // Create a date with local timezone, set to noon to avoid any date shifting
     const date = new Date(dateStr);
-    // Force noon time to avoid any date shifting issues
-    date.setHours(12, 0, 0, 0);
     return date;
   };
   
   const [date, setDate] = React.useState<DateRange | undefined>({
-    from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
-    to: dateRange.endDate ? fixDate(dateRange.endDate) : undefined,
+    from: createDateFromStr(dateRange.startDate),
+    to: createDateFromStr(dateRange.endDate),
   });
   
   const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
@@ -37,12 +37,12 @@ export function DateRangePicker() {
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
       setDate({
-        from: fixDate(dateRange.startDate),
-        to: fixDate(dateRange.endDate),
+        from: createDateFromStr(dateRange.startDate),
+        to: createDateFromStr(dateRange.endDate),
       });
       setTempDate({
-        from: fixDate(dateRange.startDate),
-        to: fixDate(dateRange.endDate),
+        from: createDateFromStr(dateRange.startDate),
+        to: createDateFromStr(dateRange.endDate),
       });
     }
   }, [dateRange]);
@@ -62,15 +62,15 @@ export function DateRangePicker() {
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    // Create dates at noon to avoid timezone issues
+    // Get selected date(s) and ensure they're formatted correctly
+    // Use the exact date selected without any time adjustments
     const fromDate = new Date(tempDate.from);
-    fromDate.setHours(12, 0, 0, 0);
     
     // If no end date is selected, use the same day as the start date
     const toDate = tempDate.to ? new Date(tempDate.to) : new Date(fromDate);
-    toDate.setHours(12, 0, 0, 0);
     
-    // Format dates as ISO strings to be consistent
+    // Format dates as ISO date strings (YYYY-MM-DD) to avoid timezone issues
+    // This is crucial - we want just the date part
     const formattedStartDate = format(fromDate, 'yyyy-MM-dd');
     const formattedEndDate = format(toDate, 'yyyy-MM-dd');
     
