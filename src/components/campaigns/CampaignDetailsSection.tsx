@@ -28,6 +28,8 @@ const CampaignDetailsSection: React.FC<CampaignDetailsSectionProps> = ({
   setAccountId,
   availableAccounts,
 }) => {
+  const hasConnectedAccounts = availableAccounts.some(acc => acc.isConnected && acc.id !== "manual");
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="space-y-2">
@@ -62,11 +64,11 @@ const CampaignDetailsSection: React.FC<CampaignDetailsSectionProps> = ({
           onValueChange={setAccountId}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select an account" />
+            <SelectValue placeholder={hasConnectedAccounts ? "Select an account" : "Manual Entry (No Account)"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="manual">Manual Entry (No Account)</SelectItem>
-            {availableAccounts.filter(acc => acc.id !== "manual").map((account) => (
+            {availableAccounts.filter(acc => acc.id !== "manual" && acc.isConnected).map((account) => (
               <SelectItem key={account.id} value={account.id}>
                 {account.name} (Google Ads)
               </SelectItem>
@@ -76,9 +78,11 @@ const CampaignDetailsSection: React.FC<CampaignDetailsSectionProps> = ({
         <div className="flex items-start gap-1 mt-1">
           <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
-            {accountId === "manual" 
-              ? "Manual entry mode lets you track campaigns without connecting to Google Ads. Stats must be entered manually."
-              : "Connected accounts will sync performance data automatically."}
+            {!hasConnectedAccounts 
+              ? "No connected accounts found. Connect a Google Ads account or use Manual Entry mode."
+              : accountId === "manual" 
+                ? "Manual entry mode lets you track campaigns without connecting to Google Ads. Stats must be entered manually."
+                : "Connected accounts will sync performance data automatically."}
           </p>
         </div>
       </div>

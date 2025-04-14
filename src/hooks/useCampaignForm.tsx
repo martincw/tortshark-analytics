@@ -64,6 +64,12 @@ export const useCampaignForm = () => {
     const params = new URLSearchParams(location.search);
     const preselectedAccountId = params.get('accountId');
     
+    // Set default to manual entry if no accounts are available
+    if (accountConnections.length === 0) {
+      setAccountId("manual");
+      return;
+    }
+    
     if (preselectedAccountId) {
       const account = accountConnections.find(acc => acc.id === preselectedAccountId);
       if (account) {
@@ -71,10 +77,17 @@ export const useCampaignForm = () => {
         // Make sure we only set platform to "google" since that's the only supported value for campaigns
         setPlatform("google");
         toast.info(`Using account: ${account.name}`);
+      } else {
+        // If preselected account not found, default to manual entry
+        setAccountId("manual");
+        toast.warning("Selected account not found, using manual entry");
       }
     } else if (accountConnections.length > 0) {
       // Default to the first account if no account is pre-selected
       setAccountId(accountConnections[0].id);
+    } else {
+      // Fallback to manual entry if no accounts available
+      setAccountId("manual");
     }
   }, [location.search, accountConnections]);
   
@@ -94,7 +107,7 @@ export const useCampaignForm = () => {
       return;
     }
     
-    // For manual entry, we don't need a connected account
+    // Always allow manual entry, even if no accounts are connected
     let selectedAccount;
     if (accountId === "manual") {
       // Create a dummy account for manual entries
@@ -110,6 +123,8 @@ export const useCampaignForm = () => {
       
       if (!selectedAccount) {
         toast.error("Google Ads account not found. Please connect an account or select Manual Entry.");
+        // Automatically switch to manual entry as a fallback
+        setAccountId("manual");
         return;
       }
     }
