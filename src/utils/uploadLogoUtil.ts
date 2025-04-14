@@ -15,11 +15,15 @@ export const uploadLogoToStorage = async () => {
     const logoResponse = await fetch(logoUrl, {
       method: 'GET',
       mode: 'cors',
-      cache: 'no-cache'
+      cache: 'no-cache',
+      headers: {
+        'User-Agent': 'Lovable App Logo Fetcher'
+      }
     });
     
     if (!logoResponse.ok) {
       console.error(`Failed to fetch logo: ${logoResponse.status} ${logoResponse.statusText}`);
+      console.error('Logo fetch response:', await logoResponse.text());
       toast.error("Failed to download logo");
       return false;
     }
@@ -72,3 +76,4 @@ export const checkLogoExists = async (): Promise<boolean> => {
     return false;
   }
 };
+
