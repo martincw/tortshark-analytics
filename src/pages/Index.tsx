@@ -83,10 +83,12 @@ const Index = () => {
       });
     } else {
       // If no date filtering, use summary stats
-      totalLeads += campaign.manualStats.leads || 0;
-      totalCases += campaign.manualStats.cases || 0;
-      totalRevenue += campaign.manualStats.revenue || 0;
-      totalAdSpend += campaign.stats.adSpend || 0;
+      filteredCampaigns.forEach(campaign => {
+        totalLeads += campaign.manualStats.leads || 0;
+        totalCases += campaign.manualStats.cases || 0;
+        totalRevenue += campaign.manualStats.revenue || 0;
+        totalAdSpend += campaign.stats.adSpend || 0;
+      });
     }
     
     filteredCampaigns.forEach(campaign => {
