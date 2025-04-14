@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useCampaignGridData } from "@/hooks/useCampaignGridData";
 import { CampaignFilters } from "./CampaignFilters";
@@ -20,6 +20,20 @@ export function CampaignGrid() {
     campaignTypes,
     sortedAndFilteredCampaigns
   } = useCampaignGridData(campaigns);
+  
+  useEffect(() => {
+    // Check localStorage directly on component mount
+    const storedCampaigns = localStorage.getItem("campaigns");
+    console.log("CampaignGrid - Raw localStorage campaigns:", storedCampaigns);
+    if (storedCampaigns) {
+      try {
+        const parsed = JSON.parse(storedCampaigns);
+        console.log("CampaignGrid - Parsed localStorage campaigns:", parsed);
+      } catch (e) {
+        console.error("CampaignGrid - Error parsing localStorage campaigns:", e);
+      }
+    }
+  }, []);
   
   console.log("CampaignGrid - Filtered campaigns count:", sortedAndFilteredCampaigns.length);
   console.log("CampaignGrid - Filtered campaign details:", sortedAndFilteredCampaigns);
