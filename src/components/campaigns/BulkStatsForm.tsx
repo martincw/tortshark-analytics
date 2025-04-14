@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,15 +59,15 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   };
 
   const handleSelectCampaign = (campaignId: string) => {
-    // Fix: Use boolean negation to ensure we get a boolean value
-    const isCurrentlySelected = Boolean(selectedCampaigns[campaignId]);
+    // Use strict equality check instead of truthy check
+    const isSelected = selectedCampaigns[campaignId] === true;
     
     setSelectedCampaigns(prev => ({
       ...prev,
-      [campaignId]: !isCurrentlySelected
+      [campaignId]: !isSelected
     }));
     
-    if (!isCurrentlySelected) {
+    if (!isSelected) {
       initializeWeeklyStats(campaignId);
       fetchExistingStats(campaignId);
     }
@@ -330,7 +331,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                   <div className="col-span-2 flex items-center space-x-2">
                     <Checkbox
                       id={`select-${campaign.id}`}
-                      checked={selectedCampaigns[campaign.id] || false}
+                      checked={selectedCampaigns[campaign.id] === true}
                       onCheckedChange={() => handleSelectCampaign(campaign.id)}
                     />
                     <label htmlFor={`select-${campaign.id}`} className="font-medium">
