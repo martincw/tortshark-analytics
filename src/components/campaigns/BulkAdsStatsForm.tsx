@@ -33,20 +33,22 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [loading, setLoading] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
-  const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
-  const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
+  const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); 
+  const [activeDay, setActiveDay] = useState<string>("0");
   
-  // Generate dates for the week
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
   const handleSelectAll = () => {
-    const allSelected = campaigns.length > 0 && campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
+    // Ensure campaigns exist and explicitly check length
+    const areAllSelected = campaigns.length > 0 && 
+      campaigns.every(campaign => selectedCampaigns[campaign.id] === true);
+    
     const newSelected: Record<string, boolean> = {};
     
     campaigns.forEach(campaign => {
-      newSelected[campaign.id] = !allSelected;
+      newSelected[campaign.id] = !areAllSelected;
       
-      if (!allSelected) {
+      if (!areAllSelected) {
         initializeWeeklyStats(campaign.id);
         fetchExistingStats(campaign.id);
       }
