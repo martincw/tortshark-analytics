@@ -8,12 +8,18 @@ import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, ArrowRight, DollarSign, Users, Flag, TrendingUp } from "lucide-react";
+import { 
+  InfoIcon, ArrowRight, DollarSign, Users, FileCheck, TrendingUp, 
+  Clock, FileText, Wallet, Target, Calendar, PlusCircle, BarChart3
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatPercent, formatNumber } from "@/utils/campaignUtils";
+import { formatCurrency, formatPercent, formatNumber, getTrendDirection } from "@/utils/campaignUtils";
 import { StatCard } from "@/components/ui/stat-card";
+import { BadgeStat } from "@/components/ui/badge-stat";
+import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
+import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
 
 const Index = () => {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
@@ -71,6 +77,36 @@ const Index = () => {
     const leadProgress = totalTargetRetainers > 0 ? Math.min(100, (totalCases / totalTargetRetainers) * 100) : 0;
     const spendProgress = totalTargetSpend > 0 ? Math.min(100, (totalAdSpend / totalTargetSpend) * 100) : 0;
     const revenueProgress = totalTargetIncome > 0 ? Math.min(100, (totalRevenue / totalTargetIncome) * 100) : 0;
+    const roiProgress = 200 > 0 ? Math.min(100, (roi / 200) * 100) : 0;
+    const profitProgress = totalTargetIncome > 0 ? Math.min(100, (profit / (totalTargetIncome * 0.5)) * 100) : 0;
+    
+    // Get variant classes for progress bars
+    const getRoiVariant = () => {
+      if (roiProgress >= 100) return "success";
+      if (roiProgress >= 70) return "warning";
+      return "error";
+    };
+    
+    const getCasesVariant = () => {
+      if (leadProgress >= 100) return "success";
+      if (leadProgress >= 70) return "warning";
+      return "error";
+    };
+    
+    const getProfitVariant = () => {
+      if (profitProgress >= 100) return "success";
+      if (profitProgress >= 70) return "warning";
+      return "error";
+    };
+    
+    const profitPerCase = totalCases > 0 ? profit / totalCases : 0;
+    
+    // Get color class based on ROI
+    const getRoiClass = () => {
+      if (roi > 200) return "text-success-DEFAULT";
+      if (roi > 0) return "text-secondary"; 
+      return "text-error-DEFAULT";
+    };
     
     return {
       totalLeads,
@@ -87,7 +123,14 @@ const Index = () => {
       revenueProgress,
       totalTargetRetainers,
       totalTargetSpend,
-      totalTargetIncome
+      totalTargetIncome,
+      roiProgress,
+      profitProgress,
+      profitPerCase,
+      getRoiVariant,
+      getCasesVariant,
+      getProfitVariant,
+      getRoiClass
     };
   }, [campaigns, selectedCampaignIds]);
 
@@ -127,64 +170,341 @@ const Index = () => {
 
           <TabsContent value="overview" className="space-y-6">
             {aggregatedMetrics && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard 
-                  title="Total Revenue" 
-                  value={formatCurrency(aggregatedMetrics.totalRevenue)}
-                  description={`${formatPercent(aggregatedMetrics.revenueProgress)} of target`}
-                  icon={<DollarSign className="h-5 w-5" />}
-                  trend={aggregatedMetrics.revenueProgress >= 50 ? "up" : "neutral"}
-                  trendValue={`Target: ${formatCurrency(aggregatedMetrics.totalTargetIncome)}`}
-                  isHighlighted={true}
-                />
-                <StatCard 
-                  title="Total Ad Spend" 
-                  value={formatCurrency(aggregatedMetrics.totalAdSpend)}
-                  description={`${formatPercent(aggregatedMetrics.spendProgress)} of budget`}
-                  icon={<TrendingUp className="h-5 w-5" />}
-                  trend={aggregatedMetrics.spendProgress <= 90 ? "neutral" : "down"}
-                  trendValue={`Budget: ${formatCurrency(aggregatedMetrics.totalTargetSpend)}`}
-                />
-                <StatCard 
-                  title="Total Profit" 
-                  value={formatCurrency(aggregatedMetrics.profit)}
-                  description={`${formatPercent(aggregatedMetrics.profitMargin)} margin`}
-                  icon={<DollarSign className="h-5 w-5" />}
-                  trend={aggregatedMetrics.profit > 0 ? "up" : "down"}
-                  trendValue={aggregatedMetrics.profit > 0 ? "Profitable" : "Loss"}
-                  valueClassName={aggregatedMetrics.profit > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
-                />
+              <div className="bg-gradient-to-br from-card/90 to-accent/10 rounded-xl p-6 shadow-md border">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="h-6 w-6 text-primary opacity-80" />
+                      <h3 className="text-lg font-semibold">Financial Overview</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-muted-foreground block">Revenue</span>
+                        <span className="text-2xl font-bold">{formatCurrency(aggregatedMetrics.totalRevenue)}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">Ad Spend</span>
+                        <span className="text-2xl font-bold">{formatCurrency(aggregatedMetrics.totalAdSpend)}</span>
+                      </div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t">
+                      <div className="flex justify-between mb-2">
+                        <span className="font-medium">Profit</span>
+                        <span className={`font-bold ${aggregatedMetrics.getRoiClass()}`}>{formatCurrency(aggregatedMetrics.profit)}</span>
+                      </div>
+                      <CustomProgressBar
+                        value={aggregatedMetrics.profitProgress}
+                        variant={aggregatedMetrics.getProfitVariant()}
+                        size="md"
+                        showValue
+                        valuePosition="right"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="h-6 w-6 text-primary opacity-80" />
+                      <h3 className="text-lg font-semibold">Case Acquisition</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-muted-foreground block">Leads</span>
+                        <span className="text-2xl font-bold">{formatNumber(aggregatedMetrics.totalLeads)}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">Cases</span>
+                        <span className="text-2xl font-bold">{formatNumber(aggregatedMetrics.totalCases)}</span>
+                      </div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t">
+                      <div className="flex justify-between mb-2">
+                        <span className="font-medium">Target Cases</span>
+                        <span className="font-bold">{aggregatedMetrics.totalCases} of {aggregatedMetrics.totalTargetRetainers}</span>
+                      </div>
+                      <CustomProgressBar
+                        value={aggregatedMetrics.leadProgress}
+                        variant={aggregatedMetrics.getCasesVariant()}
+                        size="md"
+                        showValue
+                        valuePosition="right"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="h-6 w-6 text-primary opacity-80" />
+                      <h3 className="text-lg font-semibold">ROI Performance</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-muted-foreground block">ROI</span>
+                        <span className={`text-2xl font-bold ${aggregatedMetrics.getRoiClass()}`}>{aggregatedMetrics.roi.toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">Profit Per Case</span>
+                        <span className={`text-2xl font-bold ${aggregatedMetrics.profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+                          {formatCurrency(aggregatedMetrics.profitPerCase)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t">
+                      <div className="flex justify-between mb-2">
+                        <span className="font-medium">Target ROI</span>
+                        <span className="font-bold">{aggregatedMetrics.roi.toFixed(1)}% of 200%</span>
+                      </div>
+                      <CustomProgressBar
+                        value={aggregatedMetrics.roiProgress}
+                        variant={aggregatedMetrics.getRoiVariant()}
+                        size="md"
+                        showValue
+                        valuePosition="right"
+                      />
+                    </div>
+                  </div>
+                
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 pt-4 border-t md:col-span-3">
+                    <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+                      <Clock className="h-5 w-5 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">Cost Per Lead</span>
+                      <span className={`text-xl font-semibold ${aggregatedMetrics.cpl > 50 ? "text-warning-DEFAULT" : ""}`}>
+                        {formatCurrency(aggregatedMetrics.cpl)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+                      <FileText className="h-5 w-5 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">Cost Per Case</span>
+                      <span className="text-xl font-semibold">
+                        {formatCurrency(aggregatedMetrics.cpa)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+                      <Wallet className="h-5 w-5 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">Earnings Per Lead</span>
+                      <span className="text-xl font-semibold">
+                        {aggregatedMetrics.totalLeads > 0 
+                          ? formatCurrency(aggregatedMetrics.totalRevenue / aggregatedMetrics.totalLeads) 
+                          : "$0.00"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
+                      <Target className="h-5 w-5 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">Conversion Rate</span>
+                      <span className="text-xl font-semibold">
+                        {aggregatedMetrics.totalLeads > 0 
+                          ? `${((aggregatedMetrics.totalCases / aggregatedMetrics.totalLeads) * 100).toFixed(1)}%` 
+                          : "0%"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
             {aggregatedMetrics && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard 
-                  title="ROI" 
-                  value={formatPercent(aggregatedMetrics.roi)}
-                  icon={<TrendingUp className="h-4 w-4" />}
-                  valueClassName={aggregatedMetrics.roi >= 200 ? "text-success-DEFAULT" : 
-                                 aggregatedMetrics.roi >= 100 ? "text-secondary" : "text-error-DEFAULT"}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard
+                  title="Return on Investment"
+                  value={`${aggregatedMetrics.roi.toFixed(1)}%`}
+                  icon={<Target className="h-5 w-5" />}
+                  trend={aggregatedMetrics.roi > 0 ? "up" : "down"}
+                  trendValue={aggregatedMetrics.roi > 200 ? "Excellent" : aggregatedMetrics.roi > 100 ? "Good" : aggregatedMetrics.roi > 0 ? "Positive" : "Needs Attention"}
+                  className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
+                  isHighlighted={true}
+                  valueClassName={aggregatedMetrics.getRoiClass()}
                 />
-                <StatCard 
-                  title="Total Leads" 
-                  value={formatNumber(aggregatedMetrics.totalLeads)}
-                  icon={<Users className="h-4 w-4" />}
+                
+                <StatCard
+                  title="Total Profit"
+                  value={formatCurrency(aggregatedMetrics.profit)}
+                  icon={<DollarSign className="h-5 w-5" />}
+                  trend={aggregatedMetrics.profit > 0 ? "up" : "down"}
+                  trendValue={aggregatedMetrics.profit > 5000 ? "High Performer" : aggregatedMetrics.profit > 0 ? "Profitable" : "Loss"}
+                  className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
+                  isHighlighted={true}
+                  valueClassName={aggregatedMetrics.getRoiClass()}
                 />
-                <StatCard 
-                  title="Total Cases" 
-                  value={formatNumber(aggregatedMetrics.totalCases)}
-                  description={`${formatPercent(aggregatedMetrics.leadProgress)} of target`}
-                  icon={<Flag className="h-4 w-4" />}
-                />
-                <StatCard 
-                  title="Case Cost (CPA)" 
-                  value={formatCurrency(aggregatedMetrics.cpa)}
-                  description={`Lead Cost: ${formatCurrency(aggregatedMetrics.cpl)}`}
-                  icon={<DollarSign className="h-4 w-4" />}
+                
+                <StatCard
+                  title="Profit Per Case"
+                  value={formatCurrency(aggregatedMetrics.profitPerCase)}
+                  icon={<FileCheck className="h-5 w-5" />}
+                  trend={aggregatedMetrics.profitPerCase > 0 ? "up" : "down"}
+                  trendValue={aggregatedMetrics.profitPerCase > 500 ? "Excellent" : "Average"}
+                  className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
+                  isHighlighted={true}
+                  valueClassName={aggregatedMetrics.profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
                 />
               </div>
             )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {aggregatedMetrics && (
+                <Card className="shadow-md border-accent/30 overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
+                    <CardTitle className="text-lg font-medium flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      Performance Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Ad Spend</span>
+                        <span className="text-xl font-semibold">{formatCurrency(aggregatedMetrics.totalAdSpend)}</span>
+                      </div>
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
+                        <span className="text-xl font-semibold">{formatCurrency(aggregatedMetrics.totalRevenue)}</span>
+                      </div>
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Leads</span>
+                        <span className="text-xl font-semibold">{formatNumber(aggregatedMetrics.totalLeads)}</span>
+                      </div>
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Cases</span>
+                        <span className="text-xl font-semibold">{formatNumber(aggregatedMetrics.totalCases)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-4 border-t">
+                      <h4 className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">Key Metrics</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <BadgeStat
+                          label="Cost Per Lead"
+                          value={formatCurrency(aggregatedMetrics.cpl)}
+                          className="bg-background/50"
+                        />
+                        <BadgeStat
+                          label="Cost Per Case"
+                          value={formatCurrency(aggregatedMetrics.cpa)}
+                          className="bg-background/50"
+                        />
+                        <BadgeStat
+                          label="Lead to Case Ratio"
+                          value={`${aggregatedMetrics.totalLeads > 0 ? ((aggregatedMetrics.totalCases / aggregatedMetrics.totalLeads) * 100).toFixed(1) : "0"}%`}
+                          className="bg-background/50"
+                        />
+                        <BadgeStat
+                          label="Avg. Revenue Per Case"
+                          value={aggregatedMetrics.totalCases > 0 
+                            ? formatCurrency(aggregatedMetrics.totalRevenue / aggregatedMetrics.totalCases) 
+                            : "$0.00"}
+                          className="bg-background/50"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {aggregatedMetrics && (
+                <Card className="shadow-md border-accent/30 overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
+                    <CardTitle className="text-lg font-medium flex items-center gap-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      Target Progress
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Cases Target</span>
+                        <span className="text-xl font-semibold">{formatNumber(aggregatedMetrics.totalTargetRetainers)}</span>
+                      </div>
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Target Ad Spend</span>
+                        <span className="text-xl font-semibold">{formatCurrency(aggregatedMetrics.totalTargetSpend)}</span>
+                      </div>
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Target Revenue</span>
+                        <span className="text-xl font-semibold">{formatCurrency(aggregatedMetrics.totalTargetIncome)}</span>
+                      </div>
+                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                        <span className="text-sm text-muted-foreground block mb-1">Target ROI</span>
+                        <span className="text-xl font-semibold">200%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 bg-gradient-to-br from-background to-accent/10 rounded-lg p-6 border shadow-sm">
+                      <h4 className="text-sm font-medium mb-4 text-muted-foreground uppercase tracking-wider">Performance vs. Targets</h4>
+                      
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium flex items-center gap-1">
+                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                              ROAS
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={aggregatedMetrics.roi >= 200 ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
+                                {aggregatedMetrics.roi.toFixed(1)}%
+                              </span>
+                              <span className="text-muted-foreground text-xs">vs 200%</span>
+                            </div>
+                          </div>
+                          <CustomProgressBar 
+                            value={aggregatedMetrics.roiProgress} 
+                            variant={aggregatedMetrics.getRoiVariant()} 
+                            size="md" 
+                            showValue 
+                            valuePosition="inside"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium flex items-center gap-1">
+                              <FileCheck className="h-4 w-4 text-muted-foreground" />
+                              Cases
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={aggregatedMetrics.totalCases >= aggregatedMetrics.totalTargetRetainers ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
+                                {aggregatedMetrics.totalCases}
+                              </span>
+                              <span className="text-muted-foreground text-xs">vs {aggregatedMetrics.totalTargetRetainers}</span>
+                            </div>
+                          </div>
+                          <CustomProgressBar 
+                            value={aggregatedMetrics.leadProgress} 
+                            variant={aggregatedMetrics.getCasesVariant()} 
+                            size="md" 
+                            showValue 
+                            valuePosition="inside"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium flex items-center gap-1">
+                              <DollarSign className="h-4 w-4 text-muted-foreground" />
+                              Profit
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={aggregatedMetrics.profit >= aggregatedMetrics.totalTargetIncome * 0.5 ? "text-success-DEFAULT font-bold" : "text-error-DEFAULT font-bold"}>
+                                {formatCurrency(aggregatedMetrics.profit)}
+                              </span>
+                              <span className="text-muted-foreground text-xs">vs {formatCurrency(aggregatedMetrics.totalTargetIncome * 0.5)}</span>
+                            </div>
+                          </div>
+                          <CustomProgressBar 
+                            value={aggregatedMetrics.profitProgress} 
+                            variant={aggregatedMetrics.getProfitVariant()} 
+                            size="md" 
+                            showValue 
+                            valuePosition="inside"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
