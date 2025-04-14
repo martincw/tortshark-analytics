@@ -128,8 +128,18 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           const dateKey = format(date, "yyyy-MM-dd");
           const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
           
+          // First check if an entry already exists for this campaign/date
+          const { data: existingData, error: checkError } = await supabase
+            .from('campaign_stats_history')
+            .select('id')
+            .eq('campaign_id', campaignId)
+            .eq('date', dateKey)
+            .maybeSingle();
+            
+          const id = existingData?.id || uuidv4();
+          
           allStatsToAdd.push({
-            id: uuidv4(),
+            id: id,
             campaign_id: campaignId,
             date: dateKey,
             leads: dayStats.leads || 0,
@@ -142,11 +152,11 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
-      // We need to specify the conflict columns explicitly
+      // Use id for conflict resolution, which is the primary key
       const { error } = await supabase
         .from('campaign_stats_history')
         .upsert(allStatsToAdd, { 
-          onConflict: 'campaign_id,date',
+          onConflict: 'id',
           ignoreDuplicates: false
         });
         
@@ -159,26 +169,37 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       
       // Update current stats with the most recent day's data
       const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
-      const manualStatsToAdd = selectedCampaignIds.map(campaignId => {
+      const manualStatsToAdd = [];
+      
+      for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
         
-        return {
-          id: uuidv4(),
+        // Check if an entry already exists
+        const { data: existingManual, error: manualCheckError } = await supabase
+          .from('campaign_manual_stats')
+          .select('id')
+          .eq('campaign_id', campaignId)
+          .maybeSingle();
+          
+        const manualId = existingManual?.id || uuidv4();
+        
+        manualStatsToAdd.push({
+          id: manualId,
           campaign_id: campaignId,
           date: recentDateKey,
           leads: recentStats.leads || 0,
           cases: recentStats.cases || 0,
           retainers: recentStats.cases || 0, // Set retainers equal to cases
           revenue: recentStats.revenue || 0
-        };
-      });
+        });
+      }
       
-      // Here too, specify the conflict column
+      // Use id for conflict resolution
       const { error: manualError } = await supabase
         .from('campaign_manual_stats')
         .upsert(manualStatsToAdd, { 
-          onConflict: 'campaign_id',
+          onConflict: 'id',
           ignoreDuplicates: false
         });
         

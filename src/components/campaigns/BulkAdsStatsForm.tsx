@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -160,7 +161,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             .select('id')
             .eq('campaign_id', campaignId)
             .eq('date', dateKey)
-            .single();
+            .maybeSingle();
             
           if (checkError && checkError.code !== 'PGRST116') {
             console.error(`Error checking stats for ${campaignId} on ${dateKey}:`, checkError);
@@ -202,26 +203,37 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       // Process campaign_stats updates for ad metrics
       // Use the most recent day's data for current stats
       const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
-      const adsStatsToAdd = selectedCampaignIds.map(campaignId => {
+      const adsStatsToAdd = [];
+      
+      for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
-        return {
-          id: uuidv4(),
+        // Check if an entry already exists
+        const { data: existingStats, error: statsCheckError } = await supabase
+          .from('campaign_stats')
+          .select('id')
+          .eq('campaign_id', campaignId)
+          .maybeSingle();
+          
+        const statsId = existingStats?.id || uuidv4();
+        
+        adsStatsToAdd.push({
+          id: statsId,
           campaign_id: campaignId,
           date: recentDateKey,
           ad_spend: recentStats.adSpend || 0,
           impressions: recentStats.impressions || 0,
           clicks: recentStats.clicks || 0,
           cpc: recentStats.cpc || 0
-        };
-      });
+        });
+      }
       
-      // Specify the conflict column here too
+      // Use id for conflict resolution
       const { error: statsError } = await supabase
         .from('campaign_stats')
         .upsert(adsStatsToAdd, { 
-          onConflict: 'campaign_id',
+          onConflict: 'id',
           ignoreDuplicates: false
         });
         
