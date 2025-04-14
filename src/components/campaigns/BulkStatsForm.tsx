@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,7 +33,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const [loading, setLoading] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
-  const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({}); 
+  const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({});
   const [activeDay, setActiveDay] = useState<string>("0");
   
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
@@ -59,14 +58,15 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   };
 
   const handleSelectCampaign = (campaignId: string) => {
-    const currentValue = selectedCampaigns[campaignId] ?? false;
+    // Fix: Use boolean negation to ensure we get a boolean value
+    const isCurrentlySelected = Boolean(selectedCampaigns[campaignId]);
     
     setSelectedCampaigns(prev => ({
       ...prev,
-      [campaignId]: !currentValue
+      [campaignId]: !isCurrentlySelected
     }));
     
-    if (!currentValue) {
+    if (!isCurrentlySelected) {
       initializeWeeklyStats(campaignId);
       fetchExistingStats(campaignId);
     }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,14 +57,15 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   };
 
   const handleSelectCampaign = (campaignId: string) => {
-    const currentValue = selectedCampaigns[campaignId] ?? false;
+    // Fix: Use boolean negation to ensure we get a boolean value
+    const isCurrentlySelected = Boolean(selectedCampaigns[campaignId]);
     
     setSelectedCampaigns(prev => ({
       ...prev,
-      [campaignId]: !currentValue
+      [campaignId]: !isCurrentlySelected
     }));
     
-    if (!currentValue) {
+    if (!isCurrentlySelected) {
       initializeWeeklyStats(campaignId);
       fetchExistingStats(campaignId);
     }
