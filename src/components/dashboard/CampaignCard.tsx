@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +23,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -43,6 +43,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     adSpend: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
   const handleViewDetails = () => {
     console.log("Navigating to campaign details for campaign ID:", campaign.id);
@@ -62,9 +63,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       return;
     }
     
+    const dateToUse = new Date(selectedDate);
+    dateToUse.setHours(12, 0, 0, 0);
+    
     console.log("Adding quick stats:", {
       campaignId: campaign.id,
-      date: selectedDate.toISOString(),
+      date: dateToUse.toISOString(),
       leads: newLeads,
       cases: newCases,
       retainers: newRetainers,
@@ -73,7 +77,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     });
     
     addStatHistoryEntry(campaign.id, {
-      date: selectedDate.toISOString(),
+      date: dateToUse.toISOString(),
       leads: newLeads, 
       cases: newCases,
       retainers: newRetainers,
@@ -83,7 +87,14 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     
     setIsQuickEntryOpen(false);
     setQuickStats({ leads: "0", cases: "0", retainers: "0", revenue: "0", adSpend: "0" });
-    toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
+    toast.success(`Stats for ${format(dateToUse, "MMM d, yyyy")} added successfully`);
+  };
+
+  const onCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setCalendarOpen(false);
+    }
   };
 
   const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
@@ -123,11 +134,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     return "error";
   };
 
-  // Calculate CPL (Cost Per Lead) and EPL (Earnings Per Lead)
   const costPerLead = campaign.manualStats.leads > 0 ? campaign.stats.adSpend / campaign.manualStats.leads : 0;
   const earningsPerLead = campaign.manualStats.leads > 0 ? campaign.manualStats.revenue / campaign.manualStats.leads : 0;
   
-  // Calculate profit per case
   const profitPerCase = campaign.manualStats.cases > 0 
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
@@ -208,7 +217,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             </div>
           </div>
           
-          {/* CPL and EPL stats */}
           <div className="grid grid-cols-2 gap-4 mb-2 border-t pt-2">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -279,7 +287,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 Date
               </Label>
               <div className="col-span-3">
-                <Popover>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       id="date-picker"
@@ -298,19 +306,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-1">
-                      <input
-                        type="date"
-                        className="form-input w-full p-2 rounded-md border"
-                        value={format(selectedDate, "yyyy-MM-dd")}
-                        onChange={(e) => {
-                          const date = new Date(e.target.value);
-                          if (!isNaN(date.getTime())) {
-                            setSelectedDate(date);
-                          }
-                        }}
-                      />
-                    </div>
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={onCalendarSelect}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
