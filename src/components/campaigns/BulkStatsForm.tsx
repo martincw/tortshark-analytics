@@ -134,7 +134,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             date: dateKey,
             leads: dayStats.leads || 0,
             cases: dayStats.cases || 0,
-            retainers: dayStats.cases || 0, // Set retainers equal to cases in the database
+            retainers: dayStats.cases || 0, // Set retainers equal to cases
             revenue: dayStats.revenue || 0,
             ad_spend: dayStats.adSpend || 0,
             created_at: new Date().toISOString()
@@ -142,7 +142,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
-      // Insert all stats at once
+      // We need to specify the conflict columns explicitly
       const { error } = await supabase
         .from('campaign_stats_history')
         .upsert(allStatsToAdd, { 
@@ -174,6 +174,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         };
       });
       
+      // Here too, specify the conflict column
       const { error: manualError } = await supabase
         .from('campaign_manual_stats')
         .upsert(manualStatsToAdd, { 
@@ -300,7 +301,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                     onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
                     disabled={!selectedCampaigns[campaign.id]}
                     placeholder="0"
-                    className="border-primary/30 focus-visible:ring-primary/70"
                   />
                 </div>
               </div>

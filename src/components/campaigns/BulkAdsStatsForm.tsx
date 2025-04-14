@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -218,6 +217,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         };
       });
       
+      // Specify the conflict column here too
       const { error: statsError } = await supabase
         .from('campaign_stats')
         .upsert(adsStatsToAdd, { 
@@ -366,4 +366,3 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     </div>
   );
 };
-
