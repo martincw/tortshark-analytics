@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const { campaigns } = useCampaign();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
@@ -47,6 +48,9 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       
       if (!allSelected && !weeklyStatsData[campaign.id]) {
         initializeWeeklyStats(campaign.id);
+        if (!weeklyStatsData[campaign.id]) {
+          fetchExistingStats(campaign.id);
+        }
       }
     });
     
@@ -61,6 +65,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     
     if (!selectedCampaigns[campaignId] && !weeklyStatsData[campaignId]) {
       initializeWeeklyStats(campaignId);
+      fetchExistingStats(campaignId);
     }
   };
 
@@ -76,6 +81,95 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       ...prev,
       [campaignId]: emptyWeekStats
     }));
+  };
+
+  const fetchExistingStats = async (campaignId: string) => {
+    if (!user) return;
+    
+    setLoadingStats(true);
+    
+    try {
+      // Prepare date strings for the week
+      const dateStrings = weekDates.map(date => format(date, "yyyy-MM-dd"));
+      
+      // First, fetch ad spend data from campaign_stats_history
+      const { data: historyData, error: historyError } = await supabase
+        .from('campaign_stats_history')
+        .select('date, ad_spend')
+        .eq('campaign_id', campaignId)
+        .in('date', dateStrings);
+        
+      if (historyError) {
+        console.error("Error fetching ad spend stats:", historyError);
+      }
+      
+      // Then, fetch impressions, clicks, CPC from campaign_stats (for records that match our date range)
+      const { data: statsData, error: statsError } = await supabase
+        .from('campaign_stats')
+        .select('id, date, ad_spend, impressions, clicks, cpc')
+        .eq('campaign_id', campaignId)
+        .in('date', dateStrings);
+        
+      if (statsError) {
+        console.error("Error fetching ad metrics:", statsError);
+      }
+      
+      // Merge all the data into our weekly stats
+      setWeeklyStatsData(prev => {
+        const campaignStats = { ...prev[campaignId] } || {};
+        
+        // First apply the ad_spend from history data
+        if (historyData && historyData.length > 0) {
+          historyData.forEach(stat => {
+            const dateKey = format(new Date(stat.date), "yyyy-MM-dd");
+            if (campaignStats[dateKey]) {
+              campaignStats[dateKey] = {
+                ...campaignStats[dateKey],
+                adSpend: stat.ad_spend || 0
+              };
+            } else {
+              campaignStats[dateKey] = {
+                adSpend: stat.ad_spend || 0,
+                impressions: 0,
+                clicks: 0,
+                cpc: 0
+              };
+            }
+          });
+        }
+        
+        // Then apply the stats data (overriding ad_spend and adding other metrics)
+        if (statsData && statsData.length > 0) {
+          statsData.forEach(stat => {
+            const dateKey = format(new Date(stat.date), "yyyy-MM-dd");
+            if (campaignStats[dateKey]) {
+              campaignStats[dateKey] = {
+                adSpend: stat.ad_spend || campaignStats[dateKey].adSpend || 0,
+                impressions: stat.impressions || 0,
+                clicks: stat.clicks || 0,
+                cpc: stat.cpc || 0
+              };
+            } else {
+              campaignStats[dateKey] = {
+                adSpend: stat.ad_spend || 0,
+                impressions: stat.impressions || 0,
+                clicks: stat.clicks || 0,
+                cpc: stat.cpc || 0
+              };
+            }
+          });
+        }
+        
+        return {
+          ...prev,
+          [campaignId]: campaignStats
+        };
+      });
+    } catch (err) {
+      console.error("Error fetching existing stats:", err);
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
   const handleInputChange = (campaignId: string, dateKey: string, field: string, value: string) => {
@@ -207,26 +301,32 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        const recentStats = campaignWeeklyStats[recentDateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
-        // Check if an entry already exists
-        const { data: existingStats, error: statsCheckError } = await supabase
-          .from('campaign_stats')
-          .select('id')
-          .eq('campaign_id', campaignId)
-          .maybeSingle();
+        // For each date in the week, add or update campaign_stats
+        for (const date of weekDates) {
+          const dateKey = format(date, "yyyy-MM-dd");
+          const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
           
-        const statsId = existingStats?.id || uuidv4();
-        
-        adsStatsToAdd.push({
-          id: statsId,
-          campaign_id: campaignId,
-          date: recentDateKey,
-          ad_spend: recentStats.adSpend || 0,
-          impressions: recentStats.impressions || 0,
-          clicks: recentStats.clicks || 0,
-          cpc: recentStats.cpc || 0
-        });
+          // Check if an entry already exists for this day
+          const { data: existingStats, error: statsCheckError } = await supabase
+            .from('campaign_stats')
+            .select('id')
+            .eq('campaign_id', campaignId)
+            .eq('date', dateKey)
+            .maybeSingle();
+            
+          const statsId = existingStats?.id || uuidv4();
+          
+          adsStatsToAdd.push({
+            id: statsId,
+            campaign_id: campaignId,
+            date: dateKey,
+            ad_spend: dayStats.adSpend || 0,
+            impressions: dayStats.impressions || 0,
+            clicks: dayStats.clicks || 0,
+            cpc: dayStats.cpc || 0
+          });
+        }
       }
       
       // Use id for conflict resolution
@@ -291,86 +391,90 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
-          <div className="col-span-2">Campaign</div>
-          <div className="col-span-1 text-center">Ad Spend ($)</div>
-          <div className="col-span-1 text-center">Impressions</div>
-          <div className="col-span-1 text-center">Clicks</div>
-          <div className="col-span-1 text-center">CPC ($)</div>
-        </div>
+      {loadingStats ? (
+        <div className="text-center py-4">Loading existing stats...</div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
+            <div className="col-span-2">Campaign</div>
+            <div className="col-span-1 text-center">Ad Spend ($)</div>
+            <div className="col-span-1 text-center">Impressions</div>
+            <div className="col-span-1 text-center">Clicks</div>
+            <div className="col-span-1 text-center">CPC ($)</div>
+          </div>
 
-        {campaigns.map((campaign) => (
-          <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-6 gap-4 items-center">
-                <div className="col-span-2 flex items-center space-x-2">
-                  <Checkbox
-                    id={`select-ads-${campaign.id}`}
-                    checked={selectedCampaigns[campaign.id] || false}
-                    onCheckedChange={() => handleSelectCampaign(campaign.id)}
-                  />
-                  <label htmlFor={`select-ads-${campaign.id}`} className="font-medium">
-                    {campaign.name}
-                  </label>
+          {campaigns.map((campaign) => (
+            <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-6 gap-4 items-center">
+                  <div className="col-span-2 flex items-center space-x-2">
+                    <Checkbox
+                      id={`select-ads-${campaign.id}`}
+                      checked={selectedCampaigns[campaign.id] || false}
+                      onCheckedChange={() => handleSelectCampaign(campaign.id)}
+                    />
+                    <label htmlFor={`select-ads-${campaign.id}`} className="font-medium">
+                      {campaign.name}
+                    </label>
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
+                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
+                      disabled={!selectedCampaigns[campaign.id]}
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.impressions || ''}
+                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'impressions', e.target.value)}
+                      disabled={!selectedCampaigns[campaign.id]}
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.clicks || ''}
+                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'clicks', e.target.value)}
+                      disabled={!selectedCampaigns[campaign.id]}
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cpc || ''}
+                      onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cpc', e.target.value)}
+                      disabled={!selectedCampaigns[campaign.id]}
+                      placeholder="0"
+                      readOnly
+                    />
+                  </div>
                 </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.impressions || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'impressions', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.clicks || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'clicks', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cpc || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cpc', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                    readOnly
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="flex justify-end">
         <Button 
           onClick={handleSubmit} 
-          disabled={loading || Object.values(selectedCampaigns).filter(Boolean).length === 0}
+          disabled={loading || loadingStats || Object.values(selectedCampaigns).filter(Boolean).length === 0}
         >
           {loading ? "Saving..." : "Save All Ad Stats"}
         </Button>
