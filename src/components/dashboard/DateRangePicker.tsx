@@ -17,9 +17,10 @@ import { toast } from "sonner";
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
   
-  // Fix: Use noon time to avoid timezone issues
+  // Set time to noon to avoid timezone issues
   const fixDate = (dateStr: string): Date => {
     const date = new Date(dateStr);
+    // Force noon time to avoid any date shifting issues
     date.setHours(12, 0, 0, 0);
     return date;
   };
@@ -34,14 +35,16 @@ export function DateRangePicker() {
   
   // Update local state when dateRange prop changes
   useEffect(() => {
-    setDate({
-      from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
-      to: dateRange.endDate ? fixDate(dateRange.endDate) : undefined,
-    });
-    setTempDate({
-      from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
-      to: dateRange.endDate ? fixDate(dateRange.endDate) : undefined,
-    });
+    if (dateRange.startDate && dateRange.endDate) {
+      setDate({
+        from: fixDate(dateRange.startDate),
+        to: fixDate(dateRange.endDate),
+      });
+      setTempDate({
+        from: fixDate(dateRange.startDate),
+        to: fixDate(dateRange.endDate),
+      });
+    }
   }, [dateRange]);
   
   // Save dateRange to localStorage when it changes
@@ -59,28 +62,32 @@ export function DateRangePicker() {
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    // Fix for date offset issue - ensure we're saving the exact date selected
-    // by forcing the time to noon to avoid timezone issues
+    // Create dates at noon to avoid timezone issues
     const fromDate = new Date(tempDate.from);
     fromDate.setHours(12, 0, 0, 0);
     
+    // If no end date is selected, use the same day as the start date
     const toDate = tempDate.to ? new Date(tempDate.to) : new Date(fromDate);
     toDate.setHours(12, 0, 0, 0);
     
-    const newRange = {
-      startDate: format(fromDate, 'yyyy-MM-dd'),
-      endDate: format(toDate, 'yyyy-MM-dd'),
-    };
+    // Format dates as ISO strings to be consistent
+    const formattedStartDate = format(fromDate, 'yyyy-MM-dd');
+    const formattedEndDate = format(toDate, 'yyyy-MM-dd');
     
+    // Update local component state
     setDate({
       from: fromDate,
       to: toDate
     });
     
-    // Force reload of campaign data by creating a new object reference
-    const newRangeObj = {...newRange};
-    console.log('Setting new date range:', newRangeObj);
-    setDateRange(newRangeObj);
+    // Create a new object reference to trigger re-renders in dependent components
+    const newDateRange = {
+      startDate: formattedStartDate,
+      endDate: formattedEndDate,
+    };
+    
+    console.log('Setting new date range:', newDateRange);
+    setDateRange(newDateRange);
     setIsPopoverOpen(false);
     toast.success("Date range updated");
   };

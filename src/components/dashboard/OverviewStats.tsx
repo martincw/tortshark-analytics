@@ -37,10 +37,9 @@ const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue,
 export function OverviewStats() {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
   
-  // Calculate dashboard metrics based on selected campaigns or all campaigns
-  // Use dateRange in dependency array to recalculate when it changes
+  // Calculate dashboard metrics based on selected campaigns and date range
   const dashboardMetrics = useMemo(() => {
-    // If we have selected campaigns, use those, otherwise use all campaigns
+    // Filter campaigns based on selection
     const filteredCampaigns = selectedCampaignIds.length > 0
       ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
       : campaigns;
@@ -55,9 +54,15 @@ export function OverviewStats() {
       };
     }
     
-    // Filter stats by date range
+    // Parse date strings to Date objects for filtering
     const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
     const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+    
+    // Set times to start/end of day to ensure full day coverage
+    if (startDate) startDate.setHours(0, 0, 0, 0);
+    if (endDate) endDate.setHours(23, 59, 59, 999);
+
+    console.log(`OverviewStats filtering by date range: ${startDate?.toISOString()} to ${endDate?.toISOString()}`);
 
     // Calculate aggregate metrics across campaigns
     let totalLeads = 0;
@@ -76,6 +81,8 @@ export function OverviewStats() {
           return isWithinInterval(statDate, { start: startDate, end: endDate });
         });
         
+        console.log(`Campaign ${campaign.name}: Found ${filteredStats.length} stats entries in date range`);
+        
         // Aggregate filtered stats
         totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
         totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
@@ -93,6 +100,8 @@ export function OverviewStats() {
       
       totalBudget += campaign.targets.monthlySpend || 0;
     });
+    
+    console.log(`OverviewStats metrics for date range: Leads=${totalLeads}, Cases=${totalCases}, Revenue=${totalRevenue}, AdSpend=${totalAdSpend}`);
     
     // Calculate metrics
     const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;

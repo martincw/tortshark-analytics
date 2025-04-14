@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import {
   ChartContainer,
@@ -30,10 +31,15 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
   const chartData = useMemo(() => {
     // Use the selected date range if available, otherwise use the last 4 weeks
     const hasDateRange = dateRange.startDate && dateRange.endDate;
-    const endDateForCalc = hasDateRange ? new Date(dateRange.endDate) : new Date();
-    const startDateForCalc = hasDateRange ? new Date(dateRange.startDate) : subDays(endDateForCalc, 28); // 4 weeks
     
-    console.log(`Generating weekly chart data from ${startDateForCalc} to ${endDateForCalc}`);
+    // Set proper time values to get full day coverage
+    const endDateForCalc = hasDateRange ? new Date(dateRange.endDate) : new Date();
+    if (hasDateRange) endDateForCalc.setHours(23, 59, 59, 999);
+    
+    const startDateForCalc = hasDateRange ? new Date(dateRange.startDate) : subDays(endDateForCalc, 28);
+    if (hasDateRange) startDateForCalc.setHours(0, 0, 0, 0);
+    
+    console.log(`WeeklyPerformanceChart generating chart data from ${startDateForCalc.toISOString()} to ${endDateForCalc.toISOString()}`);
     
     // Calculate number of weeks in the range
     const weeksToShow = Math.ceil((endDateForCalc.getTime() - startDateForCalc.getTime()) / (7 * 24 * 60 * 60 * 1000));
@@ -72,6 +78,8 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
           end: period.endDate 
         });
       });
+      
+      console.log(`WeeklyPerformanceChart: ${period.label} (${format(period.startDate, 'MMM d')} - ${format(period.endDate, 'MMM d')}) has ${weekStats.length} stats entries`);
       
       // Aggregate stats for the week
       const weeklyAdSpend = weekStats.reduce((sum, entry) => sum + entry.adSpend, 0);
