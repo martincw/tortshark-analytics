@@ -7,26 +7,35 @@ export const uploadLogoToStorage = async () => {
   try {
     console.log("Starting logo upload process...");
     
-    // Call the edge function to upload the logo
-    const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/upload-logo`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ3FzZ2Z0andwYm5xZW5oZm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMTcyNTksImV4cCI6MjA1OTY5MzI1OX0.NHzPUSTETpeT6mIzNhjo8LmXas--pRV01Z9APewORpc"}`,
-      },
-    });
-
-    console.log("Upload logo response status:", response.status);
+    // Use the new logo URL
+    const logoUrl = "http://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.png";
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Failed to upload logo:", errorData);
+    // Fetch the logo from the specified URL
+    const logoResponse = await fetch(logoUrl);
+    
+    if (!logoResponse.ok) {
+      console.error(`Failed to fetch logo: ${logoResponse.status} ${logoResponse.statusText}`);
+      toast.error("Failed to download logo");
+      return false;
+    }
+
+    const logoBlob = await logoResponse.blob();
+    
+    // Upload to Supabase storage
+    const { data, error } = await supabase.storage
+      .from("assets")
+      .upload("tortshark-logo.png", logoBlob, { 
+        contentType: "image/png",
+        upsert: true 
+      });
+    
+    if (error) {
+      console.error("Supabase storage upload error:", error);
       toast.error("Failed to upload logo to storage");
       return false;
     }
 
-    const data = await response.json();
-    console.log("Logo upload success:", data);
+    console.log("Logo uploaded successfully:", data);
     toast.success("Logo uploaded successfully");
     return true;
   } catch (error) {

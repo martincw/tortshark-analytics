@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -41,13 +40,10 @@ export const Navbar: React.FC = () => {
     const fetchLogo = async () => {
       try {
         setIsLogoLoading(true);
-        // Get the logo URL from Supabase storage
         const logoPath = "tortshark-logo.png";
         
-        // Check if the logo exists first
         const url = getPublicUrl("assets", logoPath);
         
-        // Test if the URL is valid by trying to fetch it
         const response = await fetch(url, { method: 'HEAD' });
         
         if (response.ok) {
@@ -55,24 +51,20 @@ export const Navbar: React.FC = () => {
           setLogoUrl(url);
         } else {
           console.log("Logo not found in storage, uploading...");
-          // If the logo doesn't exist, upload it
           const uploadSuccess = await uploadLogoToStorage();
           
           if (uploadSuccess) {
-            // Get the URL again after upload
             const newUrl = getPublicUrl("assets", logoPath);
             setLogoUrl(newUrl);
             console.log("Logo uploaded successfully, new URL:", newUrl);
           } else {
             console.error("Failed to upload logo");
-            // Fallback to the original image if upload fails
             setLogoUrl("/assets/tortshark-logo.png");
           }
         }
       } catch (error) {
         console.error("Error loading logo:", error);
         toast.error("Could not load the logo");
-        // Fallback to the original image on error
         setLogoUrl("/assets/tortshark-logo.png");
       } finally {
         setIsLogoLoading(false);
@@ -155,7 +147,6 @@ export const Navbar: React.FC = () => {
                 className="h-8"
                 onError={(e) => {
                   console.error("Image failed to load:", e);
-                  // Fallback to static asset if Supabase image fails
                   const imgElement = e.target as HTMLImageElement;
                   imgElement.src = "/assets/tortshark-logo.png";
                 }}
