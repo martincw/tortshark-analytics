@@ -1,6 +1,7 @@
+
 import React, { useMemo } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { calculateMetrics, formatCurrency, formatROAS } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
 import { Crown, TrendingUp, DollarSign, Award } from "lucide-react";
 import {
   Table,
@@ -19,8 +20,7 @@ interface LeaderboardMetric {
   accountName: string;
   value: number;
   formattedValue: string;
-  costPerLead?: number;
-  roas?: number;
+  costPerLead?: number; // Added to show CPL
 }
 
 export function CampaignLeaderboard() {
@@ -33,6 +33,7 @@ export function CampaignLeaderboard() {
       profitPerLeadLeaders: []
     };
 
+    // Calculate metrics for each campaign
     const campaignsWithMetrics = campaigns.map(campaign => {
       const metrics = calculateMetrics(campaign);
       const epl = campaign.manualStats.leads > 0 
@@ -41,8 +42,7 @@ export function CampaignLeaderboard() {
       const profitPerLead = campaign.manualStats.leads > 0 
         ? metrics.profit / campaign.manualStats.leads 
         : 0;
-      const costPerLead = metrics.costPerLead;
-      const roas = metrics.roas;
+      const costPerLead = metrics.costPerLead; // Get the cost per lead
 
       return {
         id: campaign.id,
@@ -51,11 +51,11 @@ export function CampaignLeaderboard() {
         profit: metrics.profit,
         epl,
         profitPerLead,
-        costPerLead,
-        roas
+        costPerLead
       };
     });
 
+    // Sort by profit (descending)
     const profitLeaders = [...campaignsWithMetrics]
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 5)
@@ -67,6 +67,7 @@ export function CampaignLeaderboard() {
         formattedValue: formatCurrency(c.profit)
       }));
 
+    // Sort by EPL (descending)
     const eplLeaders = [...campaignsWithMetrics]
       .sort((a, b) => b.epl - a.epl)
       .slice(0, 5)
@@ -76,10 +77,10 @@ export function CampaignLeaderboard() {
         accountName: c.accountName,
         value: c.epl,
         formattedValue: formatCurrency(c.epl),
-        costPerLead: c.costPerLead,
-        roas: c.roas
+        costPerLead: c.costPerLead // Include cost per lead
       }));
 
+    // Sort by profit per lead (descending)
     const profitPerLeadLeaders = [...campaignsWithMetrics]
       .sort((a, b) => b.profitPerLead - a.profitPerLead)
       .slice(0, 5)
@@ -89,8 +90,7 @@ export function CampaignLeaderboard() {
         accountName: c.accountName,
         value: c.profitPerLead,
         formattedValue: formatCurrency(c.profitPerLead),
-        costPerLead: c.costPerLead,
-        roas: c.roas
+        costPerLead: c.costPerLead // Include cost per lead
       }));
 
     return {
@@ -150,7 +150,7 @@ interface LeaderboardSectionProps {
   leaders: LeaderboardMetric[];
   emptyMessage: string;
   tooltip?: string;
-  showCostPerLead?: boolean;
+  showCostPerLead?: boolean; // Added to control showing CPL
 }
 
 function LeaderboardSection({ 
@@ -211,11 +211,6 @@ function LeaderboardSection({
                   {showCostPerLead && leader.costPerLead !== undefined && (
                     <div className="text-xs text-muted-foreground">
                       CPL: {formatCurrency(leader.costPerLead)}
-                    </div>
-                  )}
-                  {leader.roas !== undefined && (
-                    <div className="text-xs text-muted-foreground">
-                      ROAS: {formatROAS(leader.roas)}
                     </div>
                   )}
                 </TableCell>

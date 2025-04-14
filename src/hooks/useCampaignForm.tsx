@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Campaign, AccountConnection } from "@/types/campaign";
+import { AccountConnection } from "@/types/campaign";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useCampaignForm = () => {
   const navigate = useNavigate();
@@ -77,64 +78,77 @@ export const useCampaignForm = () => {
     }
   }, [location.search, accountConnections]);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("Please sign in to add a campaign");
+      navigate("/auth");
+      return;
+    }
     
     if (!campaignName) {
       toast.error("Please enter a campaign name");
       return;
     }
     
-    if (!accountId) {
-      toast.error("Please connect a Google Ads account first");
-      navigate("/accounts");
-      return;
-    }
-    
-    // Use selected account
-    const selectedAccount = accountConnections.find(acc => acc.id === accountId);
-    
-    if (!selectedAccount) {
-      toast.error("Google Ads account not found. Please connect an account.");
-      navigate("/accounts");
-      return;
+    // For manual entry, we don't need a connected account
+    let selectedAccount;
+    if (accountId === "manual") {
+      // Create a dummy account for manual entries
+      selectedAccount = {
+        id: "manual",
+        name: "Manual Entry",
+        platform: "google",
+        isConnected: false
+      };
+    } else {
+      // For non-manual entries, verify the selected account exists
+      selectedAccount = accountConnections.find(acc => acc.id === accountId);
+      
+      if (!selectedAccount) {
+        toast.error("Google Ads account not found. Please connect an account or select Manual Entry.");
+        return;
+      }
     }
     
     const currentDate = new Date().toISOString().split("T")[0];
     
-    const newCampaign: Omit<Campaign, "id"> = {
-      name: campaignName,
-      platform,
-      accountId: selectedAccount.id,
-      accountName: selectedAccount.name,
-      stats: {
-        adSpend: 0,
-        impressions: 0,
-        clicks: 0,
-        cpc: 0,
-        date: currentDate,
-      },
-      manualStats: {
-        leads: 0,
-        cases: 0,
-        retainers: 0,
-        revenue: 0,
-        date: currentDate,
-      },
-      statsHistory: [], // Explicitly ensure statsHistory is an empty array
-      targets: {
-        monthlyRetainers: parseInt(targetMonthlyRetainers) || 0,
-        casePayoutAmount: parseFloat(casePayoutAmount) || 0,
-        monthlyIncome: parseFloat(targetMonthlyIncome) || 0,
-        monthlySpend: parseFloat(targetMonthlySpend) || 0,
-        targetROAS: parseFloat(targetROAS) || 0,
-        targetProfit: parseFloat(targetProfit) || 0,
-      },
-    };
-    
     try {
+      const newCampaign = {
+        name: campaignName,
+        platform,
+        accountId: selectedAccount.id,
+        accountName: selectedAccount.name,
+        stats: {
+          adSpend: 0,
+          impressions: 0,
+          clicks: 0,
+          cpc: 0,
+          date: currentDate,
+        },
+        manualStats: {
+          leads: 0,
+          cases: 0,
+          retainers: 0,
+          revenue: 0,
+          date: currentDate,
+        },
+        statsHistory: [], // Explicitly ensure statsHistory is an empty array
+        targets: {
+          monthlyRetainers: parseInt(targetMonthlyRetainers) || 0,
+          casePayoutAmount: parseFloat(casePayoutAmount) || 0,
+          monthlyIncome: parseFloat(targetMonthlyIncome) || 0,
+          monthlySpend: parseFloat(targetMonthlySpend) || 0,
+          targetROAS: parseFloat(targetROAS) || 0,
+          targetProfit: parseFloat(targetProfit) || 0,
+        },
+      };
+      
       console.log("Adding campaign with data:", newCampaign);
-      const campaignId = addCampaign(newCampaign);
+      const campaignId = await addCampaign(newCampaign);
       console.log("Campaign added with ID:", campaignId);
       toast.success("Campaign added successfully");
       navigate(`/campaign/${campaignId}`); // Navigate to campaign detail page

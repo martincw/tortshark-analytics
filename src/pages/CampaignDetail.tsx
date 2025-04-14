@@ -65,6 +65,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
 
 const CampaignDetail = () => {
@@ -111,6 +112,7 @@ const CampaignDetail = () => {
     adSpend: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntryData, setEditEntryData] = useState({
@@ -120,6 +122,8 @@ const CampaignDetail = () => {
     adSpend: "0"
   });
   const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
+  const [editCalendarOpen, setEditCalendarOpen] = useState(false);
+  const [editDate, setEditDate] = useState<Date>(new Date());
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   
@@ -191,9 +195,12 @@ const CampaignDetail = () => {
       return;
     }
     
+    const dateToUse = new Date(selectedDate);
+    dateToUse.setHours(12, 0, 0, 0);
+    
     console.log("Adding new stats history entry:", {
       campaignId: campaign.id,
-      date: selectedDate.toISOString(),
+      date: dateToUse.toISOString(),
       leads: newLeads,
       cases: newCases,
       revenue: newRevenue,
@@ -201,7 +208,7 @@ const CampaignDetail = () => {
     });
     
     addStatHistoryEntry(campaign.id, {
-      date: selectedDate.toISOString(),
+      date: dateToUse.toISOString(),
       leads: newLeads,
       cases: newCases,
       retainers: newCases,
@@ -222,6 +229,20 @@ const CampaignDetail = () => {
     setLeadCount((parseInt(leadCount) + newLeads).toString());
     setCaseCount((parseInt(caseCount) + newCases).toString());
     setRevenue((parseFloat(revenue) + newRevenue).toString());
+  };
+  
+  const onCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setCalendarOpen(false);
+    }
+  };
+  
+  const onEditCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      setEditDate(date);
+      setEditCalendarOpen(false);
+    }
   };
   
   const handleEditEntry = (entry: any) => {
@@ -817,7 +838,7 @@ const CampaignDetail = () => {
                 Date
               </Label>
               <div className="col-span-3">
-                <Popover>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       id="date-picker"
@@ -836,19 +857,13 @@ const CampaignDetail = () => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-1">
-                      <input
-                        type="date"
-                        className="form-input w-full p-2 rounded-md border"
-                        value={format(selectedDate, "yyyy-MM-dd")}
-                        onChange={(e) => {
-                          const date = new Date(e.target.value);
-                          if (!isNaN(date.getTime())) {
-                            setSelectedDate(date);
-                          }
-                        }}
-                      />
-                    </div>
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={onCalendarSelect}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -925,6 +940,42 @@ const CampaignDetail = () => {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-date" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover open={editCalendarOpen} onOpenChange={setEditCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="edit-date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left",
+                        !editDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {editDate ? (
+                        format(editDate, "PPP")
+                      ) : (
+                        <span>Select date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={editDate}
+                      onSelect={onEditCalendarSelect}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-leads" className="text-right">
                 Leads

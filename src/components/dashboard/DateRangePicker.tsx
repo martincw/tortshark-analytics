@@ -17,21 +17,29 @@ import { toast } from "sonner";
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
   
+  // Fix: Use noon time to avoid timezone issues
+  const fixDate = (dateStr: string): Date => {
+    const date = new Date(dateStr);
+    date.setHours(12, 0, 0, 0);
+    return date;
+  };
+  
   const [date, setDate] = React.useState<DateRange | undefined>({
-    from: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
-    to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
+    from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
+    to: dateRange.endDate ? fixDate(dateRange.endDate) : undefined,
   });
   
   const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   useEffect(() => {
     setDate({
-      from: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
-      to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
+      from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
+      to: dateRange.endDate ? fixDate(dateRange.endDate) : undefined,
     });
     setTempDate({
-      from: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
-      to: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
+      from: dateRange.startDate ? fixDate(dateRange.startDate) : undefined,
+      to: dateRange.endDate ? fixDate(dateRange.endDate) : undefined,
     });
   }, [dateRange]);
   
@@ -51,14 +59,11 @@ export function DateRangePicker() {
     
     // Fix for date offset issue - ensure we're saving the exact date selected
     // by forcing the time to noon to avoid timezone issues
-    const fixDate = (date: Date): Date => {
-      const newDate = new Date(date);
-      newDate.setHours(12, 0, 0, 0);
-      return newDate;
-    };
+    const fromDate = new Date(tempDate.from);
+    fromDate.setHours(12, 0, 0, 0);
     
-    const fromDate = fixDate(tempDate.from);
-    const toDate = tempDate.to ? fixDate(tempDate.to) : fixDate(tempDate.from);
+    const toDate = tempDate.to ? new Date(tempDate.to) : new Date(fromDate);
+    toDate.setHours(12, 0, 0, 0);
     
     const newRange = {
       startDate: format(fromDate, 'yyyy-MM-dd'),
@@ -71,12 +76,13 @@ export function DateRangePicker() {
     });
     
     setDateRange(newRange);
+    setIsPopoverOpen(false);
     toast.success("Date range updated");
   };
 
   return (
     <div className="grid gap-2">
-      <Popover>
+      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
             id="date"

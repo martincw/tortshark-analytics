@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Campaign } from "@/types/campaign";
-import { calculateMetrics, formatCurrency, formatNumber, formatPercent, formatROAS, getPerformanceBgClass } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerformanceBgClass } from "@/utils/campaignUtils";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -42,6 +43,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     adSpend: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
   const handleViewDetails = () => {
     console.log("Navigating to campaign details for campaign ID:", campaign.id);
@@ -61,9 +63,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       return;
     }
     
+    const dateToUse = new Date(selectedDate);
+    dateToUse.setHours(12, 0, 0, 0);
+    
     console.log("Adding quick stats:", {
       campaignId: campaign.id,
-      date: selectedDate.toISOString(),
+      date: dateToUse.toISOString(),
       leads: newLeads,
       cases: newCases,
       retainers: newRetainers,
@@ -72,7 +77,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     });
     
     addStatHistoryEntry(campaign.id, {
-      date: selectedDate.toISOString(),
+      date: dateToUse.toISOString(),
       leads: newLeads, 
       cases: newCases,
       retainers: newRetainers,
@@ -82,14 +87,21 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     
     setIsQuickEntryOpen(false);
     setQuickStats({ leads: "0", cases: "0", retainers: "0", revenue: "0", adSpend: "0" });
-    toast.success(`Stats for ${format(selectedDate, "MMM d, yyyy")} added successfully`);
+    toast.success(`Stats for ${format(dateToUse, "MMM d, yyyy")} added successfully`);
+  };
+
+  const onCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setCalendarOpen(false);
+    }
   };
 
   const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
 
   const getProfitabilityClass = () => {
-    if (metrics.roas > 2) return "text-success-DEFAULT font-bold";
-    if (metrics.roas > 1) return "text-secondary font-bold";
+    if (metrics.roi > 200) return "text-success-DEFAULT font-bold";
+    if (metrics.roi > 0) return "text-secondary font-bold";
     return "text-error-DEFAULT font-bold";
   };
 
@@ -151,13 +163,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </CardHeader>
         
         <CardContent className="pb-0">
-          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roas)}`}>
+          <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">ROAS</span>
+              <span className="text-xs font-medium text-muted-foreground">ROI</span>
               <div className="flex items-center gap-1.5 mt-1">
                 <Percent className="h-4 w-4 text-secondary" />
                 <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                  {formatROAS(metrics.roas)}
+                  {metrics.roi.toFixed(0)}%
                 </span>
               </div>
             </div>
@@ -275,7 +287,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 Date
               </Label>
               <div className="col-span-3">
-                <Popover>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       id="date-picker"
@@ -294,19 +306,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-1">
-                      <input
-                        type="date"
-                        className="form-input w-full p-2 rounded-md border"
-                        value={format(selectedDate, "yyyy-MM-dd")}
-                        onChange={(e) => {
-                          const date = new Date(e.target.value);
-                          if (!isNaN(date.getTime())) {
-                            setSelectedDate(date);
-                          }
-                        }}
-                      />
-                    </div>
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={onCalendarSelect}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>

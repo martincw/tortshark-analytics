@@ -2,10 +2,9 @@
 export interface Campaign {
   id: string;
   name: string;
-  platform: "google";
+  platform: "google" | "facebook" | "linkedin"; // Update to match available platforms
   accountId: string;
   accountName: string;
-  campaignType?: string; // Add optional campaignType field
   stats: CampaignStats;
   manualStats: ManualStats;
   statsHistory: StatHistoryEntry[];
@@ -26,7 +25,6 @@ export interface ManualStats {
   retainers: number;
   revenue: number;
   date: string; // ISO date string
-  history?: StatHistoryEntry[]; // Add optional history field
 }
 
 export interface StatHistoryEntry {
@@ -54,7 +52,6 @@ export interface CampaignMetrics {
   cpa: number; // Cost per acquisition (case)
   profit: number;
   roi: number; // Return on investment percentage
-  roas: number; // Return on ad spend (added this field)
 }
 
 export interface DateRange {
@@ -73,7 +70,7 @@ export interface AccountConnection {
     customerId?: string;
     developerToken?: string;
     accessToken?: string;
-  };
+  } | Record<string, any>; // Update to allow any object structure
 }
 
 export interface GoogleAdsMetrics {
