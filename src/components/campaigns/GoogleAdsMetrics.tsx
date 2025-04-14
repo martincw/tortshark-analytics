@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
@@ -33,7 +34,8 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
     setError(null);
     
     try {
-      // Create a cache key using the date range to prevent using cached data
+      // Pass date range with fixed formatting
+      console.log(`GoogleAdsMetrics: Fetching with date range ${dateRange.startDate} to ${dateRange.endDate}`);
       const data = await fetchGoogleAdsMetrics(
         campaign.accountId, 
         dateRange
@@ -45,6 +47,7 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
           new Date(a.date).getTime() - new Date(b.date).getTime()
         );
         
+        console.log(`GoogleAdsMetrics: Received ${sortedMetrics.length} data points`);
         setMetrics(sortedMetrics);
       } else {
         setError("Failed to load Google Ads metrics");

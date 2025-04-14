@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import {
   ChartContainer,
@@ -36,12 +35,9 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
     let startDateForCalc, endDateForCalc;
     
     if (hasDateRange) {
-      // Create date objects from the date strings
-      startDateForCalc = new Date(dateRange.startDate);
-      startDateForCalc.setHours(0, 0, 0, 0);  // Start of day
-      
-      endDateForCalc = new Date(dateRange.endDate);
-      endDateForCalc.setHours(23, 59, 59, 999);  // End of day
+      // Create date objects from the date strings with exact time boundaries
+      startDateForCalc = new Date(`${dateRange.startDate}T00:00:00.000`);
+      endDateForCalc = new Date(`${dateRange.endDate}T23:59:59.999`);
       
       console.log(`WeeklyPerformanceChart: Using date range ${startDateForCalc.toISOString()} to ${endDateForCalc.toISOString()}`);
     } else {

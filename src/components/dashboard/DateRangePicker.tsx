@@ -17,12 +17,14 @@ import { toast } from "sonner";
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
   
-  // Format date strings to Date objects properly
+  // Format date strings to Date objects properly, preserving the exact day
   const createDateFromStr = (dateStr: string | undefined): Date | undefined => {
     if (!dateStr) return undefined;
-    // Create a date with local timezone, set to noon to avoid any date shifting
-    const date = new Date(dateStr);
-    return date;
+    
+    // Create a date with the exact YYYY-MM-DD values
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Month is 0-indexed in JavaScript Date
+    return new Date(year, month - 1, day, 12, 0, 0);
   };
   
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -62,17 +64,20 @@ export function DateRangePicker() {
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    // Get selected date(s) and ensure they're formatted correctly
-    // Use the exact date selected without any time adjustments
-    const fromDate = new Date(tempDate.from);
-    
-    // If no end date is selected, use the same day as the start date
-    const toDate = tempDate.to ? new Date(tempDate.to) : new Date(fromDate);
-    
     // Format dates as ISO date strings (YYYY-MM-DD) to avoid timezone issues
-    // This is crucial - we want just the date part
-    const formattedStartDate = format(fromDate, 'yyyy-MM-dd');
-    const formattedEndDate = format(toDate, 'yyyy-MM-dd');
+    const formatDateToYYYYMMDD = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    // Get selected date(s) and format them
+    const fromDate = tempDate.from;
+    const toDate = tempDate.to || tempDate.from;
+    
+    const formattedStartDate = formatDateToYYYYMMDD(fromDate);
+    const formattedEndDate = formatDateToYYYYMMDD(toDate);
     
     // Update local component state
     setDate({
@@ -86,7 +91,7 @@ export function DateRangePicker() {
       endDate: formattedEndDate,
     };
     
-    console.log('Setting new date range:', newDateRange);
+    console.log(`Setting new date range:`, JSON.stringify(newDateRange, null, 2));
     setDateRange(newDateRange);
     setIsPopoverOpen(false);
     toast.success("Date range updated");

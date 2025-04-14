@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -62,12 +61,9 @@ export function OverviewStats() {
     
     // If we have both dates, filter by them
     if (startDateStr && endDateStr) {
-      // We're using YYYY-MM-DD format, so we need to create Date objects that span the full day
-      const startDate = new Date(startDateStr);
-      startDate.setHours(0, 0, 0, 0);
-      
-      const endDate = new Date(endDateStr);
-      endDate.setHours(23, 59, 59, 999);
+      // We're using YYYY-MM-DD format, need to create Date objects that span the full day
+      const startDate = new Date(`${startDateStr}T00:00:00.000`);
+      const endDate = new Date(`${endDateStr}T23:59:59.999`);
       
       console.log(`OverviewStats date objects: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
