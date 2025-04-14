@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -234,6 +233,7 @@ const CampaignDetail = () => {
   
   const onCalendarSelect = (date: Date | undefined) => {
     if (date) {
+      console.log("Selected date in add dialog:", date);
       setSelectedDate(date);
       setCalendarOpen(false);
     }
@@ -241,12 +241,14 @@ const CampaignDetail = () => {
   
   const onEditCalendarSelect = (date: Date | undefined) => {
     if (date) {
+      console.log("Selected edit date:", date);
       setEditDate(date);
       setEditCalendarOpen(false);
     }
   };
   
   const handleEditEntry = (entry: any) => {
+    console.log("Editing entry:", entry);
     setEditingEntryId(entry.id);
     setEditEntryData({
       leads: entry.leads.toString(),
@@ -254,7 +256,11 @@ const CampaignDetail = () => {
       revenue: entry.revenue.toString(),
       adSpend: (entry.adSpend || 0).toString()
     });
-    setEditDate(new Date(entry.date));
+    
+    const entryDate = new Date(entry.date);
+    console.log("Original entry date:", entryDate);
+    setEditDate(entryDate);
+    
     setEditEntryDialogOpen(true);
   };
   
@@ -264,8 +270,12 @@ const CampaignDetail = () => {
     const entry = campaign.statsHistory.find(e => e.id === editingEntryId);
     if (!entry) return;
     
+    console.log("Saving edited entry. Current edit date:", editDate);
+    
     const dateToUse = new Date(editDate);
     dateToUse.setHours(12, 0, 0, 0);
+    
+    console.log("Formatted date to save:", dateToUse.toISOString());
     
     const updatedEntry = {
       ...entry,
@@ -277,7 +287,10 @@ const CampaignDetail = () => {
       adSpend: parseFloat(editEntryData.adSpend) || 0
     };
     
+    console.log("Updating entry with:", updatedEntry);
+    
     updateStatHistoryEntry(campaign.id, updatedEntry);
+    toast.success("Entry updated successfully");
     setEditEntryDialogOpen(false);
     setEditingEntryId(null);
   };
@@ -950,6 +963,7 @@ const CampaignDetail = () => {
                       selected={editDate}
                       onSelect={onEditCalendarSelect}
                       initialFocus
+                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
