@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -152,6 +151,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
+          // Format as YYYY-MM-DD string to avoid timezone issues
           const dateKey = format(date, "yyyy-MM-dd");
           const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
           
@@ -366,4 +366,3 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     </div>
   );
 };
-

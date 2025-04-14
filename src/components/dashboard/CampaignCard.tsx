@@ -66,9 +66,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     const dateToUse = new Date(selectedDate);
     dateToUse.setHours(12, 0, 0, 0);
     
+    const formattedDate = format(dateToUse, "yyyy-MM-dd");
+    
     console.log("Adding quick stats:", {
       campaignId: campaign.id,
-      date: dateToUse.toISOString(),
+      date: formattedDate,
       leads: newLeads,
       cases: newCases,
       retainers: newRetainers,
@@ -77,7 +79,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     });
     
     addStatHistoryEntry(campaign.id, {
-      date: dateToUse.toISOString(),
+      date: formattedDate,
       leads: newLeads, 
       cases: newCases,
       retainers: newRetainers,

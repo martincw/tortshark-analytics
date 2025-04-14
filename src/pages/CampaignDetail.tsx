@@ -198,9 +198,11 @@ const CampaignDetail = () => {
     const dateToUse = new Date(selectedDate);
     dateToUse.setHours(12, 0, 0, 0);
     
+    const formattedDate = format(dateToUse, "yyyy-MM-dd");
+    
     console.log("Adding new stats history entry:", {
       campaignId: campaign.id,
-      date: dateToUse.toISOString(),
+      date: formattedDate,
       leads: newLeads,
       cases: newCases,
       revenue: newRevenue,
@@ -208,7 +210,7 @@ const CampaignDetail = () => {
     });
     
     addStatHistoryEntry(campaign.id, {
-      date: dateToUse.toISOString(),
+      date: formattedDate,
       leads: newLeads,
       cases: newCases,
       retainers: newCases,
@@ -280,11 +282,13 @@ const CampaignDetail = () => {
     const dateToUse = new Date(editDate);
     dateToUse.setHours(12, 0, 0, 0);
     
-    console.log("Formatted date to save:", dateToUse.toISOString(), "Format string:", format(dateToUse, "yyyy-MM-dd"));
+    const formattedDate = format(dateToUse, "yyyy-MM-dd");
+    
+    console.log("Formatted date to save:", formattedDate);
     
     const updatedEntry = {
       ...entry,
-      date: dateToUse.toISOString(),
+      date: formattedDate,
       leads: parseInt(editEntryData.leads) || 0,
       cases: parseInt(editEntryData.cases) || 0,
       retainers: parseInt(editEntryData.cases) || 0,

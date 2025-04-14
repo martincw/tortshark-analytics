@@ -124,13 +124,14 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
+          // Format as YYYY-MM-DD string to avoid timezone issues
           const dateKey = format(date, "yyyy-MM-dd");
           const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
           
           allStatsToAdd.push({
             id: uuidv4(),
             campaign_id: campaignId,
-            date: dateKey,
+            date: dateKey, // Use formatted date string instead of ISO
             leads: dayStats.leads || 0,
             cases: dayStats.cases || 0,
             retainers: dayStats.retainers || 0,
@@ -164,7 +165,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         return {
           id: uuidv4(),
           campaign_id: campaignId,
-          date: recentDateKey,
+          date: recentDateKey, // Use formatted date string instead of ISO
           leads: recentStats.leads || 0,
           cases: recentStats.cases || 0,
           retainers: recentStats.retainers || 0,
