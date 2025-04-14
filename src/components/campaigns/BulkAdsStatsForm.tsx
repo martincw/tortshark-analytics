@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +15,7 @@ interface BulkAdsStatsFormProps {
 }
 
 export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate }) => {
-  const { campaigns, refreshCampaigns } = useCampaign();
+  const { campaigns } = useCampaign();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
@@ -199,7 +198,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ selectedDate
       }
       
       toast.success(`Ad stats added for ${selectedCampaignIds.length} campaigns`);
-      refreshCampaigns();
       
       // Reset form
       setSelectedCampaigns({});
