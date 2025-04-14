@@ -35,9 +35,9 @@ const CampaignTargetsSection: React.FC<CampaignTargetsSectionProps> = ({
       const payoutAmount = parseFloat(casePayoutAmount) || 0;
       
       if (payoutAmount > 0) {
-        // Calculate how many cases needed to reach target profit
-        const casesNeeded = Math.ceil(profit / payoutAmount);
-        setTargetMonthlyRetainers(casesNeeded.toString());
+        // Calculate how many retainers needed to reach target profit
+        const retainersNeeded = Math.ceil(profit / payoutAmount);
+        setTargetMonthlyRetainers(retainersNeeded.toString());
       }
     }
   }, [targetProfit, casePayoutAmount, setTargetMonthlyRetainers]);
@@ -79,7 +79,7 @@ const CampaignTargetsSection: React.FC<CampaignTargetsSectionProps> = ({
         </div>
         <div className="space-y-2">
           <label htmlFor="targetMonthlyRetainers" className="text-sm font-medium">
-            Target Monthly Cases
+            Target Monthly Retainers
           </label>
           <Input
             id="targetMonthlyRetainers"
@@ -91,7 +91,7 @@ const CampaignTargetsSection: React.FC<CampaignTargetsSectionProps> = ({
           />
           {targetMonthlyRetainers && targetProfit && casePayoutAmount && (
             <p className="text-xs text-muted-foreground">
-              Estimated {targetMonthlyRetainers} cases needed to reach ${targetProfit} profit
+              Estimated {targetMonthlyRetainers} retainers needed to reach ${targetProfit} profit
             </p>
           )}
         </div>

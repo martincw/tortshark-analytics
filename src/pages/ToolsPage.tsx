@@ -5,34 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { InfoIcon, UploadCloud, FileText, Database, RefreshCw, Server } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useCampaign } from "@/contexts/CampaignContext";
+import { InfoIcon, UploadCloud, FileText, Database, RefreshCw } from "lucide-react";
 
 const ToolsPage = () => {
   const [localStorageData, setLocalStorageData] = useState<Record<string, any>>({});
-  const [supabaseData, setSupabaseData] = useState<Record<string, any>>({});
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { migrateFromLocalStorage } = useCampaign();
   
   useEffect(() => {
     refreshLocalStorageData();
-    checkAuth();
   }, []);
-  
-  const checkAuth = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-      
-      if (session) {
-        loadSupabaseData();
-      }
-    } catch (error) {
-      console.error("Error checking auth:", error);
-    }
-  };
   
   const refreshLocalStorageData = () => {
     const data: Record<string, any> = {};
@@ -49,94 +29,8 @@ const ToolsPage = () => {
     setLocalStorageData(data);
   };
   
-  const loadSupabaseData = async () => {
-    setIsLoading(true);
-    try {
-      const data: Record<string, any> = {};
-      
-      // Fetch campaigns
-      const { data: campaigns, error: campaignsError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .limit(100);
-      
-      if (campaignsError) {
-        console.error("Error fetching campaigns:", campaignsError);
-      } else {
-        data.campaigns = campaigns;
-      }
-      
-      // Fetch account connections
-      const { data: connections, error: connectionsError } = await supabase
-        .from('account_connections')
-        .select('*')
-        .limit(100);
-      
-      if (connectionsError) {
-        console.error("Error fetching account connections:", connectionsError);
-      } else {
-        data.account_connections = connections;
-      }
-      
-      // Fetch campaign stats
-      const { data: stats, error: statsError } = await supabase
-        .from('campaign_stats')
-        .select('*')
-        .limit(100);
-      
-      if (statsError) {
-        console.error("Error fetching campaign stats:", statsError);
-      } else {
-        data.campaign_stats = stats;
-      }
-      
-      // Fetch campaign manual stats
-      const { data: manualStats, error: manualStatsError } = await supabase
-        .from('campaign_manual_stats')
-        .select('*')
-        .limit(100);
-      
-      if (manualStatsError) {
-        console.error("Error fetching campaign manual stats:", manualStatsError);
-      } else {
-        data.campaign_manual_stats = manualStats;
-      }
-      
-      // Fetch campaign stats history
-      const { data: statsHistory, error: statsHistoryError } = await supabase
-        .from('campaign_stats_history')
-        .select('*')
-        .limit(100);
-      
-      if (statsHistoryError) {
-        console.error("Error fetching campaign stats history:", statsHistoryError);
-      } else {
-        data.campaign_stats_history = statsHistory;
-      }
-      
-      // Fetch campaign targets
-      const { data: targets, error: targetsError } = await supabase
-        .from('campaign_targets')
-        .select('*')
-        .limit(100);
-      
-      if (targetsError) {
-        console.error("Error fetching campaign targets:", targetsError);
-      } else {
-        data.campaign_targets = targets;
-      }
-      
-      setSupabaseData(data);
-    } catch (error) {
-      console.error("Error loading Supabase data:", error);
-      toast.error("Failed to load Supabase data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
   const clearAllLocalStorage = () => {
-    if (window.confirm("Are you sure you want to clear all localStorage data? This will delete all your local campaigns and settings.")) {
+    if (window.confirm("Are you sure you want to clear all localStorage data? This will delete all your campaigns and settings.")) {
       localStorage.clear();
       refreshLocalStorageData();
       toast.success("All localStorage data has been cleared");
@@ -151,143 +45,92 @@ const ToolsPage = () => {
     }
   };
   
-  const fixCampaignsData = async () => {
+  const fixCampaignsData = () => {
     try {
-      // Check if user is authenticated
-      if (!isAuthenticated) {
-        toast.error("Please sign in first");
-        return;
-      }
+      // Create a test campaign if none exist
+      const campaigns = [];
       
-      // Create test campaigns in Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Please sign in to create test campaigns");
-        return;
-      }
-      
-      // First create account connection
-      const { data: account, error: accountError } = await supabase
-        .from('account_connections')
-        .insert({
-          name: "Test Google Ads Account",
-          platform: "google",
-          is_connected: true,
-          customer_id: "123456789",
-          credentials: { customerId: "123456789" },
-          user_id: session.user.id
-        })
-        .select()
-        .single();
-        
-      if (accountError || !account) {
-        console.error("Error creating test account:", accountError);
-        toast.error("Failed to create test account");
-        return;
-      }
-      
-      // Create Birth Control campaign
-      const { data: birthControlCampaign, error: campaignError1 } = await supabase
-        .from('campaigns')
-        .insert({
-          name: "Test Campaign - Birth Control",
-          platform: "google",
-          account_id: account.id,
-          account_name: account.name,
-          user_id: session.user.id
-        })
-        .select()
-        .single();
-        
-      if (campaignError1 || !birthControlCampaign) {
-        console.error("Error creating birth control campaign:", campaignError1);
-        toast.error("Failed to create test campaign");
-        return;
-      }
-      
-      // Add stats for Birth Control campaign
-      await supabase.from('campaign_stats').insert({
-        campaign_id: birthControlCampaign.id,
-        ad_spend: 5000,
-        impressions: 25000,
-        clicks: 1250,
-        cpc: 4,
-        date: new Date().toISOString()
+      // Add a test campaign
+      campaigns.push({
+        id: "test-campaign-1",
+        name: "Test Campaign - Birth Control",
+        platform: "google",
+        accountId: "123456789",
+        accountName: "Test Google Ads Account",
+        stats: {
+          adSpend: 5000,
+          impressions: 25000,
+          clicks: 1250,
+          cpc: 4,
+          date: new Date().toISOString()
+        },
+        manualStats: {
+          leads: 100,
+          cases: 25,
+          retainers: 10,
+          revenue: 50000,
+          date: new Date().toISOString()
+        },
+        statsHistory: [],
+        targets: {
+          monthlyRetainers: 20,
+          casePayoutAmount: 2500,
+          monthlyIncome: 100000,
+          monthlySpend: 20000,
+          targetROAS: 5,
+          targetProfit: 80000
+        }
       });
       
-      // Add manual stats for Birth Control campaign
-      await supabase.from('campaign_manual_stats').insert({
-        campaign_id: birthControlCampaign.id,
-        leads: 100,
-        cases: 25,
-        retainers: 10,
-        revenue: 50000,
-        date: new Date().toISOString()
+      // Add another test campaign
+      campaigns.push({
+        id: "test-campaign-2",
+        name: "Test Campaign - Camp Lejeune",
+        platform: "google",
+        accountId: "123456789",
+        accountName: "Test Google Ads Account",
+        stats: {
+          adSpend: 8000,
+          impressions: 40000,
+          clicks: 2000,
+          cpc: 4,
+          date: new Date().toISOString()
+        },
+        manualStats: {
+          leads: 150,
+          cases: 40,
+          retainers: 15,
+          revenue: 75000,
+          date: new Date().toISOString()
+        },
+        statsHistory: [],
+        targets: {
+          monthlyRetainers: 30,
+          casePayoutAmount: 3000,
+          monthlyIncome: 150000,
+          monthlySpend: 30000,
+          targetROAS: 5,
+          targetProfit: 120000
+        }
       });
       
-      // Add targets for Birth Control campaign
-      await supabase.from('campaign_targets').insert({
-        campaign_id: birthControlCampaign.id,
-        monthly_retainers: 20,
-        case_payout_amount: 2500,
-        monthly_income: 100000,
-        monthly_spend: 20000,
-        target_roas: 5,
-        target_profit: 80000
-      });
+      localStorage.setItem("campaigns", JSON.stringify(campaigns));
+      refreshLocalStorageData();
       
-      // Create Camp Lejeune campaign
-      const { data: campLejeuneC, error: campaignError2 } = await supabase
-        .from('campaigns')
-        .insert({
-          name: "Test Campaign - Camp Lejeune",
-          platform: "google",
-          account_id: account.id,
-          account_name: account.name,
-          user_id: session.user.id
-        })
-        .select()
-        .single();
-        
-      if (campaignError2 || !campLejeuneC) {
-        console.error("Error creating Camp Lejeune campaign:", campaignError2);
-        toast.error("Failed to create test campaign");
-        return;
-      }
+      // Create a sample account connection
+      const accountConnections = [{
+        id: "test-account-1",
+        name: "Test Google Ads Account",
+        platform: "google",
+        isConnected: true,
+        lastSynced: new Date().toISOString(),
+        customerId: "123456789",
+        credentials: {
+          customerId: "123456789"
+        }
+      }];
       
-      // Add stats for Camp Lejeune campaign
-      await supabase.from('campaign_stats').insert({
-        campaign_id: campLejeuneC.id,
-        ad_spend: 8000,
-        impressions: 40000,
-        clicks: 2000,
-        cpc: 4,
-        date: new Date().toISOString()
-      });
-      
-      // Add manual stats for Camp Lejeune campaign
-      await supabase.from('campaign_manual_stats').insert({
-        campaign_id: campLejeuneC.id,
-        leads: 150,
-        cases: 40,
-        retainers: 15,
-        revenue: 75000,
-        date: new Date().toISOString()
-      });
-      
-      // Add targets for Camp Lejeune campaign
-      await supabase.from('campaign_targets').insert({
-        campaign_id: campLejeuneC.id,
-        monthly_retainers: 30,
-        case_payout_amount: 3000,
-        monthly_income: 150000,
-        monthly_spend: 30000,
-        target_roas: 5,
-        target_profit: 120000
-      });
-      
-      // Refresh Supabase data
-      await loadSupabaseData();
+      localStorage.setItem("accountConnections", JSON.stringify(accountConnections));
       
       toast.success("Test campaigns created successfully. Please refresh the page.");
     } catch (e) {
@@ -308,7 +151,6 @@ const ToolsPage = () => {
       <Tabs defaultValue="storage">
         <TabsList>
           <TabsTrigger value="storage">LocalStorage</TabsTrigger>
-          <TabsTrigger value="database">Supabase Data</TabsTrigger>
           <TabsTrigger value="upload">Upload Tools</TabsTrigger>
           <TabsTrigger value="debug">Debug Tools</TabsTrigger>
         </TabsList>
@@ -331,11 +173,9 @@ const ToolsPage = () => {
               <Button onClick={clearAllLocalStorage} variant="destructive" size="sm">
                 Clear All
               </Button>
-              {isAuthenticated && (
-                <Button onClick={() => migrateFromLocalStorage()} variant="default" size="sm">
-                  <Database className="h-4 w-4 mr-1" /> Migrate to Supabase
-                </Button>
-              )}
+              <Button onClick={fixCampaignsData} variant="default" size="sm">
+                <Database className="h-4 w-4 mr-1" /> Fix Campaign Data
+              </Button>
             </div>
           </div>
           
@@ -378,65 +218,6 @@ const ToolsPage = () => {
               ))
             )}
           </div>
-        </TabsContent>
-        
-        <TabsContent value="database" className="space-y-4">
-          {!isAuthenticated ? (
-            <Alert>
-              <InfoIcon className="h-4 w-4 mr-2" />
-              <AlertDescription>
-                Please sign in to view your Supabase data.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Supabase Data</h2>
-                <div className="flex gap-2">
-                  <Button onClick={loadSupabaseData} variant="outline" size="sm" disabled={isLoading}>
-                    <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`} /> Refresh
-                  </Button>
-                  <Button onClick={fixCampaignsData} variant="default" size="sm" disabled={isLoading}>
-                    <Database className="h-4 w-4 mr-1" /> Create Test Data
-                  </Button>
-                </div>
-              </div>
-              
-              {isLoading ? (
-                <div className="flex justify-center py-12">
-                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {Object.keys(supabaseData).length === 0 ? (
-                    <Card>
-                      <CardContent className="py-8 text-center text-muted-foreground">
-                        No data found in Supabase
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    Object.entries(supabaseData).map(([key, value]) => (
-                      <Card key={key}>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-center">
-                            <CardTitle className="text-base">{key}</CardTitle>
-                            <span className="text-xs text-muted-foreground">
-                              {Array.isArray(value) ? `${value.length} rows` : '0 rows'}
-                            </span>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="bg-muted/50 p-3 rounded-md overflow-auto max-h-[300px]">
-                            <pre className="text-xs">{JSON.stringify(value, null, 2)}</pre>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              )}
-            </>
-          )}
         </TabsContent>
         
         <TabsContent value="upload">
@@ -482,8 +263,7 @@ const ToolsPage = () => {
                   console.log("Application state:", {
                     localStorage: Object.keys(localStorage),
                     url: window.location.href,
-                    userAgent: navigator.userAgent,
-                    authenticated: isAuthenticated
+                    userAgent: navigator.userAgent
                   });
                   toast.success("Debug information logged to console");
                 }}>
@@ -491,15 +271,7 @@ const ToolsPage = () => {
                 </Button>
                 <Button variant="outline" onClick={() => {
                   const a = document.createElement("a");
-                  const data = {
-                    localStorage: localStorageData,
-                    supabaseData: supabaseData,
-                    url: window.location.href,
-                    date: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                    authenticated: isAuthenticated
-                  };
-                  const file = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                  const file = new Blob([JSON.stringify(localStorageData, null, 2)], { type: "application/json" });
                   a.href = URL.createObjectURL(file);
                   a.download = "tortshark-debug-data.json";
                   a.click();

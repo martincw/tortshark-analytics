@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,33 +12,75 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Wrench, LogOut, ChartBarIcon, LineChart, Table } from "lucide-react";
+import { Menu, Wrench, LogOut } from "lucide-react";
+import { getPublicUrl } from "@/services/storageService";
+import { uploadLogoToStorage } from "@/utils/uploadLogoUtil";
 import { toast } from "sonner";
 
 interface NavItem {
   href: string;
   label: string;
-  icon?: React.ReactNode;
 }
 
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/campaigns", label: "Campaigns" },
-  { href: "/bulk-stats", label: "Bulk Stats", icon: <Table className="h-4 w-4 mr-2" /> },
-  { href: "/analysis", label: "Analysis", icon: <LineChart className="h-4 w-4 mr-2" /> },
   { href: "/accounts", label: "Accounts" },
   { href: "/integrations", label: "Integrations" },
-  { href: "/tools", label: "Tools", icon: <Wrench className="h-4 w-4 mr-2" /> },
+  { href: "/tools", label: "Tools" },
 ];
-
-// Direct logo URL
-const LOGO_URL = "https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png";
 
 export const Navbar: React.FC = () => {
   const campaignContext = useCampaign();
   const { signOut } = useAuth();
   const { campaigns = [], selectedCampaignIds = [], setSelectedCampaignIds } = campaignContext || {};
-  const [logoError, setLogoError] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isLogoLoading, setIsLogoLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        setIsLogoLoading(true);
+        // Get the logo URL from Supabase storage
+        const logoPath = "tortshark-logo.png";
+        
+        // Check if the logo exists first
+        const url = getPublicUrl("assets", logoPath);
+        
+        // Test if the URL is valid by trying to fetch it
+        const response = await fetch(url, { method: 'HEAD' });
+        
+        if (response.ok) {
+          console.log("Logo found in storage:", url);
+          setLogoUrl(url);
+        } else {
+          console.log("Logo not found in storage, uploading...");
+          // If the logo doesn't exist, upload it
+          const uploadSuccess = await uploadLogoToStorage();
+          
+          if (uploadSuccess) {
+            // Get the URL again after upload
+            const newUrl = getPublicUrl("assets", logoPath);
+            setLogoUrl(newUrl);
+            console.log("Logo uploaded successfully, new URL:", newUrl);
+          } else {
+            console.error("Failed to upload logo");
+            // Fallback to the original image if upload fails
+            setLogoUrl("/assets/tortshark-logo.png");
+          }
+        }
+      } catch (error) {
+        console.error("Error loading logo:", error);
+        toast.error("Could not load the logo");
+        // Fallback to the original image on error
+        setLogoUrl("/assets/tortshark-logo.png");
+      } finally {
+        setIsLogoLoading(false);
+      }
+    };
+    
+    fetchLogo();
+  }, []);
   
   const handleCampaignSelection = (campaignId: string) => {
     if (!setSelectedCampaignIds) return;
@@ -56,12 +98,6 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut();
-  };
-
-  const handleLogoError = () => {
-    console.error("Error loading logo from URL");
-    setLogoError(true);
-    toast.error("Could not load the logo");
   };
 
   return (
@@ -83,8 +119,7 @@ export const Navbar: React.FC = () => {
               </SheetHeader>
               <div className="grid gap-4 py-4">
                 {navItems.map((item) => (
-                  <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary flex items-center">
-                    {item.icon}
+                  <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
                     {item.label}
                   </Link>
                 ))}
@@ -111,15 +146,22 @@ export const Navbar: React.FC = () => {
             </SheetContent>
           </Sheet>
           <Link to="/" className="ml-4">
-            {logoError ? (
-              <div className="h-8 px-2 flex items-center text-primary font-bold">TortShark</div>
-            ) : (
+            {isLogoLoading ? (
+              <div className="h-8 w-32 bg-secondary animate-pulse rounded"></div>
+            ) : logoUrl ? (
               <img 
-                src={LOGO_URL} 
+                src={logoUrl} 
                 alt="TortShark Logo" 
                 className="h-8"
-                onError={handleLogoError}
+                onError={(e) => {
+                  console.error("Image failed to load:", e);
+                  // Fallback to static asset if Supabase image fails
+                  const imgElement = e.target as HTMLImageElement;
+                  imgElement.src = "/assets/tortshark-logo.png";
+                }}
               />
+            ) : (
+              <div className="h-8 w-32 bg-secondary animate-pulse rounded"></div>
             )}
           </Link>
         </div>
@@ -130,7 +172,7 @@ export const Navbar: React.FC = () => {
               to={item.href} 
               className="text-sm font-medium transition-colors hover:text-primary flex items-center"
             >
-              {item.icon}
+              {item.label === "Tools" && <Wrench className="h-4 w-4 mr-2" />}
               {item.label}
             </Link>
           ))}

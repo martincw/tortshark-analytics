@@ -1,3 +1,4 @@
+
 import { Campaign, CampaignMetrics } from "../types/campaign";
 
 // Calculate metrics for a campaign
@@ -15,12 +16,8 @@ export const calculateMetrics = (campaign: Campaign): CampaignMetrics => {
   
   const profit = manualStats.revenue - stats.adSpend;
   
-  // Calculate ROAS as a multiplier (e.g., 2.5x)
-  const roas = stats.adSpend > 0 
-    ? manualStats.revenue / stats.adSpend
-    : 0;
-    
-  // For backward compatibility, keeping the roi calculation
+  // Fix: Calculate ROI as return percentage beyond 100%
+  // Example: If you spent $100 and got back $300, that's a 200% ROI
   const roi = stats.adSpend > 0 
     ? (manualStats.revenue / stats.adSpend) * 100 
     : 0;
@@ -29,8 +26,7 @@ export const calculateMetrics = (campaign: Campaign): CampaignMetrics => {
     costPerLead,
     cpa,
     profit,
-    roi,
-    roas
+    roi
   };
 };
 
@@ -58,11 +54,6 @@ export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// Format ROAS as multiplier (e.g. 2.5x)
-export const formatROAS = (value: number): string => {
-  return `${value.toFixed(1)}x`;
-};
-
 // Format large numbers with abbreviations
 export const formatNumber = (value: number): string => {
   if (value >= 1000000) {
@@ -75,10 +66,10 @@ export const formatNumber = (value: number): string => {
 };
 
 // Get color class based on performance metrics
-export const getPerformanceClass = (roas: number): string => {
-  if (roas > 2) return "text-success-DEFAULT font-bold";
-  if (roas > 1) return "text-secondary font-bold";
-  if (roas > 0) return "text-secondary";
+export const getPerformanceClass = (roi: number): string => {
+  if (roi > 200) return "text-success-DEFAULT font-bold";
+  if (roi > 100) return "text-secondary font-bold";
+  if (roi > 0) return "text-secondary";
   return "text-error-DEFAULT";
 };
 
@@ -90,17 +81,17 @@ export const getTrendDirection = (value: number): "up" | "down" | "neutral" => {
 };
 
 // Get performance label based on metrics
-export const getPerformanceLabel = (roas: number): string => {
-  if (roas > 2) return "Excellent";
-  if (roas > 1) return "Good";
-  if (roas > 0) return "Positive";
+export const getPerformanceLabel = (roi: number): string => {
+  if (roi > 200) return "Excellent";
+  if (roi > 100) return "Good";
+  if (roi > 0) return "Positive";
   return "Needs Improvement";
 };
 
 // Get background class based on performance
-export const getPerformanceBgClass = (roas: number): string => {
-  if (roas > 2) return "bg-success-muted";
-  if (roas > 1) return "bg-secondary/15";
-  if (roas > 0) return "bg-secondary/10";
+export const getPerformanceBgClass = (roi: number): string => {
+  if (roi > 200) return "bg-success-muted";
+  if (roi > 100) return "bg-secondary/15";
+  if (roi > 0) return "bg-secondary/10";
   return "bg-error-muted";
 };
