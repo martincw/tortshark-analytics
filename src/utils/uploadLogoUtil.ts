@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { SUPABASE_PROJECT_URL } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const uploadLogoToStorage = async () => {
