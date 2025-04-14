@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -12,20 +11,22 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Wrench, LogOut } from "lucide-react";
+import { Menu, Wrench, LogOut, ChartBarIcon, LineChart } from "lucide-react";
 import { toast } from "sonner";
 
 interface NavItem {
   href: string;
   label: string;
+  icon?: React.ReactNode;
 }
 
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/campaigns", label: "Campaigns" },
+  { href: "/analysis", label: "Analysis", icon: <LineChart className="h-4 w-4 mr-2" /> },
   { href: "/accounts", label: "Accounts" },
   { href: "/integrations", label: "Integrations" },
-  { href: "/tools", label: "Tools" },
+  { href: "/tools", label: "Tools", icon: <Wrench className="h-4 w-4 mr-2" /> },
 ];
 
 // Direct logo URL
@@ -80,7 +81,8 @@ export const Navbar: React.FC = () => {
               </SheetHeader>
               <div className="grid gap-4 py-4">
                 {navItems.map((item) => (
-                  <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
+                  <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary flex items-center">
+                    {item.icon}
                     {item.label}
                   </Link>
                 ))}
@@ -126,7 +128,7 @@ export const Navbar: React.FC = () => {
               to={item.href} 
               className="text-sm font-medium transition-colors hover:text-primary flex items-center"
             >
-              {item.label === "Tools" && <Wrench className="h-4 w-4 mr-2" />}
+              {item.icon}
               {item.label}
             </Link>
           ))}

@@ -18,6 +18,7 @@ import AccountsPage from "./pages/AccountsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ToolsPage from "./pages/ToolsPage";
+import AnalysisPage from "./pages/AnalysisPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/campaign/:id" element={<CampaignDetail />} />
                 <Route path="/add-campaign" element={<AddCampaignPage />} />
+                <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/accounts" element={<AccountsPage />} />
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/tools" element={<ToolsPage />} />
