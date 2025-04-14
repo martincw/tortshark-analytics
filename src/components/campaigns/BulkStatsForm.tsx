@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +22,7 @@ type DailyStats = {
   cases: number;
   retainers: number;
   revenue: number;
+  adSpend: number; // Added adSpend to manual stats
 };
 
 type WeeklyStats = {
@@ -69,7 +71,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     
     weekDates.forEach(date => {
       const dateKey = format(date, "yyyy-MM-dd");
-      emptyWeekStats[dateKey] = { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+      emptyWeekStats[dateKey] = { leads: 0, cases: 0, retainers: 0, revenue: 0, adSpend: 0 };
     });
     
     setWeeklyStatsData(prev => ({
@@ -83,7 +85,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     
     setWeeklyStatsData(prev => {
       const campaignStats = prev[campaignId] || {};
-      const dayStats = campaignStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+      const dayStats = campaignStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0, adSpend: 0 };
       
       return {
         ...prev,
@@ -125,7 +127,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         
         for (const date of weekDates) {
           const dateKey = format(date, "yyyy-MM-dd");
-          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0, adSpend: 0 };
           
           allStatsToAdd.push({
             id: uuidv4(),
@@ -135,6 +137,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             cases: dayStats.cases || 0,
             retainers: dayStats.retainers || 0,
             revenue: dayStats.revenue || 0,
+            ad_spend: dayStats.adSpend || 0, // Added adSpend to the database entry
             created_at: new Date().toISOString()
           });
         }
@@ -159,7 +162,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
       const manualStatsToAdd = selectedCampaignIds.map(campaignId => {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0, adSpend: 0 };
         
         return {
           id: uuidv4(),
@@ -232,18 +235,19 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
+        <div className="grid grid-cols-7 gap-4 p-2 font-medium bg-muted rounded-md">
           <div className="col-span-2">Campaign</div>
           <div className="col-span-1 text-center">Leads</div>
           <div className="col-span-1 text-center">Cases</div>
           <div className="col-span-1 text-center">Retainers</div>
           <div className="col-span-1 text-center">Revenue ($)</div>
+          <div className="col-span-1 text-center">Ad Spend ($)</div>
         </div>
 
         {campaigns.map((campaign) => (
           <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
             <CardContent className="p-4">
-              <div className="grid grid-cols-6 gap-4 items-center">
+              <div className="grid grid-cols-7 gap-4 items-center">
                 <div className="col-span-2 flex items-center space-x-2">
                   <Checkbox
                     id={`select-${campaign.id}`}
@@ -297,6 +301,19 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                     onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'revenue', e.target.value)}
                     disabled={!selectedCampaigns[campaign.id]}
                     placeholder="0"
+                  />
+                </div>
+                
+                <div className="col-span-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
+                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
+                    disabled={!selectedCampaigns[campaign.id]}
+                    placeholder="0"
+                    className="border-primary/30 focus-visible:ring-primary/70"
                   />
                 </div>
               </div>
