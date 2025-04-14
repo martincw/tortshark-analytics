@@ -78,7 +78,9 @@ export function DateRangePicker() {
     });
     
     // Force reload of campaign data by creating a new object reference
-    setDateRange({...newRange});
+    const newRangeObj = {...newRange};
+    console.log('Setting new date range:', newRangeObj);
+    setDateRange(newRangeObj);
     setIsPopoverOpen(false);
     toast.success("Date range updated");
   };

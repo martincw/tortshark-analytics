@@ -18,6 +18,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
+import { parseISO, isWithinInterval } from "date-fns";
 
 const Index = () => {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
@@ -53,12 +54,32 @@ const Index = () => {
     let totalTargetSpend = 0;
     let totalTargetIncome = 0;
     
-    // Aggregate metrics
+    // Get date range for filtering
+    const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+    
+    // Aggregate metrics with date filtering
     filteredCampaigns.forEach(campaign => {
-      totalLeads += campaign.manualStats.leads || 0;
-      totalCases += campaign.manualStats.cases || 0;
-      totalRevenue += campaign.manualStats.revenue || 0;
-      totalAdSpend += campaign.stats.adSpend || 0;
+      if (startDate && endDate) {
+        // Filter statsHistory by date range
+        const filteredStats = campaign.statsHistory.filter(stat => {
+          const statDate = parseISO(stat.date);
+          return isWithinInterval(statDate, { start: startDate, end: endDate });
+        });
+        
+        // Aggregate filtered stats
+        totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
+        totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
+        totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
+        totalAdSpend += filteredStats.reduce((sum, stat) => sum + stat.adSpend, 0);
+      } else {
+        // If no date filtering, use summary stats
+        totalLeads += campaign.manualStats.leads || 0;
+        totalCases += campaign.manualStats.cases || 0;
+        totalRevenue += campaign.manualStats.revenue || 0;
+        totalAdSpend += campaign.stats.adSpend || 0;
+      }
+      
       totalTargetRetainers += campaign.targets.monthlyRetainers || 0;
       totalTargetSpend += campaign.targets.monthlySpend || 0;
       totalTargetIncome += campaign.targets.monthlyIncome || 0;
@@ -130,7 +151,7 @@ const Index = () => {
       getProfitVariant,
       getRoiClass
     };
-  }, [campaigns, selectedCampaignIds]);
+  }, [campaigns, selectedCampaignIds, dateRange.startDate, dateRange.endDate]);
 
   return (
     <div className="space-y-6">

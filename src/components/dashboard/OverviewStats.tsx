@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { isWithinInterval, parseISO } from "date-fns";
 
 interface ProgressBarProps {
   label: string;
@@ -54,6 +55,10 @@ export function OverviewStats() {
       };
     }
     
+    // Filter stats by date range
+    const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+
     // Calculate aggregate metrics across campaigns
     let totalLeads = 0;
     let totalCases = 0;
@@ -63,11 +68,29 @@ export function OverviewStats() {
     let totalBudget = 0;
     
     filteredCampaigns.forEach(campaign => {
-      totalLeads += campaign.manualStats.leads || 0;
-      totalCases += campaign.manualStats.cases || 0;
-      totalRetainers += campaign.manualStats.retainers || 0;
-      totalRevenue += campaign.manualStats.revenue || 0;
-      totalAdSpend += campaign.stats.adSpend || 0;
+      // Filter stats by date if date range is provided
+      if (startDate && endDate) {
+        // Filter statsHistory by date range
+        const filteredStats = campaign.statsHistory.filter(stat => {
+          const statDate = parseISO(stat.date);
+          return isWithinInterval(statDate, { start: startDate, end: endDate });
+        });
+        
+        // Aggregate filtered stats
+        totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
+        totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
+        totalRetainers += filteredStats.reduce((sum, stat) => sum + stat.retainers, 0);
+        totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
+        totalAdSpend += filteredStats.reduce((sum, stat) => sum + stat.adSpend, 0);
+      } else {
+        // If no date range, use the summary stats
+        totalLeads += campaign.manualStats.leads || 0;
+        totalCases += campaign.manualStats.cases || 0;
+        totalRetainers += campaign.manualStats.retainers || 0;
+        totalRevenue += campaign.manualStats.revenue || 0;
+        totalAdSpend += campaign.stats.adSpend || 0;
+      }
+      
       totalBudget += campaign.targets.monthlySpend || 0;
     });
     

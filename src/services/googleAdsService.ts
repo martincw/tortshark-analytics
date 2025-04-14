@@ -264,6 +264,8 @@ export const fetchGoogleAdsMetrics = async (
       return null;
     }
     
+    console.log(`Fetching Google Ads metrics with date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+    
     const response = await supabase.functions.invoke("google-ads-data", {
       body: { 
         action: "get-metrics",

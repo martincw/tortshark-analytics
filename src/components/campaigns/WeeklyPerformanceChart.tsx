@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import {
   ChartContainer,
@@ -19,26 +18,39 @@ import {
   YAxis,
 } from "recharts";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface WeeklyPerformanceChartProps {
   campaign: Campaign;
 }
 
 export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps) {
+  const { dateRange } = useCampaign();
+  
   const chartData = useMemo(() => {
-    const today = new Date();
-    const weeksToShow = 4; // Show last 4 weeks
+    // Use the selected date range if available, otherwise use the last 4 weeks
+    const hasDateRange = dateRange.startDate && dateRange.endDate;
+    const endDateForCalc = hasDateRange ? new Date(dateRange.endDate) : new Date();
+    const startDateForCalc = hasDateRange ? new Date(dateRange.startDate) : subDays(endDateForCalc, 28); // 4 weeks
+    
+    console.log(`Generating weekly chart data from ${startDateForCalc} to ${endDateForCalc}`);
+    
+    // Calculate number of weeks in the range
+    const weeksToShow = Math.ceil((endDateForCalc.getTime() - startDateForCalc.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const adjustedWeeksToShow = Math.max(1, Math.min(weeksToShow, 8)); // Cap at 8 weeks
     
     // Generate weekly periods
-    const weeklyPeriods = Array.from({ length: weeksToShow }).map((_, index) => {
-      const endDate = subDays(today, index * 7);
-      const startDateOfWeek = startOfWeek(endDate, { weekStartsOn: 1 }); // Monday as start of week
-      const endDateOfWeek = endOfWeek(endDate, { weekStartsOn: 1 });
+    const weeklyPeriods = Array.from({ length: adjustedWeeksToShow }).map((_, index) => {
+      const currentEndDate = new Date(endDateForCalc);
+      currentEndDate.setDate(endDateForCalc.getDate() - (index * 7));
+      
+      const startDateOfWeek = startOfWeek(currentEndDate, { weekStartsOn: 1 }); // Monday as start of week
+      const endDateOfWeek = endOfWeek(currentEndDate, { weekStartsOn: 1 });
       
       return {
         startDate: startDateOfWeek,
         endDate: endDateOfWeek,
-        label: `Week ${weeksToShow - index}`
+        label: `Week ${adjustedWeeksToShow - index}`
       };
     }).reverse();
     
@@ -90,7 +102,7 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
         revenueTarget: weeklyRevenueTarget
       };
     });
-  }, [campaign.statsHistory, campaign.targets]);
+  }, [campaign.statsHistory, campaign.targets, dateRange.startDate, dateRange.endDate]);
 
   const chartConfig = {
     leads: {
