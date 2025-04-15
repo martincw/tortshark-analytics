@@ -59,7 +59,7 @@ const DashboardFinancialStats: React.FC = () => {
       console.log('Fetching financial stats for:', format(selectedDate, 'yyyy-MM-dd'));
       console.log('Time range:', startISO, 'to', endISO);
 
-      // Query Supabase for campaign_stats that fall within the date range
+      // Query Supabase for campaign_stats that fall within the date range for ad spend
       const { data: adSpendData, error: adSpendError } = await supabase
         .from('campaign_stats')
         .select('ad_spend')
