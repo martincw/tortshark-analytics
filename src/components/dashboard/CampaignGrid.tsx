@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
 
 export function CampaignGrid() {
-  const { campaigns, isLoading } = useCampaign();
+  const { campaigns, isLoading, dateRange } = useCampaign();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [isChecking, setIsChecking] = React.useState(true);
@@ -41,6 +41,11 @@ export function CampaignGrid() {
     campaignTypes,
     sortedAndFilteredCampaigns
   } = useCampaignGridData(campaigns);
+
+  // Log the date range to ensure it's consistent with other components
+  React.useEffect(() => {
+    console.log("CampaignGrid using date range:", dateRange.startDate, "to", dateRange.endDate);
+  }, [dateRange]);
 
   const clearFilters = () => {
     setSearchTerm("");

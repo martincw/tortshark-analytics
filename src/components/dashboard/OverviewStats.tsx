@@ -37,12 +37,19 @@ const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue,
 export function OverviewStats() {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
   
+  React.useEffect(() => {
+    console.log("OverviewStats component received campaigns:", campaigns.length);
+    console.log("OverviewStats date range:", dateRange);
+  }, [campaigns, dateRange]);
+  
   // Calculate dashboard metrics based on selected campaigns and date range
   const dashboardMetrics = useMemo(() => {
     // Filter campaigns based on selection
     const filteredCampaigns = selectedCampaignIds.length > 0
       ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
       : campaigns;
+    
+    console.log(`OverviewStats working with ${filteredCampaigns.length} filtered campaigns`);
     
     if (filteredCampaigns.length === 0) {
       return {
@@ -91,7 +98,7 @@ export function OverviewStats() {
         totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
         totalRetainers += filteredStats.reduce((sum, stat) => sum + stat.retainers, 0);
         totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
-        totalAdSpend += filteredStats.reduce((sum, stat) => sum + stat.adSpend, 0);
+        totalAdSpend += filteredStats.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
         
         totalBudget += campaign.targets.monthlySpend || 0;
       });
@@ -127,6 +134,8 @@ export function OverviewStats() {
         totalAdSpend += campaign.stats.adSpend || 0;
         totalBudget += campaign.targets.monthlySpend || 0;
       });
+      
+      console.log(`OverviewStats fallback metrics: Leads=${totalLeads}, Cases=${totalCases}, Revenue=${totalRevenue}, AdSpend=${totalAdSpend}`);
       
       // Calculate metrics
       const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;

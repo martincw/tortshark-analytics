@@ -3,6 +3,7 @@ import React from "react";
 import { Campaign } from "@/types/campaign";
 import { CampaignCard } from "./CampaignCard";
 import { Button } from "@/components/ui/button";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface CampaignListProps {
   campaigns: Campaign[];
@@ -10,7 +11,25 @@ interface CampaignListProps {
 }
 
 export function CampaignList({ campaigns, onClearFilters }: CampaignListProps) {
-  console.log("CampaignList - Received campaigns:", campaigns);
+  const { dateRange } = useCampaign();
+  
+  React.useEffect(() => {
+    console.log("CampaignList - Received campaigns:", campaigns);
+    console.log("CampaignList - Using date range:", dateRange.startDate, "to", dateRange.endDate);
+    
+    // Calculate total metrics to debug
+    const totalLeads = campaigns.reduce((sum, camp) => sum + camp.manualStats.leads, 0);
+    const totalCases = campaigns.reduce((sum, camp) => sum + camp.manualStats.cases, 0);
+    const totalRevenue = campaigns.reduce((sum, camp) => sum + camp.manualStats.revenue, 0);
+    const totalAdSpend = campaigns.reduce((sum, camp) => sum + camp.stats.adSpend, 0);
+    
+    console.log("CampaignList - Totals:", {
+      leads: totalLeads,
+      cases: totalCases,
+      revenue: totalRevenue,
+      adSpend: totalAdSpend
+    });
+  }, [campaigns, dateRange]);
   
   if (!campaigns || campaigns.length === 0) {
     return (

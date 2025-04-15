@@ -1,11 +1,21 @@
+
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
+import { useCampaign } from "@/contexts/CampaignContext";
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 
 export function useCampaignGridData(campaigns: Campaign[]) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [filterCampaign, setFilterCampaign] = useState("all");
+  const { dateRange } = useCampaign();
+  
+  // Log incoming campaigns for debugging
+  useMemo(() => {
+    console.log(`useCampaignGridData received ${campaigns.length} campaigns`);
+    console.log(`useCampaignGridData date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+  }, [campaigns, dateRange]);
   
   // Memoize the grouping operation to prevent recalculations
   const groupedCampaigns = useMemo(() => {
