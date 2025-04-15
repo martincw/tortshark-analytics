@@ -11,63 +11,62 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
-import { OverviewStats } from "@/components/dashboard/OverviewStats";
-
-// Helper function to create a Date object in local time
-function createLocalDate(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number);
-  // JavaScript months are 0-indexed, so subtract 1 from the month
-  return new Date(year, month - 1, day);
-}
 
 const Dashboard: React.FC = () => {
-  const [inputDate, setInputDate] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const dateStr = e.target.value; // Expected format: "YYYY-MM-DD"
-    setInputDate(dateStr);
-    if (dateStr) {
-      // Convert the date string to a local Date using our helper function
-      const localDate = createLocalDate(dateStr);
-      setSelectedDate(localDate);
+  // Handle date selection with consistent 12pm to avoid timezone issues
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      // Normalize date to noon to avoid timezone issues
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(12, 0, 0, 0);
+      setSelectedDate(normalizedDate);
     } else {
-      setSelectedDate(null);
+      setSelectedDate(undefined);
     }
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <DashboardHeader />
+      <h1 className="text-3xl font-bold">Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <OverviewStats />
-      </div>
-      
-      <div className="flex flex-col space-y-2 my-6">
+      <div className="flex flex-col space-y-2">
         <label htmlFor="datePicker" className="text-sm font-medium">
-          Select a Date:
+          Select a date:
         </label>
-        <input
-          id="datePicker"
-          type="date"
-          value={inputDate}
-          onChange={handleDateChange}
-          className="w-[240px] px-3 py-2 border rounded-md"
-        />
+        
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              id="datePicker"
+              variant={"outline"}
+              className={cn(
+                "w-[240px] justify-start text-left font-normal",
+                !selectedDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>
             {selectedDate 
-              ? `Data for ${selectedDate.toLocaleDateString('en-US', {
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric'
-                })}`
+              ? `Data for ${format(selectedDate, "MMMM d, yyyy")}`
               : "Dashboard Overview"
             }
           </CardTitle>
@@ -76,14 +75,10 @@ const Dashboard: React.FC = () => {
           {selectedDate ? (
             <div className="space-y-4">
               <p className="text-muted-foreground">
-                Displaying data for {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+                Displaying data for {format(selectedDate, "EEEE, MMMM d, yyyy")}
               </p>
               
+              {/* Replace with actual dashboard data components */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-accent/10 p-4 rounded-lg">
                   <h3 className="font-medium mb-2">Total Leads</h3>
@@ -104,8 +99,6 @@ const Dashboard: React.FC = () => {
           )}
         </CardContent>
       </Card>
-      
-      <DailyAveragesSection />
     </div>
   );
 };
