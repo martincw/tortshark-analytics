@@ -30,6 +30,14 @@ function getDayRange(localDate: Date) {
   return { start, end };
 }
 
+// Define target values as constants outside of the component
+// These should ideally come from configuration or calculated dynamically
+const TARGET_DAILY_LEADS = 15;
+const TARGET_DAILY_CASES = 2;
+const TARGET_DAILY_REVENUE = 3000;
+const TARGET_DAILY_AD_SPEND = 1000;
+const TARGET_DAILY_PROFIT = 2000;
+
 export function DailyAveragesSection() {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
 
@@ -97,19 +105,12 @@ export function DailyAveragesSection() {
     const dailyAdSpend = totalAdSpend / totalDays;
     const dailyProfit = (totalRevenue - totalAdSpend) / totalDays;
     
-    // Use actual data-driven targets instead of hardcoded values
-    // These values should be fetched from configuration or calculated based on business rules
-    const targetDailyLeads = 15; // Updated target
-    const targetDailyCases = 2;  // Updated target
-    const targetDailyRevenue = 3000; // Updated target
-    const targetDailyAdSpend = 1000; // Updated target
-    const targetDailyProfit = 2000; // Updated target
-    
-    const leadsProgress = Math.min(100, (dailyLeads / targetDailyLeads) * 100);
-    const casesProgress = Math.min(100, (dailyCases / targetDailyCases) * 100);
-    const revenueProgress = Math.min(100, (dailyRevenue / targetDailyRevenue) * 100);
-    const adSpendProgress = Math.min(100, (dailyAdSpend / targetDailyAdSpend) * 100);
-    const profitProgress = Math.min(100, (dailyProfit / targetDailyProfit) * 100);
+    // Calculate progress using the global target constants
+    const leadsProgress = Math.min(100, (dailyLeads / TARGET_DAILY_LEADS) * 100);
+    const casesProgress = Math.min(100, (dailyCases / TARGET_DAILY_CASES) * 100);
+    const revenueProgress = Math.min(100, (dailyRevenue / TARGET_DAILY_REVENUE) * 100);
+    const adSpendProgress = Math.min(100, (dailyAdSpend / TARGET_DAILY_AD_SPEND) * 100);
+    const profitProgress = Math.min(100, (dailyProfit / TARGET_DAILY_PROFIT) * 100);
     
     return {
       dailyLeads,
@@ -163,7 +164,7 @@ export function DailyAveragesSection() {
             <div className="mt-4">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Daily Leads Target</span>
-                <span className="font-medium">{Math.round(dailyAverages.dailyLeads)}/{targetDailyLeads}</span>
+                <span className="font-medium">{Math.round(dailyAverages.dailyLeads)}/{TARGET_DAILY_LEADS}</span>
               </div>
               <CustomProgressBar value={dailyAverages.leadsProgress} variant="success" size="sm" />
             </div>
@@ -194,7 +195,7 @@ export function DailyAveragesSection() {
             <div className="mt-4">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Daily Revenue Target</span>
-                <span className="font-medium">{formatCurrency(dailyAverages.dailyRevenue)}/{formatCurrency(targetDailyRevenue)}</span>
+                <span className="font-medium">{formatCurrency(dailyAverages.dailyRevenue)}/{formatCurrency(TARGET_DAILY_REVENUE)}</span>
               </div>
               <CustomProgressBar value={dailyAverages.revenueProgress} variant="success" size="sm" />
             </div>
@@ -227,7 +228,7 @@ export function DailyAveragesSection() {
             <div className="mt-4">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Daily Profit Target</span>
-                <span className="font-medium">{formatCurrency(dailyAverages.dailyProfit)}/{formatCurrency(targetDailyProfit)}</span>
+                <span className="font-medium">{formatCurrency(dailyAverages.dailyProfit)}/{formatCurrency(TARGET_DAILY_PROFIT)}</span>
               </div>
               <CustomProgressBar value={dailyAverages.profitProgress} variant="success" size="sm" />
             </div>
