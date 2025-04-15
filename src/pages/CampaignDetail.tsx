@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
@@ -68,6 +69,7 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
 import { DatePicker } from "@/components/ui/date-picker";
+import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -269,8 +271,20 @@ const CampaignDetail = () => {
         adSpend: (entry.adSpend || 0).toString()
       });
       
-      const entryDate = new Date(entry.date);
-      console.log("Original entry date:", entryDate);
+      // Parse the date from entry.date
+      let entryDate: Date;
+      try {
+        entryDate = parseISO(entry.date);
+        if (!isValid(entryDate)) {
+          console.warn(`Invalid date from entry: ${entry.date}, using current date instead`);
+          entryDate = new Date();
+        }
+      } catch (error) {
+        console.error(`Error parsing date: ${entry.date}`, error);
+        entryDate = new Date();
+      }
+      
+      console.log("Original entry date:", entry.date, "Parsed date:", entryDate);
       setEditDate(entryDate);
       
       setEditEntryDialogOpen(true);
@@ -356,6 +370,26 @@ const CampaignDetail = () => {
   const profitPerCase = campaign.manualStats.cases > 0 
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
+
+  // Helper function to safely format dates
+  const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
+    try {
+      // First, try to parse the ISO string
+      const date = parseISO(dateString);
+      
+      // Check if the resulting date is valid
+      if (!isValid(date)) {
+        console.warn(`Invalid date after parsing: ${dateString}`);
+        return "Invalid date";
+      }
+      
+      // Format the valid date
+      return format(date, formatStr);
+    } catch (error) {
+      console.error(`Error formatting date: ${dateString}`, error);
+      return "Invalid date";
+    }
+  };
 
   return (
     
@@ -818,14 +852,14 @@ const CampaignDetail = () => {
                     .map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell className="font-medium">
-                          {format(new Date(`${entry.date}T12:00:00`), "PP")}
+                          {formatSafeDate(entry.date, "PP")}
                         </TableCell>
                         <TableCell>{entry.leads}</TableCell>
                         <TableCell>{entry.cases}</TableCell>
                         <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>
                         <TableCell>{formatCurrency(entry.revenue)}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {format(new Date(entry.createdAt), "PP")}
+                          {formatSafeDate(entry.createdAt, "PP")}
                         </TableCell>
                         <TableCell className="text-right p-2">
                           <DropdownMenu>
@@ -859,6 +893,8 @@ const CampaignDetail = () => {
           )}
         </CardContent>
       </Card>
+      
+      <CampaignPerformanceSection campaign={campaign} />
       
       {/* Add Stats Dialog */}
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
