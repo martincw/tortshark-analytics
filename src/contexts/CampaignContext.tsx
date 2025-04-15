@@ -92,7 +92,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           *,
           campaign_stats(*),
           campaign_manual_stats(*),
-          campaign_stats_history(*)
+          campaign_stats_history(*),
+          campaign_targets(*)
         `)
         .eq('user_id', user.id);
 
@@ -138,6 +139,25 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
 
           // Fix TypeScript error with platform by ensuring it's properly typed
           const platform = campaign.platform as "google" | "facebook" | "linkedin";
+          
+          // Get the targets data from campaign_targets or use defaults
+          const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
+            ? {
+                monthlyRetainers: campaign.campaign_targets[0].monthly_retainers || 0,
+                casePayoutAmount: campaign.campaign_targets[0].case_payout_amount || 0,
+                monthlyIncome: campaign.campaign_targets[0].monthly_income || 0,
+                monthlySpend: campaign.campaign_targets[0].monthly_spend || 0,
+                targetROAS: campaign.campaign_targets[0].target_roas || 0,
+                targetProfit: campaign.campaign_targets[0].target_profit || 0,
+              }
+            : {
+                monthlyRetainers: 0,
+                casePayoutAmount: 0,
+                monthlyIncome: 0,
+                monthlySpend: 0,
+                targetROAS: 0,
+                targetProfit: 0,
+              };
 
           return {
             id: campaign.id,
@@ -148,14 +168,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             stats: stats,
             manualStats: manualStats,
             statsHistory: statsHistory,
-            targets: {
-              monthlyRetainers: campaign.monthly_retainers || 0,
-              casePayoutAmount: campaign.case_payout_amount || 0,
-              monthlyIncome: campaign.monthly_income || 0,
-              monthlySpend: campaign.monthly_spend || 0,
-              targetROAS: campaign.target_roas || 0,
-              targetProfit: campaign.target_profit || 0,
-            },
+            targets: targets,
           };
         });
         
@@ -193,7 +206,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         isConnected: conn.is_connected,
         lastSynced: conn.last_synced,
         customerId: conn.customer_id,
-        credentials: conn.credentials
+        credentials: conn.credentials ? conn.credentials : {}
       }));
       
       setAccountConnections(connections);

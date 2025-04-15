@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "@/hooks/use-toast";
 import { listGoogleAdsAccounts } from "@/services/googleAdsService";
+import { v4 as uuidv4 } from 'uuid';
 
 interface ConnectedAccountsProps {
   accountConnections: AccountConnection[];
@@ -68,11 +69,13 @@ export const ConnectedAccounts = ({
             accounts.forEach(account => {
               if (!existingIds.includes(account.id)) {
                 addAccountConnection({
+                  id: account.id || uuidv4(),
                   name: account.name,
                   platform: "google",
                   customerId: account.id,
                   isConnected: true,
                   lastSynced: new Date().toISOString(),
+                  credentials: {}
                 });
               }
             });
