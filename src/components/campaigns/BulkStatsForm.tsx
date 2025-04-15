@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,8 +44,8 @@ const statsFields: { id: StatsField; label: string }[] = [
 ];
 
 export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
-  const { campaigns } = useCampaign();
-  const { uniqueCampaigns, activeField, setActiveField } = useBulkStatsData();
+  const { campaigns, fetchCampaigns } = useCampaign();
+  const { uniqueCampaigns, activeField, setActiveField, refreshAfterBulkUpdate } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
@@ -268,6 +267,12 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           }
         }
       }
+      
+      // Trigger a refresh of the campaign data
+      refreshAfterBulkUpdate();
+      
+      // Force a fetch to update the UI with the latest data
+      await fetchCampaigns();
       
       toast.success(`Stats added for ${selectedCampaignIds.length} campaigns for the entire week`);
       
