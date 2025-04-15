@@ -2,15 +2,16 @@
 import React, { useEffect, useState } from "react";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { Button } from "@/components/ui/button";
-import { Plus, Link, Bug, LayoutGrid, List } from "lucide-react";
+import { Plus, Link, Bug, LayoutGrid, List, Calendar, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
-  const { campaigns, isLoading } = useCampaign();
+  const { campaigns, isLoading, dateRange, setDateRange } = useCampaign();
   const [showDebug, setShowDebug] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -44,6 +45,11 @@ const CampaignsPage = () => {
     }
   };
 
+  const clearDateRange = () => {
+    setDateRange({ startDate: "", endDate: "" });
+    toast.success("Date filter cleared");
+  };
+
   const inspectLocalStorage = () => {
     const rawCampaigns = localStorage.getItem('campaigns');
     console.log("Raw campaigns from localStorage:", rawCampaigns);
@@ -60,6 +66,16 @@ const CampaignsPage = () => {
     } else {
       toast.error("No campaign data found in localStorage");
     }
+  };
+
+  // Format the active date range for display
+  const getActiveDateRangeText = () => {
+    if (dateRange.startDate && dateRange.endDate) {
+      return `${format(new Date(dateRange.startDate), "MMM d, yyyy")} - ${format(new Date(dateRange.endDate), "MMM d, yyyy")}`;
+    } else if (dateRange.startDate) {
+      return `From ${format(new Date(dateRange.startDate), "MMM d, yyyy")}`;
+    }
+    return null;
   };
 
   // Show auth prompt if user is not authenticated
@@ -153,6 +169,16 @@ const CampaignsPage = () => {
           </Button>
         </div>
       </div>
+      
+      {getActiveDateRangeText() && (
+        <div className="flex items-center bg-muted/30 px-4 py-2 rounded-md">
+          <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+          <span className="text-sm font-medium">Showing data for: {getActiveDateRangeText()}</span>
+          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0" onClick={clearDateRange}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       
       {showDebug && (
         <div className="p-4 border border-dashed rounded-lg bg-muted/50">
