@@ -109,8 +109,9 @@ export function DateRangePicker() {
           <Button
             id="date"
             variant={"outline"}
+            size="sm"
             className={cn(
-              "justify-start text-left font-normal",
+              "justify-start text-left font-normal bg-background",
               !date && "text-muted-foreground"
             )}
           >
@@ -118,18 +119,17 @@ export function DateRangePicker() {
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(date.from, "MMM dd")} - {format(date.to, "MMM dd, yyyy")}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(date.from, "PPP")
               )
             ) : (
-              <span>Pick a date range</span>
+              <span>Calendar</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 z-50 bg-background border shadow-md" align="start">
           <div className="p-0">
             <Calendar
               initialFocus

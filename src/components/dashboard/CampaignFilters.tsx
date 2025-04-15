@@ -9,10 +9,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, PlusCircle, Calendar } from "lucide-react";
+import { Search, Filter, PlusCircle, Calendar, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QuickDateSelector, { DateRange } from "./QuickDateSelector";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { DateRangePicker } from "./DateRangePicker";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface CampaignFiltersProps {
   searchTerm: string;
@@ -104,15 +106,16 @@ export function CampaignFilters({
               </SelectContent>
             </Select>
           </div>
+          <DateRangePicker />
           <Button
             variant={showDateSelector ? "secondary" : "outline"}
             size="sm" 
             onClick={toggleDateSelector}
             className="w-auto"
-            title="Toggle date filters"
+            title="Toggle quick date selector"
           >
             <Calendar className="h-4 w-4 mr-2" />
-            Date Filter
+            Quick Dates
           </Button>
           <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-1" /> Add Campaign
@@ -121,27 +124,30 @@ export function CampaignFilters({
       </div>
       
       {showDateSelector && (
-        <div className="p-4 border rounded-md mt-2 bg-card shadow-sm">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium mb-3">Quick Date Selection</h3>
-              <QuickDateSelector 
-                onSelect={handleDateSelect} 
-                currentRange={dateRange.startDate ? dateRange : null}
-                onClear={handleClearDates}
-              />
+        <Card className="mt-2 border-accent/30 shadow-sm bg-card">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-semibold">Quick Date Selector</h3>
+              <Button variant="ghost" size="sm" onClick={toggleDateSelector} className="h-7 w-7 p-0">
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          </div>
-        </div>
+            <QuickDateSelector 
+              onSelect={handleDateSelect} 
+              currentRange={dateRange.startDate ? dateRange : null}
+              onClear={handleClearDates}
+            />
+          </CardContent>
+        </Card>
       )}
       
       {dateRange.startDate && !showDateSelector && (
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">
-            Filtered by date: {dateRange.startDate} to {dateRange.endDate}
+        <div className="flex justify-between items-center px-2 py-1 bg-accent/5 rounded-md border border-accent/20">
+          <span className="text-sm">
+            Date filter: <span className="font-medium">{dateRange.startDate}</span> to <span className="font-medium">{dateRange.endDate}</span>
           </span>
-          <Button variant="ghost" size="sm" onClick={handleClearDates}>
-            Clear Date Filter
+          <Button variant="ghost" size="sm" className="h-7" onClick={handleClearDates}>
+            <X className="h-3.5 w-3.5 mr-1" /> Clear
           </Button>
         </div>
       )}
