@@ -1,76 +1,21 @@
-
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
-import { useCampaign } from "@/contexts/CampaignContext";
-import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 
 export function useCampaignGridData(campaigns: Campaign[]) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [filterCampaign, setFilterCampaign] = useState("all");
-  const { dateRange } = useCampaign();
   
   // Log incoming campaigns for debugging
   useMemo(() => {
     console.log(`useCampaignGridData received ${campaigns.length} campaigns`);
-    console.log(`useCampaignGridData date range: ${dateRange.startDate} to ${dateRange.endDate}`);
-  }, [campaigns, dateRange]);
-  
-  // Apply date filtering to campaigns
-  const dateFilteredCampaigns = useMemo(() => {
-    const startDateStr = dateRange.startDate;
-    const endDateStr = dateRange.endDate;
-    
-    if (!startDateStr || !endDateStr) {
-      return campaigns;
-    }
-    
-    // Create date objects with consistent time
-    const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
-    const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
-    
-    console.log(`useCampaignGridData: Filtering by date range ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    
-    return campaigns.map(campaign => {
-      // Create a deep copy to avoid mutating original
-      const filteredCampaign = { ...campaign };
-      
-      // Filter statsHistory by date range
-      const filteredStats = campaign.statsHistory.filter(stat => {
-        const statDate = parseISO(stat.date);
-        return isWithinInterval(statDate, { start: startDate, end: endDate });
-      });
-      
-      console.log(`Campaign ${campaign.name}: Found ${filteredStats.length} stats entries in date range`);
-      
-      // Sum up filtered stats
-      const totalLeads = filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
-      const totalCases = filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
-      const totalRevenue = filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
-      const totalAdSpend = filteredStats.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
-      
-      // Update the campaign copy with date-filtered stats
-      filteredCampaign.manualStats = {
-        ...campaign.manualStats,
-        leads: totalLeads,
-        cases: totalCases,
-        revenue: totalRevenue
-      };
-      
-      filteredCampaign.stats = {
-        ...campaign.stats,
-        adSpend: totalAdSpend
-      };
-      
-      return filteredCampaign;
-    });
-  }, [campaigns, dateRange]);
+  }, [campaigns]);
   
   // Memoize the grouping operation to prevent recalculations
   const groupedCampaigns = useMemo(() => {
     // Create a deep copy of the campaigns to avoid any reference issues
-    return dateFilteredCampaigns.reduce((acc, campaign) => {
+    return campaigns.reduce((acc, campaign) => {
       // Use actual campaign name instead of splitting (which was causing issues)
       const tortType = campaign.name;
       
@@ -81,7 +26,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
       acc[tortType].push({...campaign});
       return acc;
     }, {} as Record<string, Campaign[]>);
-  }, [dateFilteredCampaigns]);
+  }, [campaigns]);
   
   // Memoize the consolidated campaigns calculation
   const consolidatedCampaigns = useMemo(() => {
@@ -127,8 +72,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   
   // Filter and sort campaigns (memoized)
   const sortedAndFilteredCampaigns = useMemo(() => {
-    console.log("useCampaignGridData: Filtering and sorting campaigns with date range:", 
-      dateRange.startDate, "to", dateRange.endDate);
+    console.log("useCampaignGridData: Filtering and sorting campaigns");
     
     // First filter
     const filteredCampaigns = consolidatedCampaigns.filter(campaign => {
@@ -171,7 +115,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
           return 0;
       }
     });
-  }, [consolidatedCampaigns, searchTerm, filterCampaign, sortBy, dateRange]);
+  }, [consolidatedCampaigns, searchTerm, filterCampaign, sortBy]);
 
   return {
     searchTerm,

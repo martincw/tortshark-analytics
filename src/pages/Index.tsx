@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useState, useMemo } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { OverviewStats } from "@/components/dashboard/OverviewStats";
@@ -31,7 +32,7 @@ const Index = () => {
   const [sortBy, setSortBy] = useState("name");
   const [filterCampaign, setFilterCampaign] = useState("all");
   
-  const campaignTypes = React.useMemo(() => {
+  const campaignTypes = useMemo(() => {
     return Array.from(
       new Set(
         campaigns.map(campaign => campaign.name)
@@ -49,13 +50,68 @@ const Index = () => {
 
   const hasNoData = campaigns.length === 0;
 
-  const aggregatedMetrics = React.useMemo(() => {
-    if (campaigns.length === 0) return null;
+  // This is the centralized data processing that will be used throughout the dashboard
+  const filteredCampaignData = useMemo(() => {
+    if (campaigns.length === 0) return [];
     
-    const filteredCampaigns = selectedCampaignIds.length > 0
+    // Filter campaigns based on selection
+    const selectedCampaigns = selectedCampaignIds.length > 0
       ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
       : campaigns;
+    
+    // Apply date filtering to all campaigns
+    return selectedCampaigns.map(campaign => {
+      // Create a deep copy to avoid mutating original
+      const campaignCopy = { ...campaign };
       
+      const startDateStr = dateRange.startDate;
+      const endDateStr = dateRange.endDate;
+      
+      if (startDateStr && endDateStr) {
+        // Create date objects with consistent time (noon)
+        const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
+        const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
+        
+        console.log(`Index: Filtering ${campaign.name} by date range ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        
+        // Filter statsHistory by date range
+        const filteredStats = campaign.statsHistory.filter(stat => {
+          const statDate = parseISO(stat.date);
+          return isWithinInterval(statDate, { start: startDate, end: endDate });
+        });
+        
+        console.log(`Index: Campaign ${campaign.name} has ${filteredStats.length} stats entries in date range`);
+        
+        // Calculate totals from filtered stats
+        const totalLeads = filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
+        const totalCases = filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
+        const totalRevenue = filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
+        const totalAdSpend = filteredStats.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
+        
+        // Update the campaign copy with date-filtered stats
+        campaignCopy.manualStats = {
+          ...campaign.manualStats,
+          leads: totalLeads,
+          cases: totalCases,
+          revenue: totalRevenue,
+          date: campaign.manualStats.date
+        };
+        
+        campaignCopy.stats = {
+          ...campaign.stats,
+          adSpend: totalAdSpend,
+          date: campaign.stats.date
+        };
+      }
+      
+      return campaignCopy;
+    });
+  }, [campaigns, selectedCampaignIds, dateRange.startDate, dateRange.endDate]);
+
+  // Calculate aggregated metrics from the filtered data
+  const aggregatedMetrics = useMemo(() => {
+    if (filteredCampaignData.length === 0) return null;
+    
     let totalLeads = 0;
     let totalCases = 0;
     let totalRevenue = 0;
@@ -64,38 +120,12 @@ const Index = () => {
     let totalTargetSpend = 0;
     let totalTargetIncome = 0;
     
-    const startDateStr = dateRange.startDate;
-    const endDateStr = dateRange.endDate;
-    
-    if (startDateStr && endDateStr) {
-      const startDate = startOfDay(new Date(startDateStr));
-      const endDate = endOfDay(new Date(endDateStr));
+    filteredCampaignData.forEach(campaign => {
+      totalLeads += campaign.manualStats.leads || 0;
+      totalCases += campaign.manualStats.cases || 0;
+      totalRevenue += campaign.manualStats.revenue || 0;
+      totalAdSpend += campaign.stats.adSpend || 0;
       
-      console.log(`Index aggregatedMetrics: Using date range ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      
-      filteredCampaigns.forEach(campaign => {
-        const filteredStats = campaign.statsHistory.filter(stat => {
-          const statDate = parseISO(stat.date);
-          return isWithinInterval(statDate, { start: startDate, end: endDate });
-        });
-        
-        console.log(`Index: Campaign ${campaign.name} has ${filteredStats.length} stats entries in date range`);
-        
-        totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
-        totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
-        totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
-        totalAdSpend += filteredStats.reduce((sum, stat) => sum + stat.adSpend, 0);
-      });
-    } else {
-      filteredCampaigns.forEach(campaign => {
-        totalLeads += campaign.manualStats.leads || 0;
-        totalCases += campaign.manualStats.cases || 0;
-        totalRevenue += campaign.manualStats.revenue || 0;
-        totalAdSpend += campaign.stats.adSpend || 0;
-      });
-    }
-    
-    filteredCampaigns.forEach(campaign => {
       totalTargetRetainers += campaign.targets.monthlyRetainers || 0;
       totalTargetSpend += campaign.targets.monthlySpend || 0;
       totalTargetIncome += campaign.targets.monthlyIncome || 0;
@@ -163,7 +193,7 @@ const Index = () => {
       getProfitVariant,
       getRoiClass
     };
-  }, [campaigns, selectedCampaignIds, dateRange.startDate, dateRange.endDate]);
+  }, [filteredCampaignData]);
 
   return (
     <div className="space-y-6">
@@ -388,7 +418,7 @@ const Index = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {aggregatedMetrics && (
-                <PerformanceSummary key={`performance-${dateKey}`} />
+                <PerformanceSummary key={`performance-${dateKey}`} filteredCampaigns={filteredCampaignData} />
               )}
               
               {aggregatedMetrics && (
@@ -495,16 +525,16 @@ const Index = () => {
               )}
             </div>
             
-            <DailyAveragesSection key={`averages-${dateKey}`} />
+            <DailyAveragesSection key={`averages-${dateKey}`} filteredCampaigns={filteredCampaignData} />
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-3">
-                <OverviewStats key={`overview-${dateKey}`} />
+                <OverviewStats key={`overview-${dateKey}`} filteredCampaigns={filteredCampaignData} />
               </div>
             </div>
             
             <div className="lg:col-span-2">
-              <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
+              <CampaignLeaderboard key={`leaderboard-${dateKey}`} filteredCampaigns={filteredCampaignData} />
             </div>
           </TabsContent>
 
@@ -521,15 +551,15 @@ const Index = () => {
                 showQuickDateSelector={false}
               />
             </div>
-            <CampaignGrid key={`grid-${dateKey}`} />
+            <CampaignGrid key={`grid-${dateKey}`} filteredCampaigns={filteredCampaignData} />
           </TabsContent>
 
           <TabsContent value="insights">
             <div className="lg:col-span-2">
-              <CampaignLeaderboard key={`leaderboard-${dateKey}`} />
+              <CampaignLeaderboard key={`leaderboard-${dateKey}`} filteredCampaigns={filteredCampaignData} />
             </div>
             <div className="mt-6">
-              <CampaignGrid key={`grid-${dateKey}`} />
+              <CampaignGrid key={`grid-${dateKey}`} filteredCampaigns={filteredCampaignData} />
             </div>
           </TabsContent>
         </Tabs>

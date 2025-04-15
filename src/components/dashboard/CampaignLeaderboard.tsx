@@ -1,6 +1,5 @@
 
 import React, { useMemo } from "react";
-import { useCampaign } from "@/contexts/CampaignContext";
 import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
 import { Crown, TrendingUp, DollarSign, Award } from "lucide-react";
 import {
@@ -13,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
+import { Campaign } from "@/types/campaign";
 
 interface LeaderboardMetric {
   id: string;
@@ -21,68 +20,22 @@ interface LeaderboardMetric {
   accountName: string;
   value: number;
   formattedValue: string;
-  costPerLead?: number; // Added to show CPL
+  costPerLead?: number;
 }
 
-export function CampaignLeaderboard() {
-  const { campaigns, dateRange } = useCampaign();
+interface CampaignLeaderboardProps {
+  filteredCampaigns: Campaign[];
+}
+
+export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardProps) {
+  console.log(`CampaignLeaderboard received ${filteredCampaigns.length} filtered campaigns`);
 
   const leaderboardData = useMemo(() => {
-    if (!campaigns.length) return {
+    if (!filteredCampaigns.length) return {
       profitLeaders: [],
       eplLeaders: [],
       profitPerLeadLeaders: []
     };
-
-    // Get filtered campaign data based on date range
-    const startDateStr = dateRange.startDate;
-    const endDateStr = dateRange.endDate;
-    
-    console.log(`CampaignLeaderboard using date range: ${startDateStr} to ${endDateStr}`);
-    
-    const filteredCampaigns = campaigns.map(campaign => {
-      // Create a deep copy to avoid mutating the original
-      const campaignCopy = { ...campaign };
-      
-      // Initialize filtered stats
-      let filteredLeads = 0;
-      let filteredCases = 0;
-      let filteredRevenue = 0;
-      let filteredAdSpend = 0;
-      
-      // Apply date filtering if range exists
-      if (startDateStr && endDateStr) {
-        const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
-        const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
-        
-        // Filter history by date range
-        const filteredHistory = campaign.statsHistory.filter(stat => {
-          const statDate = parseISO(stat.date);
-          return isWithinInterval(statDate, { start: startDate, end: endDate });
-        });
-        
-        // Sum up filtered history
-        filteredLeads = filteredHistory.reduce((sum, stat) => sum + stat.leads, 0);
-        filteredCases = filteredHistory.reduce((sum, stat) => sum + stat.cases, 0);
-        filteredRevenue = filteredHistory.reduce((sum, stat) => sum + stat.revenue, 0);
-        filteredAdSpend = filteredHistory.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
-        
-        // Create a campaign copy with date-filtered stats
-        campaignCopy.manualStats = {
-          ...campaign.manualStats,
-          leads: filteredLeads,
-          cases: filteredCases,
-          revenue: filteredRevenue
-        };
-        
-        campaignCopy.stats = {
-          ...campaign.stats,
-          adSpend: filteredAdSpend
-        };
-      }
-      
-      return campaignCopy;
-    });
     
     // Calculate metrics for each campaign
     const campaignsWithMetrics = filteredCampaigns.map(campaign => {
@@ -93,7 +46,7 @@ export function CampaignLeaderboard() {
       const profitPerLead = campaign.manualStats.leads > 0 
         ? metrics.profit / campaign.manualStats.leads 
         : 0;
-      const costPerLead = metrics.costPerLead; // Get the cost per lead
+      const costPerLead = metrics.costPerLead;
 
       return {
         id: campaign.id,
@@ -128,7 +81,7 @@ export function CampaignLeaderboard() {
         accountName: c.accountName,
         value: c.epl,
         formattedValue: formatCurrency(c.epl),
-        costPerLead: c.costPerLead // Include cost per lead
+        costPerLead: c.costPerLead
       }));
 
     // Sort by profit per lead (descending)
@@ -141,7 +94,7 @@ export function CampaignLeaderboard() {
         accountName: c.accountName,
         value: c.profitPerLead,
         formattedValue: formatCurrency(c.profitPerLead),
-        costPerLead: c.costPerLead // Include cost per lead
+        costPerLead: c.costPerLead
       }));
 
     return {
@@ -149,9 +102,9 @@ export function CampaignLeaderboard() {
       eplLeaders,
       profitPerLeadLeaders
     };
-  }, [campaigns, dateRange]);
+  }, [filteredCampaigns]);
 
-  if (!campaigns.length) {
+  if (!filteredCampaigns.length) {
     return null;
   }
 
@@ -201,7 +154,7 @@ interface LeaderboardSectionProps {
   leaders: LeaderboardMetric[];
   emptyMessage: string;
   tooltip?: string;
-  showCostPerLead?: boolean; // Added to control showing CPL
+  showCostPerLead?: boolean;
 }
 
 function LeaderboardSection({ 

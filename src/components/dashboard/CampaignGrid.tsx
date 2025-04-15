@@ -8,8 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
+import { Campaign } from "@/types/campaign";
 
-export function CampaignGrid() {
+interface CampaignGridProps {
+  filteredCampaigns?: Campaign[];
+}
+
+export function CampaignGrid({ filteredCampaigns }: CampaignGridProps) {
   const { campaigns, isLoading, dateRange } = useCampaign();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
@@ -31,6 +36,8 @@ export function CampaignGrid() {
     checkAuth();
   }, []);
   
+  const campaignsToUse = filteredCampaigns || campaigns;
+  
   const {
     searchTerm,
     setSearchTerm,
@@ -40,12 +47,13 @@ export function CampaignGrid() {
     setFilterCampaign,
     campaignTypes,
     sortedAndFilteredCampaigns
-  } = useCampaignGridData(campaigns);
+  } = useCampaignGridData(campaignsToUse);
 
   // Log the date range to ensure it's consistent with other components
   React.useEffect(() => {
     console.log("CampaignGrid using date range:", dateRange.startDate, "to", dateRange.endDate);
-  }, [dateRange]);
+    console.log(`CampaignGrid received ${campaignsToUse.length} campaigns`);
+  }, [dateRange, campaignsToUse]);
 
   const clearFilters = () => {
     setSearchTerm("");

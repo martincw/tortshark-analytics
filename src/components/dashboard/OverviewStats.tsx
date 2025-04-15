@@ -1,8 +1,8 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useCampaign } from "@/contexts/CampaignContext";
-import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
+import { Campaign } from "@/types/campaign";
 
 interface ProgressBarProps {
   label: string;
@@ -19,6 +19,10 @@ const colorClasses = {
   violet: "text-violet-500",
 };
 
+interface OverviewStatsProps {
+  filteredCampaigns: Campaign[];
+}
+
 const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue, color }) => {
   const progressColor = colorClasses[color] || "text-gray-500";
 
@@ -33,23 +37,11 @@ const CustomProgressBar: React.FC<ProgressBarProps> = ({ label, value, maxValue,
   );
 };
 
-export function OverviewStats() {
-  const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
+export function OverviewStats({ filteredCampaigns }: OverviewStatsProps) {
+  console.log("OverviewStats component received filtered campaigns:", filteredCampaigns.length);
   
-  React.useEffect(() => {
-    console.log("OverviewStats component received campaigns:", campaigns.length);
-    console.log("OverviewStats date range:", dateRange);
-  }, [campaigns, dateRange]);
-  
-  // Calculate dashboard metrics based on selected campaigns and date range
+  // Calculate dashboard metrics based on filtered campaigns
   const dashboardMetrics = useMemo(() => {
-    // Filter campaigns based on selection
-    const filteredCampaigns = selectedCampaignIds.length > 0
-      ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
-      : campaigns;
-    
-    console.log(`OverviewStats working with ${filteredCampaigns.length} filtered campaigns`);
-    
     if (filteredCampaigns.length === 0) {
       return {
         conversionRate: 0,
@@ -60,107 +52,37 @@ export function OverviewStats() {
       };
     }
     
-    // Parse date strings to Date objects for filtering
-    const startDateStr = dateRange.startDate;
-    const endDateStr = dateRange.endDate;
+    // Calculate aggregate metrics across campaigns
+    let totalLeads = 0;
+    let totalCases = 0;
+    let totalRetainers = 0;
+    let totalRevenue = 0;
+    let totalAdSpend = 0;
+    let totalBudget = 0;
     
-    console.log(`OverviewStats filtering by date range: ${startDateStr} to ${endDateStr}`);
+    filteredCampaigns.forEach(campaign => {
+      totalLeads += campaign.manualStats.leads || 0;
+      totalCases += campaign.manualStats.cases || 0;
+      totalRevenue += campaign.manualStats.revenue || 0;
+      totalAdSpend += campaign.stats.adSpend || 0;
+      totalBudget += campaign.targets.monthlySpend || 0;
+    });
     
-    // If we have both dates, filter by them
-    if (startDateStr && endDateStr) {
-      // Create date objects with time set to start/end of day to ensure full day coverage
-      const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
-      const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
-      
-      console.log(`OverviewStats date objects: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      
-      // Calculate aggregate metrics across campaigns
-      let totalLeads = 0;
-      let totalCases = 0;
-      let totalRetainers = 0;
-      let totalRevenue = 0;
-      let totalAdSpend = 0;
-      let totalBudget = 0;
-      
-      filteredCampaigns.forEach(campaign => {
-        // Filter statsHistory by date range
-        const filteredStats = campaign.statsHistory.filter(stat => {
-          // Ensure consistent date parsing by using ISO format with fixed time
-          const statDateStr = stat.date.split('T')[0]; // Get YYYY-MM-DD part
-          const statDate = parseISO(`${statDateStr}T12:00:00Z`);
-          
-          // Check if the date is within our range
-          const isInRange = isWithinInterval(statDate, { start: startDate, end: endDate });
-          
-          if (isInRange) {
-            console.log(`Including stat entry for ${campaign.name} on ${statDateStr}`);
-          }
-          
-          return isInRange;
-        });
-        
-        console.log(`Campaign ${campaign.name}: Found ${filteredStats.length} stats entries in date range`);
-        
-        // Aggregate filtered stats
-        totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
-        totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
-        totalRetainers += filteredStats.reduce((sum, stat) => sum + stat.retainers, 0);
-        totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
-        totalAdSpend += filteredStats.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
-        
-        totalBudget += campaign.targets.monthlySpend || 0;
-      });
-      
-      console.log(`OverviewStats metrics for date range: Leads=${totalLeads}, Cases=${totalCases}, Revenue=${totalRevenue}, AdSpend=${totalAdSpend}`);
-      
-      // Calculate metrics
-      const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
-      const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
-      const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
-      const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
-      const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
-      
-      return {
-        conversionRate: Math.round(conversionRate),
-        costEfficiency: Math.round(costEfficiency),
-        cpaScore: Math.round(cpaScore),
-        roasScore: Math.round(roasScore),
-        budgetUtilization: Math.round(budgetUtilization)
-      };
-    } else {
-      // If no date range, use the summary stats (fallback)
-      let totalLeads = 0;
-      let totalCases = 0;
-      let totalAdSpend = 0;
-      let totalRevenue = 0;
-      let totalBudget = 0;
-      
-      filteredCampaigns.forEach(campaign => {
-        totalLeads += campaign.manualStats.leads || 0;
-        totalCases += campaign.manualStats.cases || 0;
-        totalRevenue += campaign.manualStats.revenue || 0;
-        totalAdSpend += campaign.stats.adSpend || 0;
-        totalBudget += campaign.targets.monthlySpend || 0;
-      });
-      
-      console.log(`OverviewStats fallback metrics: Leads=${totalLeads}, Cases=${totalCases}, Revenue=${totalRevenue}, AdSpend=${totalAdSpend}`);
-      
-      // Calculate metrics
-      const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
-      const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
-      const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
-      const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
-      const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
-      
-      return {
-        conversionRate: Math.round(conversionRate),
-        costEfficiency: Math.round(costEfficiency),
-        cpaScore: Math.round(cpaScore),
-        roasScore: Math.round(roasScore),
-        budgetUtilization: Math.round(budgetUtilization)
-      };
-    }
-  }, [campaigns, selectedCampaignIds, dateRange.startDate, dateRange.endDate]);
+    // Calculate metrics
+    const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
+    const costEfficiency = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 50) : 0;
+    const cpaScore = totalCases > 0 ? Math.min(100, 100 - ((totalAdSpend / totalCases) / 100)) : 0;
+    const roasScore = totalAdSpend > 0 ? Math.min(100, (totalRevenue / totalAdSpend) * 25) : 0;
+    const budgetUtilization = totalBudget > 0 ? (totalAdSpend / totalBudget) * 100 : 0;
+    
+    return {
+      conversionRate: Math.round(conversionRate),
+      costEfficiency: Math.round(costEfficiency),
+      cpaScore: Math.round(cpaScore),
+      roasScore: Math.round(roasScore),
+      budgetUtilization: Math.round(budgetUtilization)
+    };
+  }, [filteredCampaigns]);
 
   return (
     <Card>
