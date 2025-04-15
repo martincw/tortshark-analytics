@@ -231,7 +231,7 @@ const GoogleAdsIntegration: React.FC = () => {
               </div>
 
               {connectionError && (
-                <Alert variant="warning" className="mt-4">
+                <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     <p className="font-medium">API Access Issue</p>
