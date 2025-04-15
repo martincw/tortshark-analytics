@@ -14,7 +14,15 @@ import { useNavigate } from "react-router-dom";
 import QuickDateSelector, { DateRange } from "./QuickDateSelector";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DateRangePicker } from "./DateRangePicker";
-import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent 
+} from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface CampaignFiltersProps {
   searchTerm: string;
@@ -39,20 +47,13 @@ export function CampaignFilters({
 }: CampaignFiltersProps) {
   const navigate = useNavigate();
   const { dateRange, setDateRange } = useCampaign();
-  // Default to showing date selector based on prop
-  const [showDateSelector, setShowDateSelector] = useState(showQuickDateSelector);
 
   const handleDateSelect = (range: DateRange) => {
     setDateRange(range);
-    // Don't hide the date selector after selection
   };
 
   const handleClearDates = () => {
     setDateRange({ startDate: "", endDate: "" });
-  };
-
-  const toggleDateSelector = () => {
-    setShowDateSelector(!showDateSelector);
   };
 
   return (
@@ -110,15 +111,32 @@ export function CampaignFilters({
           </div>
           <DateRangePicker />
           {showQuickDateSelector && (
-            <Button
-              variant={showDateSelector ? "secondary" : "outline"}
-              size="sm" 
-              onClick={toggleDateSelector}
-              className="w-auto bg-primary/20 border-primary/30 hover:bg-primary/30 text-primary-foreground font-medium"
-            >
-              <CalendarDays className="h-4 w-4 mr-2" />
-              Quick Dates
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm" 
+                  className="w-auto bg-primary/20 border-primary/30 hover:bg-primary/30 text-primary-foreground font-medium"
+                >
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  Quick Dates
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[340px] p-0" align="end">
+                <Card className="border-0 shadow-none">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-base font-semibold">Quick Date Selector</h3>
+                    </div>
+                    <QuickDateSelector 
+                      onSelect={handleDateSelect} 
+                      currentRange={dateRange.startDate ? dateRange : null}
+                      onClear={handleClearDates}
+                    />
+                  </CardContent>
+                </Card>
+              </PopoverContent>
+            </Popover>
           )}
           <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-1" /> Add Campaign
@@ -126,25 +144,7 @@ export function CampaignFilters({
         </div>
       </div>
       
-      {showQuickDateSelector && showDateSelector && (
-        <Card className="mt-2 border-accent/30 shadow-sm bg-card">
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold">Quick Date Selector</h3>
-              <Button variant="ghost" size="sm" onClick={toggleDateSelector} className="h-7 w-7 p-0">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <QuickDateSelector 
-              onSelect={handleDateSelect} 
-              currentRange={dateRange.startDate ? dateRange : null}
-              onClear={handleClearDates}
-            />
-          </CardContent>
-        </Card>
-      )}
-      
-      {dateRange.startDate && !showDateSelector && (
+      {dateRange.startDate && (
         <div className="flex justify-between items-center px-2 py-1 bg-accent/5 rounded-md border border-accent/20">
           <span className="text-sm">
             Date filter: <span className="font-medium">{dateRange.startDate}</span> to <span className="font-medium">{dateRange.endDate}</span>
