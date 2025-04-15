@@ -77,6 +77,9 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   
   // Filter and sort campaigns (memoized)
   const sortedAndFilteredCampaigns = useMemo(() => {
+    console.log("useCampaignGridData: Filtering and sorting campaigns with date range:", 
+      dateRange.startDate, "to", dateRange.endDate);
+    
     // First filter
     const filteredCampaigns = consolidatedCampaigns.filter(campaign => {
       const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,7 +121,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
           return 0;
       }
     });
-  }, [consolidatedCampaigns, searchTerm, filterCampaign, sortBy]);
+  }, [consolidatedCampaigns, searchTerm, filterCampaign, sortBy, dateRange]);
 
   return {
     searchTerm,

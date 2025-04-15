@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -70,8 +69,8 @@ export function OverviewStats() {
     // If we have both dates, filter by them
     if (startDateStr && endDateStr) {
       // Create date objects with time set to start/end of day to ensure full day coverage
-      const startDate = startOfDay(new Date(startDateStr));
-      const endDate = endOfDay(new Date(endDateStr));
+      const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
+      const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
       
       console.log(`OverviewStats date objects: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
@@ -86,9 +85,18 @@ export function OverviewStats() {
       filteredCampaigns.forEach(campaign => {
         // Filter statsHistory by date range
         const filteredStats = campaign.statsHistory.filter(stat => {
-          const statDate = parseISO(stat.date);
-          // We need to check if the date is within our range
-          return isWithinInterval(statDate, { start: startDate, end: endDate });
+          // Ensure consistent date parsing by using ISO format with fixed time
+          const statDateStr = stat.date.split('T')[0]; // Get YYYY-MM-DD part
+          const statDate = parseISO(`${statDateStr}T12:00:00Z`);
+          
+          // Check if the date is within our range
+          const isInRange = isWithinInterval(statDate, { start: startDate, end: endDate });
+          
+          if (isInRange) {
+            console.log(`Including stat entry for ${campaign.name} on ${statDateStr}`);
+          }
+          
+          return isInRange;
         });
         
         console.log(`Campaign ${campaign.name}: Found ${filteredStats.length} stats entries in date range`);

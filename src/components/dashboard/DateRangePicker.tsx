@@ -21,10 +21,11 @@ export function DateRangePicker() {
   const createDateFromStr = (dateStr: string | undefined): Date | undefined => {
     if (!dateStr) return undefined;
     
-    // Create a date with the exact YYYY-MM-DD values
-    const [year, month, day] = dateStr.split('-').map(Number);
-    // Month is 0-indexed in JavaScript Date, so subtract 1 from month
-    return new Date(year, month - 1, day, 12, 0, 0);
+    // Create date at UTC noon to avoid timezone shifts
+    const date = new Date(dateStr + "T12:00:00Z");
+    
+    console.log(`DateRangePicker: Parsed date string ${dateStr} -> Date object:`, date.toISOString());
+    return date;
   };
   
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -66,10 +67,14 @@ export function DateRangePicker() {
     
     // Format dates as ISO date strings (YYYY-MM-DD) to avoid timezone issues
     const formatDateToYYYYMMDD = (date: Date): string => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0'); // Add 1 as months are 0-indexed
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      // Get year, month, day directly from the date
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Add 1 as months are 0-indexed
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      
+      const formatted = `${year}-${month}-${day}`;
+      console.log(`DateRangePicker: Formatting date ${date.toISOString()} to ${formatted}`);
+      return formatted;
     };
     
     // Get selected date(s) and format them
@@ -91,7 +96,7 @@ export function DateRangePicker() {
       endDate: formattedEndDate,
     };
     
-    console.log(`Setting new date range:`, JSON.stringify(newDateRange, null, 2));
+    console.log(`DateRangePicker: Setting new date range:`, JSON.stringify(newDateRange, null, 2));
     setDateRange(newDateRange);
     setIsPopoverOpen(false);
     toast.success("Date range updated");
