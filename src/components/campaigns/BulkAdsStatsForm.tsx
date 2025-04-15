@@ -35,7 +35,13 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
   // Generate dates for the week
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    // Create a new date with the time set to noon to avoid timezone issues
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    date.setHours(12, 0, 0, 0);
+    return date;
+  });
 
   const handleSelectAll = () => {
     const allSelected = campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;

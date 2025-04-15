@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +37,13 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
   // Generate dates for the week
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    // Create a new date with the time set to noon to avoid timezone issues
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    date.setHours(12, 0, 0, 0);
+    return date;
+  });
   
   const handleSelectAll = () => {
     const allSelected = campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
@@ -125,6 +132,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         
         for (const date of weekDates) {
           // Format date as YYYY-MM-DD string without any timezone conversion
+          // This ensures the date is stored exactly as shown to the user
           const dateKey = format(date, "yyyy-MM-dd");
           const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
           

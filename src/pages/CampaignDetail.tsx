@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -71,7 +70,6 @@ import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const CampaignDetail = () => {
-  
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { 
@@ -187,6 +185,28 @@ const CampaignDetail = () => {
     }
   };
   
+  const onCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(12, 0, 0, 0);
+      
+      console.log("Selected date in add dialog:", normalizedDate);
+      setSelectedDate(normalizedDate);
+      setCalendarOpen(false);
+    }
+  };
+  
+  const onEditCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(12, 0, 0, 0);
+      
+      console.log("Selected edit date:", normalizedDate);
+      setEditDate(normalizedDate);
+      setEditCalendarOpen(false);
+    }
+  };
+  
   const handleSaveDailyStats = () => {
     const newLeads = parseInt(dailyStats.leads) || 0;
     const newCases = parseInt(dailyStats.cases) || 0;
@@ -231,22 +251,6 @@ const CampaignDetail = () => {
     setLeadCount((parseInt(leadCount) + newLeads).toString());
     setCaseCount((parseInt(caseCount) + newCases).toString());
     setRevenue((parseFloat(revenue) + newRevenue).toString());
-  };
-  
-  const onCalendarSelect = (date: Date | undefined) => {
-    if (date) {
-      console.log("Selected date in add dialog:", date);
-      setSelectedDate(date);
-      setCalendarOpen(false);
-    }
-  };
-  
-  const onEditCalendarSelect = (date: Date | undefined) => {
-    if (date) {
-      console.log("Selected edit date:", date);
-      setEditDate(date);
-      setEditCalendarOpen(false);
-    }
   };
   
   const handleEditEntry = (entry: any) => {
@@ -813,7 +817,9 @@ const CampaignDetail = () => {
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map((entry) => (
                       <TableRow key={entry.id}>
-                        <TableCell className="font-medium">{format(new Date(entry.date), "PP")}</TableCell>
+                        <TableCell className="font-medium">
+                          {format(new Date(`${entry.date}T12:00:00`), "PP")}
+                        </TableCell>
                         <TableCell>{entry.leads}</TableCell>
                         <TableCell>{entry.cases}</TableCell>
                         <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>

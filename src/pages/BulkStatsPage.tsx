@@ -15,14 +15,29 @@ import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const BulkStatsPage = () => {
-  const [startDate, setStartDate] = useState<Date>(new Date());
+  // Initialize the start date with noon time to avoid timezone issues
+  const initialDate = new Date();
+  initialDate.setHours(12, 0, 0, 0);
+  
+  const [startDate, setStartDate] = useState<Date>(initialDate);
   const endDate = addDays(startDate, 6); // 7 days total (start date + 6 more days)
 
   const moveWeek = (direction: 'previous' | 'next') => {
     setStartDate(prevDate => {
       const offset = direction === 'previous' ? -7 : 7;
-      return addDays(prevDate, offset);
+      const newDate = addDays(prevDate, offset);
+      // Ensure the time is set to noon
+      newDate.setHours(12, 0, 0, 0);
+      return newDate;
     });
+  };
+  
+  // Handle date selection from the DatePicker
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      // The DatePicker component already normalizes to noon
+      setStartDate(date);
+    }
   };
 
   return (
@@ -62,7 +77,7 @@ const BulkStatsPage = () => {
           
           <DatePicker 
             date={startDate} 
-            onSelect={setStartDate} 
+            onSelect={handleDateSelect} 
           />
         </div>
       </div>
