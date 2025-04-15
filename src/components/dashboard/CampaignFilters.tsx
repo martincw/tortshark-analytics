@@ -24,6 +24,7 @@ interface CampaignFiltersProps {
   filterCampaign: string;
   setFilterCampaign: (value: string) => void;
   campaignTypes: string[];
+  showQuickDateSelector?: boolean;
 }
 
 export function CampaignFilters({
@@ -33,12 +34,13 @@ export function CampaignFilters({
   setSortBy,
   filterCampaign,
   setFilterCampaign,
-  campaignTypes
+  campaignTypes,
+  showQuickDateSelector = true
 }: CampaignFiltersProps) {
   const navigate = useNavigate();
   const { dateRange, setDateRange } = useCampaign();
-  // Always show date selector by default
-  const [showDateSelector, setShowDateSelector] = useState(true);
+  // Default to showing date selector based on prop
+  const [showDateSelector, setShowDateSelector] = useState(showQuickDateSelector);
 
   const handleDateSelect = (range: DateRange) => {
     setDateRange(range);
@@ -107,22 +109,24 @@ export function CampaignFilters({
             </Select>
           </div>
           <DateRangePicker />
-          <Button
-            variant={showDateSelector ? "secondary" : "outline"}
-            size="sm" 
-            onClick={toggleDateSelector}
-            className="w-auto bg-primary/20 border-primary/30 hover:bg-primary/30 text-primary-foreground font-medium"
-          >
-            <CalendarDays className="h-4 w-4 mr-2" />
-            Quick Dates
-          </Button>
+          {showQuickDateSelector && (
+            <Button
+              variant={showDateSelector ? "secondary" : "outline"}
+              size="sm" 
+              onClick={toggleDateSelector}
+              className="w-auto bg-primary/20 border-primary/30 hover:bg-primary/30 text-primary-foreground font-medium"
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Quick Dates
+            </Button>
+          )}
           <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-1" /> Add Campaign
           </Button>
         </div>
       </div>
       
-      {showDateSelector && (
+      {showQuickDateSelector && showDateSelector && (
         <Card className="mt-2 border-accent/30 shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-4">

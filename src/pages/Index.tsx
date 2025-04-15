@@ -21,6 +21,7 @@ import { BadgeStat } from "@/components/ui/badge-stat";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
 import { parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { CampaignFilters } from "@/components/dashboard/CampaignFilters";
 
 const Index = () => {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
@@ -28,26 +29,21 @@ const Index = () => {
   
   const showSelectionAlert = selectedCampaignIds.length > 0 && selectedCampaignIds.length < campaigns.length;
 
-  // Add key prop with dateRange to force re-renders when date changes
   const dateKey = `${dateRange.startDate}-${dateRange.endDate}`;
   
-  // Log date range for debugging
   useEffect(() => {
     console.log("Dashboard updating with date range:", dateRange);
   }, [dateRange]);
 
   const hasNoData = campaigns.length === 0;
 
-  // Calculate aggregated metrics across all campaigns
   const aggregatedMetrics = React.useMemo(() => {
     if (campaigns.length === 0) return null;
     
-    // Filter campaigns based on selection if needed
     const filteredCampaigns = selectedCampaignIds.length > 0
       ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
       : campaigns;
       
-    // Initialize metrics
     let totalLeads = 0;
     let totalCases = 0;
     let totalRevenue = 0;
@@ -56,20 +52,16 @@ const Index = () => {
     let totalTargetSpend = 0;
     let totalTargetIncome = 0;
     
-    // Get date range for filtering
     const startDateStr = dateRange.startDate;
     const endDateStr = dateRange.endDate;
     
     if (startDateStr && endDateStr) {
-      // Create proper date objects with start/end of day to ensure full day coverage
       const startDate = startOfDay(new Date(startDateStr));
       const endDate = endOfDay(new Date(endDateStr));
       
       console.log(`Index aggregatedMetrics: Using date range ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
-      // Aggregate metrics with date filtering
       filteredCampaigns.forEach(campaign => {
-        // Filter statsHistory by date range
         const filteredStats = campaign.statsHistory.filter(stat => {
           const statDate = parseISO(stat.date);
           return isWithinInterval(statDate, { start: startDate, end: endDate });
@@ -77,14 +69,12 @@ const Index = () => {
         
         console.log(`Index: Campaign ${campaign.name} has ${filteredStats.length} stats entries in date range`);
         
-        // Aggregate filtered stats
         totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
         totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
         totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
         totalAdSpend += filteredStats.reduce((sum, stat) => sum + stat.adSpend, 0);
       });
     } else {
-      // If no date filtering, use summary stats
       filteredCampaigns.forEach(campaign => {
         totalLeads += campaign.manualStats.leads || 0;
         totalCases += campaign.manualStats.cases || 0;
@@ -99,21 +89,18 @@ const Index = () => {
       totalTargetIncome += campaign.targets.monthlyIncome || 0;
     });
     
-    // Calculate derived metrics
     const cpl = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
     const cpa = totalCases > 0 ? totalAdSpend / totalCases : 0;
     const profit = totalRevenue - totalAdSpend;
     const roi = totalAdSpend > 0 ? (totalRevenue / totalAdSpend) * 100 : 0;
     const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
     
-    // Calculate progress percentages
     const leadProgress = totalTargetRetainers > 0 ? Math.min(100, (totalCases / totalTargetRetainers) * 100) : 0;
     const spendProgress = totalTargetSpend > 0 ? Math.min(100, (totalAdSpend / totalTargetSpend) * 100) : 0;
     const revenueProgress = totalTargetIncome > 0 ? Math.min(100, (totalRevenue / totalTargetIncome) * 100) : 0;
     const roiProgress = 200 > 0 ? Math.min(100, (roi / 200) * 100) : 0;
     const profitProgress = totalTargetIncome > 0 ? Math.min(100, (profit / (totalTargetIncome * 0.5)) * 100) : 0;
     
-    // Get variant classes for progress bars
     const getRoiVariant = () => {
       if (roiProgress >= 100) return "success";
       if (roiProgress >= 70) return "warning";
@@ -134,7 +121,6 @@ const Index = () => {
     
     const profitPerCase = totalCases > 0 ? profit / totalCases : 0;
     
-    // Get color class based on ROI
     const getRoiClass = () => {
       if (roi > 200) return "text-success-DEFAULT";
       if (roi > 0) return "text-secondary"; 
@@ -202,6 +188,19 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            <div className="mb-4">
+              <CampaignFilters
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                filterCampaign={filterCampaign}
+                setFilterCampaign={setFilterCampaign}
+                campaignTypes={campaignTypes}
+                showQuickDateSelector={true}
+              />
+            </div>
+            
             {aggregatedMetrics && (
               <div className="bg-gradient-to-br from-card/90 to-accent/10 rounded-xl p-6 shadow-md border">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -337,7 +336,7 @@ const Index = () => {
                 </div>
               </div>
             )}
-
+            
             {aggregatedMetrics && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard
@@ -498,6 +497,18 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="campaigns">
+            <div className="mb-4">
+              <CampaignFilters
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                filterCampaign={filterCampaign}
+                setFilterCampaign={setFilterCampaign}
+                campaignTypes={campaignTypes}
+                showQuickDateSelector={false}
+              />
+            </div>
             <CampaignGrid key={`grid-${dateKey}`} />
           </TabsContent>
 

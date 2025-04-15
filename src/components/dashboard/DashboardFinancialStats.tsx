@@ -9,99 +9,70 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { useCampaign } from "@/contexts/CampaignContext";
 
-//
-// Financial Stats Data Type
-//
 interface FinancialStats {
   revenue: number;
   cost: number;
   profit: number;
 }
 
-// Helper function to format a Date to YYYY-MM-DD string
-function formatDateToString(date: Date): string {
-  return date.toISOString().split('T')[0];
+// Helper function to build date query boundaries for exact date matching
+function getExactDateQueryBoundaries(dateString: string) {
+  // Use exact date string matching (YYYY-MM-DD) instead of timestamps
+  console.log('Financial Stats using exact date match for:', dateString);
+  return dateString;
 }
 
-// Helper function to get start and end timestamps for a day
-// This completely eliminates timezone issues by using date strings
-function getDayRangeAsStrings(dateStr: string) {
-  // Start of day is the dateStr at 00:00:00
-  const startStr = `${dateStr}T00:00:00`;
-  
-  // End of day is the dateStr at 23:59:59
-  const endStr = `${dateStr}T23:59:59`;
-  
-  console.log('Financial Stats query boundaries:');
-  console.log('Start:', startStr);
-  console.log('End:', endStr);
-  
-  return { startStr, endStr };
-}
-
-//
-// Dashboard Financial Stats Component
-//
 const DashboardFinancialStats: React.FC = () => {
   const { dateRange } = useCampaign();
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedDateString, setSelectedDateString] = useState<string>(formatDateToString(new Date()));
-
-  // Sync with the global date range
+  const [selectedDateString, setSelectedDateString] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  // Use the global date range when available
   useEffect(() => {
     if (dateRange.startDate) {
-      console.log('DashboardFinancialStats: Using date from context:', dateRange.startDate);
+      console.log('DashboardFinancialStats: Using exact date string from context:', dateRange.startDate);
       
-      // Create a date object from the string (which already has the correct date)
-      const newDate = new Date(dateRange.startDate);
+      // Update the selected date for display
+      const newDate = new Date(dateRange.startDate + 'T12:00:00');
       setSelectedDate(newDate);
       
-      // Store the date string directly
+      // Store the date string for queries
       setSelectedDateString(dateRange.startDate);
     }
   }, [dateRange]);
 
-  // Handles changes in the date selection
+  // Handle date selection from the DatePicker
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
-      console.log('Selected date in DatePicker:', date);
-      setSelectedDate(date);
+      // Extract YYYY-MM-DD from the date for consistent queries
+      const dateStr = date.toISOString().split('T')[0];
+      console.log('Financial Stats - Selected date string:', dateStr);
       
-      // Extract and store the date string (YYYY-MM-DD)
-      const dateString = formatDateToString(date);
-      setSelectedDateString(dateString);
-      console.log('Extracted date string:', dateString);
+      setSelectedDate(date);
+      setSelectedDateString(dateStr);
     }
   };
 
-  // UseEffect to fetch and aggregate financial stats for the selected date
+  // Fetch financial data with the new exact date matching approach
   useEffect(() => {
     async function fetchFinancialStats() {
-      // Do nothing if no date string is selected
       if (!selectedDateString) return;
-
+      
       setLoading(true);
+      console.log('Fetching financial stats for exact date:', selectedDateString);
       
-      console.log('Fetching financial stats for date:', selectedDateString);
-      
-      // Get the query boundaries as strings
-      const { startStr, endStr } = getDayRangeAsStrings(selectedDateString);
-
-      // Query Supabase for campaign_stats that fall within the date range for ad spend
+      // Use direct equality matching on the date field
       const { data: adSpendData, error: adSpendError } = await supabase
         .from('campaign_stats')
         .select('ad_spend')
-        .gte('date', startStr)
-        .lte('date', endStr);
+        .eq('date', selectedDateString);
 
-      // Query Supabase for campaign_stats_history that fall within the date range for revenue
       const { data: revenueData, error: revenueError } = await supabase
         .from('campaign_stats_history')
         .select('revenue')
-        .gte('date', startStr)
-        .lte('date', endStr);
+        .eq('date', selectedDateString);
 
       if (adSpendError) {
         console.error('Error fetching ad spend data:', adSpendError);
@@ -115,20 +86,14 @@ const DashboardFinancialStats: React.FC = () => {
         return;
       }
 
-      // Calculate total ad spend
       const totalCost = adSpendData?.reduce((sum, row) => sum + Number(row.ad_spend || 0), 0) || 0;
-      
-      // Calculate total revenue
       const totalRevenue = revenueData?.reduce((sum, row) => sum + Number(row.revenue || 0), 0) || 0;
-      
-      // Calculate profit
       const profit = totalRevenue - totalCost;
 
-      console.log('Financial data fetched:', {
+      console.log('Financial data for date', selectedDateString, {
         revenue: totalRevenue,
         cost: totalCost,
-        profit: profit,
-        date: selectedDateString,
+        profit,
         entries: {
           adSpend: adSpendData?.length || 0,
           revenue: revenueData?.length || 0
@@ -138,7 +103,7 @@ const DashboardFinancialStats: React.FC = () => {
       setStats({
         revenue: totalRevenue,
         cost: totalCost,
-        profit: profit
+        profit
       });
       
       setLoading(false);
