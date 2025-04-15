@@ -75,7 +75,7 @@ export const ConnectedAccounts = ({
                   customerId: account.id,
                   isConnected: true,
                   lastSynced: new Date().toISOString(),
-                  credentials: {}
+                  credentials: {} // Always provide an empty object if no credentials
                 });
               }
             });

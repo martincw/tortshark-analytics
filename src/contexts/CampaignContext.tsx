@@ -199,15 +199,36 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       }
       
       // Convert and store account connections
-      const connections: AccountConnection[] = data.map(conn => ({
-        id: conn.id,
-        name: conn.name,
-        platform: conn.platform as "google" | "facebook" | "linkedin",
-        isConnected: conn.is_connected,
-        lastSynced: conn.last_synced,
-        customerId: conn.customer_id,
-        credentials: conn.credentials ? conn.credentials : {}
-      }));
+      const connections: AccountConnection[] = data.map(conn => {
+        // Process credentials to ensure it's an object
+        let processedCredentials: Record<string, any> = {};
+        
+        if (conn.credentials) {
+          if (typeof conn.credentials === 'string') {
+            try {
+              // Try parsing if it's a JSON string
+              processedCredentials = JSON.parse(conn.credentials);
+            } catch (error) {
+              console.error("Error parsing credentials string:", error);
+              // Use empty object as fallback
+              processedCredentials = {};
+            }
+          } else if (typeof conn.credentials === 'object') {
+            // If it's already an object, use it directly
+            processedCredentials = conn.credentials as Record<string, any>;
+          }
+        }
+        
+        return {
+          id: conn.id,
+          name: conn.name,
+          platform: conn.platform as "google" | "facebook" | "linkedin",
+          isConnected: conn.is_connected,
+          lastSynced: conn.last_synced,
+          customerId: conn.customer_id,
+          credentials: processedCredentials
+        };
+      });
       
       setAccountConnections(connections);
       return connections;
