@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, PlusCircle, Calendar, X } from "lucide-react";
+import { Search, Filter, PlusCircle, Calendar, X, CalendarDays } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QuickDateSelector, { DateRange } from "./QuickDateSelector";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -111,10 +111,9 @@ export function CampaignFilters({
             variant={showDateSelector ? "secondary" : "outline"}
             size="sm" 
             onClick={toggleDateSelector}
-            className="w-auto"
-            title="Toggle quick date selector"
+            className="w-auto bg-primary/20 border-primary/30 hover:bg-primary/30 text-primary-foreground font-medium"
           >
-            <Calendar className="h-4 w-4 mr-2" />
+            <CalendarDays className="h-4 w-4 mr-2" />
             Quick Dates
           </Button>
           <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
