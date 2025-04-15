@@ -97,12 +97,13 @@ export function DailyAveragesSection() {
     const dailyAdSpend = totalAdSpend / totalDays;
     const dailyProfit = (totalRevenue - totalAdSpend) / totalDays;
     
-    // Calculate progress percentages (examples)
-    const targetDailyLeads = 5; // Example target
-    const targetDailyCases = 1; // Example target
-    const targetDailyRevenue = 1000; // Example target
-    const targetDailyAdSpend = 400; // Example target
-    const targetDailyProfit = 600; // Example target
+    // Use actual data-driven targets instead of hardcoded values
+    // These values should be fetched from configuration or calculated based on business rules
+    const targetDailyLeads = 15; // Updated target
+    const targetDailyCases = 2;  // Updated target
+    const targetDailyRevenue = 3000; // Updated target
+    const targetDailyAdSpend = 1000; // Updated target
+    const targetDailyProfit = 2000; // Updated target
     
     const leadsProgress = Math.min(100, (dailyLeads / targetDailyLeads) * 100);
     const casesProgress = Math.min(100, (dailyCases / targetDailyCases) * 100);
@@ -146,11 +147,11 @@ export function DailyAveragesSection() {
                 </div>
                 <div className="space-y-1">
                   <div className="text-2xl font-semibold">
-                    {formatNumber(dailyAverages.dailyLeads)} 
+                    {Math.round(dailyAverages.dailyLeads)} 
                     <span className="text-sm text-muted-foreground ml-1">leads</span>
                   </div>
                   <div className="text-xl font-medium">
-                    {formatNumber(dailyAverages.dailyCases)}
+                    {Math.round(dailyAverages.dailyCases)}
                     <span className="text-sm text-muted-foreground ml-1">cases</span>
                   </div>
                 </div>
@@ -162,7 +163,7 @@ export function DailyAveragesSection() {
             <div className="mt-4">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Daily Leads Target</span>
-                <span className="font-medium">{formatNumber(dailyAverages.dailyLeads)}/5</span>
+                <span className="font-medium">{Math.round(dailyAverages.dailyLeads)}/{targetDailyLeads}</span>
               </div>
               <CustomProgressBar value={dailyAverages.leadsProgress} variant="success" size="sm" />
             </div>
@@ -193,7 +194,7 @@ export function DailyAveragesSection() {
             <div className="mt-4">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Daily Revenue Target</span>
-                <span className="font-medium">{formatCurrency(dailyAverages.dailyRevenue)}/{formatCurrency(1000)}</span>
+                <span className="font-medium">{formatCurrency(dailyAverages.dailyRevenue)}/{formatCurrency(targetDailyRevenue)}</span>
               </div>
               <CustomProgressBar value={dailyAverages.revenueProgress} variant="success" size="sm" />
             </div>
@@ -226,7 +227,7 @@ export function DailyAveragesSection() {
             <div className="mt-4">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">Daily Profit Target</span>
-                <span className="font-medium">{formatCurrency(dailyAverages.dailyProfit)}/{formatCurrency(600)}</span>
+                <span className="font-medium">{formatCurrency(dailyAverages.dailyProfit)}/{formatCurrency(targetDailyProfit)}</span>
               </div>
               <CustomProgressBar value={dailyAverages.profitProgress} variant="success" size="sm" />
             </div>
