@@ -3,6 +3,8 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { OverviewStats } from "@/components/dashboard/OverviewStats";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
+import { PerformanceSummary } from "@/components/dashboard/PerformanceSummary";
+import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -375,62 +377,7 @@ const Index = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {aggregatedMetrics && (
-                <Card className="shadow-md border-accent/30 overflow-hidden">
-                  <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
-                    <CardTitle className="text-lg font-medium flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5 text-primary" />
-                      Performance Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 pt-6">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                        <span className="text-sm text-muted-foreground block mb-1">Ad Spend</span>
-                        <span className="text-xl font-semibold">{formatCurrency(aggregatedMetrics.totalAdSpend)}</span>
-                      </div>
-                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                        <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
-                        <span className="text-xl font-semibold">{formatCurrency(aggregatedMetrics.totalRevenue)}</span>
-                      </div>
-                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                        <span className="text-sm text-muted-foreground block mb-1">Leads</span>
-                        <span className="text-xl font-semibold">{formatNumber(aggregatedMetrics.totalLeads)}</span>
-                      </div>
-                      <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                        <span className="text-sm text-muted-foreground block mb-1">Cases</span>
-                        <span className="text-xl font-semibold">{formatNumber(aggregatedMetrics.totalCases)}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4 border-t">
-                      <h4 className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">Key Metrics</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <BadgeStat
-                          label="Cost Per Lead"
-                          value={formatCurrency(aggregatedMetrics.cpl)}
-                          className="bg-background/50"
-                        />
-                        <BadgeStat
-                          label="Cost Per Case"
-                          value={formatCurrency(aggregatedMetrics.cpa)}
-                          className="bg-background/50"
-                        />
-                        <BadgeStat
-                          label="Lead to Case Ratio"
-                          value={`${aggregatedMetrics.totalLeads > 0 ? ((aggregatedMetrics.totalCases / aggregatedMetrics.totalLeads) * 100).toFixed(1) : "0"}%`}
-                          className="bg-background/50"
-                        />
-                        <BadgeStat
-                          label="Avg. Revenue Per Case"
-                          value={aggregatedMetrics.totalCases > 0 
-                            ? formatCurrency(aggregatedMetrics.totalRevenue / aggregatedMetrics.totalCases) 
-                            : "$0.00"}
-                          className="bg-background/50"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <PerformanceSummary key={`performance-${dateKey}`} />
               )}
               
               {aggregatedMetrics && (
@@ -536,6 +483,8 @@ const Index = () => {
                 </Card>
               )}
             </div>
+            
+            <DailyAveragesSection key={`averages-${dateKey}`} />
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-3">

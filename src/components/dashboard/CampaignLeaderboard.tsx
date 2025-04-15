@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 
 interface LeaderboardMetric {
   id: string;
@@ -24,7 +25,7 @@ interface LeaderboardMetric {
 }
 
 export function CampaignLeaderboard() {
-  const { campaigns } = useCampaign();
+  const { campaigns, dateRange } = useCampaign();
 
   const leaderboardData = useMemo(() => {
     if (!campaigns.length) return {
@@ -33,8 +34,58 @@ export function CampaignLeaderboard() {
       profitPerLeadLeaders: []
     };
 
+    // Get filtered campaign data based on date range
+    const startDateStr = dateRange.startDate;
+    const endDateStr = dateRange.endDate;
+    
+    console.log(`CampaignLeaderboard using date range: ${startDateStr} to ${endDateStr}`);
+    
+    const filteredCampaigns = campaigns.map(campaign => {
+      // Create a deep copy to avoid mutating the original
+      const campaignCopy = { ...campaign };
+      
+      // Initialize filtered stats
+      let filteredLeads = 0;
+      let filteredCases = 0;
+      let filteredRevenue = 0;
+      let filteredAdSpend = 0;
+      
+      // Apply date filtering if range exists
+      if (startDateStr && endDateStr) {
+        const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
+        const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
+        
+        // Filter history by date range
+        const filteredHistory = campaign.statsHistory.filter(stat => {
+          const statDate = parseISO(stat.date);
+          return isWithinInterval(statDate, { start: startDate, end: endDate });
+        });
+        
+        // Sum up filtered history
+        filteredLeads = filteredHistory.reduce((sum, stat) => sum + stat.leads, 0);
+        filteredCases = filteredHistory.reduce((sum, stat) => sum + stat.cases, 0);
+        filteredRevenue = filteredHistory.reduce((sum, stat) => sum + stat.revenue, 0);
+        filteredAdSpend = filteredHistory.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
+        
+        // Create a campaign copy with date-filtered stats
+        campaignCopy.manualStats = {
+          ...campaign.manualStats,
+          leads: filteredLeads,
+          cases: filteredCases,
+          revenue: filteredRevenue
+        };
+        
+        campaignCopy.stats = {
+          ...campaign.stats,
+          adSpend: filteredAdSpend
+        };
+      }
+      
+      return campaignCopy;
+    });
+    
     // Calculate metrics for each campaign
-    const campaignsWithMetrics = campaigns.map(campaign => {
+    const campaignsWithMetrics = filteredCampaigns.map(campaign => {
       const metrics = calculateMetrics(campaign);
       const epl = campaign.manualStats.leads > 0 
         ? campaign.manualStats.revenue / campaign.manualStats.leads 
@@ -98,7 +149,7 @@ export function CampaignLeaderboard() {
       eplLeaders,
       profitPerLeadLeaders
     };
-  }, [campaigns]);
+  }, [campaigns, dateRange]);
 
   if (!campaigns.length) {
     return null;
