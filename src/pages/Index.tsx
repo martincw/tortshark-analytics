@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { OverviewStats } from "@/components/dashboard/OverviewStats";
@@ -26,6 +26,18 @@ import { CampaignFilters } from "@/components/dashboard/CampaignFilters";
 const Index = () => {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
   const navigate = useNavigate();
+  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [filterCampaign, setFilterCampaign] = useState("all");
+  
+  const campaignTypes = React.useMemo(() => {
+    return Array.from(
+      new Set(
+        campaigns.map(campaign => campaign.name)
+      )
+    );
+  }, [campaigns]);
   
   const showSelectionAlert = selectedCampaignIds.length > 0 && selectedCampaignIds.length < campaigns.length;
 
