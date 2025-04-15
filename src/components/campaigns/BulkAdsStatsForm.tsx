@@ -10,6 +10,7 @@ import { format, addDays } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBulkStatsData } from "@/hooks/useBulkStatsData";
 
 interface BulkAdsStatsFormProps {
   startDate: Date;
@@ -28,6 +29,7 @@ type WeeklyAdStats = {
 
 export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate }) => {
   const { campaigns } = useCampaign();
+  const { uniqueCampaigns } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
@@ -44,10 +46,10 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   });
 
   const handleSelectAll = () => {
-    const allSelected = campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
+    const allSelected = uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
     const newSelected = {};
     
-    campaigns.forEach(campaign => {
+    uniqueCampaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
       if (!allSelected && !weeklyStatsData[campaign.id]) {
@@ -259,7 +261,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       <div className="flex items-center space-x-2">
         <Checkbox
           id="select-all-ads"
-          checked={campaigns.length > 0 && campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
+          checked={uniqueCampaigns.length > 0 && uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
           onCheckedChange={handleSelectAll}
         />
         <label htmlFor="select-all-ads" className="text-sm font-medium">
@@ -294,7 +296,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
           <div className="col-span-1 text-center">CPC ($)</div>
         </div>
 
-        {campaigns.map((campaign) => (
+        {uniqueCampaigns.map((campaign) => (
           <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
             <CardContent className="p-4">
               <div className="grid grid-cols-6 gap-4 items-center">

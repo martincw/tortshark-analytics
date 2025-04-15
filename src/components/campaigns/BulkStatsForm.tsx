@@ -12,6 +12,7 @@ import { format, addDays, parseISO } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBulkStatsData } from "@/hooks/useBulkStatsData";
 
 interface BulkStatsFormProps {
   startDate: Date;
@@ -30,6 +31,7 @@ type WeeklyStats = {
 
 export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const { campaigns } = useCampaign();
+  const { uniqueCampaigns } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
@@ -46,10 +48,10 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   });
   
   const handleSelectAll = () => {
-    const allSelected = campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
+    const allSelected = uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
     const newSelected = {};
     
-    campaigns.forEach(campaign => {
+    uniqueCampaigns.forEach(campaign => {
       newSelected[campaign.id] = !allSelected;
       
       if (!allSelected && !weeklyStatsData[campaign.id]) {
@@ -214,7 +216,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       <div className="flex items-center space-x-2">
         <Checkbox
           id="select-all"
-          checked={campaigns.length > 0 && campaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
+          checked={uniqueCampaigns.length > 0 && uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
           onCheckedChange={handleSelectAll}
         />
         <label htmlFor="select-all" className="text-sm font-medium">
@@ -249,7 +251,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           <div className="col-span-1 text-center">Revenue ($)</div>
         </div>
 
-        {campaigns.map((campaign) => (
+        {uniqueCampaigns.map((campaign) => (
           <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
             <CardContent className="p-4">
               <div className="grid grid-cols-6 gap-4 items-center">
