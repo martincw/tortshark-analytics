@@ -153,62 +153,120 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           const dateKey = format(date, "yyyy-MM-dd");
           const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
           
-          allStatsToAdd.push({
-            id: uuidv4(),
-            campaign_id: campaignId,
-            date: dateKey, // Use formatted date string
-            leads: dayStats.leads || 0,
-            cases: dayStats.cases || 0,
-            retainers: dayStats.retainers || 0,
-            revenue: dayStats.revenue || 0,
-            ad_spend: activeField === 'adSpend' ? parseFloat(document.getElementById(`${campaignId}-adSpend`)?.getAttribute('value') || '0') : 0,
-            created_at: new Date().toISOString()
-          });
+          // For each date, check if a record already exists
+          const { data: existingRecord, error: checkError } = await supabase
+            .from('campaign_stats_history')
+            .select('id')
+            .eq('campaign_id', campaignId)
+            .eq('date', dateKey)
+            .maybeSingle();
+            
+          if (checkError) {
+            console.error(`Error checking stats for ${campaignId} on ${dateKey}:`, checkError);
+            continue;
+          }
+          
+          if (existingRecord) {
+            // Update existing record
+            const { error: updateError } = await supabase
+              .from('campaign_stats_history')
+              .update({
+                leads: dayStats.leads || 0,
+                cases: dayStats.cases || 0,
+                retainers: dayStats.retainers || 0,
+                revenue: dayStats.revenue || 0,
+                ad_spend: activeField === 'adSpend' ? parseFloat(document.getElementById(`${campaignId}-adSpend`)?.getAttribute('value') || '0') : 0
+              })
+              .eq('id', existingRecord.id);
+              
+            if (updateError) {
+              console.error(`Error updating stats for ${campaignId} on ${dateKey}:`, updateError);
+              toast.error(`Failed to update stats for ${dateKey}`);
+            }
+          } else {
+            // Insert new record
+            allStatsToAdd.push({
+              id: uuidv4(),
+              campaign_id: campaignId,
+              date: dateKey,
+              leads: dayStats.leads || 0,
+              cases: dayStats.cases || 0,
+              retainers: dayStats.retainers || 0,
+              revenue: dayStats.revenue || 0,
+              ad_spend: activeField === 'adSpend' ? parseFloat(document.getElementById(`${campaignId}-adSpend`)?.getAttribute('value') || '0') : 0,
+              created_at: new Date().toISOString()
+            });
+          }
         }
       }
       
-      // Insert all stats at once
-      const { error } = await supabase
-        .from('campaign_stats_history')
-        .upsert(allStatsToAdd, { 
-          onConflict: 'campaign_id,date',
-          ignoreDuplicates: false
-        });
-        
-      if (error) {
-        console.error("Error adding stats:", error);
-        toast.error("Failed to add stats: " + error.message);
-        setLoading(false);
-        return;
+      // Insert all new stats at once
+      if (allStatsToAdd.length > 0) {
+        const { error } = await supabase
+          .from('campaign_stats_history')
+          .insert(allStatsToAdd);
+          
+        if (error) {
+          console.error("Error adding stats:", error);
+          toast.error("Failed to add stats: " + error.message);
+          setLoading(false);
+          return;
+        }
       }
       
       // Update current stats with the most recent day's data
       const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
-      const manualStatsToAdd = selectedCampaignIds.map(campaignId => {
+      
+      for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
         
-        return {
-          id: uuidv4(),
-          campaign_id: campaignId,
-          date: recentDateKey, // Use formatted date string 
-          leads: recentStats.leads || 0,
-          cases: recentStats.cases || 0,
-          retainers: recentStats.retainers || 0,
-          revenue: recentStats.revenue || 0
-        };
-      });
-      
-      const { error: manualError } = await supabase
-        .from('campaign_manual_stats')
-        .upsert(manualStatsToAdd, { 
-          onConflict: 'campaign_id',
-          ignoreDuplicates: false
-        });
+        // Check if manual stats already exist for this campaign
+        const { data: existingManualStats, error: checkManualError } = await supabase
+          .from('campaign_manual_stats')
+          .select('id')
+          .eq('campaign_id', campaignId)
+          .maybeSingle();
+          
+        if (checkManualError) {
+          console.error(`Error checking manual stats for ${campaignId}:`, checkManualError);
+          continue;
+        }
         
-      if (manualError) {
-        console.error("Error updating manual stats:", manualError);
-        toast.error("Failed to update current stats: " + manualError.message);
+        if (existingManualStats) {
+          // Update existing manual stats
+          const { error: updateManualError } = await supabase
+            .from('campaign_manual_stats')
+            .update({
+              leads: recentStats.leads || 0,
+              cases: recentStats.cases || 0,
+              retainers: recentStats.retainers || 0,
+              revenue: recentStats.revenue || 0,
+              date: recentDateKey
+            })
+            .eq('id', existingManualStats.id);
+            
+          if (updateManualError) {
+            console.error(`Error updating manual stats for ${campaignId}:`, updateManualError);
+          }
+        } else {
+          // Insert new manual stats
+          const { error: insertManualError } = await supabase
+            .from('campaign_manual_stats')
+            .insert({
+              id: uuidv4(),
+              campaign_id: campaignId,
+              date: recentDateKey,
+              leads: recentStats.leads || 0,
+              cases: recentStats.cases || 0,
+              retainers: recentStats.retainers || 0,
+              revenue: recentStats.revenue || 0
+            });
+            
+          if (insertManualError) {
+            console.error(`Error inserting manual stats for ${campaignId}:`, insertManualError);
+          }
+        }
       }
       
       toast.success(`Stats added for ${selectedCampaignIds.length} campaigns for the entire week`);

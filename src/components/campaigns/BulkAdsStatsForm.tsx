@@ -185,9 +185,9 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             .select('id')
             .eq('campaign_id', campaignId)
             .eq('date', dateKey)
-            .single();
+            .maybeSingle();
             
-          if (checkError && checkError.code !== 'PGRST116') {
+          if (checkError) {
             console.error(`Error checking stats for ${campaignId} on ${dateKey}:`, checkError);
             continue;
           }
@@ -227,33 +227,57 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       // Process campaign_stats updates for ad metrics
       // Use the most recent day's data for current stats
       const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
-      const adsStatsToAdd = selectedCampaignIds.map(campaignId => {
+      
+      for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
-        return {
-          id: uuidv4(),
-          campaign_id: campaignId,
-          date: recentDateKey,
-          ad_spend: recentStats.adSpend || 0,
-          impressions: recentStats.impressions || 0,
-          clicks: recentStats.clicks || 0,
-          cpc: recentStats.cpc || 0
-        };
-      });
-      
-      const { error: statsError } = await supabase
-        .from('campaign_stats')
-        .upsert(adsStatsToAdd, { 
-          onConflict: 'campaign_id',
-          ignoreDuplicates: false
-        });
+        // Check if ad stats already exist for this campaign
+        const { data: existingAdStats, error: checkAdStatsError } = await supabase
+          .from('campaign_stats')
+          .select('id')
+          .eq('campaign_id', campaignId)
+          .maybeSingle();
+          
+        if (checkAdStatsError) {
+          console.error(`Error checking ad stats for ${campaignId}:`, checkAdStatsError);
+          continue;
+        }
         
-      if (statsError) {
-        console.error("Error updating ad stats:", statsError);
-        toast.error("Failed to update ad stats: " + statsError.message);
-        setLoading(false);
-        return;
+        if (existingAdStats) {
+          // Update existing ad stats
+          const { error: updateAdStatsError } = await supabase
+            .from('campaign_stats')
+            .update({
+              ad_spend: recentStats.adSpend || 0,
+              impressions: recentStats.impressions || 0,
+              clicks: recentStats.clicks || 0,
+              cpc: recentStats.cpc || 0,
+              date: recentDateKey
+            })
+            .eq('id', existingAdStats.id);
+            
+          if (updateAdStatsError) {
+            console.error(`Error updating ad stats for ${campaignId}:`, updateAdStatsError);
+          }
+        } else {
+          // Insert new ad stats
+          const { error: insertAdStatsError } = await supabase
+            .from('campaign_stats')
+            .insert({
+              id: uuidv4(),
+              campaign_id: campaignId,
+              date: recentDateKey,
+              ad_spend: recentStats.adSpend || 0,
+              impressions: recentStats.impressions || 0,
+              clicks: recentStats.clicks || 0,
+              cpc: recentStats.cpc || 0
+            });
+            
+          if (insertAdStatsError) {
+            console.error(`Error inserting ad stats for ${campaignId}:`, insertAdStatsError);
+          }
+        }
       }
       
       toast.success(`Ad stats added for ${selectedCampaignIds.length} campaigns for the entire week`);
