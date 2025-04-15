@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GoogleAuth } from "https://esm.sh/google-auth-library@8.8.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -122,7 +121,7 @@ async function refreshAccessToken(refreshToken: string) {
   }
 }
 
-async function listGoogleAdsAccounts(accessToken: string) {
+async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: boolean = false) {
   try {
     console.log("Listing real Google Ads accounts");
     
@@ -149,6 +148,12 @@ async function listGoogleAdsAccounts(accessToken: string) {
     
     if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
       console.log("No accessible accounts found");
+      
+      // If cleanup is requested, proceed with removing dummy accounts
+      if (cleanupDummyAccounts) {
+        await cleanupDummyAccountsInDb();
+      }
+      
       return [];
     }
     
@@ -180,7 +185,8 @@ async function listGoogleAdsAccounts(accessToken: string) {
               name: `Account ${customerId}`,
               currency: "USD",
               timeZone: "America/New_York",
-              status: "ENABLED"
+              status: "ENABLED",
+              isDummy: false
             };
           }
           
@@ -192,7 +198,8 @@ async function listGoogleAdsAccounts(accessToken: string) {
             name: customerData.customer?.descriptiveName || `Account ${customerId}`,
             currency: customerData.customer?.currencyCode || "USD",
             timeZone: customerData.customer?.timeZone || "America/New_York",
-            status: customerData.customer?.status || "ENABLED"
+            status: customerData.customer?.status || "ENABLED",
+            isDummy: false
           };
         } catch (error) {
           console.error(`Error fetching details for customer ${customerId}:`, error);
@@ -202,17 +209,167 @@ async function listGoogleAdsAccounts(accessToken: string) {
             name: `Account ${customerId}`,
             currency: "USD",
             timeZone: "America/New_York",
-            status: "ENABLED"
+            status: "ENABLED",
+            isDummy: false
           };
         }
       })
     );
     
     // Filter out null values (failed requests)
-    return accounts.filter(account => account !== null);
+    const validAccounts = accounts.filter(account => account !== null);
+    
+    // If cleanup is requested, store these accounts and delete others
+    if (cleanupDummyAccounts) {
+      await storeRealAccountsAndCleanupDummies(validAccounts);
+    }
+    
+    return validAccounts;
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
     throw error;
+  }
+}
+
+async function storeRealAccountsAndCleanupDummies(accounts: any[]) {
+  if (!accounts || accounts.length === 0) {
+    console.log("No real accounts to store");
+    return;
+  }
+  
+  try {
+    const session = await supabase.auth.getSession();
+    const userId = session.data.session?.user?.id;
+    
+    if (!userId) {
+      console.error("No user ID found in session");
+      return;
+    }
+    
+    console.log(`Storing ${accounts.length} real accounts for user ${userId}`);
+    
+    // First, store the real account IDs
+    const realAccountIds = accounts.map(account => account.id);
+    
+    // Get existing account connections
+    const { data: existingAccounts, error: fetchError } = await supabase
+      .from('account_connections')
+      .select('id, name, platform, customer_id')
+      .eq('user_id', userId);
+    
+    if (fetchError) {
+      console.error("Error fetching existing accounts:", fetchError);
+      return;
+    }
+    
+    // Find accounts that exist but aren't in the real accounts list (dummy accounts)
+    const dummyAccounts = existingAccounts.filter(account => 
+      account.platform === 'google' && !realAccountIds.includes(account.id) && !realAccountIds.includes(account.customer_id)
+    );
+    
+    if (dummyAccounts.length > 0) {
+      console.log(`Found ${dummyAccounts.length} dummy accounts to remove`);
+      
+      // Delete the dummy accounts
+      const dummyAccountIds = dummyAccounts.map(account => account.id);
+      const { error: deleteError } = await supabase
+        .from('account_connections')
+        .delete()
+        .in('id', dummyAccountIds);
+      
+      if (deleteError) {
+        console.error("Error deleting dummy accounts:", deleteError);
+      } else {
+        console.log(`Successfully removed ${dummyAccounts.length} dummy accounts`);
+      }
+    } else {
+      console.log("No dummy accounts found");
+    }
+    
+    // Now, upsert the real accounts
+    for (const account of accounts) {
+      const { error: upsertError } = await supabase
+        .from('account_connections')
+        .upsert({
+          id: account.id,
+          user_id: userId,
+          name: account.name,
+          platform: 'google',
+          customer_id: account.customerId,
+          is_connected: true,
+          last_synced: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        console.error(`Error upserting account ${account.id}:`, upsertError);
+      }
+    }
+    
+    console.log("Real accounts stored successfully");
+  } catch (error) {
+    console.error("Error storing real accounts and cleaning up dummies:", error);
+  }
+}
+
+async function cleanupDummyAccountsInDb() {
+  try {
+    const session = await supabase.auth.getSession();
+    const userId = session.data.session?.user?.id;
+    
+    if (!userId) {
+      console.error("No user ID found in session for cleanup");
+      return { success: false, error: "Authentication required" };
+    }
+    
+    // First, check for accounts that have arbitrary test names
+    const dummyNamePatterns = [
+      'Test Account',
+      'Demo Account',
+      'Sample Account',
+      'Dummy',
+      'Example'
+    ];
+    
+    // Create a pattern for matching dummy names in SQL
+    const nameConditions = dummyNamePatterns.map(pattern => `name ILIKE '%${pattern}%'`).join(' OR ');
+    
+    // Get accounts that match dummy patterns
+    const { data: dummyAccounts, error: fetchError } = await supabase
+      .from('account_connections')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('platform', 'google')
+      .or(nameConditions);
+    
+    if (fetchError) {
+      console.error("Error fetching dummy accounts:", fetchError);
+      return { success: false, error: fetchError.message };
+    }
+    
+    if (!dummyAccounts || dummyAccounts.length === 0) {
+      console.log("No dummy accounts found for deletion");
+      return { success: true, removedCount: 0 };
+    }
+    
+    const dummyAccountIds = dummyAccounts.map(account => account.id);
+    console.log(`Found ${dummyAccountIds.length} potential dummy accounts to remove`);
+    
+    // Delete the dummy accounts
+    const { error: deleteError } = await supabase
+      .from('account_connections')
+      .delete()
+      .in('id', dummyAccountIds);
+    
+    if (deleteError) {
+      console.error("Error deleting dummy accounts:", deleteError);
+      return { success: false, error: deleteError.message };
+    }
+    
+    console.log(`Successfully removed ${dummyAccountIds.length} dummy accounts`);
+    return { success: true, removedCount: dummyAccountIds.length };
+  } catch (error) {
+    console.error("Error in cleanupDummyAccountsInDb:", error);
+    return { success: false, error: error.message || "Unknown error" };
   }
 }
 
@@ -223,7 +380,7 @@ serve(async (req) => {
   }
   
   try {
-    const { action, code, accessToken, refreshToken } = await req.json();
+    const { action, code, accessToken, refreshToken, cleanupDummyAccounts } = await req.json();
     
     // Handle the exchange-code action
     if (action === "exchange-code" && code) {
@@ -266,7 +423,7 @@ serve(async (req) => {
     // Handle the list-accounts action
     if (action === "list-accounts" && accessToken) {
       try {
-        const accounts = await listGoogleAdsAccounts(accessToken);
+        const accounts = await listGoogleAdsAccounts(accessToken, cleanupDummyAccounts);
         
         return new Response(
           JSON.stringify({ success: true, accounts }),
@@ -306,6 +463,32 @@ serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: error.message || "Failed to refresh token" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+    
+    // Handle the cleanup-dummy-accounts action
+    if (action === "cleanup-dummy-accounts") {
+      try {
+        const result = await cleanupDummyAccountsInDb();
+        
+        return new Response(
+          JSON.stringify(result),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } catch (error) {
+        console.error("Error in cleanup-dummy-accounts:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Failed to clean up dummy accounts" 
           }),
           { 
             status: 500,

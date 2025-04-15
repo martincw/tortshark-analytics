@@ -1,16 +1,18 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw, Mail, ExternalLink } from "lucide-react";
+import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw, Mail, ExternalLink, Trash2 } from "lucide-react";
 import { 
   initiateGoogleAuth, 
   isGoogleAuthValid, 
   revokeGoogleAccess,
   refreshGoogleToken,
   getGoogleAdsCredentials,
-  validateGoogleToken
+  validateGoogleToken,
+  cleanupDummyAccounts
 } from "@/services/googleAdsService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +24,7 @@ const GoogleAdsIntegration: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [isDisconnecting, setIsDisconnecting] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isCleaningUp, setIsCleaningUp] = useState<boolean>(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const { user } = useAuth();
@@ -138,6 +141,24 @@ const GoogleAdsIntegration: React.FC = () => {
     }
   };
 
+  const handleCleanupDummyAccounts = async () => {
+    if (window.confirm("Are you sure you want to remove all dummy Google Ads accounts?")) {
+      setIsCleaningUp(true);
+      try {
+        const success = await cleanupDummyAccounts();
+        if (success) {
+          await fetchGoogleAdsAccounts();
+          toast.success("Dummy accounts removed and account list refreshed");
+        }
+      } catch (error) {
+        console.error("Error cleaning up dummy accounts:", error);
+        toast.error("Failed to clean up dummy accounts");
+      } finally {
+        setIsCleaningUp(false);
+      }
+    }
+  };
+
   const handleGoToAccounts = () => {
     navigate("/accounts");
   };
@@ -195,6 +216,19 @@ const GoogleAdsIntegration: React.FC = () => {
                   <li>Campaign Management</li>
                   <li>Performance Metrics</li>
                 </ul>
+              </div>
+
+              <div className="mt-4 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCleanupDummyAccounts}
+                  disabled={isCleaningUp}
+                  className="w-full text-destructive hover:text-destructive"
+                >
+                  <Trash2 className={`mr-2 h-4 w-4 ${isCleaningUp ? 'animate-spin' : ''}`} />
+                  {isCleaningUp ? 'Removing dummy accounts...' : 'Remove dummy accounts'}
+                </Button>
               </div>
             </div>
           ) : (

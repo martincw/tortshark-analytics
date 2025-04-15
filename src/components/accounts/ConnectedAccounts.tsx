@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -14,12 +15,13 @@ import {
   XCircle, 
   RefreshCw, 
   PlusCircle,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "@/hooks/use-toast";
-import { listGoogleAdsAccounts } from "@/services/googleAdsService";
+import { listGoogleAdsAccounts, cleanupDummyAccounts } from "@/services/googleAdsService";
 import { v4 as uuidv4 } from 'uuid';
 
 interface ConnectedAccountsProps {
@@ -40,6 +42,7 @@ export const ConnectedAccounts = ({
   const navigate = useNavigate();
   const { fetchGoogleAdsAccounts, addAccountConnection } = useCampaign();
   const [isLoadingAccounts, setIsLoadingAccounts] = useState<boolean>(false);
+  const [isCleaningDummy, setIsCleaningDummy] = useState<boolean>(false);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(false);
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState<boolean>(false);
@@ -111,6 +114,24 @@ export const ConnectedAccounts = ({
       setIsLoadingAccounts(false);
     }
   };
+
+  const handleCleanupDummyAccounts = async () => {
+    if (window.confirm("Are you sure you want to remove all dummy Google Ads accounts?")) {
+      setIsCleaningDummy(true);
+      try {
+        const success = await cleanupDummyAccounts();
+        if (success) {
+          await fetchGoogleAdsAccounts();
+          toast.success("Dummy accounts removed successfully");
+        }
+      } catch (error) {
+        console.error("Error cleaning up dummy accounts:", error);
+        toast.error("Failed to clean up dummy accounts");
+      } finally {
+        setIsCleaningDummy(false);
+      }
+    }
+  };
   
   return (
     <Card>
@@ -121,18 +142,32 @@ export const ConnectedAccounts = ({
             Manage your Google Ads accounts
           </CardDescription>
         </div>
-        <Button 
-          variant="outline"
-          size="sm"
-          onClick={handleRefreshAccounts}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          {isLoading ? 'Refreshing...' : 'Refresh'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshAccounts}
+            disabled={isLoading || isLoadingAccounts}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading || isLoadingAccounts ? 'animate-spin' : ''}`} />
+            {isLoading || isLoadingAccounts ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          {accountConnections.length > 0 && (
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleCleanupDummyAccounts}
+              disabled={isCleaningDummy}
+              className="text-destructive"
+            >
+              <Trash2 className={`mr-2 h-4 w-4 ${isCleaningDummy ? 'animate-spin' : ''}`} />
+              {isCleaningDummy ? 'Cleaning...' : 'Remove Dummy'}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isLoading ? (
+        {isLoading || isLoadingAccounts ? (
           <div className="flex justify-center py-8">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
           </div>

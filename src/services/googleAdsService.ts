@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
@@ -196,11 +195,20 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     
     console.log("Fetching Google Ads accounts from Google API");
     
+    const token = await getAuthToken();
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
     const response = await supabase.functions.invoke("google-ads-accounts", {
       body: { 
         action: "list-accounts",
-        accessToken
-      }
+        accessToken,
+        cleanupDummyAccounts: true
+      },
+      headers
     });
     
     console.log("Account listing response:", response);
@@ -226,12 +234,14 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
         platform: "google",
         isConnected: true,
         lastSynced: new Date().toISOString(),
-        customerId: account.id
+        customerId: account.id,
+        credentials: {}
       }));
       
       return mappedAccounts;
     }
     
+    toast.info("No Google Ads accounts found");
     return [];
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
@@ -265,7 +275,6 @@ export const fetchGoogleAdsMetrics = async (
       return null;
     }
     
-    // Ensure we have actual date values before proceeding
     if (!dateRange.startDate || !dateRange.endDate) {
       console.log("Date range is missing start or end date, can't fetch metrics");
       return null;
@@ -442,6 +451,40 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
 
 export const fetchGoogleAdsAccounts = listGoogleAdsAccounts;
 
+export const cleanupDummyAccounts = async (): Promise<boolean> => {
+  try {
+    const token = await getAuthToken();
+    if (!token) {
+      toast.error("Authentication token not found");
+      return false;
+    }
+    
+    console.log("Cleaning up dummy Google Ads accounts");
+    
+    const response = await supabase.functions.invoke("google-ads-accounts", {
+      body: { 
+        action: "cleanup-dummy-accounts"
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    if (response.error || !response.data.success) {
+      console.error("Error cleaning up dummy accounts:", response.error || response.data.error);
+      toast.error("Failed to clean up dummy accounts");
+      return false;
+    }
+    
+    toast.success(`Successfully removed ${response.data.removedCount} dummy accounts`);
+    return true;
+  } catch (error) {
+    console.error("Error cleaning up dummy accounts:", error);
+    toast.error("Failed to clean up dummy accounts");
+    return false;
+  }
+};
+
 export const googleAdsService = {
   initiateGoogleAuth,
   handleOAuthCallback,
@@ -452,5 +495,6 @@ export const googleAdsService = {
   listGoogleAdsAccounts,
   fetchGoogleAdsAccounts,
   revokeGoogleAccess,
-  validateGoogleToken
+  validateGoogleToken,
+  cleanupDummyAccounts
 };
