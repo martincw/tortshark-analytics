@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useCampaignGridData } from "@/hooks/useCampaignGridData";
 import { CampaignFilters } from "./CampaignFilters";
@@ -8,14 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
-import { DateRange } from "@/types/campaign";
 
 export function CampaignGrid() {
-  const { campaigns, isLoading, dateRange: globalDateRange, setDateRange: setGlobalDateRange } = useCampaign();
+  const { campaigns, isLoading, dateRange } = useCampaign();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [isChecking, setIsChecking] = React.useState(true);
-  const [localDateRange, setLocalDateRange] = useState<DateRange>(globalDateRange);
   
   React.useEffect(() => {
     const checkAuth = async () => {
@@ -32,17 +30,6 @@ export function CampaignGrid() {
     
     checkAuth();
   }, []);
-
-  // Sync with global date range
-  React.useEffect(() => {
-    setLocalDateRange(globalDateRange);
-  }, [globalDateRange]);
-  
-  // Handle local date range changes and sync to global
-  const handleDateRangeChange = (newDateRange: DateRange) => {
-    setLocalDateRange(newDateRange);
-    setGlobalDateRange(newDateRange);
-  };
   
   const {
     searchTerm,
@@ -57,8 +44,8 @@ export function CampaignGrid() {
 
   // Log the date range to ensure it's consistent with other components
   React.useEffect(() => {
-    console.log("CampaignGrid using date range:", localDateRange.startDate, "to", localDateRange.endDate);
-  }, [localDateRange]);
+    console.log("CampaignGrid using date range:", dateRange.startDate, "to", dateRange.endDate);
+  }, [dateRange]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -98,8 +85,6 @@ export function CampaignGrid() {
         filterCampaign={filterCampaign}
         setFilterCampaign={setFilterCampaign}
         campaignTypes={campaignTypes}
-        dateRange={localDateRange}
-        setDateRange={handleDateRangeChange}
       />
       
       <CampaignList 

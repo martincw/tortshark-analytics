@@ -11,15 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Search, Filter, PlusCircle, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { DateRange } from "@/types/campaign";
-import { format } from "date-fns";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 
 interface CampaignFiltersProps {
   searchTerm: string;
@@ -29,8 +20,6 @@ interface CampaignFiltersProps {
   filterCampaign: string;
   setFilterCampaign: (value: string) => void;
   campaignTypes: string[];
-  dateRange: DateRange;
-  setDateRange: (dateRange: DateRange) => void;
 }
 
 export function CampaignFilters({
@@ -40,46 +29,9 @@ export function CampaignFilters({
   setSortBy,
   filterCampaign,
   setFilterCampaign,
-  campaignTypes,
-  dateRange,
-  setDateRange
+  campaignTypes
 }: CampaignFiltersProps) {
   const navigate = useNavigate();
-  
-  // Format the date range for display
-  const formatDateRange = () => {
-    if (!dateRange.startDate || !dateRange.endDate) return "Select date range";
-    
-    return `${format(new Date(dateRange.startDate), "MMM d, yyyy")} - ${format(new Date(dateRange.endDate), "MMM d, yyyy")}`;
-  };
-  
-  // Handle date selection
-  const handleDateSelect = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    
-    if (!dateRange.startDate || (dateRange.startDate && dateRange.endDate)) {
-      // If no start date or both dates are set, set start date
-      setDateRange({
-        startDate: dateStr,
-        endDate: ""
-      });
-    } else {
-      // If start date is set but no end date
-      // And if selected date is after start date
-      if (new Date(dateStr) >= new Date(dateRange.startDate)) {
-        setDateRange({
-          ...dateRange,
-          endDate: dateStr
-        });
-      } else {
-        // If selected date is before start date, swap them
-        setDateRange({
-          startDate: dateStr,
-          endDate: dateRange.startDate
-        });
-      }
-    }
-  };
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
@@ -93,24 +45,7 @@ export function CampaignFilters({
         />
       </div>
       <div className="flex gap-2 flex-col sm:flex-row items-center">
-        <div className="flex gap-2 flex-wrap">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[240px] justify-start">
-                <Calendar className="mr-2 h-4 w-4" />
-                {formatDateRange()}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarComponent
-                mode="single"
-                selected={dateRange.startDate ? new Date(dateRange.startDate) : undefined}
-                onSelect={handleDateSelect}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          
+        <div className="flex gap-2">
           <Select value={filterCampaign} onValueChange={setFilterCampaign}>
             <SelectTrigger className="w-[160px]">
               <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
