@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -212,7 +211,7 @@ const GoogleAdsIntegration: React.FC = () => {
               <div className="flex flex-col space-y-2">
                 <h4 className="text-sm font-medium">Connected Services:</h4>
                 <ul className="list-disc list-inside text-sm text-muted-foreground pl-2">
-                  <li>Google Ads API Access</li>
+                  <li>Google Ads API Access {connectionError && <span className="text-amber-500">(Limited access due to API issues)</span>}</li>
                   <li>Campaign Management</li>
                   <li>Performance Metrics</li>
                 </ul>
@@ -230,6 +229,22 @@ const GoogleAdsIntegration: React.FC = () => {
                   {isCleaningUp ? 'Removing dummy accounts...' : 'Remove dummy accounts'}
                 </Button>
               </div>
+
+              {connectionError && (
+                <Alert variant="warning" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-medium">API Access Issue</p>
+                    <p className="text-sm mt-1">
+                      We're experiencing issues connecting to the Google Ads API. Temporary demo accounts are being used instead. 
+                      This usually happens when your Google Cloud project API access is still pending approval.
+                    </p>
+                    <p className="text-xs mt-2 text-muted-foreground">
+                      Error details: {connectionError}
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
