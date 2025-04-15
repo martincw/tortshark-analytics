@@ -290,6 +290,8 @@ const Dashboard: React.FC = () => {
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
+      console.log("Selected date:", date);
+      console.log("Date boundaries:", getDayRange(date));
     }
   };
 
@@ -303,6 +305,11 @@ const Dashboard: React.FC = () => {
         const { start, end } = getDayRange(selectedDate);
         const startISO = start.toISOString();
         const endISO = end.toISOString();
+        
+        // Debug logs: verify the boundaries match the selected date
+        console.log('--- Dashboard Query Boundaries ---');
+        console.log('Local Start:', start, '=> ISO:', startISO);
+        console.log('Local End:', end, '=> ISO:', endISO);
         
         // Process campaign data from context instead of fetching from Supabase
         // This is a fallback approach since we're not using real Supabase data yet
@@ -359,6 +366,7 @@ const Dashboard: React.FC = () => {
         }
         
         setCampaigns(filteredCampaigns);
+        console.log("Filtered campaigns:", filteredCampaigns.length);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         setFinancialData(null);

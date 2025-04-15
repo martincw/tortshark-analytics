@@ -9,6 +9,27 @@ import { CustomProgressBar } from "../ui/custom-progress-bar";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
 import { parseISO, isWithinInterval, format } from "date-fns";
 
+// Helper function to create a local Date from "YYYY-MM-DD" string
+function createLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Helper to get day range (start and end) from a local date
+function getDayRange(localDate: Date) {
+  const start = new Date(
+    localDate.getFullYear(),
+    localDate.getMonth(),
+    localDate.getDate()
+  );
+  const end = new Date(
+    localDate.getFullYear(),
+    localDate.getMonth(),
+    localDate.getDate() + 1
+  );
+  return { start, end };
+}
+
 export function DailyAveragesSection() {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
 
@@ -26,12 +47,25 @@ export function DailyAveragesSection() {
 
     if (!startDateStr || !endDateStr) return null;
 
-    // Parse the dates
-    const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
+    // Parse the dates using our helper
+    const startDate = createLocalDate(startDateStr);
+    const endDate = createLocalDate(endDateStr);
+    
+    // Log date boundaries for debugging
+    console.log('--- Daily Averages Section Date Range ---');
+    console.log('Start Date:', startDate, '(Local)');
+    console.log('End Date:', endDate, '(Local)');
+    
+    // Get proper day ranges for consistent boundaries
+    const { start: rangeStart } = getDayRange(startDate);
+    const { end: rangeEnd } = getDayRange(endDate);
+    
+    console.log('Range Start:', rangeStart.toISOString());
+    console.log('Range End:', rangeEnd.toISOString());
 
-    // Calculate total days in the range
+    // Calculate total days in the range (inclusive)
     const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    console.log('Total Days in Range:', totalDays);
 
     // Initialize counters
     let totalLeads = 0;
@@ -43,8 +77,10 @@ export function DailyAveragesSection() {
     filteredCampaigns.forEach(campaign => {
       const relevantStats = campaign.statsHistory.filter(stat => {
         const statDate = parseISO(stat.date);
-        return isWithinInterval(statDate, { start: startDate, end: endDate });
+        return isWithinInterval(statDate, { start: rangeStart, end: rangeEnd });
       });
+      
+      console.log(`Campaign ${campaign.name}: ${relevantStats.length} stats entries in date range`);
       
       relevantStats.forEach(stat => {
         totalLeads += stat.leads || 0;
@@ -120,7 +156,7 @@ export function DailyAveragesSection() {
                 </div>
               </div>
               <Badge variant="outline" className="bg-background">
-                {formatPercent(dailyAverages.casesProgress)}
+                {Math.round(dailyAverages.casesProgress)}%
               </Badge>
             </div>
             <div className="mt-4">
@@ -151,7 +187,7 @@ export function DailyAveragesSection() {
                 </div>
               </div>
               <Badge variant="outline" className="bg-background">
-                {formatPercent(dailyAverages.revenueProgress)}
+                {Math.round(dailyAverages.revenueProgress)}%
               </Badge>
             </div>
             <div className="mt-4">
@@ -184,7 +220,7 @@ export function DailyAveragesSection() {
                 </div>
               </div>
               <Badge variant="outline" className="bg-background">
-                {formatPercent(dailyAverages.profitProgress)}
+                {Math.round(dailyAverages.profitProgress)}%
               </Badge>
             </div>
             <div className="mt-4">
@@ -240,9 +276,4 @@ export function DailyAveragesSection() {
       </CardContent>
     </Card>
   );
-}
-
-// Helper function to format percentage values
-function formatPercent(value: number): string {
-  return `${Math.round(value)}%`;
 }

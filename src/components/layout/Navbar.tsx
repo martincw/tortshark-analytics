@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -19,11 +18,12 @@ interface NavItem {
   href: string;
   label: string;
   icon?: React.ReactNode;
+  priority?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Dashboard" },
-  { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" /> },
+  { href: "/", label: "Overview" },
+  { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/bulk-stats", label: "Bulk Stats", icon: <Table className="h-4 w-4 mr-2" /> },
   { href: "/analysis", label: "Analysis", icon: <LineChart className="h-4 w-4 mr-2" /> },
@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
 const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
 
 export const Navbar: React.FC = () => {
+  const location = useLocation();
   const campaignContext = useCampaign();
   const { signOut } = useAuth();
   const { campaigns = [], selectedCampaignIds = [], setSelectedCampaignIds } = campaignContext || {};
@@ -65,6 +66,8 @@ export const Navbar: React.FC = () => {
     toast.error("Could not load the logo");
   };
 
+  const isActive = (href: string) => location.pathname === href;
+
   return (
     <div className="border-b bg-background sticky top-0 z-50">
       <div className="flex h-16 items-center px-4 justify-between">
@@ -84,9 +87,16 @@ export const Navbar: React.FC = () => {
               </SheetHeader>
               <div className="grid gap-4 py-4">
                 {navItems.map((item) => (
-                  <Link key={item.href} to={item.href} className="px-4 py-2 rounded-md hover:bg-secondary flex items-center">
+                  <Link 
+                    key={item.href} 
+                    to={item.href} 
+                    className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+                      isActive(item.href) ? "bg-secondary font-medium" : ""
+                    } ${item.priority ? "text-primary font-medium" : ""}`}
+                  >
                     {item.icon}
                     {item.label}
+                    {item.priority && <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 rounded-full">New</span>}
                   </Link>
                 ))}
                 
@@ -124,12 +134,27 @@ export const Navbar: React.FC = () => {
             )}
           </Link>
         </div>
-        <nav className="flex items-center space-x-6">
-          {navItems.map((item) => (
+        <nav className="md:flex items-center space-x-4 hidden">
+          {navItems.filter(item => item.priority).map((item) => (
             <Link 
               key={item.href} 
               to={item.href} 
-              className="text-sm font-medium transition-colors hover:text-primary flex items-center"
+              className={`text-sm font-medium transition-colors hover:text-primary flex items-center px-3 py-1.5 rounded-md ${
+                isActive(item.href) ? "bg-primary/10 text-primary" : ""
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          ))}
+          <div className="h-6 border-r mx-2"></div>
+          {navItems.filter(item => !item.priority).map((item) => (
+            <Link 
+              key={item.href} 
+              to={item.href} 
+              className={`text-sm transition-colors hover:text-primary flex items-center ${
+                isActive(item.href) ? "font-medium text-primary" : "text-muted-foreground"
+              }`}
             >
               {item.icon}
               {item.label}
