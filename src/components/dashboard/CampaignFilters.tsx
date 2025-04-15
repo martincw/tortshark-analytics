@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -35,11 +35,12 @@ export function CampaignFilters({
 }: CampaignFiltersProps) {
   const navigate = useNavigate();
   const { dateRange, setDateRange } = useCampaign();
-  const [showDateSelector, setShowDateSelector] = useState(false);
+  // Always show date selector by default
+  const [showDateSelector, setShowDateSelector] = useState(true);
 
   const handleDateSelect = (range: DateRange) => {
     setDateRange(range);
-    setShowDateSelector(false);
+    // Don't hide the date selector after selection
   };
 
   const handleClearDates = () => {
@@ -104,13 +105,14 @@ export function CampaignFilters({
             </Select>
           </div>
           <Button
-            variant="outline"
-            size="icon"
+            variant={showDateSelector ? "secondary" : "outline"}
+            size="sm" 
             onClick={toggleDateSelector}
-            className="w-10 h-10"
-            title="Filter by date"
+            className="w-auto"
+            title="Toggle date filters"
           >
-            <Calendar className="h-4 w-4" />
+            <Calendar className="h-4 w-4 mr-2" />
+            Date Filter
           </Button>
           <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-1" /> Add Campaign
@@ -119,13 +121,17 @@ export function CampaignFilters({
       </div>
       
       {showDateSelector && (
-        <div className="p-4 border rounded-md mt-2 bg-card">
-          <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
-          <QuickDateSelector 
-            onSelect={handleDateSelect} 
-            currentRange={dateRange.startDate ? dateRange : null}
-            onClear={handleClearDates}
-          />
+        <div className="p-4 border rounded-md mt-2 bg-card shadow-sm">
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <h3 className="text-sm font-medium mb-3">Quick Date Selection</h3>
+              <QuickDateSelector 
+                onSelect={handleDateSelect} 
+                currentRange={dateRange.startDate ? dateRange : null}
+                onClear={handleClearDates}
+              />
+            </div>
+          </div>
         </div>
       )}
       
