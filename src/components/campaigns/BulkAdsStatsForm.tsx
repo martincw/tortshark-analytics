@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -416,7 +415,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         step="0.01"
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
-                        disabled={!selectedCampaigns[campaign.id] || activeAdsField !== 'adSpend'}
+                        disabled={!selectedCampaigns[campaign.id]}
+                        readOnly={activeAdsField !== 'adSpend'}
                         placeholder="0"
                         className={activeAdsField !== 'adSpend' ? "bg-muted" : ""}
                       />
@@ -428,7 +428,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         min="0"
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.impressions || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'impressions', e.target.value)}
-                        disabled={!selectedCampaigns[campaign.id] || activeAdsField !== 'impressions'}
+                        disabled={!selectedCampaigns[campaign.id]}
+                        readOnly={activeAdsField !== 'impressions'}
                         placeholder="0"
                         className={activeAdsField !== 'impressions' ? "bg-muted" : ""}
                       />
@@ -440,7 +441,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         min="0"
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.clicks || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'clicks', e.target.value)}
-                        disabled={!selectedCampaigns[campaign.id] || activeAdsField !== 'clicks'}
+                        disabled={!selectedCampaigns[campaign.id]}
+                        readOnly={activeAdsField !== 'clicks'}
                         placeholder="0"
                         className={activeAdsField !== 'clicks' ? "bg-muted" : ""}
                       />
@@ -454,8 +456,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cpc || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cpc', e.target.value)}
                         disabled={!selectedCampaigns[campaign.id]}
+                        readOnly={true}
                         placeholder="0"
-                        readOnly
                         className="bg-muted"
                       />
                     </div>
