@@ -18,13 +18,24 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
-  // Create a handler that normalizes the date to noon to avoid timezone issues
+  // Create a handler that normalizes the date to noon UTC to avoid timezone issues
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      // Set time to noon to avoid timezone issues
+      // Set time to noon UTC to avoid timezone issues
       const normalizedDate = new Date(selectedDate);
-      normalizedDate.setHours(12, 0, 0, 0);
-      onSelect(normalizedDate);
+      
+      // Use UTC functions to ensure consistent handling
+      const year = normalizedDate.getUTCFullYear();
+      const month = normalizedDate.getUTCMonth();
+      const day = normalizedDate.getUTCDate();
+      
+      // Create a new date with noon UTC time
+      const utcDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
+      
+      console.log('DatePicker - Original date:', selectedDate.toISOString());
+      console.log('DatePicker - Normalized UTC date:', utcDate.toISOString());
+      
+      onSelect(utcDate);
     } else {
       onSelect(undefined);
     }

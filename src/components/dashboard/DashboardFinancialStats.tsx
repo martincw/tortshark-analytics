@@ -7,7 +7,7 @@ import { DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { Input } from "@/components/ui/input";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 //
 // Financial Stats Data Type
@@ -30,9 +30,9 @@ function createUTCDate(year: number, month: number, day: number) {
 // for proper UTC date querying in Supabase
 function getDayRange(date: Date) {
   // Extract year, month, day from the input date
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const day = date.getDate();
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
   
   // Create start date (beginning of the selected day in UTC)
   const start = createUTCDate(year, month, day);
@@ -41,7 +41,7 @@ function getDayRange(date: Date) {
   const end = createUTCDate(year, month, day + 1);
   
   // Log both dates for debugging
-  console.log('Date boundaries for query:');
+  console.log('Financial Stats date boundaries for query:');
   console.log('Start:', start.toISOString());
   console.log('End:', end.toISOString());
   
@@ -52,9 +52,29 @@ function getDayRange(date: Date) {
 // Dashboard Financial Stats Component
 //
 const DashboardFinancialStats: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  // Use the global date range from CampaignContext instead of local state
+  const { dateRange } = useCampaign();
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
+  // Update local selectedDate when global dateRange changes
+  useEffect(() => {
+    if (dateRange.startDate) {
+      // Create a new Date object from the dateRange.startDate string
+      // We need to handle potential timezone issues, so parse the date carefully
+      const dateStr = dateRange.startDate;
+      const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+      
+      // Create a date object set to noon UTC to avoid timezone issues
+      const date = createUTCDate(year, month - 1, day); // month is 0-indexed in JavaScript
+      
+      console.log('DashboardFinancialStats: Using date from context:', dateStr);
+      console.log('DashboardFinancialStats: Parsed UTC date:', date.toISOString());
+      
+      setSelectedDate(date);
+    }
+  }, [dateRange]);
 
   // Handles changes in the date selection
   const handleDateChange = (date: Date | undefined) => {
@@ -118,6 +138,12 @@ const DashboardFinancialStats: React.FC = () => {
       
       // Calculate profit
       const profit = totalRevenue - totalCost;
+
+      console.log('Financial data fetched:', {
+        revenue: totalRevenue,
+        cost: totalCost,
+        profit: profit
+      });
 
       setStats({
         revenue: totalRevenue,
