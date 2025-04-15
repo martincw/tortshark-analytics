@@ -12,7 +12,15 @@ import { format, addDays, parseISO } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBulkStatsData } from "@/hooks/useBulkStatsData";
+import { useBulkStatsData, StatsField } from "@/hooks/useBulkStatsData";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface BulkStatsFormProps {
   startDate: Date;
@@ -29,9 +37,16 @@ type WeeklyStats = {
   [key: string]: DailyStats; // key is the date string in format YYYY-MM-DD
 };
 
+const statsFields: { id: StatsField; label: string }[] = [
+  { id: 'adSpend', label: 'Ad Spend ($)' },
+  { id: 'leads', label: 'Leads' },
+  { id: 'cases', label: 'Cases' },
+  { id: 'revenue', label: 'Revenue ($)' },
+];
+
 export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const { campaigns } = useCampaign();
-  const { uniqueCampaigns } = useBulkStatsData();
+  const { uniqueCampaigns, activeField, setActiveField } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
@@ -146,6 +161,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             cases: dayStats.cases || 0,
             retainers: dayStats.retainers || 0,
             revenue: dayStats.revenue || 0,
+            ad_spend: activeField === 'adSpend' ? parseFloat(document.getElementById(`${campaignId}-adSpend`)?.getAttribute('value') || '0') : 0,
             created_at: new Date().toISOString()
           });
         }
@@ -213,7 +229,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 mb-4">
         <Checkbox
           id="select-all"
           checked={uniqueCampaigns.length > 0 && uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
@@ -224,9 +240,19 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         </label>
       </div>
 
-      <div className="mb-4">
-        <Tabs defaultValue="0" value={activeDay} onValueChange={setActiveDay}>
-          <TabsList className="w-full justify-start">
+      <div className="flex justify-between items-center mb-4">
+        <Tabs defaultValue="adSpend" value={activeField} onValueChange={(value) => setActiveField(value as StatsField)}>
+          <TabsList>
+            {statsFields.map((field) => (
+              <TabsTrigger key={field.id} value={field.id}>
+                {field.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        
+        <Tabs defaultValue="0" value={activeDay} onValueChange={setActiveDay} className="ml-4">
+          <TabsList className="justify-start">
             {weekDates.map((date, index) => (
               <TabsTrigger 
                 key={index}
@@ -237,83 +263,137 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             ))}
           </TabsList>
         </Tabs>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Entering stats for: <span className="font-semibold">{formattedActiveDate}</span>
-        </p>
       </div>
+      
+      <p className="text-sm text-muted-foreground mb-4">
+        Entering <span className="font-semibold">{statsFields.find(f => f.id === activeField)?.label}</span> for: <span className="font-semibold">{formattedActiveDate}</span>
+      </p>
 
       <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
-          <div className="col-span-2">Campaign</div>
-          <div className="col-span-1 text-center">Leads</div>
-          <div className="col-span-1 text-center">Cases</div>
-          <div className="col-span-1 text-center">Retainers</div>
-          <div className="col-span-1 text-center">Revenue ($)</div>
-        </div>
+        {activeField === 'adSpend' ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]"></TableHead>
+                <TableHead>Campaign</TableHead>
+                {weekDates.map((date, index) => (
+                  <TableHead key={index} className="text-center">{format(date, "EEE, d")}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {uniqueCampaigns.map((campaign) => (
+                <TableRow key={campaign.id} className={selectedCampaigns[campaign.id] ? "bg-muted/50" : ""}>
+                  <TableCell>
+                    <Checkbox
+                      id={`select-${campaign.id}`}
+                      checked={selectedCampaigns[campaign.id] || false}
+                      onCheckedChange={() => handleSelectCampaign(campaign.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{campaign.name}</TableCell>
+                  {weekDates.map((date, index) => {
+                    const dateKey = format(date, "yyyy-MM-dd");
+                    return (
+                      <TableCell key={index}>
+                        <Input
+                          id={`${campaign.id}-adSpend`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={weeklyStatsData[campaign.id]?.[dateKey]?.revenue || ''}
+                          onChange={(e) => handleInputChange(campaign.id, dateKey, 'revenue', e.target.value)}
+                          disabled={!selectedCampaigns[campaign.id]}
+                          placeholder="0"
+                          className="text-center"
+                        />
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <>
+            <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
+              <div className="col-span-2">Campaign</div>
+              <div className="col-span-1 text-center">Ad Spend ($)</div>
+              <div className="col-span-1 text-center">Leads</div>
+              <div className="col-span-1 text-center">Cases</div>
+              <div className="col-span-1 text-center">Revenue ($)</div>
+            </div>
 
-        {uniqueCampaigns.map((campaign) => (
-          <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-6 gap-4 items-center">
-                <div className="col-span-2 flex items-center space-x-2">
-                  <Checkbox
-                    id={`select-${campaign.id}`}
-                    checked={selectedCampaigns[campaign.id] || false}
-                    onCheckedChange={() => handleSelectCampaign(campaign.id)}
-                  />
-                  <label htmlFor={`select-${campaign.id}`} className="font-medium">
-                    {campaign.name}
-                  </label>
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.leads || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'leads', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cases || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cases', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.retainers || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'retainers', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={weeklyStatsData[campaign.id]?.[currentDateKey]?.revenue || ''}
-                    onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'revenue', e.target.value)}
-                    disabled={!selectedCampaigns[campaign.id]}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            {uniqueCampaigns.map((campaign) => (
+              <Card key={campaign.id} className={selectedCampaigns[campaign.id] ? "border-primary" : ""}>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-6 gap-4 items-center">
+                    <div className="col-span-2 flex items-center space-x-2">
+                      <Checkbox
+                        id={`select-${campaign.id}`}
+                        checked={selectedCampaigns[campaign.id] || false}
+                        onCheckedChange={() => handleSelectCampaign(campaign.id)}
+                      />
+                      <label htmlFor={`select-${campaign.id}`} className="font-medium">
+                        {campaign.name}
+                      </label>
+                    </div>
+                    
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
+                        onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
+                        disabled={!selectedCampaigns[campaign.id] || activeField !== 'adSpend'}
+                        placeholder="0"
+                        className={activeField !== 'adSpend' ? "bg-muted" : ""}
+                      />
+                    </div>
+                    
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={weeklyStatsData[campaign.id]?.[currentDateKey]?.leads || ''}
+                        onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'leads', e.target.value)}
+                        disabled={!selectedCampaigns[campaign.id] || activeField !== 'leads'}
+                        placeholder="0"
+                        className={activeField !== 'leads' ? "bg-muted" : ""}
+                      />
+                    </div>
+                    
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cases || ''}
+                        onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cases', e.target.value)}
+                        disabled={!selectedCampaigns[campaign.id] || activeField !== 'cases'}
+                        placeholder="0"
+                        className={activeField !== 'cases' ? "bg-muted" : ""}
+                      />
+                    </div>
+                    
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={weeklyStatsData[campaign.id]?.[currentDateKey]?.revenue || ''}
+                        onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'revenue', e.target.value)}
+                        disabled={!selectedCampaigns[campaign.id] || activeField !== 'revenue'}
+                        placeholder="0"
+                        className={activeField !== 'revenue' ? "bg-muted" : ""}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        )}
       </div>
 
       <div className="flex justify-end">
