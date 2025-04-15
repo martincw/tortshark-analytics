@@ -23,6 +23,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CampaignFiltersProps {
   searchTerm: string;
@@ -54,6 +60,109 @@ export function CampaignFilters({
 
   const handleClearDates = () => {
     setDateRange({ startDate: "", endDate: "" });
+  };
+
+  // Date options for the quick date selector dropdown
+  const dateOptions = [
+    { label: "Today", value: "Today" },
+    { label: "Yesterday", value: "Yesterday" },
+    { label: "This Week", value: "ThisWeek" },
+    { label: "This Month", value: "ThisMonth" },
+    { label: "Week To Date", value: "WeekToDate" },
+    { label: "Month To Date", value: "MonthToDate" },
+    { label: "Last 7 Days", value: "Last7Days" },
+    { label: "Last 30 Days", value: "Last30Days" }
+  ];
+
+  // Function to handle quick date selection directly from dropdown
+  const handleQuickDateSelect = (option: string) => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let start: Date;
+    let end: Date;
+
+    // Helper functions from QuickDateSelector.tsx
+    const getStartOfWeek = (date: Date): Date => {
+      const newDate = new Date(date);
+      newDate.setDate(date.getDate() - date.getDay());
+      newDate.setHours(0, 0, 0, 0);
+      return newDate;
+    };
+
+    const getEndOfWeek = (date: Date): Date => {
+      const startOfWeek = getStartOfWeek(date);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      return endOfWeek;
+    };
+
+    const getStartOfMonth = (date: Date): Date => {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    };
+
+    const getEndOfMonth = (date: Date): Date => {
+      const endMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      endMonth.setHours(23, 59, 59, 999);
+      return endMonth;
+    };
+
+    // Format date to YYYY-MM-DD string
+    const formatDateForApi = (date: Date): string => {
+      return date.toISOString().split('T')[0];
+    };
+
+    switch (option) {
+      case 'Today':
+        start = today;
+        end = now;
+        break;
+      case 'Yesterday':
+        start = new Date(today);
+        start.setDate(today.getDate() - 1);
+        end = new Date(today);
+        end.setDate(today.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'ThisWeek':
+        start = getStartOfWeek(today);
+        end = getEndOfWeek(today);
+        break;
+      case 'ThisMonth':
+        start = getStartOfMonth(today);
+        end = getEndOfMonth(today);
+        break;
+      case 'WeekToDate':
+        start = getStartOfWeek(today);
+        end = now;
+        break;
+      case 'MonthToDate':
+        start = getStartOfMonth(today);
+        end = now;
+        break;
+      case 'Last7Days':
+        start = new Date(today);
+        start.setDate(today.getDate() - 6);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'Last30Days':
+        start = new Date(today);
+        start.setDate(today.getDate() - 29);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+      default:
+        start = today;
+        end = now;
+    }
+    
+    setDateRange({ 
+      startDate: formatDateForApi(start), 
+      endDate: formatDateForApi(end) 
+    });
   };
 
   return (
@@ -111,8 +220,8 @@ export function CampaignFilters({
           </div>
           <DateRangePicker />
           {showQuickDateSelector && (
-            <Popover>
-              <PopoverTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm" 
@@ -121,22 +230,29 @@ export function CampaignFilters({
                   <CalendarDays className="h-4 w-4 mr-2" />
                   Quick Dates
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[340px] p-0" align="end">
-                <Card className="border-0 shadow-none">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-base font-semibold">Quick Date Selector</h3>
-                    </div>
-                    <QuickDateSelector 
-                      onSelect={handleDateSelect} 
-                      currentRange={dateRange.startDate ? dateRange : null}
-                      onClear={handleClearDates}
-                    />
-                  </CardContent>
-                </Card>
-              </PopoverContent>
-            </Popover>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[180px] bg-popover" align="end">
+                {dateOptions.map((option) => (
+                  <DropdownMenuItem 
+                    key={option.value}
+                    onClick={() => handleQuickDateSelect(option.value)}
+                    className="cursor-pointer"
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+                {dateRange.startDate && (
+                  <>
+                    <DropdownMenuItem
+                      className="border-t mt-1 pt-1 text-muted-foreground cursor-pointer"
+                      onClick={handleClearDates}
+                    >
+                      Clear Selection
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <Button onClick={() => navigate("/add-campaign")} size="sm" className="sm:ml-2 w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-1" /> Add Campaign
