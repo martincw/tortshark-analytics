@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -32,7 +31,7 @@ const navItems: NavItem[] = [
 ];
 
 // Direct logo URL
-const LOGO_URL = "https://www.tortsharklaw.com/wp-content/uploads/2023/03/TortShark-Logo.png";
+const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
 
 export const Navbar: React.FC = () => {
   const campaignContext = useCampaign();
