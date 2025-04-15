@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,9 +51,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
-  // Generate dates for the week
   const weekDates = Array.from({ length: 7 }, (_, i) => {
-    // Create a new date with the time set to noon to avoid timezone issues
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + i);
     date.setHours(12, 0, 0, 0);
@@ -119,7 +117,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       };
     });
     
-    // Calculate CPC if adSpend or clicks were changed
     if (field === 'adSpend' || field === 'clicks') {
       setTimeout(() => calculateCPC(campaignId, dateKey), 0);
     }
@@ -169,16 +166,13 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         return;
       }
       
-      // Process campaign_stats_history updates for ad_spend
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
-          // Format date as YYYY-MM-DD string without any timezone conversion
           const dateKey = format(date, "yyyy-MM-dd");
           const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
           
-          // Check if stats exist for this campaign and date
           const { data, error: checkError } = await supabase
             .from('campaign_stats_history')
             .select('id')
@@ -192,7 +186,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
           }
           
           if (data) {
-            // Update existing stats
             const { error: updateError } = await supabase
               .from('campaign_stats_history')
               .update({ ad_spend: dayStats.adSpend || 0 })
@@ -202,7 +195,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
               console.error(`Error updating stats for ${campaignId} on ${dateKey}:`, updateError);
             }
           } else {
-            // Insert new stats
             const { error: insertError } = await supabase
               .from('campaign_stats_history')
               .insert({
@@ -223,15 +215,12 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         }
       }
       
-      // Process campaign_stats updates for ad metrics
-      // Use the most recent day's data for current stats
       const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
-        // Check if ad stats already exist for this campaign
         const { data: existingAdStats, error: checkAdStatsError } = await supabase
           .from('campaign_stats')
           .select('id')
@@ -244,7 +233,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         }
         
         if (existingAdStats) {
-          // Update existing ad stats
           const { error: updateAdStatsError } = await supabase
             .from('campaign_stats')
             .update({
@@ -260,7 +248,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             console.error(`Error updating ad stats for ${campaignId}:`, updateAdStatsError);
           }
         } else {
-          // Insert new ad stats
           const { error: insertAdStatsError } = await supabase
             .from('campaign_stats')
             .insert({
@@ -290,8 +277,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       setLoading(false);
     }
   };
-  
-  // Get the current date based on the active day index
+
   const currentDateKey = format(weekDates[parseInt(activeDay)], "yyyy-MM-dd");
   const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
 
@@ -416,9 +402,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.adSpend || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'adSpend', e.target.value)}
                         disabled={!selectedCampaigns[campaign.id]}
-                        readOnly={activeAdsField !== 'adSpend'}
-                        placeholder="0"
-                        className={activeAdsField !== 'adSpend' ? "bg-muted" : ""}
+                        className="bg-muted"
+                        readOnly
                       />
                     </div>
                     
@@ -429,9 +414,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.impressions || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'impressions', e.target.value)}
                         disabled={!selectedCampaigns[campaign.id]}
-                        readOnly={activeAdsField !== 'impressions'}
-                        placeholder="0"
                         className={activeAdsField !== 'impressions' ? "bg-muted" : ""}
+                        readOnly={activeAdsField !== 'impressions'}
                       />
                     </div>
                     
@@ -442,9 +426,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.clicks || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'clicks', e.target.value)}
                         disabled={!selectedCampaigns[campaign.id]}
-                        readOnly={activeAdsField !== 'clicks'}
-                        placeholder="0"
                         className={activeAdsField !== 'clicks' ? "bg-muted" : ""}
+                        readOnly={activeAdsField !== 'clicks'}
                       />
                     </div>
                     
@@ -456,9 +439,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                         value={weeklyStatsData[campaign.id]?.[currentDateKey]?.cpc || ''}
                         onChange={(e) => handleInputChange(campaign.id, currentDateKey, 'cpc', e.target.value)}
                         disabled={!selectedCampaigns[campaign.id]}
-                        readOnly={true}
-                        placeholder="0"
-                        className="bg-muted"
+                        className={activeAdsField !== 'cpc' ? "bg-muted" : ""}
+                        readOnly={activeAdsField !== 'cpc'}
                       />
                     </div>
                   </div>
