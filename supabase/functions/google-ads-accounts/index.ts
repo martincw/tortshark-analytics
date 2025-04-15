@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -130,7 +131,7 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
       return createDummyAccounts();
     }
     
-    // Google Ads API - use the newer v16 endpoint (was v15 previously)
+    // Google Ads API - use the v16 endpoint (updated from v15)
     const listCustomersResponse = await fetch(
       "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
       {
