@@ -20,11 +20,29 @@ interface FinancialStats {
 
 // Helper Functions
 
+// Ensures consistent date handling by creating a date with time set to noon UTC
+// This prevents timezone-related issues when comparing dates
+function createUTCDate(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month, day, 12, 0, 0));
+}
+
 // Given a date, returns an object with the start and end boundaries
-// of that day in local time: start is midnight of that day, and end is midnight of the next day.
-function getDayRange(localDate: Date) {
-  const start = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
-  const end = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate() + 1);
+// for proper UTC date querying in Supabase
+function getDayRange(date: Date) {
+  // Create a date copy to avoid mutation
+  const localDate = new Date(date);
+  
+  // Extract year, month, day in local time
+  const year = localDate.getFullYear();
+  const month = localDate.getMonth();
+  const day = localDate.getDate();
+  
+  // Create start date (beginning of the selected day in UTC)
+  const start = createUTCDate(year, month, day);
+  
+  // Create end date (beginning of the next day in UTC)
+  const end = createUTCDate(year, month, day + 1);
+  
   return { start, end };
 }
 
@@ -52,7 +70,7 @@ const DashboardFinancialStats: React.FC = () => {
       // Calculate the boundaries of the selected day
       const { start, end } = getDayRange(selectedDate);
       
-      // Convert boundaries to ISO strings so they match the UTC timestamps stored in Supabase
+      // Convert boundaries to ISO strings for Supabase query
       const startISO = start.toISOString();
       const endISO = end.toISOString();
 
