@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -11,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Wrench, LogOut, ChartBarIcon, LineChart, Table } from "lucide-react";
+import { Menu, Wrench, LogOut, ChartBarIcon, LineChart, Table, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -21,7 +22,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Dashboard" },
+  { href: "/", label: "Home" },
+  { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/bulk-stats", label: "Bulk Stats", icon: <Table className="h-4 w-4 mr-2" /> },
   { href: "/analysis", label: "Analysis", icon: <LineChart className="h-4 w-4 mr-2" /> },
