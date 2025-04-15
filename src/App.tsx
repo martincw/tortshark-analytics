@@ -20,7 +20,6 @@ import SettingsPage from "./pages/SettingsPage";
 import ToolsPage from "./pages/ToolsPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import BulkStatsPage from "./pages/BulkStatsPage";
-import Dashboard from "./pages/Dashboard"; // Import our new Dashboard
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -57,7 +56,6 @@ const App = () => (
                 </ProtectedRoute>
               }>
                 <Route path="/" element={<Index />} />
-                <Route path="/dashboard" element={<Dashboard />} /> {/* New dashboard route */}
                 <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/campaign/:id" element={<CampaignDetail />} />
                 <Route path="/add-campaign" element={<AddCampaignPage />} />
