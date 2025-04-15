@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
-  const { campaigns, isLoading } = useCampaign();
+  const { campaigns, isLoading, dateRange } = useCampaign();
   const [showDebug, setShowDebug] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -31,6 +31,13 @@ const CampaignsPage = () => {
     
     checkAuth();
   }, []);
+
+  // Log date range for debugging
+  useEffect(() => {
+    if (dateRange.startDate) {
+      console.log("CampaignsPage date range:", dateRange.startDate, "to", dateRange.endDate);
+    }
+  }, [dateRange]);
 
   const handleDebugToggle = () => {
     setShowDebug(!showDebug);
@@ -119,6 +126,11 @@ const CampaignsPage = () => {
           <p className="text-muted-foreground mt-1">
             Manage your case acquisition campaigns and track performance
           </p>
+          {dateRange.startDate && (
+            <div className="text-sm mt-1 text-muted-foreground">
+              Showing data from <span className="font-medium">{dateRange.startDate}</span> to <span className="font-medium">{dateRange.endDate}</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <div className="flex border rounded-md overflow-hidden mr-2">
