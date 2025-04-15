@@ -20,28 +20,30 @@ interface FinancialStats {
 
 // Helper Functions
 
-// Ensures consistent date handling by creating a date with time set to noon UTC
-// This prevents timezone-related issues when comparing dates
+// Create a date with a specific time in UTC to avoid timezone issues
 function createUTCDate(year: number, month: number, day: number) {
+  // Setting time to noon UTC to avoid any day boundary issues with timezones
   return new Date(Date.UTC(year, month, day, 12, 0, 0));
 }
 
 // Given a date, returns an object with the start and end boundaries
 // for proper UTC date querying in Supabase
 function getDayRange(date: Date) {
-  // Create a date copy to avoid mutation
-  const localDate = new Date(date);
-  
-  // Extract year, month, day in local time
-  const year = localDate.getFullYear();
-  const month = localDate.getMonth();
-  const day = localDate.getDate();
+  // Extract year, month, day from the input date
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
   
   // Create start date (beginning of the selected day in UTC)
   const start = createUTCDate(year, month, day);
   
   // Create end date (beginning of the next day in UTC)
   const end = createUTCDate(year, month, day + 1);
+  
+  // Log both dates for debugging
+  console.log('Date boundaries for query:');
+  console.log('Start:', start.toISOString());
+  console.log('End:', end.toISOString());
   
   return { start, end };
 }
@@ -56,7 +58,11 @@ const DashboardFinancialStats: React.FC = () => {
 
   // Handles changes in the date selection
   const handleDateChange = (date: Date | undefined) => {
-    setSelectedDate(date);
+    // Ensure we're working with a copy to avoid any reference issues
+    if (date) {
+      console.log('Selected date in DatePicker:', date);
+      setSelectedDate(date);
+    }
   };
 
   // UseEffect to fetch and aggregate financial stats for the selected date
@@ -67,6 +73,8 @@ const DashboardFinancialStats: React.FC = () => {
 
       setLoading(true);
       
+      console.log('Fetching financial stats for:', format(selectedDate, 'yyyy-MM-dd'));
+      
       // Calculate the boundaries of the selected day
       const { start, end } = getDayRange(selectedDate);
       
@@ -74,7 +82,6 @@ const DashboardFinancialStats: React.FC = () => {
       const startISO = start.toISOString();
       const endISO = end.toISOString();
 
-      console.log('Fetching financial stats for:', format(selectedDate, 'yyyy-MM-dd'));
       console.log('Time range:', startISO, 'to', endISO);
 
       // Query Supabase for campaign_stats that fall within the date range for ad spend
