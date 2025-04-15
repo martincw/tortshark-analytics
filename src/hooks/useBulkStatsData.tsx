@@ -3,12 +3,12 @@ import { useState, useMemo } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Campaign } from "@/types/campaign";
 
-export type StatsField = 'adSpend' | 'leads' | 'cases' | 'retainers' | 'revenue';
+export type StatsField = 'leads' | 'cases' | 'retainers' | 'revenue';
 export type AdsStatsField = 'adSpend' | 'impressions' | 'clicks' | 'cpc';
 
 export function useBulkStatsData() {
   const { campaigns } = useCampaign();
-  const [activeField, setActiveField] = useState<StatsField>('adSpend');
+  const [activeField, setActiveField] = useState<StatsField>('leads');
   const [activeAdsField, setActiveAdsField] = useState<AdsStatsField>('adSpend');
   
   // Deduplicate campaigns by name to prevent duplicates in the list
