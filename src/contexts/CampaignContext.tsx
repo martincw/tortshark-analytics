@@ -1,5 +1,6 @@
+
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { Campaign, DateRange } from "@/types/campaign";
+import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
 import { addDays, subDays, format } from 'date-fns';
 import { toast } from "sonner";
@@ -21,6 +22,13 @@ interface CampaignContextType {
   updateStatHistoryEntry: (campaignId: string, entry: any) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   fetchCampaigns: () => Promise<void>;
+  // Add missing properties to fix type errors
+  accountConnections: AccountConnection[];
+  fetchGoogleAdsAccounts: () => Promise<any>;
+  addAccountConnection: (connection: AccountConnection) => void;
+  selectedCampaignIds: string[];
+  setSelectedCampaignIds: (ids: string[]) => void;
+  migrateFromLocalStorage?: () => Promise<void>;
 }
 
 export const CampaignContext = createContext<CampaignContextType>({
@@ -38,6 +46,12 @@ export const CampaignContext = createContext<CampaignContextType>({
   updateStatHistoryEntry: () => {},
   deleteStatHistoryEntry: () => {},
   fetchCampaigns: async () => {},
+  // Add default values for new properties
+  accountConnections: [],
+  fetchGoogleAdsAccounts: async () => [],
+  addAccountConnection: () => {},
+  selectedCampaignIds: [],
+  setSelectedCampaignIds: () => {},
 });
 
 export const useCampaign = () => useContext(CampaignContext);
@@ -51,6 +65,10 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     startDate: subDays(new Date(), 30).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
   });
+  // Add new state variables for the missing properties
+  const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+  
   const { user } = useAuth();
   
   const formatDate = (date: Date): string => {
@@ -118,10 +136,13 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             }))
             : [];
 
+          // Fix TypeScript error with platform by ensuring it's properly typed
+          const platform = campaign.platform as "google" | "facebook" | "linkedin";
+
           return {
             id: campaign.id,
             name: campaign.name,
-            platform: campaign.platform,
+            platform: platform,
             accountId: campaign.account_id,
             accountName: campaign.account_name,
             stats: stats,
@@ -148,9 +169,63 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [user]);
 
+  // Add fetchGoogleAdsAccounts function
+  const fetchGoogleAdsAccounts = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch account connections from the database
+      const { data, error } = await supabase
+        .from('account_connections')
+        .select('*')
+        .eq('user_id', user?.id);
+        
+      if (error) {
+        console.error("Error fetching account connections:", error);
+        throw error;
+      }
+      
+      // Convert and store account connections
+      const connections: AccountConnection[] = data.map(conn => ({
+        id: conn.id,
+        name: conn.name,
+        platform: conn.platform as "google" | "facebook" | "linkedin",
+        isConnected: conn.is_connected,
+        lastSynced: conn.last_synced,
+        customerId: conn.customer_id,
+        credentials: conn.credentials
+      }));
+      
+      setAccountConnections(connections);
+      return connections;
+    } catch (error) {
+      console.error("Error in fetchGoogleAdsAccounts:", error);
+      toast.error("Failed to fetch Google Ads accounts");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Add addAccountConnection function
+  const addAccountConnection = (connection: AccountConnection) => {
+    setAccountConnections(prev => {
+      // Check if connection already exists
+      const exists = prev.some(conn => conn.id === connection.id);
+      if (exists) {
+        // Update existing connection
+        return prev.map(conn => conn.id === connection.id ? connection : conn);
+      } else {
+        // Add new connection
+        return [...prev, connection];
+      }
+    });
+  };
+
   useEffect(() => {
     if (user) {
       fetchCampaigns();
+      fetchGoogleAdsAccounts();
     }
   }, [fetchCampaigns, user]);
 
@@ -452,6 +527,12 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
     fetchCampaigns,
+    // Add new properties to the context value
+    accountConnections,
+    fetchGoogleAdsAccounts,
+    addAccountConnection,
+    selectedCampaignIds,
+    setSelectedCampaignIds
   };
 
   return (
