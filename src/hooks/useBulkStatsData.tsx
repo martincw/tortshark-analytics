@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Campaign } from "@/types/campaign";
 
-export type StatsField = 'leads' | 'cases' | 'retainers' | 'revenue';
+export type StatsField = 'leads' | 'cases' | 'revenue' | 'adSpend';
 export type AdsStatsField = 'adSpend' | 'impressions' | 'clicks' | 'cpc';
 
 export function useBulkStatsData() {

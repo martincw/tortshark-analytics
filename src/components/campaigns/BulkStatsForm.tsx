@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,8 +29,8 @@ interface BulkStatsFormProps {
 type DailyStats = {
   leads: number;
   cases: number;
-  retainers: number;
   revenue: number;
+  adSpend: number;
 };
 
 type WeeklyStats = {
@@ -39,8 +40,8 @@ type WeeklyStats = {
 const statsFields: { id: StatsField; label: string }[] = [
   { id: 'leads', label: 'Leads' },
   { id: 'cases', label: 'Cases' },
-  { id: 'retainers', label: 'Retainers' },
   { id: 'revenue', label: 'Revenue ($)' },
+  { id: 'adSpend', label: 'Ad Spend ($)' },
 ];
 
 export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
@@ -92,7 +93,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     
     weekDates.forEach(date => {
       const dateKey = format(date, "yyyy-MM-dd");
-      emptyWeekStats[dateKey] = { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+      emptyWeekStats[dateKey] = { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
     });
     
     setWeeklyStatsData(prev => ({
@@ -106,7 +107,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     
     setWeeklyStatsData(prev => {
       const campaignStats = prev[campaignId] || {};
-      const dayStats = campaignStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+      const dayStats = campaignStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
       
       return {
         ...prev,
@@ -150,7 +151,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           // Format date as YYYY-MM-DD string without any timezone conversion
           // This ensures the date is stored exactly as shown to the user
           const dateKey = format(date, "yyyy-MM-dd");
-          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
           
           // For each date, check if a record already exists
           const { data: existingRecord, error: checkError } = await supabase
@@ -172,9 +173,9 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               .update({
                 leads: dayStats.leads || 0,
                 cases: dayStats.cases || 0,
-                retainers: dayStats.retainers || 0,
+                retainers: dayStats.cases || 0, // Map cases to retainers in the database for backward compatibility
                 revenue: dayStats.revenue || 0,
-                ad_spend: 0
+                ad_spend: dayStats.adSpend || 0
               })
               .eq('id', existingRecord.id);
               
@@ -190,9 +191,9 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               date: dateKey,
               leads: dayStats.leads || 0,
               cases: dayStats.cases || 0,
-              retainers: dayStats.retainers || 0,
+              retainers: dayStats.cases || 0, // Map cases to retainers in the database for backward compatibility
               revenue: dayStats.revenue || 0,
-              ad_spend: 0,
+              ad_spend: dayStats.adSpend || 0,
               created_at: new Date().toISOString()
             });
           }
@@ -218,7 +219,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, retainers: 0, revenue: 0 };
+        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
         
         // Check if manual stats already exist for this campaign
         const { data: existingManualStats, error: checkManualError } = await supabase
@@ -239,7 +240,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             .update({
               leads: recentStats.leads || 0,
               cases: recentStats.cases || 0,
-              retainers: recentStats.retainers || 0,
+              retainers: recentStats.cases || 0, // Map cases to retainers in the database for backward compatibility
               revenue: recentStats.revenue || 0,
               date: recentDateKey
             })
@@ -258,7 +259,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               date: recentDateKey,
               leads: recentStats.leads || 0,
               cases: recentStats.cases || 0,
-              retainers: recentStats.retainers || 0,
+              retainers: recentStats.cases || 0, // Map cases to retainers in the database for backward compatibility
               revenue: recentStats.revenue || 0
             });
             
@@ -355,7 +356,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                       <Input
                         type="number"
                         min="0"
-                        step={activeField === 'revenue' ? "0.01" : "1"}
+                        step={activeField === 'revenue' || activeField === 'adSpend' ? "0.01" : "1"}
                         value={weeklyStatsData[campaign.id]?.[dateKey]?.[activeField] || ''}
                         onChange={(e) => handleInputChange(campaign.id, dateKey, activeField, e.target.value)}
                         disabled={!selectedCampaigns[campaign.id]}
