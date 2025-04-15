@@ -18,105 +18,90 @@ interface FinancialStats {
   profit: number;
 }
 
-// Helper Functions
-
-// Create a date with a specific time in UTC to avoid timezone issues
-function createUTCDate(year: number, month: number, day: number) {
-  // Setting time to noon UTC to avoid any day boundary issues with timezones
-  return new Date(Date.UTC(year, month, day, 12, 0, 0));
+// Helper function to format a Date to YYYY-MM-DD string
+function formatDateToString(date: Date): string {
+  return date.toISOString().split('T')[0];
 }
 
-// Given a date, returns an object with the start and end boundaries
-// for proper UTC date querying in Supabase
-function getDayRange(date: Date) {
-  // Extract year, month, day from the input date
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth();
-  const day = date.getUTCDate();
+// Helper function to get start and end timestamps for a day
+// This completely eliminates timezone issues by using date strings
+function getDayRangeAsStrings(dateStr: string) {
+  // Start of day is the dateStr at 00:00:00
+  const startStr = `${dateStr}T00:00:00`;
   
-  // Create start date (beginning of the selected day in UTC)
-  const start = createUTCDate(year, month, day);
+  // End of day is the dateStr at 23:59:59
+  const endStr = `${dateStr}T23:59:59`;
   
-  // Create end date (beginning of the next day in UTC)
-  const end = createUTCDate(year, month, day + 1);
+  console.log('Financial Stats query boundaries:');
+  console.log('Start:', startStr);
+  console.log('End:', endStr);
   
-  // Log both dates for debugging
-  console.log('Financial Stats date boundaries for query:');
-  console.log('Start:', start.toISOString());
-  console.log('End:', end.toISOString());
-  
-  return { start, end };
+  return { startStr, endStr };
 }
 
 //
 // Dashboard Financial Stats Component
 //
 const DashboardFinancialStats: React.FC = () => {
-  // Use the global date range from CampaignContext instead of local state
   const { dateRange } = useCampaign();
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDateString, setSelectedDateString] = useState<string>(formatDateToString(new Date()));
 
-  // Update local selectedDate when global dateRange changes
+  // Sync with the global date range
   useEffect(() => {
     if (dateRange.startDate) {
-      // Create a new Date object from the dateRange.startDate string
-      // We need to handle potential timezone issues, so parse the date carefully
-      const dateStr = dateRange.startDate;
-      const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+      console.log('DashboardFinancialStats: Using date from context:', dateRange.startDate);
       
-      // Create a date object set to noon UTC to avoid timezone issues
-      const date = createUTCDate(year, month - 1, day); // month is 0-indexed in JavaScript
+      // Create a date object from the string (which already has the correct date)
+      const newDate = new Date(dateRange.startDate);
+      setSelectedDate(newDate);
       
-      console.log('DashboardFinancialStats: Using date from context:', dateStr);
-      console.log('DashboardFinancialStats: Parsed UTC date:', date.toISOString());
-      
-      setSelectedDate(date);
+      // Store the date string directly
+      setSelectedDateString(dateRange.startDate);
     }
   }, [dateRange]);
 
   // Handles changes in the date selection
   const handleDateChange = (date: Date | undefined) => {
-    // Ensure we're working with a copy to avoid any reference issues
     if (date) {
       console.log('Selected date in DatePicker:', date);
       setSelectedDate(date);
+      
+      // Extract and store the date string (YYYY-MM-DD)
+      const dateString = formatDateToString(date);
+      setSelectedDateString(dateString);
+      console.log('Extracted date string:', dateString);
     }
   };
 
   // UseEffect to fetch and aggregate financial stats for the selected date
   useEffect(() => {
     async function fetchFinancialStats() {
-      // Do nothing if no date is selected
-      if (!selectedDate) return;
+      // Do nothing if no date string is selected
+      if (!selectedDateString) return;
 
       setLoading(true);
       
-      console.log('Fetching financial stats for:', format(selectedDate, 'yyyy-MM-dd'));
+      console.log('Fetching financial stats for date:', selectedDateString);
       
-      // Calculate the boundaries of the selected day
-      const { start, end } = getDayRange(selectedDate);
-      
-      // Convert boundaries to ISO strings for Supabase query
-      const startISO = start.toISOString();
-      const endISO = end.toISOString();
-
-      console.log('Time range:', startISO, 'to', endISO);
+      // Get the query boundaries as strings
+      const { startStr, endStr } = getDayRangeAsStrings(selectedDateString);
 
       // Query Supabase for campaign_stats that fall within the date range for ad spend
       const { data: adSpendData, error: adSpendError } = await supabase
         .from('campaign_stats')
         .select('ad_spend')
-        .gte('date', startISO)
-        .lt('date', endISO);
+        .gte('date', startStr)
+        .lte('date', endStr);
 
       // Query Supabase for campaign_stats_history that fall within the date range for revenue
       const { data: revenueData, error: revenueError } = await supabase
         .from('campaign_stats_history')
         .select('revenue')
-        .gte('date', startISO)
-        .lt('date', endISO);
+        .gte('date', startStr)
+        .lte('date', endStr);
 
       if (adSpendError) {
         console.error('Error fetching ad spend data:', adSpendError);
@@ -142,7 +127,12 @@ const DashboardFinancialStats: React.FC = () => {
       console.log('Financial data fetched:', {
         revenue: totalRevenue,
         cost: totalCost,
-        profit: profit
+        profit: profit,
+        date: selectedDateString,
+        entries: {
+          adSpend: adSpendData?.length || 0,
+          revenue: revenueData?.length || 0
+        }
       });
 
       setStats({
@@ -155,7 +145,7 @@ const DashboardFinancialStats: React.FC = () => {
     }
 
     fetchFinancialStats();
-  }, [selectedDate]);
+  }, [selectedDateString]);
 
   return (
     <Card className="shadow-md">
