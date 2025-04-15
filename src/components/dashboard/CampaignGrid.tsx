@@ -10,9 +10,8 @@ import { useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
 
 export function CampaignGrid() {
-  const { campaigns, isLoading, migrateFromLocalStorage } = useCampaign();
+  const { campaigns, isLoading } = useCampaign();
   const navigate = useNavigate();
-  const [hasLocalData, setHasLocalData] = React.useState(false);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [isChecking, setIsChecking] = React.useState(true);
   
@@ -22,10 +21,6 @@ export function CampaignGrid() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setIsAuthenticated(!!session);
-        
-        // Check if there's localStorage data to migrate
-        const storedCampaigns = localStorage.getItem("campaigns");
-        setHasLocalData(!!storedCampaigns);
       } catch (error) {
         console.error("Error checking auth:", error);
       } finally {
@@ -52,7 +47,7 @@ export function CampaignGrid() {
     setFilterCampaign("all");
   };
 
-  // Show migration UI if not authenticated or there's local data
+  // Show authentication UI if not authenticated
   if (!isAuthenticated && !isChecking) {
     return (
       <div className="space-y-4 border p-6 rounded-lg">
@@ -63,35 +58,6 @@ export function CampaignGrid() {
         <Button onClick={() => navigate("/auth")}>
           <LogIn className="mr-2 h-4 w-4" /> Sign In to Continue
         </Button>
-      </div>
-    );
-  }
-  
-  // Show migration UI if there's local data
-  if (hasLocalData && !isLoading) {
-    return (
-      <div className="space-y-4 border p-6 rounded-lg">
-        <h2 className="text-xl font-semibold">Migrate Your Campaign Data</h2>
-        <p className="text-muted-foreground">
-          We've detected campaign data in your browser's local storage. 
-          Would you like to migrate this data to your account?
-        </p>
-        <div className="flex gap-2">
-          <Button 
-            onClick={async () => {
-              await migrateFromLocalStorage();
-              setHasLocalData(false);
-            }}
-          >
-            Migrate Local Data
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setHasLocalData(false)}
-          >
-            Skip Migration
-          </Button>
-        </div>
       </div>
     );
   }

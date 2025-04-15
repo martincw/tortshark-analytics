@@ -10,12 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
-  const { campaigns, isLoading, migrateFromLocalStorage } = useCampaign();
+  const { campaigns, isLoading } = useCampaign();
   const [showDebug, setShowDebug] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [hasLocalData, setHasLocalData] = useState(false);
   
   useEffect(() => {
     const checkAuth = async () => {
@@ -23,10 +22,6 @@ const CampaignsPage = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setIsAuthenticated(!!session);
-        
-        // Check if there's localStorage data to migrate
-        const storedCampaigns = localStorage.getItem("campaigns");
-        setHasLocalData(!!storedCampaigns);
       } catch (error) {
         console.error("Error checking auth:", error);
       } finally {
@@ -95,9 +90,8 @@ const CampaignsPage = () => {
       </div>
     );
   }
-  
-  // Show migration prompt if there's localStorage data
-  if (hasLocalData && isAuthenticated && !isLoading && !isCheckingAuth) {
+
+  if (isLoading || isCheckingAuth) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -109,30 +103,9 @@ const CampaignsPage = () => {
           </div>
         </div>
         
-        <div className="bg-muted/30 p-8 rounded-lg text-center space-y-4">
-          <h2 className="text-2xl font-semibold">Migrate Your Campaign Data</h2>
-          <p className="text-muted-foreground">
-            We've detected campaign data in your browser's local storage. 
-            Would you like to migrate this data to your account?
-          </p>
-          <div className="flex justify-center gap-4 mt-4">
-            <Button 
-              onClick={async () => {
-                await migrateFromLocalStorage();
-                setHasLocalData(false);
-              }}
-              size="lg"
-            >
-              Migrate Data
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setHasLocalData(false)}
-              size="lg"
-            >
-              Skip Migration
-            </Button>
-          </div>
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
+          <p className="text-lg font-medium">Loading campaigns...</p>
         </div>
       </div>
     );
@@ -204,12 +177,7 @@ const CampaignsPage = () => {
         </div>
       )}
       
-      {isLoading || isCheckingAuth ? (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
-          <p className="text-lg font-medium">Loading campaigns...</p>
-        </div>
-      ) : campaigns.length === 0 ? (
+      {campaigns.length === 0 ? (
         <div className="text-center py-16 border border-dashed rounded-lg">
           <h3 className="text-lg font-medium mb-2">No campaigns found</h3>
           <p className="text-muted-foreground mb-6">
