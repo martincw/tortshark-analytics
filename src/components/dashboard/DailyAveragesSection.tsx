@@ -1,228 +1,238 @@
 
 import React, { useMemo } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
-import { BarChart, Calendar, DollarSign, ArrowUpDown, Users, LineChart, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { isWithinInterval, parseISO, startOfDay, endOfDay, differenceInDays, format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Clock, Target, TrendingUp, Users, Wallet } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { CustomProgressBar } from "../ui/custom-progress-bar";
+import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
+import { parseISO, isWithinInterval, format } from "date-fns";
 
 export function DailyAveragesSection() {
   const { campaigns, selectedCampaignIds, dateRange } = useCampaign();
-  
+
   const dailyAverages = useMemo(() => {
-    // Filter campaigns based on selection
+    if (!campaigns || campaigns.length === 0) return null;
+
+    // Filter campaigns based on selection if needed
     const filteredCampaigns = selectedCampaignIds.length > 0
       ? campaigns.filter(camp => selectedCampaignIds.includes(camp.id))
       : campaigns;
-    
-    if (filteredCampaigns.length === 0) {
-      return {
-        dates: {
-          startDate: "N/A",
-          endDate: "N/A",
-          daysInRange: 0
-        },
-        metrics: {
-          adSpend: 0,
-          leads: 0,
-          cases: 0,
-          revenue: 0,
-          profit: 0,
-          costPerLead: 0,
-          costPerCase: 0,
-          revenuePerCase: 0,
-          conversionRate: 0,
-          roi: 0
-        }
-      };
-    }
-    
-    // Get date range for filtering
+
+    // Get date range from the context
     const startDateStr = dateRange.startDate;
     const endDateStr = dateRange.endDate;
-    let totalDays = 1; // Default to 1 to avoid division by zero
-    
-    // Calculate total stats within date range
+
+    if (!startDateStr || !endDateStr) return null;
+
+    // Parse the dates
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+
+    // Calculate total days in the range
+    const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+    // Initialize counters
     let totalLeads = 0;
     let totalCases = 0;
     let totalRevenue = 0;
     let totalAdSpend = 0;
     
-    if (startDateStr && endDateStr) {
-      // Create date objects with time set to start/end of day
-      const startDate = startOfDay(new Date(startDateStr + "T12:00:00Z"));
-      const endDate = endOfDay(new Date(endDateStr + "T12:00:00Z"));
-      
-      // Calculate number of days in the range (add 1 because it's inclusive)
-      totalDays = Math.max(1, differenceInDays(endDate, startDate) + 1);
-      
-      // Aggregate metrics across campaigns with date filtering
-      filteredCampaigns.forEach(campaign => {
-        // Filter statsHistory by date range
-        const filteredStats = campaign.statsHistory.filter(stat => {
-          const statDate = parseISO(stat.date);
-          return isWithinInterval(statDate, { start: startDate, end: endDate });
-        });
-        
-        // Sum up filtered stats
-        totalLeads += filteredStats.reduce((sum, stat) => sum + stat.leads, 0);
-        totalCases += filteredStats.reduce((sum, stat) => sum + stat.cases, 0);
-        totalRevenue += filteredStats.reduce((sum, stat) => sum + stat.revenue, 0);
-        totalAdSpend += filteredStats.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
-      });
-    } else {
-      // If no date range, use summary stats
-      filteredCampaigns.forEach(campaign => {
-        totalLeads += campaign.manualStats.leads || 0;
-        totalCases += campaign.manualStats.cases || 0;
-        totalRevenue += campaign.manualStats.revenue || 0;
-        totalAdSpend += campaign.stats.adSpend || 0;
+    // Aggregate metrics from statsHistory within the date range
+    filteredCampaigns.forEach(campaign => {
+      const relevantStats = campaign.statsHistory.filter(stat => {
+        const statDate = parseISO(stat.date);
+        return isWithinInterval(statDate, { start: startDate, end: endDate });
       });
       
-      // Default to 30 days for summary view
-      totalDays = 30;
-    }
-    
-    // Calculate derived metrics
-    const totalProfit = totalRevenue - totalAdSpend;
+      relevantStats.forEach(stat => {
+        totalLeads += stat.leads || 0;
+        totalCases += stat.cases || 0;
+        totalRevenue += stat.revenue || 0;
+        totalAdSpend += stat.adSpend || 0;
+      });
+    });
     
     // Calculate daily averages
-    const dailyAdSpend = totalAdSpend / totalDays;
     const dailyLeads = totalLeads / totalDays;
     const dailyCases = totalCases / totalDays;
     const dailyRevenue = totalRevenue / totalDays;
-    const dailyProfit = totalProfit / totalDays;
+    const dailyAdSpend = totalAdSpend / totalDays;
+    const dailyProfit = (totalRevenue - totalAdSpend) / totalDays;
     
-    // Calculate efficiency metrics
-    const costPerLead = dailyLeads > 0 ? dailyAdSpend / dailyLeads : 0;
-    const costPerCase = dailyCases > 0 ? dailyAdSpend / dailyCases : 0;
-    const revenuePerCase = dailyCases > 0 ? dailyRevenue / dailyCases : 0;
-    const conversionRate = dailyLeads > 0 ? (dailyCases / dailyLeads) * 100 : 0;
-    const roi = dailyAdSpend > 0 ? (dailyProfit / dailyAdSpend) * 100 : 0;
+    // Calculate progress percentages (examples)
+    const targetDailyLeads = 5; // Example target
+    const targetDailyCases = 1; // Example target
+    const targetDailyRevenue = 1000; // Example target
+    const targetDailyAdSpend = 400; // Example target
+    const targetDailyProfit = 600; // Example target
+    
+    const leadsProgress = Math.min(100, (dailyLeads / targetDailyLeads) * 100);
+    const casesProgress = Math.min(100, (dailyCases / targetDailyCases) * 100);
+    const revenueProgress = Math.min(100, (dailyRevenue / targetDailyRevenue) * 100);
+    const adSpendProgress = Math.min(100, (dailyAdSpend / targetDailyAdSpend) * 100);
+    const profitProgress = Math.min(100, (dailyProfit / targetDailyProfit) * 100);
     
     return {
-      dates: {
-        startDate: startDateStr ? format(new Date(startDateStr), "MMM d, yyyy") : "N/A",
-        endDate: endDateStr ? format(new Date(endDateStr), "MMM d, yyyy") : "N/A",
-        daysInRange: totalDays
-      },
-      metrics: {
-        adSpend: dailyAdSpend,
-        leads: dailyLeads,
-        cases: dailyCases,
-        revenue: dailyRevenue,
-        profit: dailyProfit,
-        costPerLead,
-        costPerCase,
-        revenuePerCase,
-        conversionRate,
-        roi
-      }
+      dailyLeads,
+      dailyCases,
+      dailyRevenue,
+      dailyAdSpend,
+      dailyProfit,
+      leadsProgress,
+      casesProgress,
+      revenueProgress,
+      adSpendProgress,
+      profitProgress,
+      totalDays
     };
   }, [campaigns, selectedCampaignIds, dateRange]);
 
-  if (campaigns.length === 0) {
-    return null;
-  }
+  if (!dailyAverages) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
-          Daily Averages 
-          <span className="text-sm font-normal text-muted-foreground ml-auto">
-            {dailyAverages.dates.daysInRange} day{dailyAverages.dates.daysInRange !== 1 ? 's' : ''} 
-            {dailyAverages.dates.startDate !== "N/A" && ` (${dailyAverages.dates.startDate} - ${dailyAverages.dates.endDate})`}
-          </span>
+    <Card className="shadow-md border-accent/30 bg-gradient-to-br from-background to-accent/5">
+      <CardHeader className="border-b pb-3">
+        <CardTitle className="text-lg font-medium flex items-center gap-2">
+          <Clock className="h-5 w-5 text-primary" />
+          Daily Averages ({dailyAverages.totalDays} day{dailyAverages.totalDays !== 1 ? "s" : ""})
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Daily Financial Metrics */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium flex items-center gap-1.5 text-muted-foreground mb-3">
-              <DollarSign className="h-4 w-4" />
-              Daily Financial Metrics
-            </h3>
-            
-            <div className="bg-accent/10 p-4 rounded-lg space-y-3">
+      <CardContent className="pt-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-background/80 p-4 rounded-lg border shadow-sm">
+            <div className="flex justify-between items-start">
               <div>
-                <div className="text-sm text-muted-foreground">Daily Ad Spend</div>
-                <div className="text-xl font-semibold">{formatCurrency(dailyAverages.metrics.adSpend)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm text-muted-foreground">Daily Revenue</div>
-                <div className="text-xl font-semibold">{formatCurrency(dailyAverages.metrics.revenue)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm text-muted-foreground">Daily Profit</div>
-                <div className={cn(
-                  "text-xl font-semibold",
-                  dailyAverages.metrics.profit > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
-                )}>
-                  {formatCurrency(dailyAverages.metrics.profit)}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                  <Users className="h-4 w-4" />
+                  <span>Leads &amp; Cases</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-semibold">
+                    {formatNumber(dailyAverages.dailyLeads)} 
+                    <span className="text-sm text-muted-foreground ml-1">leads</span>
+                  </div>
+                  <div className="text-xl font-medium">
+                    {formatNumber(dailyAverages.dailyCases)}
+                    <span className="text-sm text-muted-foreground ml-1">cases</span>
+                  </div>
                 </div>
               </div>
+              <Badge variant="outline" className="bg-background">
+                {formatPercent(dailyAverages.casesProgress)}
+              </Badge>
+            </div>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Daily Leads Target</span>
+                <span className="font-medium">{formatNumber(dailyAverages.dailyLeads)}/5</span>
+              </div>
+              <CustomProgressBar value={dailyAverages.leadsProgress} variant="success" size="sm" />
             </div>
           </div>
           
-          {/* Daily Acquisition Metrics */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium flex items-center gap-1.5 text-muted-foreground mb-3">
-              <Users className="h-4 w-4" />
-              Daily Acquisition Metrics
-            </h3>
-            
-            <div className="bg-accent/10 p-4 rounded-lg space-y-3">
+          <div className="bg-background/80 p-4 rounded-lg border shadow-sm">
+            <div className="flex justify-between items-start">
               <div>
-                <div className="text-sm text-muted-foreground">Daily Leads</div>
-                <div className="text-xl font-semibold">{formatNumber(dailyAverages.metrics.leads, 1)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm text-muted-foreground">Daily Cases</div>
-                <div className="text-xl font-semibold">{formatNumber(dailyAverages.metrics.cases, 1)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm text-muted-foreground">Conversion Rate</div>
-                <div className="text-xl font-semibold">
-                  {formatPercent(dailyAverages.metrics.conversionRate)}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                  <Wallet className="h-4 w-4" />
+                  <span>Revenue &amp; Spend</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-semibold">
+                    {formatCurrency(dailyAverages.dailyRevenue)}
+                    <span className="text-sm text-muted-foreground ml-1">rev</span>
+                  </div>
+                  <div className="text-xl font-medium">
+                    {formatCurrency(dailyAverages.dailyAdSpend)}
+                    <span className="text-sm text-muted-foreground ml-1">spend</span>
+                  </div>
                 </div>
               </div>
+              <Badge variant="outline" className="bg-background">
+                {formatPercent(dailyAverages.revenueProgress)}
+              </Badge>
+            </div>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Daily Revenue Target</span>
+                <span className="font-medium">{formatCurrency(dailyAverages.dailyRevenue)}/{formatCurrency(1000)}</span>
+              </div>
+              <CustomProgressBar value={dailyAverages.revenueProgress} variant="success" size="sm" />
             </div>
           </div>
           
-          {/* Cost Efficiency Metrics */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium flex items-center gap-1.5 text-muted-foreground mb-3">
-              <Target className="h-4 w-4" />
-              Cost Efficiency Metrics
-            </h3>
-            
-            <div className="bg-accent/10 p-4 rounded-lg space-y-3">
+          <div className="bg-background/80 p-4 rounded-lg border shadow-sm">
+            <div className="flex justify-between items-start">
               <div>
-                <div className="text-sm text-muted-foreground">Cost Per Lead (CPL)</div>
-                <div className="text-xl font-semibold">{formatCurrency(dailyAverages.metrics.costPerLead)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm text-muted-foreground">Cost Per Case (CPA)</div>
-                <div className="text-xl font-semibold">{formatCurrency(dailyAverages.metrics.costPerCase)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm text-muted-foreground">Return on Investment (ROI)</div>
-                <div className={cn(
-                  "text-xl font-semibold",
-                  dailyAverages.metrics.roi > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
-                )}>
-                  {formatPercent(dailyAverages.metrics.roi)}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                  <TrendingUp className="h-4 w-4" />
+                  <span>Profit &amp; ROI</span>
                 </div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-semibold">
+                    {formatCurrency(dailyAverages.dailyProfit)}
+                    <span className="text-sm text-muted-foreground ml-1">profit</span>
+                  </div>
+                  <div className="text-xl font-medium">
+                    {dailyAverages.dailyAdSpend > 0 
+                      ? `${((dailyAverages.dailyRevenue / dailyAverages.dailyAdSpend) * 100).toFixed(1)}%` 
+                      : "N/A"}
+                    <span className="text-sm text-muted-foreground ml-1">ROI</span>
+                  </div>
+                </div>
+              </div>
+              <Badge variant="outline" className="bg-background">
+                {formatPercent(dailyAverages.profitProgress)}
+              </Badge>
+            </div>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Daily Profit Target</span>
+                <span className="font-medium">{formatCurrency(dailyAverages.dailyProfit)}/{formatCurrency(600)}</span>
+              </div>
+              <CustomProgressBar value={dailyAverages.profitProgress} variant="success" size="sm" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-4 bg-primary/5 rounded-lg shadow-sm border border-primary/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="h-5 w-5 text-primary" />
+            <h3 className="font-medium">Daily Performance Summary</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Lead-to-Case</div>
+              <div className="text-xl font-medium">
+                {dailyAverages.dailyLeads > 0 
+                  ? `${((dailyAverages.dailyCases / dailyAverages.dailyLeads) * 100).toFixed(1)}%` 
+                  : "0%"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Cost Per Lead</div>
+              <div className="text-xl font-medium">
+                {dailyAverages.dailyLeads > 0 
+                  ? formatCurrency(dailyAverages.dailyAdSpend / dailyAverages.dailyLeads) 
+                  : "$0"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Cost Per Case</div>
+              <div className="text-xl font-medium">
+                {dailyAverages.dailyCases > 0 
+                  ? formatCurrency(dailyAverages.dailyAdSpend / dailyAverages.dailyCases) 
+                  : "$0"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Rev Per Case</div>
+              <div className="text-xl font-medium">
+                {dailyAverages.dailyCases > 0 
+                  ? formatCurrency(dailyAverages.dailyRevenue / dailyAverages.dailyCases) 
+                  : "$0"}
               </div>
             </div>
           </div>
@@ -230,4 +240,9 @@ export function DailyAveragesSection() {
       </CardContent>
     </Card>
   );
+}
+
+// Helper function to format percentage values
+function formatPercent(value: number): string {
+  return `${Math.round(value)}%`;
 }
