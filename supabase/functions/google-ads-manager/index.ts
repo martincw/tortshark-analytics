@@ -6,7 +6,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
-const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -55,16 +55,66 @@ async function getAccessToken(refreshToken: string): Promise<string> {
   }
 }
 
+// Get tokens from user_oauth_tokens table
+async function getTokens(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
+  try {
+    const { data: tokens, error } = await supabase
+      .from("user_oauth_tokens")
+      .select("access_token, refresh_token, expires_at")
+      .eq("user_id", userId)
+      .eq("provider", "google")
+      .maybeSingle();
+    
+    if (error) {
+      console.error("Error fetching tokens:", error);
+      return null;
+    }
+    
+    if (!tokens) {
+      return null;
+    }
+    
+    const isExpired = new Date(tokens.expires_at) <= new Date();
+    
+    if (isExpired && tokens.refresh_token) {
+      const newTokens = await getAccessToken(tokens.refresh_token);
+      
+      // Update stored token
+      await supabase
+        .from("user_oauth_tokens")
+        .update({
+          access_token: newTokens,
+          expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("provider", "google");
+      
+      return {
+        accessToken: newTokens,
+        refreshToken: tokens.refresh_token
+      };
+    }
+    
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token
+    };
+  } catch (error) {
+    console.error("Error in getTokens:", error);
+    return null;
+  }
+}
+
 /**
- * List Google Ads accounts using v14 API (since v15 and v16 are problematic)
+ * List Google Ads accounts using v16 API
  */
 async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
   try {
-    console.log("Listing Google Ads accounts using API version v14");
+    console.log("Listing Google Ads accounts using API version v16");
     
-    // Try Google Ads API with v14
+    // Try Google Ads API with v16
     const listCustomersResponse = await fetch(
-      "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
+      "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
       {
         method: "GET",
         headers: {
@@ -97,7 +147,7 @@ async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
       customerIds.map(async (customerId) => {
         try {
           const customerResponse = await fetch(
-            `https://googleads.googleapis.com/v14/customers/${customerId}`,
+            `https://googleads.googleapis.com/v16/customers/${customerId}`,
             {
               method: "GET",
               headers: {
@@ -268,12 +318,13 @@ serve(async (req) => {
       );
     }
     
-    const { action, accessToken, refreshToken } = await req.json();
+    const requestData = await req.json();
+    const { action, accessToken, refreshToken } = requestData;
     
     // Handle listing accounts with direct access token
     if (action === "list-accounts" && accessToken) {
       try {
-        // Use v14 (most stable currently)
+        // Use v16 (most stable currently)
         const accounts = await listGoogleAdsAccounts(accessToken);
           
         // Store accounts in database
@@ -303,7 +354,7 @@ serve(async (req) => {
       try {
         const accessToken = await getAccessToken(refreshToken);
         
-        // Use v14
+        // Use v16
         const accounts = await listGoogleAdsAccounts(accessToken);
           
         // Store accounts in database
@@ -315,6 +366,45 @@ serve(async (req) => {
         );
       } catch (error) {
         console.error("Error in list-accounts-with-refresh-token:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || "Failed to list Google Ads accounts" 
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+    
+    // Handle listing accounts with tokens from database
+    if (action === "list-accounts" && !accessToken) {
+      try {
+        const tokens = await getTokens(userId);
+        if (!tokens) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "No valid authentication tokens found" 
+            }),
+            { 
+              status: 401,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        const accounts = await listGoogleAdsAccounts(tokens.accessToken);
+        await saveAccountsToDatabase(userId, accounts);
+        
+        return new Response(
+          JSON.stringify({ success: true, accounts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error in list-accounts:", error);
         return new Response(
           JSON.stringify({ 
             success: false, 
