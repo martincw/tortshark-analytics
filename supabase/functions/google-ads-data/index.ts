@@ -4,8 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const GOOGLE_ADS_API_VERSION = "v15";
-const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
+const GOOGLE_ADS_API_VERSION = "v16";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,9 +18,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
     const { data: tokens, error: tokensError } = await supabase
-      .from("google_ads_tokens")
+      .from("user_oauth_tokens")
       .select("access_token, refresh_token, expires_at")
       .eq("user_id", userId)
+      .eq("provider", "google")
       .maybeSingle();
     
     if (tokensError) {
@@ -38,12 +39,13 @@ async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string;
       const refreshedTokens = await refreshGoogleToken(tokens.refresh_token);
       
       await supabase
-        .from("google_ads_tokens")
+        .from("user_oauth_tokens")
         .update({
           access_token: refreshedTokens.access_token,
           expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
         })
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("provider", "google");
       
       return { 
         accessToken: refreshedTokens.access_token, 
@@ -177,11 +179,11 @@ function transformCampaignMetrics(apiResponse: any): any[] {
 
 async function fetchAccountsList(accessToken: string, developerToken: string): Promise<any[]> {
   try {
-    console.log("Fetching real Google Ads accounts...");
+    console.log("Fetching Google Ads accounts...");
     
     // First, fetch the accessible customers
     const managerResponse = await fetch(
-      "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers",
+      "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
       {
         method: "GET",
         headers: {
@@ -432,12 +434,13 @@ serve(async (req) => {
             const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
             
             await supabase
-              .from("google_ads_tokens")
+              .from("user_oauth_tokens")
               .update({
                 access_token: refreshedTokens.access_token,
                 expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
               })
-              .eq("user_id", user.id);
+              .eq("user_id", user.id)
+              .eq("provider", "google");
             
             const apiResponse = await fetchCampaignMetrics(
               refreshedTokens.access_token,
@@ -499,10 +502,8 @@ serve(async (req) => {
         );
       }
       
-      const developerToken = "Ngh3IukgQ3ovdkH3M0smUg";
-      
       try {
-        const accounts = await fetchAccountsList(tokensResult.accessToken, developerToken);
+        const accounts = await fetchAccountsList(tokensResult.accessToken, GOOGLE_ADS_DEVELOPER_TOKEN);
         
         return new Response(
           JSON.stringify({ success: true, accounts }),
@@ -518,14 +519,15 @@ serve(async (req) => {
             const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
             
             await supabase
-              .from("google_ads_tokens")
+              .from("user_oauth_tokens")
               .update({
                 access_token: refreshedTokens.access_token,
                 expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
               })
-              .eq("user_id", user.id);
+              .eq("user_id", user.id)
+              .eq("provider", "google");
             
-            const accounts = await fetchAccountsList(refreshedTokens.access_token, developerToken);
+            const accounts = await fetchAccountsList(refreshedTokens.access_token, GOOGLE_ADS_DEVELOPER_TOKEN);
             
             return new Response(
               JSON.stringify({ success: true, accounts }),
@@ -551,8 +553,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: error.message || "Failed to fetch Google Ads accounts",
-            stack: error.stack
+            error: error.message || "Failed to fetch Google Ads accounts"
           }),
           { 
             status: 500,
@@ -575,8 +576,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "Internal server error",
-        stack: error.stack
+        error: error.message || "Internal server error"
       }),
       { 
         status: 500,
