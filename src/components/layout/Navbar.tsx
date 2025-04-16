@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -11,7 +12,17 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Wrench, LogOut, ChartBarIcon, LineChart, Table, CalendarIcon } from "lucide-react";
+import { 
+  Menu, 
+  Wrench, 
+  LogOut, 
+  ChartBarIcon, 
+  LineChart, 
+  Table, 
+  CalendarIcon,
+  DatabaseIcon,
+  LinkIcon
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -25,10 +36,8 @@ const navItems: NavItem[] = [
   { href: "/", label: "Overview" },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/campaigns", label: "Campaigns" },
-  { href: "/bulk-stats", label: "Bulk Stats", icon: <Table className="h-4 w-4 mr-2" /> },
   { href: "/analysis", label: "Analysis", icon: <LineChart className="h-4 w-4 mr-2" /> },
   { href: "/accounts", label: "Accounts" },
-  { href: "/integrations", label: "Integrations" },
   { href: "/tools", label: "Tools", icon: <Wrench className="h-4 w-4 mr-2" /> },
 ];
 
@@ -99,6 +108,26 @@ export const Navbar: React.FC = () => {
                     {item.priority && <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 rounded-full">New</span>}
                   </Link>
                 ))}
+                
+                {/* Additional menu items */}
+                <Link 
+                  to="/bulk-stats" 
+                  className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+                    isActive("/bulk-stats") ? "bg-secondary font-medium" : ""
+                  }`}
+                >
+                  <Table className="h-4 w-4 mr-2" />
+                  Bulk Stats
+                </Link>
+                <Link 
+                  to="/integrations" 
+                  className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+                    isActive("/integrations") ? "bg-secondary font-medium" : ""
+                  }`}
+                >
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Integrations
+                </Link>
                 
                 {campaigns && campaigns.length > 0 && (
                   <div className="border-t pt-4">
