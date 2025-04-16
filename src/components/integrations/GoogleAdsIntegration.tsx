@@ -144,10 +144,18 @@ const GoogleAdsIntegration: React.FC = () => {
     if (window.confirm("Are you sure you want to remove all dummy Google Ads accounts?")) {
       setIsCleaningUp(true);
       try {
+        console.log("Initiating cleanup of dummy accounts");
         const success = await cleanupDummyAccounts();
+        
         if (success) {
           await fetchGoogleAdsAccounts();
-          toast.success("Dummy accounts removed and account list refreshed");
+          toast.success("Dummy accounts removed successfully");
+          // Force a refresh of the accounts list
+          if (fetchGoogleAdsAccounts) {
+            await fetchGoogleAdsAccounts();
+          }
+        } else {
+          toast.error("Failed to remove dummy accounts");
         }
       } catch (error) {
         console.error("Error cleaning up dummy accounts:", error);
