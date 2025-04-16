@@ -1,6 +1,20 @@
+
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
+
+// Add a debounce utility
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const GOOGLE_CONFIG = {
   developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
@@ -17,7 +31,7 @@ const getAuthToken = async (): Promise<string | null> => {
   }
 };
 
-export const initiateGoogleAuth = async () => {
+export const initiateGoogleAuth = async (userEmail?: string) => {
   try {
     let headers = {};
     const token = await getAuthToken();
@@ -27,14 +41,14 @@ export const initiateGoogleAuth = async () => {
       console.warn("No auth token available, proceeding without authentication");
     }
     
-    const userEmail = localStorage.getItem("userEmail") || "";
+    const email = userEmail || localStorage.getItem("userEmail") || "";
     
     console.log("Initiating Google OAuth flow...");
     
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "authorize",
-        email: userEmail,
+        email: email,
         redirectUri: GOOGLE_CONFIG.redirectUri
       },
       headers
@@ -57,6 +71,10 @@ export const initiateGoogleAuth = async () => {
       throw new Error(`Error initiating Google OAuth: ${response.error.message}`);
     }
     
+    if (!response.data?.url) {
+      throw new Error('No authorization URL received');
+    }
+    
     console.log("OAuth response:", response.data);
     console.log("OAuth URL:", response.data.url);
     
@@ -76,18 +94,22 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
   const code = urlParams.get('code');
   const error = urlParams.get('error');
   
+  // Add a unique request ID to help with debugging
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`Starting OAuth callback processing (${requestId})`);
+  
   if (error) {
-    console.error(`OAuth error from Google: ${error}`);
+    console.error(`OAuth error from Google (${requestId}): ${error}`);
     const errorDescription = urlParams.get('error_description');
     throw new Error(`Google OAuth error: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`);
   }
   
   if (!code) {
-    console.error("No auth code found in URL");
+    console.error(`No auth code found in URL (${requestId})`);
     return false;
   }
   
-  console.log("Received auth code from Google, length:", code.length);
+  console.log(`Received auth code from Google (${requestId}), length: ${code.length}`);
   
   try {
     const token = await getAuthToken();
@@ -95,25 +117,26 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     
     if (token) {
       headers.Authorization = `Bearer ${token}`;
-      console.log("User authentication token available for callback");
+      console.log(`User authentication token available for callback (${requestId})`);
     } else {
-      console.warn("No user authentication token available for callback");
+      console.warn(`No user authentication token available for callback (${requestId})`);
     }
     
-    console.log("Calling google-oauth edge function with callback action");
+    console.log(`Calling google-oauth edge function with callback action (${requestId})`);
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "callback",
         code,
-        redirectUri: GOOGLE_CONFIG.redirectUri
+        redirectUri: GOOGLE_CONFIG.redirectUri,
+        requestId
       },
       headers
     });
     
-    console.log("Edge function response status:", response.error ? "error" : "success");
+    console.log(`Edge function response status (${requestId}):`, response.error ? "error" : "success");
     
     if (response.error) {
-      console.error("Error handling OAuth callback:", response.error);
+      console.error(`Error handling OAuth callback (${requestId}):`, response.error);
       toast.error(`Failed to complete Google authentication: ${response.error.message}`);
       throw new Error(`Error exchanging code for tokens: ${response.error.message}`);
     }
@@ -123,40 +146,79 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
       hasAccessToken: !!response.data.accessToken,
       hasRefreshToken: !!response.data.refreshToken,
       userEmail: response.data.userEmail || null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      requestId
     }));
     
     if (response.data.success) {
-      console.log("Successfully obtained tokens, storing in localStorage");
+      console.log(`Successfully obtained tokens (${requestId}), storing in localStorage`);
       localStorage.setItem("googleAds_access_token", response.data.accessToken);
       localStorage.setItem("googleAds_refresh_token", response.data.refreshToken);
       localStorage.setItem("googleAds_token_expiry", response.data.expiry_date.toString());
       localStorage.setItem("userEmail", response.data.userEmail);
       
       if (response.data.accounts && response.data.accounts.length > 0) {
-        console.log(`Storing ${response.data.accounts.length} Google Ads accounts`);
+        console.log(`Storing ${response.data.accounts.length} Google Ads accounts (${requestId})`);
         localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
         localStorage.setItem("googleAds_account_id", response.data.accounts[0].id);
       } else {
-        console.log("No Google Ads accounts returned in response");
+        console.log(`No Google Ads accounts returned in response (${requestId})`);
       }
       
       if (response.data.warning) {
-        console.warn("Warning from Google Ads API:", response.data.warning);
+        console.warn(`Warning from Google Ads API (${requestId}):`, response.data.warning);
       }
       
       toast.success("Successfully connected to Google Ads");
       return true;
     }
     
-    console.error("Callback processed but response indicated failure");
+    console.error(`Callback processed but response indicated failure (${requestId})`);
     return false;
   } catch (error) {
-    console.error("Error handling OAuth callback:", error);
+    console.error(`Error handling OAuth callback (${requestId}):`, error);
     toast.error(error.message || "Failed to complete Google authentication");
     throw error;
   }
 };
+
+// Wrap the Google Ads accounts fetching in a debounced function to prevent excessive calls
+const debouncedFetchAccounts = debounce(async (accessToken: string, token: string | null, onSuccess: (accounts: any[]) => void, onError: (error: any) => void) => {
+  try {
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn("No auth token available, proceeding without authentication");
+    }
+    
+    const response = await supabase.functions.invoke("google-ads-manager", {
+      body: { 
+        action: "list-accounts",
+        accessToken
+      },
+      headers
+    });
+    
+    if (response.error) {
+      console.error("Error from Edge Function:", response.error);
+      onError(response.error);
+      return;
+    }
+    
+    if (!response.data || !response.data.success) {
+      console.error("Error from API:", response.data?.error || "Unknown error");
+      onError(response.data?.error || "Failed to fetch Google Ads accounts");
+      return;
+    }
+    
+    onSuccess(response.data.accounts || []);
+  } catch (error) {
+    console.error("Error in debounced fetch accounts:", error);
+    onError(error);
+  }
+}, 1000); // 1 second debounce
 
 export const getGoogleAdsCredentials = async (): Promise<any | null> => {
   try {
@@ -240,46 +302,38 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
       return [];
     }
     
-    const response = await supabase.functions.invoke("google-ads-manager", {
-      body: { 
-        action: "list-accounts",
-        accessToken: credentials.accessToken
-      },
-      headers
+    // Create a promise-based wrapper for the debounced fetch
+    return new Promise((resolve, reject) => {
+      debouncedFetchAccounts(
+        credentials.accessToken,
+        token,
+        (accounts) => {
+          if (accounts.length > 0) {
+            localStorage.setItem("googleAds_accounts", JSON.stringify(accounts));
+            
+            const mappedAccounts = accounts.map((account: any) => ({
+              id: account.id,
+              name: account.name || `Google Ads Account ${account.id}`,
+              platform: "google",
+              isConnected: true,
+              lastSynced: new Date().toISOString(),
+              customerId: account.id,
+              credentials: {}
+            }));
+            
+            resolve(mappedAccounts);
+          } else {
+            toast.info("No Google Ads accounts found");
+            resolve([]);
+          }
+        },
+        (error) => {
+          toast.error("Failed to list Google Ads accounts");
+          console.error("Error in listGoogleAdsAccounts:", error);
+          reject(error);
+        }
+      );
     });
-    
-    console.log("Account listing response:", response);
-    
-    if (response.error) {
-      console.error("Error from Edge Function:", response.error);
-      toast.error("Failed to fetch Google Ads accounts: " + response.error.message);
-      return [];
-    }
-    
-    if (!response.data || !response.data.success) {
-      console.error("Error from API:", response.data?.error || "Unknown error");
-      toast.error(response.data?.error || "Failed to fetch Google Ads accounts");
-      return [];
-    }
-    
-    if (response.data.accounts && response.data.accounts.length > 0) {
-      localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
-      
-      const mappedAccounts = response.data.accounts.map((account: any) => ({
-        id: account.id,
-        name: account.name || `Google Ads Account ${account.id}`,
-        platform: "google",
-        isConnected: true,
-        lastSynced: new Date().toISOString(),
-        customerId: account.id,
-        credentials: {}
-      }));
-      
-      return mappedAccounts;
-    }
-    
-    toast.info("No Google Ads accounts found");
-    return [];
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
     toast.error("Failed to list Google Ads accounts");
