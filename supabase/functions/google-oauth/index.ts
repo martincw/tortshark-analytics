@@ -6,23 +6,21 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 // Make redirect URI configurable through environment variables
 const REDIRECT_URI = Deno.env.get("SITE_URL") ? 
   `${Deno.env.get("SITE_URL")}/integrations` : 
   "https://app.tortshark.com/integrations";
 
-// Google Ads API OAuth scopes - Updated to use valid scopes
+// Google Ads API OAuth scopes
 const OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/adwords",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile"
 ];
 
-// Developer token for Google Ads API
-const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
-
-// CORS headers for browser requests - expanded for better compatibility
+// CORS headers for browser requests
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -46,22 +44,16 @@ serve(async (req) => {
     // Get user ID from the auth header if available
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-
-    // Log auth state for debugging (not user data)
-    console.log("Auth header present:", Boolean(authHeader));
-    console.log("Token length:", token.length);
-
+    
     // Validate token when needed, but don't block authorize and callback actions
     let user = null;
     if (token) {
       try {
-        // Only attempt to get user if there's a token
         const { data, error: userError } = await supabase.auth.getUser(token);
         
         if (userError) {
           console.error("User authentication error:", userError);
           
-          // Only require auth for non-callback actions
           if (action !== "callback" && action !== "authorize" && action !== "refresh-direct" && action !== "validate-token") {
             return new Response(
               JSON.stringify({ 
@@ -82,7 +74,6 @@ serve(async (req) => {
       } catch (authError) {
         console.error("Error during authentication check:", authError);
         
-        // Only require auth for non-callback actions
         if (action !== "callback" && action !== "authorize" && action !== "refresh-direct" && action !== "validate-token") {
           return new Response(
             JSON.stringify({ 
@@ -101,54 +92,27 @@ serve(async (req) => {
     
     // Initiate OAuth flow
     if (action === "authorize") {
-      console.log("Initiating Google OAuth flow");
-      
       try {
-        // Use the redirect URI from the request or fall back to default
         const redirectUri = requestData.redirectUri || REDIRECT_URI;
         
-        // Enhanced debugging for environment variables
-        const envDebug = {
-          SUPABASE_URL: SUPABASE_URL ? `${SUPABASE_URL.substring(0, 10)}...` : "MISSING",
-          SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? "SET" : "MISSING",
-          GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID ? `${GOOGLE_CLIENT_ID.substring(0, 5)}...` : "MISSING",
-          GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET ? "SET" : "MISSING",
-          REDIRECT_URI: redirectUri,
-          SITE_URL: Deno.env.get("SITE_URL") || "NOT SET"
-        };
-        
-        console.log("Environment configuration:", envDebug);
-        
-        if (!GOOGLE_CLIENT_ID) {
-          throw new Error("GOOGLE_CLIENT_ID is not configured");
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+          throw new Error("Missing required OAuth credentials");
         }
         
-        if (!GOOGLE_CLIENT_SECRET) {
-          throw new Error("GOOGLE_CLIENT_SECRET is not configured");
-        }
-        
-        // Construct Google OAuth URL with more explicit parameters
         const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
         authUrl.searchParams.append("client_id", GOOGLE_CLIENT_ID);
         authUrl.searchParams.append("redirect_uri", redirectUri);
         authUrl.searchParams.append("response_type", "code");
-        
-        // Join scopes with a space as required by OAuth 2.0
         authUrl.searchParams.append("scope", OAUTH_SCOPES.join(" "));
-        
         authUrl.searchParams.append("access_type", "offline");
         authUrl.searchParams.append("prompt", "consent select_account");
         
-        // Add state parameter for security
         const state = crypto.randomUUID();
         authUrl.searchParams.append("state", state);
         
-        // Include login_hint if we have a user email from the request
         if (requestData.email) {
           authUrl.searchParams.append("login_hint", requestData.email);
         }
-        
-        console.log("Full OAuth URL:", authUrl.toString());
         
         return new Response(JSON.stringify({ 
           url: authUrl.toString(),
@@ -180,12 +144,11 @@ serve(async (req) => {
       }
     }
     
-    // Handle OAuth callback - Updated with improved error handling
+    // Handle OAuth callback
     if (action === "callback") {
       const code = requestData.code || "";
       
       if (!code) {
-        console.error("No authorization code provided");
         return new Response(
           JSON.stringify({ success: false, error: "No authorization code provided" }),
           { 
@@ -195,25 +158,20 @@ serve(async (req) => {
         );
       }
       
-      console.log("Exchanging authorization code for tokens");
-      
       try {
-        // Use redirectUri from the request or fall back to default
         const redirectUri = requestData.redirectUri || REDIRECT_URI;
         console.log("Using redirect URI:", redirectUri);
         
-        // Log the parameters for debugging
-        console.log("OAuth parameters:", {
-          code_length: code.length,
-          redirect_uri: redirectUri,
-          client_id_exists: Boolean(GOOGLE_CLIENT_ID),
-          client_secret_exists: Boolean(GOOGLE_CLIENT_SECRET)
-        });
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+          throw new Error("Missing required OAuth credentials");
+        }
         
-        // Exchange code for tokens with comprehensive error handling
         const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json"
+          },
           body: new URLSearchParams({
             code,
             client_id: GOOGLE_CLIENT_ID,
@@ -223,120 +181,70 @@ serve(async (req) => {
           }),
         });
         
-        // Log detailed response info for debugging
-        const responseStatus = tokenResponse.status;
-        const responseHeaders = Object.fromEntries(tokenResponse.headers.entries());
-        const responseTextRaw = await tokenResponse.text();
-        
-        console.log(`Token exchange response status: ${responseStatus}`);
-        console.log(`Token exchange response headers: ${JSON.stringify(responseHeaders)}`);
-        
-        if (responseTextRaw.length < 500) {
-          // If response is small, log it fully (it's likely an error)
-          console.log(`Token exchange response body: ${responseTextRaw}`);
-        } else {
-          // If response is large, only log a portion (to avoid exposing sensitive data)
-          console.log(`Token exchange response body (partial): ${responseTextRaw.substring(0, 100)}...`);
+        let responseData;
+        try {
+          responseData = await tokenResponse.json();
+        } catch (e) {
+          const textResponse = await tokenResponse.text();
+          throw new Error(`Failed to parse token response: ${textResponse}`);
         }
         
         if (!tokenResponse.ok) {
-          console.error(`Token exchange failed with status ${responseStatus} and message: ${responseTextRaw}`);
+          console.error("Token exchange failed:", responseData);
           return new Response(
             JSON.stringify({ 
               success: false, 
-              error: `Token exchange failed: ${responseStatus}`,
-              details: responseTextRaw.length < 200 ? responseTextRaw : responseTextRaw.substring(0, 200) + "..."
+              error: "Token exchange failed",
+              details: responseData.error_description || responseData.error || "Unknown error"
             }),
             { 
-              status: 400,
+              status: tokenResponse.status,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             }
           );
         }
         
-        let tokens;
-        try {
-          tokens = JSON.parse(responseTextRaw);
-        } catch (parseError) {
-          console.error("Error parsing token response:", parseError);
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: "Error parsing token response",
-              details: parseError.message,
-              rawResponse: responseTextRaw.substring(0, 100) + "..."
-            }),
-            { 
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
+        if (!responseData.access_token) {
+          throw new Error("No access token in response");
         }
         
-        // Get user info to get their Google ID
-        console.log("Fetching user info with access token");
+        // Get user info using the access token
         const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-          headers: {
-            Authorization: `Bearer ${tokens.access_token}`
-          }
+          headers: { Authorization: `Bearer ${responseData.access_token}` }
         });
         
-        if (!userInfoResponse.ok) {
-          console.error(`User info fetch failed: ${userInfoResponse.status}`);
-          const userInfoError = await userInfoResponse.text();
-          console.error("User info error:", userInfoError);
-        }
+        const userInfo = await userInfoResponse.json();
         
-        let userInfo = {};
-        try {
-          userInfo = await userInfoResponse.json();
-          console.log("Received user info:", JSON.stringify({
-            email: userInfo.email,
-            has_id: !!userInfo.id,
-            has_name: !!userInfo.name
-          }));
-        } catch (userInfoError) {
-          console.error("Error parsing user info:", userInfoError);
-          // Continue with empty user info rather than failing
-          userInfo = { email: "unknown@example.com" };
-        }
-        
-        // List accessible Google Ads accounts
-        const accounts = [];
+        // Try to fetch Google Ads accounts
+        let accounts = [];
         let accountsError = null;
         
         try {
-          console.log("Fetching Google Ads accounts");
-          const accessibleCustomersResponse = await fetch(
-            "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
+          const accountsResponse = await fetch(
+            "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
             {
               headers: {
-                Authorization: `Bearer ${tokens.access_token}`,
+                Authorization: `Bearer ${responseData.access_token}`,
                 "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN
               },
             }
           );
           
-          // Log full response for debugging
-          console.log(`Account list response status: ${accessibleCustomersResponse.status}`);
-          
-          if (!accessibleCustomersResponse.ok) {
-            const errorText = await accessibleCustomersResponse.text();
+          if (!accountsResponse.ok) {
+            const errorText = await accountsResponse.text();
             console.error("Failed to list accessible customers:", errorText);
             accountsError = `Failed to list Google Ads accounts: ${errorText}`;
           } else {
-            const accountsList = await accessibleCustomersResponse.json();
-            console.log("Accessible customers:", JSON.stringify(accountsList));
+            const accountsList = await accountsResponse.json();
             
-            // Extract accounts if any were found
             if (accountsList.resourceNames && accountsList.resourceNames.length > 0) {
-              for (const resourceName of accountsList.resourceNames) {
+              accounts = accountsList.resourceNames.map(resourceName => {
                 const customerId = resourceName.split('/')[1];
-                accounts.push({
+                return {
                   id: customerId,
                   name: `Google Ads Account ${customerId}`
-                });
-              }
+                };
+              });
             }
           }
         } catch (error) {
@@ -344,87 +252,46 @@ serve(async (req) => {
           accountsError = error.message || "Unknown error fetching Google Ads accounts";
         }
         
-        // For callback, we'll proceed even without a valid user if there's no token
-        if (!user && !token) {
-          console.log("No authenticated user, but proceeding with callback");
-          // For now, store the tokens directly in localStorage via the return value
-          
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              accessToken: tokens.access_token,
-              refreshToken: tokens.refresh_token,
-              expiry_date: Date.now() + tokens.expires_in * 1000,
-              userEmail: userInfo.email,
-              accounts: accounts,
-              developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
-              warning: accountsError,
-              tokens: tokens, // Include full tokens for client storage
-              message: "Authentication successful, but no user session. Tokens returned for client storage."
-            }),
-            { 
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        }
-        
-        // If we do have a user, store the tokens properly
+        // Store tokens in database if we have a user
         if (user) {
-          try {
-            // Store tokens in the new user_oauth_tokens table
-            console.log("Storing tokens in user_oauth_tokens table");
-            
-            const tokensData = {
+          const { error: dbError } = await supabase
+            .from("user_oauth_tokens")
+            .upsert({
               user_id: user.id,
-              provider: "google_ads",
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-              expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-              scope: tokens.scope,
-              email: userInfo.email,
-            };
-            
-            // Upsert to handle both insert and update cases
-            const { error: storeError } = await supabase
-              .from('user_oauth_tokens')
-              .upsert(tokensData, { onConflict: "user_id,provider" });
-            
-            if (storeError) {
-              console.error("Error storing tokens:", storeError);
-              // If there's an error storing in the database, we'll still return the tokens
-              // This allows the user to proceed even if the database storage fails
-              console.log("Returning tokens directly to client despite storage error");
-            } else {
-              console.log("Tokens stored successfully in user_oauth_tokens table");
-            }
-          } catch (dbError) {
-            console.error("Database operation error:", dbError);
-            // Continue to return tokens even if DB operations fail
+              provider: "google",
+              access_token: responseData.access_token,
+              refresh_token: responseData.refresh_token,
+              expires_at: new Date(Date.now() + (responseData.expires_in * 1000)).toISOString(),
+              scope: OAUTH_SCOPES.join(" "),
+              email: userInfo.email
+            });
+          
+          if (dbError) {
+            console.error("Error storing tokens:", dbError);
           }
         }
         
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiry_date: Date.now() + tokens.expires_in * 1000,
-            userEmail: userInfo.email,
-            accounts: accounts,
-            developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
-            warning: accountsError,
-            tokens: tokens // Include full tokens object
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return new Response(JSON.stringify({
+          success: true,
+          accessToken: responseData.access_token,
+          refreshToken: responseData.refresh_token,
+          expiry_date: Date.now() + (responseData.expires_in * 1000),
+          userEmail: userInfo.email,
+          accounts: accounts,
+          developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
+          warning: accountsError,
+          tokens: responseData // Include full tokens object
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+        
       } catch (error) {
-        console.error("Exception in callback handling:", error);
+        console.error("Error in OAuth callback:", error);
         return new Response(
           JSON.stringify({ 
-            success: false,
-            error: error.message || "Unknown error during authentication",
+            success: false, 
+            error: "OAuth callback failed",
+            details: error.message,
             stack: error.stack
           }),
           { 
@@ -438,7 +305,6 @@ serve(async (req) => {
     // Get stored tokens for a user
     if (action === "get-credentials") {
       if (!user) {
-        console.error("No authenticated user for get-credentials");
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -452,12 +318,12 @@ serve(async (req) => {
       }
       
       try {
-        // Get stored tokens from new table
+        // Get stored tokens
         const { data: tokens, error: tokensError } = await supabase
           .from('user_oauth_tokens')
           .select('*')
           .eq('user_id', user.id)
-          .eq('provider', 'google_ads')
+          .eq('provider', 'google')
           .maybeSingle();
         
         if (tokensError) {
@@ -501,7 +367,7 @@ serve(async (req) => {
             
             const newTokens = await refreshResponse.json();
             
-            // Update stored tokens in new table
+            // Update stored tokens
             await supabase
               .from('user_oauth_tokens')
               .update({
@@ -510,13 +376,12 @@ serve(async (req) => {
                 updated_at: new Date().toISOString()
               })
               .eq('user_id', user.id)
-              .eq('provider', 'google_ads');
+              .eq('provider', 'google');
             
             // Return refreshed credentials
             return new Response(
               JSON.stringify({ 
                 success: true, 
-                customerId: "1234567890", // Default customer ID
                 developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
                 accessToken: newTokens.access_token,
                 userEmail: tokens.email
@@ -535,7 +400,6 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            customerId: "1234567890", // Default customer ID
             developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
             accessToken: tokens.access_token,
             userEmail: tokens.email
@@ -559,13 +423,12 @@ serve(async (req) => {
       }
     }
     
-    // New direct refresh token endpoint - matches your Next.js API route
+    // Direct refresh token endpoint
     if (action === "refresh-direct") {
       console.log("Processing direct refresh token request");
       const { refreshToken } = requestData;
       
       if (!refreshToken) {
-        console.error("No refresh token provided");
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -580,7 +443,6 @@ serve(async (req) => {
       
       try {
         // Refresh the token directly using Google OAuth API
-        console.log("Refreshing token using Google OAuth API");
         const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -610,7 +472,7 @@ serve(async (req) => {
         const tokens = await refreshResponse.json();
         console.log("Token refreshed successfully");
         
-        // If we have a user, update the stored token in the new table
+        // If we have a user, update the stored token
         if (user) {
           try {
             const { error: updateError } = await supabase
@@ -621,7 +483,7 @@ serve(async (req) => {
                 updated_at: new Date().toISOString()
               })
               .eq("user_id", user.id)
-              .eq("provider", "google_ads");
+              .eq("provider", "google");
             
             if (updateError) {
               console.error("Error updating token in database:", updateError);
@@ -630,7 +492,6 @@ serve(async (req) => {
             }
           } catch (dbError) {
             console.error("Database error while updating token:", dbError);
-            // Continue anyway to return the new token
           }
         }
         
@@ -664,10 +525,9 @@ serve(async (req) => {
       }
     }
     
-    // Explicitly refresh token
+    // Explicitly refresh token for a user
     if (action === "refresh-token") {
       if (!user) {
-        console.error("No authenticated user for refresh-token");
         return new Response(
           JSON.stringify({ success: false, error: "Unauthorized - No valid user session" }),
           { 
@@ -677,12 +537,12 @@ serve(async (req) => {
         );
       }
       
-      // Get refresh token from new table
+      // Get refresh token from database
       const { data: tokens, error: tokensError } = await supabase
         .from("user_oauth_tokens")
         .select("refresh_token")
         .eq("user_id", user.id)
-        .eq("provider", "google_ads")
+        .eq("provider", "google")
         .maybeSingle();
       
       if (tokensError || !tokens || !tokens.refresh_token) {
@@ -729,7 +589,7 @@ serve(async (req) => {
         
         const newTokens = await refreshResponse.json();
         
-        // Update stored tokens in new table
+        // Update stored tokens
         const { error: updateError } = await supabase
           .from("user_oauth_tokens")
           .update({
@@ -738,7 +598,7 @@ serve(async (req) => {
             updated_at: new Date().toISOString()
           })
           .eq("user_id", user.id)
-          .eq("provider", "google_ads");
+          .eq("provider", "google");
         
         if (updateError) {
           console.error("Error updating token in database:", updateError);
@@ -768,10 +628,9 @@ serve(async (req) => {
       }
     }
     
-    // Enhanced revoke access action - direct token revocation
+    // Revoke access
     if (action === "revoke") {
       if (!user && !requestData.accessToken) {
-        console.error("No authenticated user or access token for revoke");
         return new Response(
           JSON.stringify({ success: false, error: "No access token provided" }),
           { 
@@ -785,12 +644,12 @@ serve(async (req) => {
       let accessToken = requestData.accessToken;
       
       if (!accessToken && user) {
-        // Get access token from new table
+        // Get access token from database
         const { data: tokens, error: tokensError } = await supabase
           .from("user_oauth_tokens")
           .select("access_token")
           .eq("user_id", user.id)
-          .eq("provider", "google_ads")
+          .eq("provider", "google")
           .maybeSingle();
         
         if (tokensError) {
@@ -819,8 +678,7 @@ serve(async (req) => {
       // Revoke token if we have one
       if (accessToken) {
         try {
-          // Call Google's revocation endpoint directly
-          console.log("Calling Google token revocation endpoint");
+          // Call Google's revocation endpoint
           const revokeResponse = await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -839,13 +697,13 @@ serve(async (req) => {
         }
       }
       
-      // If we have a user, delete stored tokens from new table
+      // If we have a user, delete stored tokens
       if (user) {
         const { error: deleteError } = await supabase
           .from("user_oauth_tokens")
           .delete()
           .eq("user_id", user.id)
-          .eq("provider", "google_ads");
+          .eq("provider", "google");
         
         if (deleteError) {
           console.error("Error deleting tokens from database:", deleteError);
@@ -876,7 +734,7 @@ serve(async (req) => {
       );
     }
     
-    // New token validation action
+    // Token validation
     if (action === "validate-token") {
       const accessToken = requestData.accessToken;
       
