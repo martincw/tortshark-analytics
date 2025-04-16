@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import {
   refreshGoogleToken,
   getGoogleAdsCredentials,
   validateGoogleToken,
-  cleanupDummyAccounts
+  cleanupAllAccounts
 } from "@/services/googleAdsService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -145,7 +146,7 @@ const GoogleAdsIntegration: React.FC = () => {
       setIsCleaningUp(true);
       try {
         console.log("Initiating cleanup of all accounts");
-        const success = await cleanupDummyAccounts();
+        const success = await cleanupAllAccounts();
         
         if (success) {
           await fetchGoogleAdsAccounts();

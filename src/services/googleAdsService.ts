@@ -580,3 +580,18 @@ export const googleAdsService = {
   validateGoogleToken,
   cleanupAllAccounts
 };
+
+// Ensure all functions are properly exported
+export {
+  initiateGoogleAuth,
+  handleOAuthCallback,
+  getGoogleAdsCredentials,
+  listGoogleAdsAccounts,
+  fetchGoogleAdsMetrics,
+  isGoogleAuthValid,
+  refreshGoogleToken,
+  revokeGoogleAccess,
+  validateGoogleToken,
+  fetchGoogleAdsAccounts,
+  cleanupAllAccounts
+};

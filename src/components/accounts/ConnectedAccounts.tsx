@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -20,7 +21,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "@/hooks/use-toast";
-import { listGoogleAdsAccounts, cleanupDummyAccounts } from "@/services/googleAdsService";
+import { listGoogleAdsAccounts, cleanupAllAccounts } from "@/services/googleAdsService";
 import { v4 as uuidv4 } from 'uuid';
 
 interface ConnectedAccountsProps {
@@ -118,7 +119,7 @@ export const ConnectedAccounts = ({
     if (window.confirm("Are you sure you want to remove ALL Google Ads accounts? This action cannot be undone.")) {
       setIsCleaningDummy(true);
       try {
-        const success = await cleanupDummyAccounts();
+        const success = await cleanupAllAccounts();
         if (success) {
           await fetchGoogleAdsAccounts();
           toast.success("All accounts removed successfully");
