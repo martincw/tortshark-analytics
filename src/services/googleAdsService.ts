@@ -540,6 +540,32 @@ export const cleanupDummyAccounts = async (): Promise<boolean> => {
       }
     }
     
+    // Clean up dummy accounts from the Supabase database
+    if (token) {
+      try {
+        // Get list of dummy account IDs
+        const dummyAccountIds = dummyAccounts.map(account => account.id);
+        
+        if (dummyAccountIds.length > 0) {
+          console.log("Removing dummy accounts from Supabase:", dummyAccountIds);
+          
+          // Delete from account_connections table
+          const { error } = await supabase
+            .from('account_connections')
+            .delete()
+            .in('id', dummyAccountIds);
+          
+          if (error) {
+            console.error("Error deleting from Supabase:", error);
+          } else {
+            console.log(`Successfully removed ${dummyAccountIds.length} dummy accounts from Supabase`);
+          }
+        }
+      } catch (dbError) {
+        console.error("Database error during cleanup:", dbError);
+      }
+    }
+    
     // Also try to make a real call to the edge function for cleanup
     try {
       const response = await supabase.functions.invoke("google-ads-accounts", {
@@ -557,7 +583,7 @@ export const cleanupDummyAccounts = async (): Promise<boolean> => {
       }
     } catch (error) {
       console.error("Error calling cleanup function:", error);
-      // Continue anyway since we've already cleaned localStorage
+      // Continue anyway since we've already cleaned localStorage and database
     }
     
     toast.success(`Successfully removed ${dummyAccounts.length} dummy accounts`);

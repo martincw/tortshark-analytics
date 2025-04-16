@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -458,6 +457,48 @@ async function cleanupDummyAccountsInDb() {
   }
 }
 
+async function cleanupDummyAccountsFromDatabase(userId: string): Promise<number> {
+  try {
+    // Find all accounts that match dummy account patterns
+    const { data: dummyAccounts, error: findError } = await supabase
+      .from('account_connections')
+      .select('id, name')
+      .or(`id.like.987%, id.like.876%, id.like.765%, name.ilike.%Demo%`)
+      .eq('user_id', userId);
+    
+    if (findError) {
+      console.error("Error finding dummy accounts:", findError);
+      return 0;
+    }
+    
+    if (!dummyAccounts || dummyAccounts.length === 0) {
+      console.log("No dummy accounts found in database");
+      return 0;
+    }
+    
+    console.log(`Found ${dummyAccounts.length} dummy accounts to remove from database`);
+    
+    // Get the IDs of dummy accounts
+    const dummyAccountIds = dummyAccounts.map(acc => acc.id);
+    
+    // Delete the dummy accounts
+    const { error: deleteError } = await supabase
+      .from('account_connections')
+      .delete()
+      .in('id', dummyAccountIds);
+    
+    if (deleteError) {
+      console.error("Error deleting dummy accounts:", deleteError);
+      return 0;
+    }
+    
+    return dummyAccounts.length;
+  } catch (error) {
+    console.error("Error in cleanupDummyAccountsFromDatabase:", error);
+    return 0;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -559,28 +600,49 @@ serve(async (req) => {
     
     // Handle the cleanup-dummy-accounts action
     if (action === "cleanup-dummy-accounts") {
-      try {
-        const result = await cleanupDummyAccountsInDb();
-        
-        return new Response(
-          JSON.stringify(result),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } catch (error) {
-        console.error("Error in cleanup-dummy-accounts:", error);
+      const authHeader = req.headers.get("Authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      
+      if (!token) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: error.message || "Failed to clean up dummy accounts" 
+            error: "Authentication required for cleanup operation" 
           }),
           { 
-            status: 500,
+            status: 401,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Authentication failed" 
+          }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      const removedCount = await cleanupDummyAccountsFromDatabase(user.id);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          removedCount,
+          message: `Successfully removed ${removedCount} dummy accounts`
+        }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
     
     return new Response(
