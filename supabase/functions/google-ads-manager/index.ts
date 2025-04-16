@@ -56,15 +56,15 @@ async function getAccessToken(refreshToken: string): Promise<string> {
 }
 
 /**
- * List Google Ads accounts using either v15 or v16 API version
+ * List Google Ads accounts using v14 API (since v15 and v16 are problematic)
  */
-async function listGoogleAdsAccounts(accessToken: string, apiVersion = "v15"): Promise<any[]> {
+async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
   try {
-    console.log(`Listing Google Ads accounts using API version ${apiVersion}`);
+    console.log("Listing Google Ads accounts using API version v14");
     
-    // Try Google Ads API with specified version
+    // Try Google Ads API with v14
     const listCustomersResponse = await fetch(
-      `https://googleads.googleapis.com/${apiVersion}/customers:listAccessibleCustomers`,
+      "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
       {
         method: "GET",
         headers: {
@@ -76,7 +76,7 @@ async function listGoogleAdsAccounts(accessToken: string, apiVersion = "v15"): P
     
     if (!listCustomersResponse.ok) {
       const errorText = await listCustomersResponse.text();
-      console.error(`Failed to list accessible customers with ${apiVersion}:`, errorText);
+      console.error("Failed to list accessible customers:", errorText);
       throw new Error(`Google Ads API error: ${listCustomersResponse.status} ${errorText}`);
     }
     
@@ -97,7 +97,7 @@ async function listGoogleAdsAccounts(accessToken: string, apiVersion = "v15"): P
       customerIds.map(async (customerId) => {
         try {
           const customerResponse = await fetch(
-            `https://googleads.googleapis.com/${apiVersion}/customers/${customerId}`,
+            `https://googleads.googleapis.com/v14/customers/${customerId}`,
             {
               method: "GET",
               headers: {
@@ -273,31 +273,16 @@ serve(async (req) => {
     // Handle listing accounts with direct access token
     if (action === "list-accounts" && accessToken) {
       try {
-        // First try with v15 (most stable currently)
-        try {
-          const accounts = await listGoogleAdsAccounts(accessToken);
+        // Use v14 (most stable currently)
+        const accounts = await listGoogleAdsAccounts(accessToken);
           
-          // Store accounts in database
-          await saveAccountsToDatabase(userId, accounts);
+        // Store accounts in database
+        await saveAccountsToDatabase(userId, accounts);
           
-          return new Response(
-            JSON.stringify({ success: true, accounts }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        } catch (v15Error) {
-          console.log("Error with v15 API, trying v16...", v15Error);
-          
-          // Fallback to v16 if v15 fails
-          const accounts = await listGoogleAdsAccounts(accessToken, "v16");
-          
-          // Store accounts in database
-          await saveAccountsToDatabase(userId, accounts);
-          
-          return new Response(
-            JSON.stringify({ success: true, accounts }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
+        return new Response(
+          JSON.stringify({ success: true, accounts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       } catch (error) {
         console.error("Error in list-accounts:", error);
         return new Response(
@@ -318,31 +303,16 @@ serve(async (req) => {
       try {
         const accessToken = await getAccessToken(refreshToken);
         
-        // First try with v15 (most stable currently)
-        try {
-          const accounts = await listGoogleAdsAccounts(accessToken);
+        // Use v14
+        const accounts = await listGoogleAdsAccounts(accessToken);
           
-          // Store accounts in database
-          await saveAccountsToDatabase(userId, accounts);
+        // Store accounts in database
+        await saveAccountsToDatabase(userId, accounts);
           
-          return new Response(
-            JSON.stringify({ success: true, accounts, accessToken }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        } catch (v15Error) {
-          console.log("Error with v15 API, trying v16...", v15Error);
-          
-          // Fallback to v16 if v15 fails
-          const accounts = await listGoogleAdsAccounts(accessToken, "v16");
-          
-          // Store accounts in database
-          await saveAccountsToDatabase(userId, accounts);
-          
-          return new Response(
-            JSON.stringify({ success: true, accounts, accessToken }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
+        return new Response(
+          JSON.stringify({ success: true, accounts, accessToken }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       } catch (error) {
         console.error("Error in list-accounts-with-refresh-token:", error);
         return new Response(
