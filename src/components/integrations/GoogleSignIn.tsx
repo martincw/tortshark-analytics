@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { fetchGoogleAdsAccounts } = useCampaign();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -58,6 +60,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     const checkForCallback = async () => {
       if (window.location.search.includes('code=')) {
         setIsSigningIn(true);
+        setAuthError(null);
         
         try {
           const success = await handleOAuthCallback();
@@ -87,6 +90,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           }
         } catch (error) {
           console.error("Error handling OAuth callback:", error);
+          setAuthError(error.message || "Failed to complete Google authentication");
           toast.error("Failed to complete Google authentication");
         } finally {
           setIsSigningIn(false);
@@ -121,6 +125,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const googleLogin = useGoogleLogin({
     onSuccess: async (response) => {
       setIsSigningIn(true);
+      setAuthError(null);
       
       try {
         localStorage.setItem("googleAds_access_token", response.access_token);
@@ -146,6 +151,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         }
       } catch (error) {
         console.error("Google Sign-In error:", error);
+        setAuthError(error.message || "Failed to sign in with Google");
         toast.error("Failed to sign in with Google");
       } finally {
         setIsSigningIn(false);
@@ -153,14 +159,35 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     },
     onError: (error) => {
       console.error("Google Sign-In error:", error);
+      setAuthError("Failed to sign in with Google");
       toast.error("Failed to sign in with Google");
     },
     scope: 'https://www.googleapis.com/auth/adwords',
     flow: 'implicit'
   });
 
+  const handleServerSideAuth = async () => {
+    setIsSigningIn(true);
+    setAuthError(null);
+    
+    try {
+      await initiateGoogleAuth();
+    } catch (error) {
+      console.error("Error initiating Google Auth:", error);
+      setAuthError(error.message || "Failed to initiate Google authentication");
+      toast.error("Failed to initiate Google authentication");
+      setIsSigningIn(false);
+    }
+  };
+
   const handleGoogleSignIn = () => {
-    googleLogin();
+    if (!isLoggedIn) {
+      toast.error("Please sign in to your account first");
+      return;
+    }
+    
+    // Use server-side OAuth flow for better reliability
+    handleServerSideAuth();
   };
 
   return (
@@ -173,15 +200,28 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           Connect your Google account to access your Google Ads data
         </p>
         
+        {authError && (
+          <div className="p-3 mb-4 bg-destructive/10 text-destructive rounded-md text-sm">
+            <p className="font-medium">Authentication error:</p>
+            <p>{authError}</p>
+          </div>
+        )}
+        
         <Button 
           onClick={handleGoogleSignIn}
-          disabled={isSigningIn || isConnecting}
+          disabled={isSigningIn || isConnecting || !isLoggedIn}
           className="w-full"
           variant="outline"
         >
           <Google className="mr-2 h-4 w-4" />
           {isSigningIn ? "Signing in..." : "Sign in with Google"}
         </Button>
+        
+        {!isLoggedIn && (
+          <p className="text-xs text-center mt-2 text-amber-600">
+            Please sign in to your account first before connecting Google Ads
+          </p>
+        )}
         
         {(isConnecting || isSigningIn) && (
           <div>

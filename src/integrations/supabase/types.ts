@@ -290,6 +290,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_oauth_tokens: {
+        Row: {
+          access_token: string
+          created_at: string | null
+          email: string | null
+          expires_at: string
+          id: string
+          provider: string
+          refresh_token: string | null
+          scope: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string | null
+          email?: string | null
+          expires_at: string
+          id?: string
+          provider: string
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string | null
+          email?: string | null
+          expires_at?: string
+          id?: string
+          provider?: string
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

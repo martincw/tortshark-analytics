@@ -20,7 +20,7 @@ const OAUTH_SCOPES = [
 ];
 
 // Developer token for Google Ads API
-const GOOGLE_ADS_DEVELOPER_TOKEN = "Ngh3IukgQ3ovdkH3M0smUg";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
 
 // CORS headers for browser requests - expanded for better compatibility
 const corsHeaders = {
@@ -371,23 +371,12 @@ serve(async (req) => {
         // If we do have a user, store the tokens properly
         if (user) {
           try {
-            // Try to create the google_ads_tokens table if it doesn't exist via RPC
-            console.log("Ensuring google_ads_tokens table exists");
-            try {
-              const { data: createTableResult, error: createTableError } = await supabase.rpc('create_google_ads_tokens_if_not_exists');
-              
-              if (createTableError) {
-                console.error("Error creating tokens table via RPC:", createTableError);
-              } else {
-                console.log("Table creation result:", createTableResult);
-              }
-            } catch (rpcError) {
-              console.error("Exception during table creation RPC:", rpcError);
-            }
+            // Store tokens in the new user_oauth_tokens table
+            console.log("Storing tokens in user_oauth_tokens table");
             
-            // Define the tokens data
             const tokensData = {
               user_id: user.id,
+              provider: "google_ads",
               access_token: tokens.access_token,
               refresh_token: tokens.refresh_token,
               expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
@@ -395,11 +384,10 @@ serve(async (req) => {
               email: userInfo.email,
             };
             
-            console.log("Storing tokens in database");
             // Upsert to handle both insert and update cases
             const { error: storeError } = await supabase
-              .from('google_ads_tokens')
-              .upsert(tokensData, { onConflict: "user_id" });
+              .from('user_oauth_tokens')
+              .upsert(tokensData, { onConflict: "user_id,provider" });
             
             if (storeError) {
               console.error("Error storing tokens:", storeError);
@@ -407,7 +395,7 @@ serve(async (req) => {
               // This allows the user to proceed even if the database storage fails
               console.log("Returning tokens directly to client despite storage error");
             } else {
-              console.log("Tokens stored successfully");
+              console.log("Tokens stored successfully in user_oauth_tokens table");
             }
           } catch (dbError) {
             console.error("Database operation error:", dbError);
@@ -464,11 +452,12 @@ serve(async (req) => {
       }
       
       try {
-        // Get stored tokens
+        // Get stored tokens from new table
         const { data: tokens, error: tokensError } = await supabase
-          .from('google_ads_tokens')
+          .from('user_oauth_tokens')
           .select('*')
           .eq('user_id', user.id)
+          .eq('provider', 'google_ads')
           .maybeSingle();
         
         if (tokensError) {
@@ -512,21 +501,23 @@ serve(async (req) => {
             
             const newTokens = await refreshResponse.json();
             
-            // Update stored tokens
+            // Update stored tokens in new table
             await supabase
-              .from('google_ads_tokens')
+              .from('user_oauth_tokens')
               .update({
                 access_token: newTokens.access_token,
                 expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+                updated_at: new Date().toISOString()
               })
-              .eq('user_id', user.id);
+              .eq('user_id', user.id)
+              .eq('provider', 'google_ads');
             
             // Return refreshed credentials
             return new Response(
               JSON.stringify({ 
                 success: true, 
-                customerId: "1234567890", // Mock customer ID
-                developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
+                customerId: "1234567890", // Default customer ID
+                developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
                 accessToken: newTokens.access_token,
                 userEmail: tokens.email
               }),
@@ -544,8 +535,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            customerId: "1234567890", // Mock customer ID
-            developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
+            customerId: "1234567890", // Default customer ID
+            developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
             accessToken: tokens.access_token,
             userEmail: tokens.email
           }),
@@ -619,16 +610,18 @@ serve(async (req) => {
         const tokens = await refreshResponse.json();
         console.log("Token refreshed successfully");
         
-        // If we have a user, update the stored token
+        // If we have a user, update the stored token in the new table
         if (user) {
           try {
             const { error: updateError } = await supabase
-              .from("google_ads_tokens")
+              .from("user_oauth_tokens")
               .update({
                 access_token: tokens.access_token,
                 expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+                updated_at: new Date().toISOString()
               })
-              .eq("user_id", user.id);
+              .eq("user_id", user.id)
+              .eq("provider", "google_ads");
             
             if (updateError) {
               console.error("Error updating token in database:", updateError);
@@ -684,11 +677,12 @@ serve(async (req) => {
         );
       }
       
-      // Get refresh token
+      // Get refresh token from new table
       const { data: tokens, error: tokensError } = await supabase
-        .from("google_ads_tokens")
+        .from("user_oauth_tokens")
         .select("refresh_token")
         .eq("user_id", user.id)
+        .eq("provider", "google_ads")
         .maybeSingle();
       
       if (tokensError || !tokens || !tokens.refresh_token) {
@@ -735,14 +729,16 @@ serve(async (req) => {
         
         const newTokens = await refreshResponse.json();
         
-        // Update stored tokens
+        // Update stored tokens in new table
         const { error: updateError } = await supabase
-          .from("google_ads_tokens")
+          .from("user_oauth_tokens")
           .update({
             access_token: newTokens.access_token,
             expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+            updated_at: new Date().toISOString()
           })
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .eq("provider", "google_ads");
         
         if (updateError) {
           console.error("Error updating token in database:", updateError);
@@ -789,11 +785,12 @@ serve(async (req) => {
       let accessToken = requestData.accessToken;
       
       if (!accessToken && user) {
-        // Get access token from database
+        // Get access token from new table
         const { data: tokens, error: tokensError } = await supabase
-          .from("google_ads_tokens")
+          .from("user_oauth_tokens")
           .select("access_token")
           .eq("user_id", user.id)
+          .eq("provider", "google_ads")
           .maybeSingle();
         
         if (tokensError) {
@@ -842,12 +839,13 @@ serve(async (req) => {
         }
       }
       
-      // If we have a user, delete stored tokens
+      // If we have a user, delete stored tokens from new table
       if (user) {
         const { error: deleteError } = await supabase
-          .from("google_ads_tokens")
+          .from("user_oauth_tokens")
           .delete()
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .eq("provider", "google_ads");
         
         if (deleteError) {
           console.error("Error deleting tokens from database:", deleteError);
