@@ -499,6 +499,36 @@ async function cleanupDummyAccountsFromDatabase(userId: string): Promise<number>
   }
 }
 
+async function deleteAllAccounts(userId: string): Promise<{ success: boolean; removedCount: number; error?: string }> {
+  try {
+    if (!userId) {
+      console.error("No user ID provided for deleting all accounts");
+      return { success: false, removedCount: 0, error: "No user ID provided" };
+    }
+    
+    console.log(`Deleting ALL accounts for user ${userId}`);
+    
+    // Delete all Google Ads accounts for this user
+    const { data, error, count } = await supabase
+      .from('account_connections')
+      .delete()
+      .eq('user_id', userId)
+      .eq('platform', 'google')
+      .select('count');
+    
+    if (error) {
+      console.error("Error deleting all accounts:", error);
+      return { success: false, removedCount: 0, error: error.message };
+    }
+    
+    console.log(`Successfully deleted ${count || 0} accounts for user ${userId}`);
+    return { success: true, removedCount: count || 0 };
+  } catch (error) {
+    console.error("Error in deleteAllAccounts:", error);
+    return { success: false, removedCount: 0, error: error.message || "Unknown error" };
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -638,6 +668,56 @@ serve(async (req) => {
           success: true, 
           removedCount,
           message: `Successfully removed ${removedCount} dummy accounts`
+        }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
+    // Handle the delete-all-accounts action
+    if (action === "delete-all-accounts") {
+      const authHeader = req.headers.get("Authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      
+      if (!token) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Authentication required for account deletion" 
+          }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Authentication failed" 
+          }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      const result = await deleteAllAccounts(user.id);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: result.success, 
+          removedCount: result.removedCount,
+          error: result.error,
+          message: result.success ? 
+            `Successfully removed ${result.removedCount} accounts` : 
+            `Failed to remove accounts: ${result.error}`
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },

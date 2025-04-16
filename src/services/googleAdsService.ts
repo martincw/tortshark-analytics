@@ -493,7 +493,7 @@ export const fetchGoogleAdsAccounts = listGoogleAdsAccounts;
 
 export const cleanupDummyAccounts = async (): Promise<boolean> => {
   try {
-    console.log("Starting cleanup of dummy Google Ads accounts");
+    console.log("Starting complete cleanup of ALL Google Ads accounts");
     
     const token = await getAuthToken();
     const headers: Record<string, string> = {};
@@ -504,93 +504,60 @@ export const cleanupDummyAccounts = async (): Promise<boolean> => {
       console.warn("No auth token available, proceeding without authentication");
     }
     
-    // First, get the current accounts to identify which ones are dummy accounts
-    const accounts = await listGoogleAdsAccounts();
-    const dummyAccounts = accounts.filter(account => 
-      account.id.startsWith('987') || 
-      account.id.startsWith('876') || 
-      account.id.startsWith('765') || 
-      account.name.includes('Demo')
-    );
+    // Clear ALL accounts from localStorage
+    console.log("Removing all accounts from localStorage");
+    localStorage.removeItem("googleAds_accounts");
     
-    if (dummyAccounts.length === 0) {
-      console.log("No dummy accounts found to clean up");
-      toast.info("No dummy accounts found to clean up");
-      return true;
-    }
+    // Get the current session to get the user ID
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
     
-    console.log(`Found ${dummyAccounts.length} dummy accounts to remove`);
-    
-    // Remove dummy accounts directly from localStorage
-    const currentAccountsJSON = localStorage.getItem("googleAds_accounts");
-    if (currentAccountsJSON) {
-      try {
-        const currentAccounts = JSON.parse(currentAccountsJSON);
-        const nonDummyAccounts = currentAccounts.filter((acc: any) => 
-          !acc.id.startsWith('987') && 
-          !acc.id.startsWith('876') && 
-          !acc.id.startsWith('765') && 
-          !acc.name.includes('Demo')
-        );
-        
-        localStorage.setItem("googleAds_accounts", JSON.stringify(nonDummyAccounts));
-        console.log(`Removed ${currentAccounts.length - nonDummyAccounts.length} dummy accounts from localStorage`);
-      } catch (error) {
-        console.error("Error parsing accounts from localStorage:", error);
+    if (userId) {
+      console.log(`Removing all accounts for user ID: ${userId} from Supabase`);
+      
+      // Delete ALL account connections for this user
+      const { error: deleteError, count } = await supabase
+        .from('account_connections')
+        .delete()
+        .eq('user_id', userId)
+        .eq('platform', 'google')
+        .select('count');
+      
+      if (deleteError) {
+        console.error("Error deleting accounts from Supabase:", deleteError);
+        toast.error("Error removing accounts from database");
+      } else {
+        console.log(`Successfully removed ${count || 0} accounts from Supabase`);
       }
     }
     
-    // Clean up dummy accounts from the Supabase database
-    if (token) {
-      try {
-        // Get list of dummy account IDs
-        const dummyAccountIds = dummyAccounts.map(account => account.id);
-        
-        if (dummyAccountIds.length > 0) {
-          console.log("Removing dummy accounts from Supabase:", dummyAccountIds);
-          
-          // Delete from account_connections table
-          const { error } = await supabase
-            .from('account_connections')
-            .delete()
-            .in('id', dummyAccountIds);
-          
-          if (error) {
-            console.error("Error deleting from Supabase:", error);
-          } else {
-            console.log(`Successfully removed ${dummyAccountIds.length} dummy accounts from Supabase`);
-          }
-        }
-      } catch (dbError) {
-        console.error("Database error during cleanup:", dbError);
-      }
-    }
-    
-    // Also try to make a real call to the edge function for cleanup
+    // Also call the edge function for cleanup
     try {
       const response = await supabase.functions.invoke("google-ads-accounts", {
         body: { 
-          action: "cleanup-dummy-accounts"
+          action: "delete-all-accounts"
         },
         headers
       });
       
-      console.log("Cleanup response:", response);
+      console.log("Cleanup response from edge function:", response);
       
       if (response.error) {
         console.error("Error from Edge Function:", response.error);
         toast.error("Server error during cleanup operation");
+      } else if (response.data && response.data.success) {
+        console.log(`Edge function removed ${response.data.removedCount || 0} accounts`);
       }
     } catch (error) {
       console.error("Error calling cleanup function:", error);
       // Continue anyway since we've already cleaned localStorage and database
     }
     
-    toast.success(`Successfully removed ${dummyAccounts.length} dummy accounts`);
+    toast.success(`Successfully removed all Google Ads accounts`);
     return true;
   } catch (error) {
-    console.error("Error cleaning up dummy accounts:", error);
-    toast.error("Failed to clean up dummy accounts");
+    console.error("Error cleaning up accounts:", error);
+    toast.error("Failed to clean up accounts");
     return false;
   }
 };

@@ -141,25 +141,25 @@ const GoogleAdsIntegration: React.FC = () => {
   };
 
   const handleCleanupDummyAccounts = async () => {
-    if (window.confirm("Are you sure you want to remove all dummy Google Ads accounts?")) {
+    if (window.confirm("Are you sure you want to remove ALL Google Ads accounts? This action cannot be undone.")) {
       setIsCleaningUp(true);
       try {
-        console.log("Initiating cleanup of dummy accounts");
+        console.log("Initiating cleanup of all accounts");
         const success = await cleanupDummyAccounts();
         
         if (success) {
           await fetchGoogleAdsAccounts();
-          toast.success("Dummy accounts removed successfully");
+          toast.success("All accounts removed successfully");
           // Force a refresh of the accounts list
           if (fetchGoogleAdsAccounts) {
             await fetchGoogleAdsAccounts();
           }
         } else {
-          toast.error("Failed to remove dummy accounts");
+          toast.error("Failed to remove accounts");
         }
       } catch (error) {
-        console.error("Error cleaning up dummy accounts:", error);
-        toast.error("Failed to clean up dummy accounts");
+        console.error("Error cleaning up accounts:", error);
+        toast.error("Failed to clean up accounts");
       } finally {
         setIsCleaningUp(false);
       }
@@ -234,7 +234,7 @@ const GoogleAdsIntegration: React.FC = () => {
                   className="w-full text-destructive hover:text-destructive"
                 >
                   <Trash2 className={`mr-2 h-4 w-4 ${isCleaningUp ? 'animate-spin' : ''}`} />
-                  {isCleaningUp ? 'Removing dummy accounts...' : 'Remove dummy accounts'}
+                  {isCleaningUp ? 'Removing accounts...' : 'Remove All Accounts'}
                 </Button>
               </div>
 

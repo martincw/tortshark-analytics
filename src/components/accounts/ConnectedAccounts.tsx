@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -116,17 +115,17 @@ export const ConnectedAccounts = ({
   };
 
   const handleCleanupDummyAccounts = async () => {
-    if (window.confirm("Are you sure you want to remove all dummy Google Ads accounts?")) {
+    if (window.confirm("Are you sure you want to remove ALL Google Ads accounts? This action cannot be undone.")) {
       setIsCleaningDummy(true);
       try {
         const success = await cleanupDummyAccounts();
         if (success) {
           await fetchGoogleAdsAccounts();
-          toast.success("Dummy accounts removed successfully");
+          toast.success("All accounts removed successfully");
         }
       } catch (error) {
-        console.error("Error cleaning up dummy accounts:", error);
-        toast.error("Failed to clean up dummy accounts");
+        console.error("Error cleaning up accounts:", error);
+        toast.error("Failed to remove accounts");
       } finally {
         setIsCleaningDummy(false);
       }
@@ -161,7 +160,7 @@ export const ConnectedAccounts = ({
               className="text-destructive"
             >
               <Trash2 className={`mr-2 h-4 w-4 ${isCleaningDummy ? 'animate-spin' : ''}`} />
-              {isCleaningDummy ? 'Cleaning...' : 'Remove Dummy'}
+              {isCleaningDummy ? 'Removing...' : 'Remove All Accounts'}
             </Button>
           )}
         </div>
