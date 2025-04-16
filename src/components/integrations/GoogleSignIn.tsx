@@ -31,6 +31,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const isMobile = useIsMobile();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingCredentials, setIsCheckingCredentials] = useState(true);
   const { fetchGoogleAdsAccounts } = useCampaign();
   const [authError, setAuthError] = useState<string | null>(null);
   const callbackProcessed = useRef(false);
@@ -92,9 +93,11 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
               });
             } else {
               toast.error("Failed to get Google Ads credentials");
+              setAuthError("Failed to retrieve Google Ads credentials. Please try connecting again.");
             }
           } else {
             toast.error("Failed to complete Google authentication");
+            setAuthError("Authentication process completed but validation failed. Please try again.");
           }
         } catch (error) {
           console.error("Error handling OAuth callback:", error);
@@ -111,24 +114,40 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
 
   useEffect(() => {
     const checkExistingAuth = async () => {
+      setIsCheckingCredentials(true);
       try {
+        console.log("Checking if Google Auth is already valid...");
         if (await isGoogleAuthValid()) {
+          console.log("Google Auth is valid, getting credentials...");
           const credentials = await getGoogleAdsCredentials();
           if (credentials) {
+            console.log("Retrieved credentials successfully:", credentials.source);
             toast.success("Already signed in with Google");
             onSuccess({
               customerId: credentials.customerId,
               developerToken: credentials.developerToken
             });
+          } else {
+            console.warn("isGoogleAuthValid() returned true but no credentials were found");
+            setAuthError("Your Google connection appears valid but we couldn't retrieve your account details. Please try reconnecting.");
           }
+        } else {
+          console.log("Google Auth is not valid");
         }
       } catch (error) {
         console.error("Error checking existing auth:", error);
+        setAuthError("Error checking your Google connection status. Please try reconnecting.");
+      } finally {
+        setIsCheckingCredentials(false);
       }
     };
     
-    checkExistingAuth();
-  }, [onSuccess]);
+    if (isLoggedIn) {
+      checkExistingAuth();
+    } else {
+      setIsCheckingCredentials(false);
+    }
+  }, [onSuccess, isLoggedIn]);
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (response) => {
@@ -156,6 +175,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           });
         } else {
           toast.error("Failed to get Google Ads credentials");
+          setAuthError("Received access token but couldn't retrieve Google Ads account details.");
         }
       } catch (error) {
         console.error("Google Sign-In error:", error);
@@ -180,7 +200,14 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     
     try {
       console.log("Initiating Google Auth flow");
-      await initiateGoogleAuth();
+      const authResponse = await initiateGoogleAuth();
+      
+      if (authResponse && authResponse.url) {
+        console.log("Redirecting to Google Auth URL:", authResponse.url);
+        window.location.href = authResponse.url;
+      } else {
+        throw new Error("Failed to get Google authentication URL");
+      }
     } catch (error) {
       console.error("Error initiating Google Auth:", error);
       setAuthError(error.message || "Failed to initiate Google authentication");
@@ -218,12 +245,13 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         
         <Button 
           onClick={handleGoogleSignIn}
-          disabled={isSigningIn || isConnecting || !isLoggedIn}
+          disabled={isSigningIn || isConnecting || !isLoggedIn || isCheckingCredentials}
           className="w-full"
           variant="outline"
         >
           <Google className="mr-2 h-4 w-4" />
-          {isSigningIn ? "Signing in..." : "Sign in with Google"}
+          {isCheckingCredentials ? "Checking connection..." : 
+           isSigningIn ? "Signing in..." : "Sign in with Google"}
         </Button>
         
         {!isLoggedIn && (
@@ -232,11 +260,18 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           </p>
         )}
         
-        {(isConnecting || isSigningIn) && (
+        {(isConnecting || isSigningIn || isCheckingCredentials) && (
           <div>
-            <Progress value={isSigningIn ? 50 : connectionProgress} className="h-2" />
+            <Progress 
+              value={
+                isCheckingCredentials ? 20 : 
+                isSigningIn ? 50 : connectionProgress
+              } 
+              className="h-2" 
+            />
             <p className="text-xs text-center mt-2 text-muted-foreground">
-              {isSigningIn ? "Authenticating with Google..." : "Connecting to Google Ads..."}
+              {isCheckingCredentials ? "Checking existing connection..." : 
+               isSigningIn ? "Authenticating with Google..." : "Connecting to Google Ads..."}
             </p>
           </div>
         )}

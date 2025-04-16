@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
@@ -5,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Info, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { handleOAuthCallback } from "@/services/googleAdsService";
+import { handleOAuthCallback, isGoogleAuthValid } from "@/services/googleAdsService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -18,6 +19,8 @@ const IntegrationsPage = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [networkError, setNetworkError] = useState<boolean>(false);
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+  
   const { user, isLoading } = useAuth();
   const campaignContext = useCampaign();
   const fetchGoogleAdsAccounts = campaignContext?.fetchGoogleAdsAccounts;
@@ -29,8 +32,35 @@ const IntegrationsPage = () => {
   useEffect(() => {
     if (!isLoading && !user) {
       navigate("/auth");
+    } else if (user) {
+      setAuthStatus('authenticated');
+    } else {
+      setAuthStatus('unauthenticated');
     }
   }, [user, isLoading, navigate]);
+  
+  // Check for Google Auth status when the component loads
+  useEffect(() => {
+    const checkGoogleAuthStatus = async () => {
+      if (user) {
+        try {
+          const isValid = await isGoogleAuthValid();
+          console.log("Google Auth status:", isValid ? "valid" : "invalid");
+          
+          if (!isValid) {
+            // Clear any stale auth data
+            localStorage.removeItem("googleAds_access_token");
+            localStorage.removeItem("googleAds_refresh_token");
+            localStorage.removeItem("googleAds_token_expiry");
+          }
+        } catch (error) {
+          console.error("Error checking Google Auth status:", error);
+        }
+      }
+    };
+    
+    checkGoogleAuthStatus();
+  }, [user]);
   
   useEffect(() => {
     const processOAuthCallback = async () => {
