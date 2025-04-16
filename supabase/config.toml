@@ -3,3 +3,6 @@ project_id = "msgqsgftjwpbnqenhfmc"
 
 [functions.google-ads-accounts]
 verify_jwt = false
+
+[functions.google-ads-manager]
+verify_jwt = false

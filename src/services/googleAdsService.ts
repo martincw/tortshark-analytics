@@ -193,20 +193,23 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
       return [];
     }
     
-    console.log("Fetching Google Ads accounts from Google API");
+    console.log("Fetching Google Ads accounts using new optimized endpoint");
     
     const token = await getAuthToken();
     const headers: Record<string, string> = {};
     
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn("No auth token available, proceeding without authentication");
+      return [];
     }
     
-    const response = await supabase.functions.invoke("google-ads-accounts", {
+    // Use the new google-ads-manager edge function
+    const response = await supabase.functions.invoke("google-ads-manager", {
       body: { 
         action: "list-accounts",
-        accessToken,
-        cleanupDummyAccounts: true
+        accessToken
       },
       headers
     });
@@ -216,17 +219,13 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     if (response.error) {
       console.error("Error from Edge Function:", response.error);
       toast.error("Failed to fetch Google Ads accounts: " + response.error.message);
-      
-      // Create some demo accounts when API fails
-      return createDummyAccounts();
+      return [];
     }
     
     if (!response.data || !response.data.success) {
       console.error("Error from API:", response.data?.error || "Unknown error");
       toast.error(response.data?.error || "Failed to fetch Google Ads accounts");
-      
-      // Create some demo accounts when API fails
-      return createDummyAccounts();
+      return [];
     }
     
     if (response.data.accounts && response.data.accounts.length > 0) {
@@ -250,45 +249,9 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
     toast.error("Failed to list Google Ads accounts");
-    
-    // Create some demo accounts when API fails
-    return createDummyAccounts();
+    return [];
   }
 };
-
-function createDummyAccounts(): AccountConnection[] {
-  toast.info("Using sample accounts for demonstration");
-  
-  return [
-    {
-      id: "9876543210",
-      name: "Demo Account 1",
-      platform: "google",
-      isConnected: true,
-      lastSynced: new Date().toISOString(),
-      customerId: "9876543210",
-      credentials: {}
-    },
-    {
-      id: "8765432109",
-      name: "Demo Account 2",
-      platform: "google",
-      isConnected: true,
-      lastSynced: new Date().toISOString(),
-      customerId: "8765432109",
-      credentials: {}
-    },
-    {
-      id: "7654321098",
-      name: "Demo Account 3",
-      platform: "google",
-      isConnected: true,
-      lastSynced: new Date().toISOString(),
-      customerId: "7654321098",
-      credentials: {}
-    }
-  ];
-}
 
 export const fetchGoogleAdsMetrics = async (
   customerId: string,
@@ -561,6 +524,57 @@ export const cleanupDummyAccounts = async (): Promise<boolean> => {
   }
 };
 
+export const cleanupAllAccounts = async (): Promise<boolean> => {
+  try {
+    console.log("Starting complete cleanup of ALL Google Ads accounts");
+    
+    const token = await getAuthToken();
+    
+    if (!token) {
+      console.warn("No auth token available, cannot proceed with account deletion");
+      toast.error("Authentication required for account deletion");
+      return false;
+    }
+    
+    // Clear ALL accounts from localStorage
+    console.log("Removing all accounts from localStorage");
+    localStorage.removeItem("googleAds_accounts");
+    localStorage.removeItem("googleAds_account_id");
+    
+    // Call the new edge function for deletion
+    const response = await supabase.functions.invoke("google-ads-manager", {
+      body: { 
+        action: "delete-all-accounts"
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    console.log("Cleanup response from new edge function:", response);
+    
+    if (response.error) {
+      console.error("Error from Edge Function:", response.error);
+      toast.error("Server error during cleanup operation");
+      return false;
+    } 
+    
+    if (response.data && response.data.success) {
+      const removedCount = response.data.removedCount || 0;
+      toast.success(`Successfully removed all ${removedCount} Google Ads accounts`);
+      return true;
+    } else {
+      console.error("Error from API:", response.data?.error || "Unknown error");
+      toast.error(response.data?.error || "Failed to remove accounts");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error cleaning up accounts:", error);
+    toast.error("Failed to clean up accounts");
+    return false;
+  }
+};
+
 export const googleAdsService = {
   initiateGoogleAuth,
   handleOAuthCallback,
@@ -572,5 +586,6 @@ export const googleAdsService = {
   fetchGoogleAdsAccounts,
   revokeGoogleAccess,
   validateGoogleToken,
-  cleanupDummyAccounts
+  cleanupDummyAccounts,
+  cleanupAllAccounts
 };
