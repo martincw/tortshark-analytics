@@ -146,9 +146,11 @@ serve(async (req) => {
     
     // Handle OAuth callback
     if (action === "callback") {
+      console.log("Starting callback process");
       const code = requestData.code || "";
       
       if (!code) {
+        console.log("No authorization code provided in request");
         return new Response(
           JSON.stringify({ success: false, error: "No authorization code provided" }),
           { 
@@ -163,9 +165,14 @@ serve(async (req) => {
         console.log("Using redirect URI:", redirectUri);
         
         if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+          console.error("OAuth credentials missing:", {
+            hasClientId: !!GOOGLE_CLIENT_ID,
+            hasClientSecret: !!GOOGLE_CLIENT_SECRET
+          });
           throw new Error("Missing required OAuth credentials");
         }
         
+        console.log("Attempting to exchange code for tokens");
         const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
           method: "POST",
           headers: { 
@@ -181,12 +188,16 @@ serve(async (req) => {
           }),
         });
         
+        console.log("Token response status:", tokenResponse.status);
+        
         let responseData;
         try {
-          responseData = await tokenResponse.json();
+          const rawResponse = await tokenResponse.text();
+          console.log("Raw token response:", rawResponse);
+          responseData = JSON.parse(rawResponse);
         } catch (e) {
-          const textResponse = await tokenResponse.text();
-          throw new Error(`Failed to parse token response: ${textResponse}`);
+          console.error("Failed to parse token response:", e);
+          throw new Error(`Failed to parse token response: ${e.message}`);
         }
         
         if (!tokenResponse.ok) {
@@ -195,7 +206,13 @@ serve(async (req) => {
             JSON.stringify({ 
               success: false, 
               error: "Token exchange failed",
-              details: responseData.error_description || responseData.error || "Unknown error"
+              details: responseData.error_description || responseData.error || "Unknown error",
+              debug: {
+                status: tokenResponse.status,
+                redirectUri,
+                hasClientId: !!GOOGLE_CLIENT_ID,
+                hasClientSecret: !!GOOGLE_CLIENT_SECRET
+              }
             }),
             { 
               status: tokenResponse.status,
@@ -208,18 +225,28 @@ serve(async (req) => {
           throw new Error("No access token in response");
         }
         
+        console.log("Successfully obtained access token");
+        
         // Get user info using the access token
+        console.log("Fetching user info with access token");
         const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
           headers: { Authorization: `Bearer ${responseData.access_token}` }
         });
         
+        if (!userInfoResponse.ok) {
+          console.error("Failed to fetch user info:", userInfoResponse.status);
+          throw new Error(`Failed to fetch user info: ${userInfoResponse.status}`);
+        }
+        
         const userInfo = await userInfoResponse.json();
+        console.log("Got user info for email:", userInfo.email);
         
         // Try to fetch Google Ads accounts
         let accounts = [];
         let accountsError = null;
         
         try {
+          console.log("Attempting to fetch Google Ads accounts");
           const accountsResponse = await fetch(
             "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
             {
@@ -236,6 +263,7 @@ serve(async (req) => {
             accountsError = `Failed to list Google Ads accounts: ${errorText}`;
           } else {
             const accountsList = await accountsResponse.json();
+            console.log("Google Ads accounts response:", JSON.stringify(accountsList));
             
             if (accountsList.resourceNames && accountsList.resourceNames.length > 0) {
               accounts = accountsList.resourceNames.map(resourceName => {
@@ -245,6 +273,9 @@ serve(async (req) => {
                   name: `Google Ads Account ${customerId}`
                 };
               });
+              console.log(`Found ${accounts.length} Google Ads accounts`);
+            } else {
+              console.log("No Google Ads accounts found in response");
             }
           }
         } catch (error) {
@@ -254,6 +285,7 @@ serve(async (req) => {
         
         // Store tokens in database if we have a user
         if (user) {
+          console.log(`Storing tokens for user: ${user.id}`);
           const { error: dbError } = await supabase
             .from("user_oauth_tokens")
             .upsert({
@@ -268,7 +300,11 @@ serve(async (req) => {
           
           if (dbError) {
             console.error("Error storing tokens:", dbError);
+          } else {
+            console.log("Successfully stored tokens in database");
           }
+        } else {
+          console.log("No authenticated user, skipping token storage");
         }
         
         return new Response(JSON.stringify({
@@ -739,7 +775,7 @@ serve(async (req) => {
       const accessToken = requestData.accessToken;
       
       if (!accessToken) {
-        console.error("No access token provided for validation");
+        console.log("No access token provided for validation");
         return new Response(
           JSON.stringify({ 
             success: false, 
