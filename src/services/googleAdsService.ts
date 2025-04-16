@@ -1,5 +1,4 @@
-
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
@@ -54,11 +53,7 @@ export const initiateGoogleAuth = async () => {
     
     if (response.error) {
       console.error("Error initiating Google OAuth:", response.error);
-      toast({
-        title: "Error",
-        description: "Failed to initiate Google authentication",
-        variant: "destructive",
-      });
+      toast.error("Failed to initiate Google authentication");
       throw new Error(`Error initiating Google OAuth: ${response.error.message}`);
     }
     
@@ -68,14 +63,10 @@ export const initiateGoogleAuth = async () => {
     localStorage.setItem("oauth_debug", JSON.stringify(response.data.debug));
     localStorage.setItem("oauth_ts", new Date().toISOString());
     
-    window.location.href = response.data.url;
+    return response.data;
   } catch (error) {
     console.error("Error initiating Google auth:", error);
-    toast({
-      title: "Error",
-      description: error.message || "Failed to initiate Google authentication",
-      variant: "destructive",
-    });
+    toast.error(error.message || "Failed to initiate Google authentication");
     throw error;
   }
 };
@@ -96,7 +87,7 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     return false;
   }
   
-  console.log("Received auth code from Google");
+  console.log("Received auth code from Google, length:", code.length);
   
   try {
     const token = await getAuthToken();
@@ -104,8 +95,12 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+      console.log("User authentication token available for callback");
+    } else {
+      console.warn("No user authentication token available for callback");
     }
     
+    console.log("Calling google-oauth edge function with callback action");
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "callback",
@@ -115,52 +110,50 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
       headers
     });
     
-    console.log("Edge function response:", response);
+    console.log("Edge function response status:", response.error ? "error" : "success");
     
     if (response.error) {
       console.error("Error handling OAuth callback:", response.error);
-      toast({
-        title: "Authentication Failed",
-        description: `Failed to complete Google authentication: ${response.error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Failed to complete Google authentication: ${response.error.message}`);
       throw new Error(`Error exchanging code for tokens: ${response.error.message}`);
     }
     
-    localStorage.setItem("oauth_callback_response", JSON.stringify(response.data));
-    
-    window.history.replaceState({}, document.title, window.location.pathname);
+    localStorage.setItem("oauth_callback_response", JSON.stringify({
+      success: response.data.success,
+      hasAccessToken: !!response.data.accessToken,
+      hasRefreshToken: !!response.data.refreshToken,
+      userEmail: response.data.userEmail || null,
+      timestamp: new Date().toISOString()
+    }));
     
     if (response.data.success) {
+      console.log("Successfully obtained tokens, storing in localStorage");
       localStorage.setItem("googleAds_access_token", response.data.accessToken);
       localStorage.setItem("googleAds_refresh_token", response.data.refreshToken);
       localStorage.setItem("googleAds_token_expiry", response.data.expiry_date.toString());
       localStorage.setItem("userEmail", response.data.userEmail);
       
       if (response.data.accounts && response.data.accounts.length > 0) {
+        console.log(`Storing ${response.data.accounts.length} Google Ads accounts`);
         localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
         localStorage.setItem("googleAds_account_id", response.data.accounts[0].id);
+      } else {
+        console.log("No Google Ads accounts returned in response");
       }
       
       if (response.data.warning) {
         console.warn("Warning from Google Ads API:", response.data.warning);
       }
       
-      toast({
-        title: "Success",
-        description: "Successfully connected to Google Ads",
-      });
+      toast.success("Successfully connected to Google Ads");
       return true;
     }
     
+    console.error("Callback processed but response indicated failure");
     return false;
   } catch (error) {
     console.error("Error handling OAuth callback:", error);
-    toast({
-      title: "Authentication Failed",
-      description: error.message || "Failed to complete Google authentication",
-      variant: "destructive",
-    });
+    toast.error(error.message || "Failed to complete Google authentication");
     throw error;
   }
 };
@@ -170,7 +163,6 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
     const token = await getAuthToken();
     if (!token) {
       console.warn("No auth token available, checking localStorage");
-      // Fall back to localStorage for backward compatibility
       const accessToken = localStorage.getItem("googleAds_access_token");
       const accountId = localStorage.getItem("googleAds_account_id");
       
@@ -186,7 +178,6 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
       };
     }
     
-    // Try to get credentials from server
     const response = await supabase.functions.invoke("google-oauth", {
       body: { 
         action: "get-credentials"
@@ -199,7 +190,6 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
     if (response.error || !response.data.success) {
       console.error("Error fetching credentials:", response.error || response.data.error);
       
-      // Fall back to localStorage for backward compatibility
       const accessToken = localStorage.getItem("googleAds_access_token");
       const accountId = localStorage.getItem("googleAds_account_id");
       
@@ -215,7 +205,6 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
       };
     }
     
-    // Also update localStorage for backward compatibility
     localStorage.setItem("googleAds_access_token", response.data.accessToken);
     
     return {
@@ -232,7 +221,6 @@ export const getGoogleAdsCredentials = async (): Promise<any | null> => {
 
 export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
   try {
-    // Get access token either from server or localStorage
     const credentials = await getGoogleAdsCredentials();
     
     if (!credentials || !credentials.accessToken) {
@@ -252,7 +240,6 @@ export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
       return [];
     }
     
-    // Use the google-ads-manager edge function
     const response = await supabase.functions.invoke("google-ads-manager", {
       body: { 
         action: "list-accounts",
@@ -400,7 +387,6 @@ export const validateGoogleToken = async (): Promise<boolean> => {
 
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
-    // Try to get credentials from server
     const token = await getAuthToken();
     if (token) {
       const response = await supabase.functions.invoke("google-oauth", {
@@ -417,7 +403,6 @@ export const isGoogleAuthValid = async (): Promise<boolean> => {
       }
     }
     
-    // Fall back to localStorage for backward compatibility
     const accessToken = localStorage.getItem("googleAds_access_token");
     const expiry = localStorage.getItem("googleAds_token_expiry");
     
@@ -500,7 +485,6 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
       console.log("Revocation response:", response.data);
     }
     
-    // Clear localStorage
     localStorage.removeItem("googleAds_access_token");
     localStorage.removeItem("googleAds_refresh_token");
     localStorage.removeItem("googleAds_token_expiry");
@@ -528,12 +512,10 @@ export const cleanupAllAccounts = async (): Promise<boolean> => {
       return false;
     }
     
-    // Clear ALL accounts from localStorage
     console.log("Removing all accounts from localStorage");
     localStorage.removeItem("googleAds_accounts");
     localStorage.removeItem("googleAds_account_id");
     
-    // Call the edge function for deletion
     const response = await supabase.functions.invoke("google-ads-manager", {
       body: { 
         action: "delete-all-accounts"

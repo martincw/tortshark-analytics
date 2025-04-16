@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { handleOAuthCallback } from "@/services/googleAdsService";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useCampaign } from "@/contexts/CampaignContext";
 
 const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // Replace with your actual client ID
@@ -23,6 +22,7 @@ const IntegrationsPage = () => {
   const campaignContext = useCampaign();
   const fetchGoogleAdsAccounts = campaignContext?.fetchGoogleAdsAccounts;
   const navigate = useNavigate();
+  const callbackProcessed = useRef(false);
   
   const PROJECT_URL = "https://app.tortshark.com";
   
@@ -34,7 +34,8 @@ const IntegrationsPage = () => {
   
   useEffect(() => {
     const processOAuthCallback = async () => {
-      if (window.location.search.includes('code=')) {
+      if (window.location.search.includes('code=') && !callbackProcessed.current) {
+        callbackProcessed.current = true;
         setIsProcessingOAuth(true);
         setAuthError(null);
         setNetworkError(false);
@@ -50,13 +51,13 @@ const IntegrationsPage = () => {
           console.log("State param:", urlParams.get('state'));
           console.log("Error param:", urlParams.get('error'));
           
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+          
           const success = await handleOAuthCallback();
           
           if (success) {
-            toast({
-              title: "Success",
-              description: "Successfully connected to Google Ads",
-            });
+            toast.success("Successfully connected to Google Ads");
             
             if (fetchGoogleAdsAccounts) {
               try {
@@ -64,22 +65,14 @@ const IntegrationsPage = () => {
                 console.log("Fetched Google Ads accounts:", accounts);
                 
                 if (accounts.length > 0) {
-                  toast({
-                    title: "Success",
-                    description: `Found ${accounts.length} Google Ads accounts`,
-                  });
+                  toast.success(`Found ${accounts.length} Google Ads accounts`);
                 } else {
-                  toast({
-                    title: "Info",
-                    description: "No Google Ads accounts found",
-                  });
+                  toast.info("No Google Ads accounts found");
                 }
               } catch (accountsError) {
                 console.error("Error fetching Google Ads accounts:", accountsError);
               }
             }
-            
-            window.history.replaceState({}, document.title, window.location.pathname);
           } else {
             setAuthError("Failed to process authentication. Please try again.");
             console.error("OAuth callback processing failed");

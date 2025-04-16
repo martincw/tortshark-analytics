@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +33,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { fetchGoogleAdsAccounts } = useCampaign();
   const [authError, setAuthError] = useState<string | null>(null);
+  const callbackProcessed = useRef(false);
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -58,11 +59,18 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
 
   useEffect(() => {
     const checkForCallback = async () => {
-      if (window.location.search.includes('code=')) {
+      // Check if URL contains code parameter and we haven't processed this callback yet
+      if (window.location.search.includes('code=') && !callbackProcessed.current) {
+        console.log("OAuth callback detected, processing...");
+        callbackProcessed.current = true;
         setIsSigningIn(true);
         setAuthError(null);
         
         try {
+          // Clear URL parameters immediately to prevent reprocessing
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+          
           const success = await handleOAuthCallback();
           
           if (success) {
@@ -171,6 +179,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     setAuthError(null);
     
     try {
+      console.log("Initiating Google Auth flow");
       await initiateGoogleAuth();
     } catch (error) {
       console.error("Error initiating Google Auth:", error);
