@@ -1,8 +1,7 @@
-
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
-import { addDays, subDays, format } from 'date-fns';
+import { addDays, subDays, format, startOfWeek, endOfWeek } from 'date-fns';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -22,7 +21,6 @@ interface CampaignContextType {
   updateStatHistoryEntry: (campaignId: string, entry: any) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
   fetchCampaigns: () => Promise<void>;
-  // Add missing properties to fix type errors
   accountConnections: AccountConnection[];
   fetchGoogleAdsAccounts: () => Promise<any>;
   addAccountConnection: (connection: AccountConnection) => void;
@@ -46,7 +44,6 @@ export const CampaignContext = createContext<CampaignContextType>({
   updateStatHistoryEntry: () => {},
   deleteStatHistoryEntry: () => {},
   fetchCampaigns: async () => {},
-  // Add default values for new properties
   accountConnections: [],
   fetchGoogleAdsAccounts: async () => [],
   addAccountConnection: () => {},
@@ -61,11 +58,16 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: subDays(new Date(), 30).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const today = new Date();
+    const startOfCurrentWeek = startOfWeek(today);
+    const endOfCurrentWeek = endOfWeek(today);
+
+    return {
+      startDate: format(startOfCurrentWeek, 'yyyy-MM-dd'),
+      endDate: format(endOfCurrentWeek, 'yyyy-MM-dd'),
+    };
   });
-  // Add new state variables for the missing properties
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   
@@ -137,10 +139,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             }))
             : [];
 
-          // Fix TypeScript error with platform by ensuring it's properly typed
           const platform = campaign.platform as "google" | "facebook" | "linkedin";
           
-          // Get the targets data from campaign_targets or use defaults
           const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
             ? {
                 monthlyRetainers: campaign.campaign_targets[0].monthly_retainers || 0,
@@ -182,12 +182,10 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [user]);
 
-  // Add fetchGoogleAdsAccounts function
   const fetchGoogleAdsAccounts = async () => {
     try {
       setIsLoading(true);
       
-      // Fetch account connections from the database
       const { data, error } = await supabase
         .from('account_connections')
         .select('*')
@@ -198,23 +196,18 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         throw error;
       }
       
-      // Convert and store account connections
       const connections: AccountConnection[] = data.map(conn => {
-        // Process credentials to ensure it's an object
         let processedCredentials: Record<string, any> = {};
         
         if (conn.credentials) {
           if (typeof conn.credentials === 'string') {
             try {
-              // Try parsing if it's a JSON string
               processedCredentials = JSON.parse(conn.credentials);
             } catch (error) {
               console.error("Error parsing credentials string:", error);
-              // Use empty object as fallback
               processedCredentials = {};
             }
           } else if (typeof conn.credentials === 'object') {
-            // If it's already an object, use it directly
             processedCredentials = conn.credentials as Record<string, any>;
           }
         }
@@ -241,16 +234,12 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
   
-  // Add addAccountConnection function
   const addAccountConnection = (connection: AccountConnection) => {
     setAccountConnections(prev => {
-      // Check if connection already exists
       const exists = prev.some(conn => conn.id === connection.id);
       if (exists) {
-        // Update existing connection
         return prev.map(conn => conn.id === connection.id ? connection : conn);
       } else {
-        // Add new connection
         return [...prev, connection];
       }
     });
@@ -270,7 +259,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     try {
       const newCampaignId = uuidv4();
 
-      // Insert into campaigns table
       const { error: campaignError } = await supabase
         .from('campaigns')
         .insert([
@@ -297,7 +285,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         return;
       }
 
-      // Insert default stats entry
       const { error: statsError } = await supabase
         .from('campaign_stats')
         .insert([
@@ -315,7 +302,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         console.error("Error adding campaign stats:", statsError);
       }
       
-      // Insert default manual stats entry
       const { error: manualStatsError } = await supabase
         .from('campaign_manual_stats')
         .insert([
@@ -333,7 +319,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         console.error("Error adding campaign manual stats:", manualStatsError);
       }
 
-      // Fetch the updated campaigns
       await fetchCampaigns();
       toast.success("Campaign added successfully");
     } catch (err) {
@@ -350,7 +335,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     setError(null);
 
     try {
-      // Prepare updates for the campaigns table
       const campaignUpdates: { [key: string]: any } = {};
       if (updates.name !== undefined) campaignUpdates.name = updates.name;
       if (updates.platform !== undefined) campaignUpdates.platform = updates.platform;
@@ -365,7 +349,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         campaignUpdates.target_profit = updates.targets.targetProfit;
       }
 
-      // Update the campaign in the campaigns table
       const { error: campaignError } = await supabase
         .from('campaigns')
         .update(campaignUpdates)
@@ -378,7 +361,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         return;
       }
 
-      // Prepare updates for the campaign_manual_stats table
       if (updates.manualStats) {
         const manualStatsUpdates = {
           leads: updates.manualStats.leads,
@@ -388,7 +370,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           date: updates.manualStats.date,
         };
 
-        // Update the manual stats in the campaign_manual_stats table
         const { error: manualStatsError } = await supabase
           .from('campaign_manual_stats')
           .update(manualStatsUpdates)
@@ -399,7 +380,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         }
       }
 
-      // Fetch the updated campaigns
       await fetchCampaigns();
       toast.success("Campaign updated successfully");
     } catch (err) {
@@ -416,7 +396,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     setError(null);
 
     try {
-      // Delete the campaign from the campaigns table
       const { error: campaignError } = await supabase
         .from('campaigns')
         .delete()
@@ -429,7 +408,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         return;
       }
 
-      // Fetch the updated campaigns
       await fetchCampaigns();
       toast.success("Campaign deleted successfully");
     } catch (err) {
@@ -470,7 +448,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         toast.success("Stat history entry added successfully");
       }
   
-      // Fetch the updated campaigns
       await fetchCampaigns();
     } catch (err) {
       setError((err as Error).message);
@@ -506,7 +483,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         toast.success("Stat history entry updated successfully");
       }
       
-      // Fetch the updated campaigns
       await fetchCampaigns();
     } catch (err) {
       setError((err as Error).message);
@@ -535,7 +511,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         toast.success("Stat history entry deleted successfully");
       }
       
-      // Fetch the updated campaigns
       await fetchCampaigns();
     } catch (err) {
       setError((err as Error).message);
@@ -561,7 +536,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
     fetchCampaigns,
-    // Add new properties to the context value
     accountConnections,
     fetchGoogleAdsAccounts,
     addAccountConnection,
