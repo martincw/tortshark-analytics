@@ -1,6 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { GoogleAdsMetrics } from "@/types/campaign";
-import type { DateRange } from "@/contexts/CampaignContext";
+import { type DateRange } from "@/types/campaign";
 
 // Helper function to check if an object is empty
 const isEmptyObject = (obj: Record<string, any>) => {
@@ -118,8 +119,8 @@ export const fetchGoogleAdsMetrics = async (
     const formattedEndDate = endDate.split('T')[0];
     
     const response = await supabase.functions.invoke("google-ads", {
-      body: { action: "metrics" },
-      query: {
+      body: { 
+        action: "metrics",
         customer_id: customerId,
         start_date: formattedStartDate,
         end_date: formattedEndDate
@@ -160,11 +161,13 @@ export const getGoogleAdsCredentials = async () => {
     // First try to get locally stored values
     const localCustomerId = localStorage.getItem("googleAds_customer_id");
     const localDeveloperToken = localStorage.getItem("googleAds_developer_token");
+    const userEmail = localStorage.getItem("googleAds_user_email");
     
     if (localCustomerId && localDeveloperToken) {
       return {
         customerId: localCustomerId,
         developerToken: localDeveloperToken,
+        userEmail,
         source: 'localStorage'
       };
     }
@@ -182,6 +185,7 @@ export const getGoogleAdsCredentials = async () => {
       return {
         customerId: account.id,
         developerToken: "GOOGLE_ADS_DEVELOPER_TOKEN", // This is stored on the server
+        userEmail: null,
         source: 'server'
       };
     }
@@ -190,5 +194,105 @@ export const getGoogleAdsCredentials = async () => {
   } catch (error) {
     console.error('Error getting Google Ads credentials:', error);
     throw new Error(`No credentials found: ${error.message}`);
+  }
+};
+
+/**
+ * Revokes Google Ads access for the current user
+ */
+export const revokeGoogleAccess = async (): Promise<boolean> => {
+  try {
+    console.log("Revoking Google Ads access...");
+    
+    const response = await supabase.functions.invoke("google-ads", {
+      body: { action: "revoke" }
+    });
+
+    if (!response.data?.success) {
+      console.error("Failed to revoke Google Ads access:", response);
+      throw new Error(response.data?.error || 'Failed to revoke access');
+    }
+
+    // Clear local storage
+    localStorage.removeItem("googleAds_customer_id");
+    localStorage.removeItem("googleAds_developer_token");
+    localStorage.removeItem("googleAds_user_email");
+    localStorage.removeItem("googleAds_access_token");
+    localStorage.removeItem("googleAds_refresh_token");
+    localStorage.removeItem("googleAds_token_expiry");
+
+    return true;
+  } catch (error) {
+    console.error('Error revoking Google Ads access:', error);
+    return false;
+  }
+};
+
+/**
+ * Refreshes the Google Ads access token
+ */
+export const refreshGoogleToken = async (): Promise<boolean> => {
+  try {
+    console.log("Refreshing Google Ads token...");
+    
+    const response = await supabase.functions.invoke("google-ads", {
+      body: { action: "refresh" }
+    });
+
+    if (!response.data?.success) {
+      console.error("Failed to refresh Google Ads token:", response);
+      throw new Error(response.data?.error || 'Failed to refresh token');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error refreshing Google Ads token:', error);
+    return false;
+  }
+};
+
+/**
+ * Validates the current Google Ads token
+ */
+export const validateGoogleToken = async (): Promise<boolean> => {
+  try {
+    console.log("Validating Google Ads token...");
+    
+    const response = await supabase.functions.invoke("google-ads", {
+      body: { action: "validate" }
+    });
+
+    if (!response.data?.success) {
+      console.error("Failed to validate Google Ads token:", response);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error validating Google Ads token:', error);
+    return false;
+  }
+};
+
+/**
+ * Removes all Google Ads accounts for the current user
+ */
+export const cleanupAllAccounts = async (): Promise<boolean> => {
+  try {
+    console.log("Cleaning up all Google Ads accounts...");
+    
+    const response = await supabase.functions.invoke("google-ads-manager", {
+      body: { action: "delete-all-accounts" }
+    });
+
+    if (!response.data?.success) {
+      console.error("Failed to clean up Google Ads accounts:", response);
+      throw new Error(response.data?.error || 'Failed to clean up accounts');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error cleaning up Google Ads accounts:', error);
+    return false;
   }
 };

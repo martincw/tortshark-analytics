@@ -82,9 +82,13 @@ serve(async (req) => {
 
   try {
     const path = url.pathname.split('/').pop() || '';
+    const reqBody = req.method === 'POST' ? await req.json() : {};
     console.log(`Processing request: ${path}`);
+    
+    // Get the action from the body
+    const action = reqBody.action || '';
 
-    switch (path) {
+    switch (action) {
       // ────────────── Step 1: Redirect to Google OAuth ──────────────
       case "auth": {
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -102,7 +106,7 @@ serve(async (req) => {
 
       // ───────── Step 2: OAuth callback → save refresh_token ────────
       case "callback": {
-        const { code } = await req.json();
+        const { code } = reqBody;
         if (!code) {
           throw new Error("Missing authorization code");
         }
@@ -123,6 +127,24 @@ serve(async (req) => {
         const now = new Date();
         const expiresAt = new Date(now.getTime() + (tok.expires_in || 3600) * 1000);
         
+        // Extract user info if possible (for email)
+        let userEmail = null;
+        if (tok.access_token) {
+          try {
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+              headers: { Authorization: `Bearer ${tok.access_token}` }
+            });
+            
+            if (userInfoResponse.ok) {
+              const userInfo = await userInfoResponse.json();
+              userEmail = userInfo.email;
+              // Save to local storage via returned data
+            }
+          } catch (userInfoErr) {
+            console.warn("Could not fetch user email:", userInfoErr);
+          }
+        }
+        
         // Upsert into your table (user_id PK, refresh_token)
         const { error: upsertError } = await supabase
           .from("google_ads_tokens")
@@ -132,7 +154,8 @@ serve(async (req) => {
               refresh_token: tok.refresh_token,
               access_token: tok.access_token,
               expires_at: expiresAt.toISOString(),
-              scope: "https://www.googleapis.com/auth/adwords"
+              scope: "https://www.googleapis.com/auth/adwords",
+              email: userEmail
             },
             { onConflict: "user_id" }
           );
@@ -144,7 +167,8 @@ serve(async (req) => {
         
         return new Response(JSON.stringify({ 
           success: true, 
-          message: "Google Ads connected! Refresh token saved." 
+          message: "Google Ads connected! Refresh token saved.",
+          userEmail
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
@@ -204,72 +228,202 @@ serve(async (req) => {
         });
       }
 
-      // ───────── Step 4: Assign/Pause/Resume a campaign ────────────
-      case "assign": {
-        const { customer_id, campaign_id, status } = await req.json();
-        if (!customer_id || !campaign_id) {
+      // ────────── Refresh the OAuth token ─────────────────────────
+      case "refresh": {
+        try {
+          const rt = await getRefreshToken();
+          const tokenData = await fetchToken({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            refresh_token: rt,
+            grant_type: "refresh_token"
+          });
+          
+          if (!tokenData.access_token) {
+            throw new Error("Failed to refresh access token");
+          }
+          
+          const now = new Date();
+          const expiresAt = new Date(now.getTime() + (tokenData.expires_in || 3600) * 1000);
+          
+          // Update the access token in the database
+          const { error: updateError } = await supabase
+            .from("google_ads_tokens")
+            .update({
+              access_token: tokenData.access_token,
+              expires_at: expiresAt.toISOString(),
+              updated_at: now.toISOString()
+            })
+            .eq("user_id", user.id);
+            
+          if (updateError) {
+            console.error("Error updating token:", updateError);
+            throw new Error(`Failed to update token: ${updateError.message}`);
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: "Token refreshed successfully"
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        } catch (refreshError) {
+          console.error("Error refreshing token:", refreshError);
           return new Response(JSON.stringify({
             success: false,
-            error: "customer_id & campaign_id required"
+            error: refreshError.message || "Failed to refresh token"
           }), { 
-            status: 400,
+            status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
-        
-        const rt = await getRefreshToken();
-        const { access_token } = await fetchToken({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          refresh_token: rt,
-          grant_type: "refresh_token"
-        });
-        
-        const body = {
-          operations: [{
-            updateMask: "status",
-            update: {
-              resourceName: `customers/${customer_id}/campaigns/${campaign_id}`,
-              status
-            }
-          }]
-        };
-        
-        const resp = await fetch(
-          `https://googleads.googleapis.com/v14/customers/${customer_id}/campaigns:mutate`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-              "developer-token": DEVELOPER_TOKEN,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(body)
+      }
+      
+      // ────────── Validate the OAuth token ─────────────────────────
+      case "validate": {
+        try {
+          // Attempt to get the user's tokens
+          const { data: tokenData, error: tokenError } = await supabase
+            .from("google_ads_tokens")
+            .select("access_token, refresh_token, expires_at")
+            .eq("user_id", user.id)
+            .single();
+            
+          if (tokenError || !tokenData) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: "No tokens found"
+            }), { 
+              status: 404,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
           }
-        );
-        
-        const respData = await resp.text();
-        
-        return new Response(JSON.stringify({
-          success: resp.ok,
-          data: respData,
-          status: resp.status
-        }), { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+          
+          // Check if the token is expired
+          const now = new Date();
+          const expiresAt = new Date(tokenData.expires_at);
+          const isExpired = now >= expiresAt;
+          
+          if (isExpired) {
+            // Token is expired, try to refresh it
+            if (!tokenData.refresh_token) {
+              return new Response(JSON.stringify({
+                success: false,
+                error: "Token expired and no refresh token available"
+              }), { 
+                status: 401,
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+              });
+            }
+            
+            // Will auto-refresh in the getRefreshToken and fetchToken flow below
+          }
+          
+          // Try a simple API call to validate the token
+          const rt = await getRefreshToken();
+          const { access_token } = await fetchToken({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            refresh_token: rt,
+            grant_type: "refresh_token"
+          });
+          
+          // Make a simple API call to verify the token works
+          const testResp = await fetch(
+            "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
+            {
+              headers: {
+                Authorization: `Bearer ${access_token}`,
+                "developer-token": DEVELOPER_TOKEN
+              }
+            }
+          );
+          
+          const isValid = testResp.ok;
+          
+          return new Response(JSON.stringify({
+            success: isValid,
+            message: isValid ? "Token is valid" : "Token validation failed"
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        } catch (validationError) {
+          console.error("Error validating token:", validationError);
+          return new Response(JSON.stringify({
+            success: false,
+            error: validationError.message || "Failed to validate token"
+          }), { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      }
+      
+      // ────────── Revoke the OAuth token ─────────────────────────
+      case "revoke": {
+        try {
+          // Get the refresh token
+          const { data: tokenData, error: tokenError } = await supabase
+            .from("google_ads_tokens")
+            .select("refresh_token")
+            .eq("user_id", user.id)
+            .single();
+            
+          if (tokenError || !tokenData || !tokenData.refresh_token) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: "No tokens found to revoke"
+            }), { 
+              status: 404,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+          }
+          
+          // Revoke the token with Google
+          const revokeResp = await fetch(
+            `https://oauth2.googleapis.com/revoke?token=${tokenData.refresh_token}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            }
+          );
+          
+          // Whether the revoke was successful or not, delete the token from our database
+          const { error: deleteError } = await supabase
+            .from("google_ads_tokens")
+            .delete()
+            .eq("user_id", user.id);
+            
+          if (deleteError) {
+            console.error("Error deleting token:", deleteError);
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: "Google Ads access revoked"
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        } catch (revokeError) {
+          console.error("Error revoking access:", revokeError);
+          return new Response(JSON.stringify({
+            success: false,
+            error: revokeError.message || "Failed to revoke access"
+          }), { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
       }
 
-      // ──────── Step 5: Pull today's ad performance ──────────────
+      // ──────── Fetch metrics with provided date range ──────────────
       case "metrics": {
-        const url = new URL(req.url);
-        const customer_id = url.searchParams.get("customer_id");
-        const startDate = url.searchParams.get("start_date");
-        const endDate = url.searchParams.get("end_date");
-        
+        const { customer_id, start_date, end_date } = reqBody;
+
         if (!customer_id) {
           return new Response(JSON.stringify({
             success: false,
-            error: "customer_id query param required"
+            error: "customer_id is required"
           }), { 
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -286,8 +440,8 @@ serve(async (req) => {
         
         // Determine date condition based on provided params or default to current date
         let dateCondition = `segments.date = CURRENT_DATE`;
-        if (startDate && endDate) {
-          dateCondition = `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+        if (start_date && end_date) {
+          dateCondition = `segments.date BETWEEN '${start_date}' AND '${end_date}'`;
         }
         
         const queryBody = {
@@ -336,6 +490,8 @@ serve(async (req) => {
           clicks: parseInt(item.metrics?.clicks || '0', 10),
           adSpend: parseInt(item.metrics?.cost_micros || '0', 10) / 1000000, // Convert micros to dollars
           ctr: parseFloat(item.metrics?.ctr || '0') * 100, // Convert to percentage
+          cpc: parseFloat(item.metrics?.cost_micros || '0') / parseInt(item.metrics?.clicks || '1', 10) / 1000000,
+          cpl: 0 // This will be calculated on the frontend
         }));
         
         return new Response(JSON.stringify({ 
@@ -349,16 +505,18 @@ serve(async (req) => {
       default:
         return new Response(JSON.stringify({
           success: false,
-          error: "Not found",
-          availableEndpoints: [
-            "/auth", 
-            "/callback", 
-            "/accounts", 
-            "/assign", 
-            "/metrics"
+          error: "Invalid action",
+          availableActions: [
+            "auth", 
+            "callback", 
+            "accounts", 
+            "metrics", 
+            "refresh", 
+            "validate", 
+            "revoke"
           ]
         }), { 
-          status: 404,
+          status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     }

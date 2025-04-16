@@ -1,7 +1,4 @@
 
-# This is an example Supabase Project configuration to be used with Edge Functions.
-# place this file in this path: supabase/config.toml
-
 project_id = "msgqsgftjwpbnqenhfmc"
 
 [api]
@@ -79,4 +76,7 @@ url = ""
 
 [functions]
 [functions.google-ads]
+verify_jwt = true
+
+[functions.google-ads-manager]
 verify_jwt = true
