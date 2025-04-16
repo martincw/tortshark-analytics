@@ -294,21 +294,13 @@ export const fetchGoogleAdsMetrics = async (
   try {
     const credentials = await getGoogleAdsCredentials();
     if (!credentials) {
-      toast({
-        title: "Error",
-        description: "Google Ads credentials not found",
-        variant: "destructive",
-      });
+      toast.error("Google Ads credentials not found");
       return null;
     }
     
     const token = await getAuthToken();
     if (!token) {
-      toast({
-        title: "Error",
-        description: "Authentication token not found",
-        variant: "destructive",
-      });
+      toast.error("Authentication token not found");
       return null;
     }
     
@@ -333,22 +325,14 @@ export const fetchGoogleAdsMetrics = async (
     
     if (response.error || !response.data.success) {
       console.error("Error fetching Google Ads metrics:", response.error || response.data.error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch Google Ads metrics",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch Google Ads metrics");
       return null;
     }
     
     return response.data.metrics;
   } catch (error) {
     console.error("Error fetching Google Ads metrics:", error);
-    toast({
-      title: "Error",
-      description: "Failed to fetch Google Ads metrics",
-      variant: "destructive",
-    });
+    toast.error("Failed to fetch Google Ads metrics");
     return null;
   }
 };
