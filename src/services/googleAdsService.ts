@@ -515,19 +515,18 @@ export const cleanupDummyAccounts = async (): Promise<boolean> => {
     if (userId) {
       console.log(`Removing all accounts for user ID: ${userId} from Supabase`);
       
-      // Delete ALL account connections for this user
-      const { error: deleteError, count } = await supabase
+      // Delete ALL account connections for this user without using count in RETURNING
+      const { error: deleteError } = await supabase
         .from('account_connections')
         .delete()
         .eq('user_id', userId)
-        .eq('platform', 'google')
-        .select('count');
+        .eq('platform', 'google');
       
       if (deleteError) {
         console.error("Error deleting accounts from Supabase:", deleteError);
         toast.error("Error removing accounts from database");
       } else {
-        console.log(`Successfully removed ${count || 0} accounts from Supabase`);
+        console.log("Successfully removed accounts from Supabase");
       }
     }
     

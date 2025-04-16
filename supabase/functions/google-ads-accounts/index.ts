@@ -508,21 +508,34 @@ async function deleteAllAccounts(userId: string): Promise<{ success: boolean; re
     
     console.log(`Deleting ALL accounts for user ${userId}`);
     
-    // Delete all Google Ads accounts for this user
-    const { data, error, count } = await supabase
+    // First, count the accounts before deletion
+    const { data: accounts, error: countError } = await supabase
+      .from('account_connections')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('platform', 'google');
+    
+    if (countError) {
+      console.error("Error counting accounts:", countError);
+      return { success: false, removedCount: 0, error: countError.message };
+    }
+    
+    const accountCount = accounts?.length || 0;
+    
+    // Delete all Google Ads accounts for this user (without using count in RETURNING)
+    const { error } = await supabase
       .from('account_connections')
       .delete()
       .eq('user_id', userId)
-      .eq('platform', 'google')
-      .select('count');
+      .eq('platform', 'google');
     
     if (error) {
       console.error("Error deleting all accounts:", error);
       return { success: false, removedCount: 0, error: error.message };
     }
     
-    console.log(`Successfully deleted ${count || 0} accounts for user ${userId}`);
-    return { success: true, removedCount: count || 0 };
+    console.log(`Successfully deleted ${accountCount} accounts for user ${userId}`);
+    return { success: true, removedCount: accountCount };
   } catch (error) {
     console.error("Error in deleteAllAccounts:", error);
     return { success: false, removedCount: 0, error: error.message || "Unknown error" };
