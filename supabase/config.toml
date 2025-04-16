@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.google-ads-manager]
 verify_jwt = false
+
+[functions.google-oauth]
+verify_jwt = false

@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -224,10 +225,11 @@ serve(async (req) => {
         
         // Log detailed response info for debugging
         const responseStatus = tokenResponse.status;
+        const responseHeaders = Object.fromEntries(tokenResponse.headers.entries());
         const responseTextRaw = await tokenResponse.text();
         
         console.log(`Token exchange response status: ${responseStatus}`);
-        console.log(`Token exchange response headers: ${JSON.stringify([...tokenResponse.headers])}`);
+        console.log(`Token exchange response headers: ${JSON.stringify(responseHeaders)}`);
         
         if (responseTextRaw.length < 500) {
           // If response is small, log it fully (it's likely an error)
@@ -306,7 +308,7 @@ serve(async (req) => {
         try {
           console.log("Fetching Google Ads accounts");
           const accessibleCustomersResponse = await fetch(
-            "https://googleads.googleapis.com/v15/customers:listAccessibleCustomers",
+            "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
             {
               headers: {
                 Authorization: `Bearer ${tokens.access_token}`,
