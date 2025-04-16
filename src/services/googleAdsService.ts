@@ -1,620 +1,194 @@
-
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { AccountConnection, DateRange, GoogleAdsMetrics } from "@/types/campaign";
+import type { GoogleAdsMetrics } from "@/types/campaign";
+import type { DateRange } from "@/contexts/CampaignContext";
 
-// Add a debounce utility
-const debounce = (func: Function, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return function executedFunction(...args: any[]) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
+// Helper function to check if an object is empty
+const isEmptyObject = (obj: Record<string, any>) => {
+  return Object.keys(obj).length === 0;
 };
 
-const GOOGLE_CONFIG = {
-  developerToken: "Ngh3IukgQ3ovdkH3M0smUg",
-  redirectUri: "https://app.tortshark.com/integrations"
+// Initialize Google Ads configuration
+export const GOOGLE_CONFIG = {
+  redirectUri: 'https://app.tortshark.com/integrations'
 };
 
-const getAuthToken = async (): Promise<string | null> => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
-  } catch (error) {
-    console.warn("Error getting auth token:", error);
-    return null;
-  }
-};
-
+/**
+ * Initiates the Google OAuth flow
+ */
 export const initiateGoogleAuth = async (userEmail?: string) => {
   try {
-    let headers = {};
-    const token = await getAuthToken();
-    if (token) {
-      headers = { Authorization: `Bearer ${token}` };
-    } else {
-      console.warn("No auth token available, proceeding without authentication");
-    }
+    console.log("Initiating Google Auth...");
     
-    const email = userEmail || localStorage.getItem("userEmail") || "";
-    
-    console.log("Initiating Google OAuth flow...");
-    
-    const response = await supabase.functions.invoke("google-oauth", {
+    const response = await supabase.functions.invoke("google-ads", {
       body: { 
-        action: "authorize",
-        email: email,
-        redirectUri: GOOGLE_CONFIG.redirectUri
-      },
-      headers
-    }).catch(error => {
-      console.error("Error calling Google OAuth function:", error);
-      if (error.message && (
-        error.message.includes("Failed to fetch") || 
-        error.message.includes("NetworkError") || 
-        error.message.includes("refused to connect")
-      )) {
-        throw new Error(`Network connection error: Unable to connect to authentication service. 
-                       Please check your internet connection and firewall settings.`);
+        action: "auth",
+        email: userEmail
       }
-      throw error;
     });
-    
-    if (response.error) {
-      console.error("Error initiating Google OAuth:", response.error);
-      toast.error("Failed to initiate Google authentication");
-      throw new Error(`Error initiating Google OAuth: ${response.error.message}`);
-    }
-    
+
     if (!response.data?.url) {
+      console.error("No authorization URL received:", response);
       throw new Error('No authorization URL received');
     }
-    
-    console.log("OAuth response:", response.data);
-    console.log("OAuth URL:", response.data.url);
-    
-    localStorage.setItem("oauth_debug", JSON.stringify(response.data.debug));
-    localStorage.setItem("oauth_ts", new Date().toISOString());
-    
+
     return response.data;
   } catch (error) {
-    console.error("Error initiating Google auth:", error);
-    toast.error(error.message || "Failed to initiate Google authentication");
+    console.error('Error initiating Google Auth:', error);
     throw error;
   }
 };
 
-export const handleOAuthCallback = async (): Promise<boolean> => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  const error = urlParams.get('error');
-  
-  // Add a unique request ID to help with debugging
-  const requestId = Math.random().toString(36).substring(7);
-  console.log(`Starting OAuth callback processing (${requestId})`);
-  
-  if (error) {
-    console.error(`OAuth error from Google (${requestId}): ${error}`);
-    const errorDescription = urlParams.get('error_description');
-    throw new Error(`Google OAuth error: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`);
-  }
-  
-  if (!code) {
-    console.error(`No auth code found in URL (${requestId})`);
-    return false;
-  }
-  
-  console.log(`Received auth code from Google (${requestId}), length: ${code.length}`);
-  
+/**
+ * Handles the OAuth callback after Google redirects back
+ */
+export const handleOAuthCallback = async () => {
   try {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
+    // Get the authorization code from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-      console.log(`User authentication token available for callback (${requestId})`);
-    } else {
-      console.warn(`No user authentication token available for callback (${requestId})`);
+    if (!code) {
+      throw new Error('No authorization code received');
     }
     
-    console.log(`Calling google-oauth edge function with callback action (${requestId})`);
-    const response = await supabase.functions.invoke("google-oauth", {
+    console.log("Processing OAuth callback with code");
+    
+    const response = await supabase.functions.invoke("google-ads", {
       body: { 
         action: "callback",
-        code,
-        redirectUri: GOOGLE_CONFIG.redirectUri,
-        requestId
-      },
-      headers
+        code
+      }
     });
-    
-    console.log(`Edge function response status (${requestId}):`, response.error ? "error" : "success");
-    
-    if (response.error) {
-      console.error(`Error handling OAuth callback (${requestId}):`, response.error);
-      toast.error(`Failed to complete Google authentication: ${response.error.message}`);
-      throw new Error(`Error exchanging code for tokens: ${response.error.message}`);
+
+    if (!response.data?.success) {
+      console.error("OAuth callback failed:", response);
+      throw new Error(response.data?.error || 'Failed to process OAuth callback');
     }
-    
-    localStorage.setItem("oauth_callback_response", JSON.stringify({
-      success: response.data.success,
-      hasAccessToken: !!response.data.accessToken,
-      hasRefreshToken: !!response.data.refreshToken,
-      userEmail: response.data.userEmail || null,
-      timestamp: new Date().toISOString(),
-      requestId
-    }));
-    
-    if (response.data.success) {
-      console.log(`Successfully obtained tokens (${requestId}), storing in localStorage`);
-      localStorage.setItem("googleAds_access_token", response.data.accessToken);
-      localStorage.setItem("googleAds_refresh_token", response.data.refreshToken);
-      localStorage.setItem("googleAds_token_expiry", response.data.expiry_date.toString());
-      localStorage.setItem("userEmail", response.data.userEmail);
-      
-      if (response.data.accounts && response.data.accounts.length > 0) {
-        console.log(`Storing ${response.data.accounts.length} Google Ads accounts (${requestId})`);
-        localStorage.setItem("googleAds_accounts", JSON.stringify(response.data.accounts));
-        localStorage.setItem("googleAds_account_id", response.data.accounts[0].id);
-      } else {
-        console.log(`No Google Ads accounts returned in response (${requestId})`);
-      }
-      
-      if (response.data.warning) {
-        console.warn(`Warning from Google Ads API (${requestId}):`, response.data.warning);
-      }
-      
-      toast.success("Successfully connected to Google Ads");
-      return true;
-    }
-    
-    console.error(`Callback processed but response indicated failure (${requestId})`);
-    return false;
+
+    return true;
   } catch (error) {
-    console.error(`Error handling OAuth callback (${requestId}):`, error);
-    toast.error(error.message || "Failed to complete Google authentication");
+    console.error('Error handling OAuth callback:', error);
     throw error;
   }
 };
 
-// Wrap the Google Ads accounts fetching in a debounced function to prevent excessive calls
-const debouncedFetchAccounts = debounce(async (accessToken: string, token: string | null, onSuccess: (accounts: any[]) => void, onError: (error: any) => void) => {
+/**
+ * Fetches Google Ads accounts for the current user
+ */
+export const listGoogleAdsAccounts = async () => {
   try {
-    const headers: Record<string, string> = {};
+    console.log("Fetching Google Ads accounts...");
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn("No auth token available, proceeding without authentication");
-    }
-    
-    const response = await supabase.functions.invoke("google-ads-manager", {
-      body: { 
-        action: "list-accounts",
-        accessToken
-      },
-      headers
+    const response = await supabase.functions.invoke("google-ads", {
+      body: { action: "accounts" }
     });
-    
-    if (response.error) {
-      console.error("Error from Edge Function:", response.error);
-      onError(response.error);
-      return;
-    }
-    
-    if (!response.data || !response.data.success) {
-      console.error("Error from API:", response.data?.error || "Unknown error");
-      onError(response.data?.error || "Failed to fetch Google Ads accounts");
-      return;
-    }
-    
-    onSuccess(response.data.accounts || []);
-  } catch (error) {
-    console.error("Error in debounced fetch accounts:", error);
-    onError(error);
-  }
-}, 1000); // 1 second debounce
 
-export const getGoogleAdsCredentials = async (): Promise<any | null> => {
-  try {
-    const token = await getAuthToken();
-    
-    // First check localStorage for cached credentials
-    const accessToken = localStorage.getItem("googleAds_access_token");
-    const accountId = localStorage.getItem("googleAds_account_id");
-    
-    // If we have locally cached credentials, use them first instead of waiting for the server
-    if (accessToken) {
-      console.log("Using cached credentials from localStorage");
-      return {
-        accessToken,
-        customerId: accountId,
-        developerToken: GOOGLE_CONFIG.developerToken,
-        userEmail: localStorage.getItem("userEmail"),
-        source: "localStorage" // Add source for debugging
-      };
+    if (!response.data?.success) {
+      console.error("Failed to fetch Google Ads accounts:", response);
+      throw new Error(response.data?.error || 'Failed to fetch Google Ads accounts');
     }
-    
-    if (!token) {
-      console.warn("No auth token available, cannot fetch credentials from server");
-      return null;
-    }
-    
-    console.log("Fetching credentials from server...");
-    const response = await supabase.functions.invoke("google-oauth", {
-      body: { 
-        action: "get-credentials"
-      },
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    
-    if (response.error) {
-      console.error("Error fetching credentials from server:", response.error);
-      return null;
-    }
-    
-    if (!response.data.success) {
-      console.log("No credentials found on server:", response.data.error);
-      return null;
-    }
-    
-    // Store the credentials in localStorage
-    if (response.data.accessToken) {
-      localStorage.setItem("googleAds_access_token", response.data.accessToken);
-    }
-    
-    return {
-      accessToken: response.data.accessToken,
-      customerId: response.data.customerId,
-      developerToken: response.data.developerToken,
-      userEmail: response.data.userEmail,
-      source: "server" // Add source for debugging
-    };
+
+    return response.data.accounts || [];
   } catch (error) {
-    console.error("Error getting Google Ads credentials:", error);
-    return null;
+    console.error('Error fetching Google Ads accounts:', error);
+    throw error;
   }
 };
 
-export const listGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
-  try {
-    const credentials = await getGoogleAdsCredentials();
-    
-    if (!credentials || !credentials.accessToken) {
-      console.error("Cannot list Google Ads accounts: No valid credentials found");
-      toast.error("Google Ads access token not found. Please connect your account first.");
-      return [];
-    }
-    
-    console.log("Fetching Google Ads accounts using optimized endpoint");
-    
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn("No auth token available, proceeding without authentication");
-      return [];
-    }
-    
-    // Create a promise-based wrapper for the debounced fetch
-    return new Promise((resolve, reject) => {
-      debouncedFetchAccounts(
-        credentials.accessToken,
-        token,
-        (accounts) => {
-          if (accounts.length > 0) {
-            localStorage.setItem("googleAds_accounts", JSON.stringify(accounts));
-            
-            const mappedAccounts = accounts.map((account: any) => ({
-              id: account.id,
-              name: account.name || `Google Ads Account ${account.id}`,
-              platform: "google",
-              isConnected: true,
-              lastSynced: new Date().toISOString(),
-              customerId: account.id,
-              credentials: {}
-            }));
-            
-            resolve(mappedAccounts);
-          } else {
-            toast.info("No Google Ads accounts found");
-            resolve([]);
-          }
-        },
-        (error) => {
-          toast.error("Failed to list Google Ads accounts");
-          console.error("Error in listGoogleAdsAccounts:", error);
-          reject(error);
-        }
-      );
-    });
-  } catch (error) {
-    console.error("Error listing Google Ads accounts:", error);
-    toast.error("Failed to list Google Ads accounts");
-    return [];
-  }
-};
-
+/**
+ * Fetches Google Ads metrics for a specific account and date range
+ */
 export const fetchGoogleAdsMetrics = async (
   customerId: string,
   dateRange: DateRange
-): Promise<GoogleAdsMetrics[] | null> => {
+): Promise<GoogleAdsMetrics[]> => {
   try {
-    const credentials = await getGoogleAdsCredentials();
-    if (!credentials) {
-      toast.error("Google Ads credentials not found");
-      return null;
+    if (!customerId) {
+      throw new Error("Customer ID is required");
     }
     
-    const token = await getAuthToken();
-    if (!token) {
-      toast.error("Authentication token not found");
-      return null;
+    const { startDate, endDate } = dateRange;
+    if (!startDate || !endDate) {
+      throw new Error("Start and end dates are required");
     }
     
-    if (!dateRange.startDate || !dateRange.endDate) {
-      console.log("Date range is missing start or end date, can't fetch metrics");
-      return null;
-    }
+    console.log(`Fetching Google Ads metrics for customer ${customerId} from ${startDate} to ${endDate}`);
     
-    console.log(`Fetching Google Ads metrics with date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+    const formattedStartDate = startDate.split('T')[0];
+    const formattedEndDate = endDate.split('T')[0];
     
-    const response = await supabase.functions.invoke("google-ads-data", {
-      body: { 
-        action: "get-metrics",
-        customerId: customerId,
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      },
-      headers: {
-        Authorization: `Bearer ${token}`
+    const response = await supabase.functions.invoke("google-ads", {
+      body: { action: "metrics" },
+      query: {
+        customer_id: customerId,
+        start_date: formattedStartDate,
+        end_date: formattedEndDate
       }
     });
-    
-    if (response.error || !response.data.success) {
-      console.error("Error fetching Google Ads metrics:", response.error || response.data.error);
-      toast.error("Failed to fetch Google Ads metrics");
-      return null;
+
+    if (!response.data?.success) {
+      console.error("Failed to fetch Google Ads metrics:", response);
+      throw new Error(response.data?.error || 'Failed to fetch Google Ads metrics');
     }
-    
-    return response.data.metrics;
+
+    return response.data.metrics || [];
   } catch (error) {
-    console.error("Error fetching Google Ads metrics:", error);
-    toast.error("Failed to fetch Google Ads metrics");
-    return null;
+    console.error('Error fetching Google Ads metrics:', error);
+    throw error;
   }
 };
 
-export const validateGoogleToken = async (): Promise<boolean> => {
-  try {
-    const accessToken = localStorage.getItem("googleAds_access_token");
-    
-    if (!accessToken) {
-      console.log("No access token found for validation");
-      return false;
-    }
-    
-    console.log("Calling token validation endpoint");
-    
-    const response = await supabase.functions.invoke("google-oauth", {
-      body: { 
-        action: "validate-token",
-        accessToken
-      }
-    });
-    
-    console.log("Token validation response:", response);
-    
-    if (response.error || !response.data.success) {
-      console.error("Error validating token:", response.error || response.data.error);
-      return false;
-    }
-    
-    return response.data.valid;
-  } catch (error) {
-    console.error("Error validating token:", error);
-    return false;
-  }
-};
-
+/**
+ * Checks if Google Ads authentication is valid
+ */
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
-    // First check localStorage for quick validation
-    const accessToken = localStorage.getItem("googleAds_access_token");
-    
-    if (!accessToken) {
-      console.log("No access token in localStorage, Google Auth is not valid");
-      return false;
-    }
-    
-    // Check server-side credentials too (for completeness)
-    const token = await getAuthToken();
-    if (token) {
-      console.log("Checking server-side credentials");
-      try {
-        const response = await supabase.functions.invoke("google-oauth", {
-          body: { 
-            action: "get-credentials"
-          },
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        
-        if (!response.error && response.data.success) {
-          console.log("Server-side credentials found and valid");
-          return true;
-        }
-      } catch (e) {
-        console.warn("Error checking server-side credentials:", e);
-        // Continue with localStorage validation
-      }
-    }
-    
-    // Check token expiry
-    const expiry = localStorage.getItem("googleAds_token_expiry");
-    
-    if (expiry && new Date(Number(expiry)) <= new Date()) {
-      console.log("Token expired, attempting refresh");
-      const refreshed = await refreshGoogleToken();
-      return refreshed;
-    }
-    
-    // Validate token if needed
-    const isValid = await validateGoogleToken();
-    return isValid;
+    // Try to fetch accounts as a validation test
+    const accounts = await listGoogleAdsAccounts();
+    return Array.isArray(accounts) && accounts.length > 0;
   } catch (error) {
-    console.error("Error checking Google auth validity:", error);
+    console.warn('Google Ads authentication is not valid:', error);
     return false;
   }
 };
 
-export const refreshGoogleToken = async (): Promise<boolean> => {
+/**
+ * Gets Google Ads credentials (customerId, developerToken) for API calls
+ */
+export const getGoogleAdsCredentials = async () => {
   try {
-    const refreshToken = localStorage.getItem("googleAds_refresh_token");
+    // First try to get locally stored values
+    const localCustomerId = localStorage.getItem("googleAds_customer_id");
+    const localDeveloperToken = localStorage.getItem("googleAds_developer_token");
     
-    if (!refreshToken) {
-      console.error("No refresh token available");
-      return false;
+    if (localCustomerId && localDeveloperToken) {
+      return {
+        customerId: localCustomerId,
+        developerToken: localDeveloperToken,
+        source: 'localStorage'
+      };
     }
     
-    console.log("Calling direct refresh token endpoint");
+    // If not found locally, try to get from backend
+    const accounts = await listGoogleAdsAccounts();
     
-    const response = await supabase.functions.invoke("google-oauth", {
-      body: { 
-        action: "refresh-direct",
-        refreshToken
-      }
-    });
-    
-    console.log("Token refresh response:", response);
-    
-    if (response.error || !response.data.success) {
-      console.error("Error refreshing token:", response.error || response.data.error);
-      return false;
+    if (Array.isArray(accounts) && accounts.length > 0) {
+      // Find the first non-manager account
+      const account = accounts.find(acc => !acc.manager) || accounts[0];
+      
+      // Store for future use
+      localStorage.setItem("googleAds_customer_id", account.id);
+      
+      return {
+        customerId: account.id,
+        developerToken: "GOOGLE_ADS_DEVELOPER_TOKEN", // This is stored on the server
+        source: 'server'
+      };
     }
     
-    localStorage.setItem("googleAds_access_token", response.data.accessToken);
-    if (response.data.expiryDate) {
-      localStorage.setItem("googleAds_token_expiry", response.data.expiryDate.toString());
-    }
-    
-    console.log("Token refreshed successfully");
-    return true;
+    throw new Error("No Google Ads accounts found");
   } catch (error) {
-    console.error("Error refreshing token:", error);
-    return false;
+    console.error('Error getting Google Ads credentials:', error);
+    throw new Error(`No credentials found: ${error.message}`);
   }
 };
-
-export const revokeGoogleAccess = async (): Promise<boolean> => {
-  try {
-    const accessToken = localStorage.getItem("googleAds_access_token");
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    
-    const response = await supabase.functions.invoke("google-oauth", {
-      body: { 
-        action: "revoke",
-        accessToken
-      },
-      headers
-    });
-    
-    if (response.error) {
-      console.error("Error revoking access:", response.error);
-    } else {
-      console.log("Revocation response:", response.data);
-    }
-    
-    localStorage.removeItem("googleAds_access_token");
-    localStorage.removeItem("googleAds_refresh_token");
-    localStorage.removeItem("googleAds_token_expiry");
-    localStorage.removeItem("googleAds_account_id");
-    localStorage.removeItem("googleAds_accounts");
-    
-    return true;
-  } catch (error) {
-    console.error("Error revoking access:", error);
-    return true;
-  }
-};
-
-export const fetchGoogleAdsAccounts = listGoogleAdsAccounts;
-
-export const cleanupAllAccounts = async (): Promise<boolean> => {
-  try {
-    console.log("Starting complete cleanup of ALL Google Ads accounts");
-    
-    const token = await getAuthToken();
-    
-    if (!token) {
-      console.warn("No auth token available, cannot proceed with account deletion");
-      toast.error("Authentication required for account deletion");
-      return false;
-    }
-    
-    console.log("Removing all accounts from localStorage");
-    localStorage.removeItem("googleAds_accounts");
-    localStorage.removeItem("googleAds_account_id");
-    
-    const response = await supabase.functions.invoke("google-ads-manager", {
-      body: { 
-        action: "delete-all-accounts"
-      },
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    
-    console.log("Cleanup response from edge function:", response);
-    
-    if (response.error) {
-      console.error("Error from Edge Function:", response.error);
-      toast.error("Server error during cleanup operation");
-      return false;
-    } 
-    
-    if (response.data && response.data.success) {
-      const removedCount = response.data.removedCount || 0;
-      toast.success(`Successfully removed all ${removedCount} Google Ads accounts`);
-      return true;
-    } else {
-      console.error("Error from API:", response.data?.error || "Unknown error");
-      toast.error(response.data?.error || "Failed to remove accounts");
-      return false;
-    }
-  } catch (error) {
-    console.error("Error cleaning up accounts:", error);
-    toast.error("Failed to clean up accounts");
-    return false;
-  }
-};
-
-export const googleAdsService = {
-  initiateGoogleAuth,
-  handleOAuthCallback,
-  getGoogleAdsCredentials,
-  fetchGoogleAdsMetrics,
-  isGoogleAuthValid,
-  refreshGoogleToken,
-  listGoogleAdsAccounts,
-  fetchGoogleAdsAccounts,
-  revokeGoogleAccess,
-  validateGoogleToken,
-  cleanupAllAccounts
-};
-
