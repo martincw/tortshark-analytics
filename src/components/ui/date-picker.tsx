@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -18,31 +19,21 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
-  // Fix the off-by-one day issue by ensuring we're working with the exact selected date
   const handleSelect = (selectedDate: Date | undefined) => {
-    console.log('DatePicker - Raw selected date:', selectedDate);
-    
     if (!selectedDate) {
       onSelect(undefined);
       return;
     }
     
-    // Create a new date object to prevent any reference issues
-    // and ensure we're using the exact date that was selected
-    const correctedDate = new Date(selectedDate);
+    // Create a new date at midnight local time
+    const newDate = new Date(selectedDate);
+    newDate.setHours(0, 0, 0, 0);
     
-    // Set the time to noon to avoid any potential day boundary issues
-    correctedDate.setHours(12, 0, 0, 0);
+    console.log('DatePicker - Selected date:', selectedDate);
+    console.log('DatePicker - Normalized date:', newDate);
+    console.log('DatePicker - Stored format:', formatDateForStorage(newDate));
     
-    console.log('DatePicker - Original selected date:', selectedDate.toISOString());
-    console.log('DatePicker - Corrected date:', correctedDate.toISOString());
-    console.log('DatePicker - Date components:', {
-      year: correctedDate.getFullYear(),
-      month: correctedDate.getMonth() + 1, // +1 because months are 0-indexed
-      day: correctedDate.getDate()
-    });
-    
-    onSelect(correctedDate);
+    onSelect(newDate);
   };
 
   return (
