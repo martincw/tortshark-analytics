@@ -192,22 +192,16 @@ const CampaignDetail = () => {
   
   const onCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      const normalizedDate = new Date(date);
-      normalizedDate.setHours(12, 0, 0, 0);
-      
-      console.log("Selected date in add dialog:", normalizedDate);
-      setSelectedDate(normalizedDate);
+      console.log("Selected date in add dialog:", date);
+      setSelectedDate(date);
       setCalendarOpen(false);
     }
   };
   
   const onEditCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      const normalizedDate = new Date(date);
-      normalizedDate.setHours(12, 0, 0, 0);
-      
-      console.log("Selected edit date:", normalizedDate);
-      setEditDate(normalizedDate);
+      console.log("Selected edit date:", date);
+      setEditDate(date);
       setEditCalendarOpen(false);
     }
   };
@@ -288,6 +282,9 @@ const CampaignDetail = () => {
       }
       
       console.log("Original entry date:", entry.date, "Parsed date:", entryDate);
+      
+      // Set time to noon to avoid timezone issues
+      entryDate.setHours(12, 0, 0, 0);
       setEditDate(entryDate);
       
       setEditEntryDialogOpen(true);
