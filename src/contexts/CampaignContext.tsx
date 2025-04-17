@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
-import { addDays, subDays, format, startOfWeek, endOfWeek } from 'date-fns';
+import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -127,16 +127,30 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             : { leads: 0, cases: 0, retainers: 0, revenue: 0, date: '' };
 
           const statsHistory = campaign.campaign_stats_history
-            ? campaign.campaign_stats_history.map(history => ({
-              id: history.id,
-              date: history.date || '',
-              leads: history.leads || 0,
-              cases: history.cases || 0,
-              retainers: history.retainers || 0,
-              revenue: history.revenue || 0,
-              adSpend: history.ad_spend || 0,
-              createdAt: history.created_at || ''
-            }))
+            ? campaign.campaign_stats_history.map(history => {
+              let formattedDate = history.date || '';
+              
+              if (formattedDate && typeof formattedDate === 'string') {
+                try {
+                  if (formattedDate.includes('T')) {
+                    formattedDate = format(parseISO(formattedDate), 'yyyy-MM-dd');
+                  }
+                } catch (err) {
+                  console.error(`Error formatting date ${formattedDate}:`, err);
+                }
+              }
+              
+              return {
+                id: history.id,
+                date: formattedDate,
+                leads: history.leads || 0,
+                cases: history.cases || 0,
+                retainers: history.retainers || 0,
+                revenue: history.revenue || 0,
+                adSpend: history.ad_spend || 0,
+                createdAt: history.created_at || ''
+              };
+            })
             : [];
 
           const platform = campaign.platform as "google" | "facebook" | "linkedin";
@@ -478,7 +492,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     
     try {
       console.log("Updating stats history entry with date:", entry.date);
-      
       console.log("Full stats entry being updated:", entry);
       
       const { error } = await supabase
@@ -499,7 +512,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         toast.error("Failed to update stat history entry");
       } else {
         toast.success("Stat history entry updated successfully");
-        
         await fetchCampaigns();
       }
     } catch (err) {

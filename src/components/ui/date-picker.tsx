@@ -1,6 +1,6 @@
 
 import React from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,16 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
       
       console.log('DatePicker - Original selected date:', selectedDate);
       console.log('DatePicker - UTC noon date:', utcDate);
+      console.log('DatePicker - Formatted as string:', format(utcDate, 'yyyy-MM-dd'));
       
       onSelect(utcDate);
     } else {
       onSelect(undefined);
     }
   };
+
+  // Format display date consistently
+  const displayDate = date ? format(date, "PPP") : undefined;
 
   return (
     <Popover>
@@ -44,12 +48,12 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
           variant={"outline"}
           className={cn(
             "w-[240px] justify-start text-left font-normal",
-            !date && "text-muted-foreground",
+            !displayDate && "text-muted-foreground",
             className
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>Pick a date</span>}
+          {displayDate ? displayDate : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
