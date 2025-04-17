@@ -51,10 +51,15 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
+  const formatDateKey = (date: Date): string => {
+    // Always format dates as YYYY-MM-DD for consistency
+    return format(date, "yyyy-MM-dd");
+  };
+
   const weekDates = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + i);
-    date.setHours(12, 0, 0, 0);
+    date.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
     return date;
   });
 
@@ -147,7 +152,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSaveDailyStats = async () => {
     if (!user) {
       toast.error("You must be logged in to add stats");
       return;
@@ -170,7 +175,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
-          const dateKey = format(date, "yyyy-MM-dd");
+          const dateKey = formatDateKey(date);
           const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
           
           console.log(`Processing stats for campaign ${campaignId} on date ${dateKey}`);
@@ -217,7 +222,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         }
       }
       
-      const recentDateKey = format(weekDates[weekDates.length - 1], "yyyy-MM-dd");
+      const recentDateKey = formatDateKey(weekDates[weekDates.length - 1]);
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
@@ -280,7 +285,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     }
   };
 
-  const currentDateKey = format(weekDates[parseInt(activeDay)], "yyyy-MM-dd");
+  const currentDateKey = formatDateKey(weekDates[parseInt(activeDay)]);
   const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
 
   return (
@@ -349,7 +354,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                   </TableCell>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
                   {weekDates.map((date, index) => {
-                    const dateKey = format(date, "yyyy-MM-dd");
+                    const dateKey = formatDateKey(date);
                     return (
                       <TableCell key={index}>
                         <Input
@@ -455,7 +460,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
 
       <div className="flex justify-end">
         <Button 
-          onClick={handleSubmit} 
+          onClick={handleSaveDailyStats} 
           disabled={loading || Object.values(selectedCampaigns).filter(Boolean).length === 0}
         >
           {loading ? "Saving..." : "Save All Ad Stats"}

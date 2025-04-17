@@ -1,6 +1,6 @@
 
 import React from "react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,19 +20,19 @@ interface DatePickerProps {
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      // Clone the date and force the time to be at noon UTC
-      const utcDate = new Date(Date.UTC(
+      // Create a new date at noon to avoid timezone issues
+      const standardizedDate = new Date(
         selectedDate.getFullYear(),
         selectedDate.getMonth(),
         selectedDate.getDate(),
         12, 0, 0, 0
-      ));
+      );
       
-      console.log('DatePicker - Original selected date:', selectedDate);
-      console.log('DatePicker - UTC noon date:', utcDate);
-      console.log('DatePicker - Formatted as string:', format(utcDate, 'yyyy-MM-dd'));
+      console.log('DatePicker - Selected date:', selectedDate);
+      console.log('DatePicker - Standardized date:', standardizedDate);
+      console.log('DatePicker - Formatted for display:', format(standardizedDate, "yyyy-MM-dd"));
       
-      onSelect(utcDate);
+      onSelect(standardizedDate);
     } else {
       onSelect(undefined);
     }

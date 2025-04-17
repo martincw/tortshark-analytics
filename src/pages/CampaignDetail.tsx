@@ -314,13 +314,11 @@ const CampaignDetail = () => {
     const entry = campaign.statsHistory.find(e => e.id === editingEntryId);
     if (!entry) return;
     
-    console.log("Saving edited entry with date:", editDate);
+    // Format the date consistently as YYYY-MM-DD
+    const formattedDate = format(editDate, "yyyy-MM-dd");
     
-    // Create a simple YYYY-MM-DD string to store in the database
-    // This is critical - we're explicitly formatting the date to ensure consistency
-    const formattedDate = `${editDate.getUTCFullYear()}-${String(editDate.getUTCMonth() + 1).padStart(2, '0')}-${String(editDate.getUTCDate()).padStart(2, '0')}`;
-    
-    console.log("Manually formatted date to save:", formattedDate);
+    console.log("Saving edited entry date:", formattedDate);
+    console.log("Original edit date object:", editDate);
     
     const updatedEntry = {
       ...entry,
@@ -337,7 +335,6 @@ const CampaignDetail = () => {
     
     updateStatHistoryEntry(campaign.id, updatedEntry);
     
-    // Close dialogs and reset state after updating
     setEditEntryDialogOpen(false);
     setEditingEntryId(null);
     setEditCalendarOpen(false);
@@ -393,14 +390,43 @@ const CampaignDetail = () => {
 
   const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
     try {
-      const date = parseISO(dateString);
+      if (!dateString) {
+        console.warn(`Empty date string received`);
+        return "Invalid date";
+      }
       
-      if (!isValid(date)) {
+      // First, standardize the date format to handle different input formats
+      let dateToFormat: Date;
+      
+      console.log(`Formatting date string: "${dateString}"`);
+      
+      // Handle ISO strings or YYYY-MM-DD format
+      if (dateString.includes('T')) {
+        // ISO format - create a date object and set to noon of the same day to avoid timezone issues
+        dateToFormat = new Date(dateString);
+      } else {
+        // YYYY-MM-DD format - split and create date at noon
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+          dateToFormat = new Date(
+            parseInt(parts[0]),
+            parseInt(parts[1]) - 1,
+            parseInt(parts[2]),
+            12, 0, 0, 0
+          );
+        } else {
+          throw new Error(`Invalid date format: ${dateString}`);
+        }
+      }
+      
+      // Validate date is valid
+      if (isNaN(dateToFormat.getTime())) {
         console.warn(`Invalid date after parsing: ${dateString}`);
         return "Invalid date";
       }
       
-      return format(date, formatStr);
+      console.log(`Parsed date: ${dateToFormat.toISOString()}, will format as: ${formatStr}`);
+      return format(dateToFormat, formatStr);
     } catch (error) {
       console.error(`Error formatting date: ${dateString}`, error);
       return "Invalid date";

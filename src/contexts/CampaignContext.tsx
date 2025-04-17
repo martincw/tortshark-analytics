@@ -491,13 +491,25 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     setError(null);
     
     try {
-      console.log("Updating stats history entry with date:", entry.date);
-      console.log("Full stats entry being updated:", entry);
+      // Ensure the date is in the correct format (YYYY-MM-DD)
+      let formattedDate = entry.date;
+      
+      console.log("Entry date before formatting:", entry.date);
+      console.log("Entry date type:", typeof entry.date);
+      
+      // Don't attempt to reformat if it's already in YYYY-MM-DD format
+      if (typeof entry.date === 'string' && entry.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.log("Date is already in YYYY-MM-DD format, using as is:", entry.date);
+        formattedDate = entry.date;
+      } else if (entry.date instanceof Date) {
+        formattedDate = format(entry.date, 'yyyy-MM-dd');
+        console.log("Formatted date from Date object:", formattedDate);
+      }
       
       const { error } = await supabase
         .from('campaign_stats_history')
         .update({
-          date: entry.date,
+          date: formattedDate,
           leads: entry.leads,
           cases: entry.cases,
           retainers: entry.retainers,
