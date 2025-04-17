@@ -477,6 +477,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     setError(null);
     
     try {
+      console.log("Updating stats history entry with date:", entry.date);
+      
       const { error } = await supabase
         .from('campaign_stats_history')
         .update({

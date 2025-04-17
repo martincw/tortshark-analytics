@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -303,6 +302,7 @@ const CampaignDetail = () => {
     
     console.log("Saving edited entry. Current edit date:", editDate);
     
+    // Format the date directly from the editDate without any adjustments
     const formattedDate = format(editDate, "yyyy-MM-dd");
     
     console.log("Formatted date to save:", formattedDate);
