@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { formatCurrency } from "@/utils/campaignUtils";
-import { ArrowRight, Calculator, DollarSign, Target, Calendar, Percent, BarChart3 } from "lucide-react";
+import { ArrowRight, Calculator, DollarSign, Target, Calendar, Percent, BarChart3, Briefcase } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
