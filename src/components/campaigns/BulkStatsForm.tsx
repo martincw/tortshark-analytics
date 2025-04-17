@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, addDays, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,27 +52,25 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({});
   const [activeDay, setActiveDay] = useState<string>("0");
   
-  // UPDATED: Ensure consistent date formatting without timezone issues
   const formatDateKey = (date: Date): string => {
-    // Get year, month, day directly to avoid timezone issues
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     
-    console.log(`BulkStatsForm - Formatting date ${date.toString()}`);
-    console.log(`BulkStatsForm - Year: ${year}, Month: ${month}, Day: ${day}`);
+    console.log(`BulkStatsForm - Formatting date key for: ${date.toString()}`);
+    console.log(`BulkStatsForm - Date components: Year=${year}, Month=${month}, Day=${day}`);
     
     return `${year}-${month}-${day}`;
   };
   
-  // UPDATED: Create dates for the week without timezone issues
   const weekDates = Array.from({ length: 7 }, (_, i) => {
-    // Create a new date object for each day
     const newDate = new Date(startDate);
+    newDate.setHours(12, 0, 0, 0);
     newDate.setDate(startDate.getDate() + i);
     
-    // Log date information for debugging
-    console.log(`BulkStatsForm - Week date ${i}: ${newDate.toString()}`);
+    console.log(`BulkStatsForm - Week date ${i}:`, newDate.toString());
+    console.log(`BulkStatsForm - Week date ${i} ISO:`, newDate.toISOString());
+    
     return newDate;
   });
   
@@ -137,7 +134,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     });
   };
 
-  // UPDATED: Modified to handle date consistency better
   const handleSubmit = async () => {
     if (!user) {
       toast.error("You must be logged in to add stats");
@@ -161,19 +157,16 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       
       const allStatsToAdd = [];
       
-      // Prepare all stats entries for the week
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
-          // Use consistent date string format
           const dateKey = formatDateKey(date);
           const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
           
           console.log(`BulkStatsForm - Processing stats for campaign ${campaignId} on date:`, date.toString());
           console.log(`BulkStatsForm - Date key (YYYY-MM-DD): ${dateKey}`);
           
-          // Check if a record already exists
           const { data: existingRecord, error: checkError } = await supabase
             .from('campaign_stats_history')
             .select('id')
@@ -193,10 +186,10 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               .update({
                 leads: dayStats.leads || 0,
                 cases: dayStats.cases || 0,
-                retainers: dayStats.cases || 0, // Map cases to retainers
+                retainers: dayStats.cases || 0,
                 revenue: dayStats.revenue || 0,
                 ad_spend: dayStats.adSpend || 0,
-                date: dateKey // Store as string in YYYY-MM-DD format
+                date: dateKey
               })
               .eq('id', existingRecord.id);
               
@@ -209,7 +202,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             allStatsToAdd.push({
               id: uuidv4(),
               campaign_id: campaignId,
-              date: dateKey, // Store as string in YYYY-MM-DD format
+              date: dateKey,
               leads: dayStats.leads || 0,
               cases: dayStats.cases || 0,
               retainers: dayStats.cases || 0,
@@ -221,7 +214,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
-      // Insert all new stats at once
       if (allStatsToAdd.length > 0) {
         console.log("BulkStatsForm - Bulk inserting new stats:", allStatsToAdd);
         const { error } = await supabase
@@ -236,7 +228,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
-      // Update current stats with the most recent day's data
       const recentDateKey = formatDateKey(weekDates[weekDates.length - 1]);
       console.log("BulkStatsForm - Recent date key for manual stats:", recentDateKey);
       
@@ -244,7 +235,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
         
-        // Check if manual stats already exist for this campaign
         const { data: existingManualStats, error: checkManualError } = await supabase
           .from('campaign_manual_stats')
           .select('id')
@@ -257,7 +247,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
         
         if (existingManualStats) {
-          // Update existing manual stats
           const { error: updateManualError } = await supabase
             .from('campaign_manual_stats')
             .update({
@@ -265,7 +254,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               cases: recentStats.cases || 0,
               retainers: recentStats.cases || 0,
               revenue: recentStats.revenue || 0,
-              date: recentDateKey // Store as string in YYYY-MM-DD format
+              date: recentDateKey
             })
             .eq('id', existingManualStats.id);
             
@@ -273,13 +262,12 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             console.error(`BulkStatsForm - Error updating manual stats for ${campaignId}:`, updateManualError);
           }
         } else {
-          // Insert new manual stats
           const { error: insertManualError } = await supabase
             .from('campaign_manual_stats')
             .insert({
               id: uuidv4(),
               campaign_id: campaignId,
-              date: recentDateKey, // Store as string in YYYY-MM-DD format
+              date: recentDateKey,
               leads: recentStats.leads || 0,
               cases: recentStats.cases || 0,
               retainers: recentStats.cases || 0,
@@ -292,10 +280,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
-      // Trigger a refresh of the campaign data
       refreshAfterBulkUpdate();
-      
-      // Force a fetch to update the UI with the latest data
       await fetchCampaigns();
       
       toast.success(`Stats added for ${selectedCampaignIds.length} campaigns for the entire week`);
@@ -310,7 +295,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     }
   };
 
-  // Get the current date based on the active day index
   const currentDateKey = formatDateKey(weekDates[parseInt(activeDay)]);
   const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
 

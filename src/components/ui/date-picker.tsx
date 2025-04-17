@@ -18,7 +18,7 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
-  // Simple direct date handler - no modification to dates
+  // Fix the off-by-one day issue by ensuring we're working with the exact selected date
   const handleSelect = (selectedDate: Date | undefined) => {
     console.log('DatePicker - Raw selected date:', selectedDate);
     
@@ -27,11 +27,22 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
       return;
     }
     
-    // Pass the date directly without any modification
-    onSelect(selectedDate);
+    // Create a new date object to prevent any reference issues
+    // and ensure we're using the exact date that was selected
+    const correctedDate = new Date(selectedDate);
     
-    // Log for debugging
-    console.log('DatePicker - Passed date directly to parent');
+    // Set the time to noon to avoid any potential day boundary issues
+    correctedDate.setHours(12, 0, 0, 0);
+    
+    console.log('DatePicker - Original selected date:', selectedDate.toISOString());
+    console.log('DatePicker - Corrected date:', correctedDate.toISOString());
+    console.log('DatePicker - Date components:', {
+      year: correctedDate.getFullYear(),
+      month: correctedDate.getMonth() + 1, // +1 because months are 0-indexed
+      day: correctedDate.getDate()
+    });
+    
+    onSelect(correctedDate);
   };
 
   return (
