@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -400,7 +401,6 @@ const CampaignDetail = () => {
   const handleSaveTitle = async () => {
     if (campaign && editedTitle.trim()) {
       await updateCampaign(campaign.id, {
-        ...campaign,
         name: editedTitle.trim()
       });
       setIsEditingTitle(false);
