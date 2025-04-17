@@ -39,10 +39,13 @@ export function DateRangePicker() {
   // Update local state when dateRange prop changes
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
+      console.log("DateRangePicker: External date range changed:", dateRange);
+      
       setDate({
         from: createDateFromStr(dateRange.startDate),
         to: createDateFromStr(dateRange.endDate),
       });
+      
       setTempDate({
         from: createDateFromStr(dateRange.startDate),
         to: createDateFromStr(dateRange.endDate),
@@ -59,6 +62,7 @@ export function DateRangePicker() {
   }, [dateRange]);
   
   const handleTempDateChange = (value: DateRange | undefined) => {
+    console.log("DateRangePicker: Temp date changed:", value);
     setTempDate(value);
   };
 
@@ -67,10 +71,10 @@ export function DateRangePicker() {
     
     // Format dates as ISO date strings (YYYY-MM-DD) to avoid timezone issues
     const formatDateToYYYYMMDD = (date: Date): string => {
-      // Get year, month, day directly from the date
-      const year = date.getUTCFullYear();
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Add 1 as months are 0-indexed
-      const day = String(date.getUTCDate()).padStart(2, '0');
+      // Get year, month, day directly to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0'); // Add 1 as months are 0-indexed
+      const day = String(date.getDate()).padStart(2, '0');
       
       const formatted = `${year}-${month}-${day}`;
       console.log(`DateRangePicker: Formatting date ${date.toISOString()} to ${formatted}`);
@@ -96,7 +100,7 @@ export function DateRangePicker() {
       endDate: formattedEndDate,
     };
     
-    console.log(`DateRangePicker: Setting new date range:`, JSON.stringify(newDateRange, null, 2));
+    console.log(`DateRangePicker: Setting new date range:`, newDateRange);
     setDateRange(newDateRange);
     setIsPopoverOpen(false);
     toast.success("Date range updated");

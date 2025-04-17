@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,10 +13,7 @@ import { useNavigate } from "react-router-dom";
 import QuickDateSelector, { DateRange } from "./QuickDateSelector";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DateRangePicker } from "./DateRangePicker";
-import { 
-  Card, 
-  CardContent 
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Popover,
   PopoverContent,
@@ -53,8 +49,13 @@ export function CampaignFilters({
 }: CampaignFiltersProps) {
   const navigate = useNavigate();
   const { dateRange, setDateRange } = useCampaign();
+  
+  useEffect(() => {
+    console.log("CampaignFilters - Current date range:", dateRange);
+  }, [dateRange]);
 
   const handleDateSelect = (range: DateRange) => {
+    console.log("CampaignFilters - Selected date range:", range);
     setDateRange(range);
   };
 
@@ -62,7 +63,6 @@ export function CampaignFilters({
     setDateRange({ startDate: "", endDate: "" });
   };
 
-  // Date options for the quick date selector dropdown
   const dateOptions = [
     { label: "Today", value: "Today" },
     { label: "Yesterday", value: "Yesterday" },
@@ -74,7 +74,6 @@ export function CampaignFilters({
     { label: "Last 30 Days", value: "Last30Days" }
   ];
 
-  // Function to handle quick date selection directly from dropdown
   const handleQuickDateSelect = (option: string) => {
     const now = new Date();
     const today = new Date();
@@ -83,7 +82,6 @@ export function CampaignFilters({
     let start: Date;
     let end: Date;
 
-    // Helper functions from QuickDateSelector.tsx
     const getStartOfWeek = (date: Date): Date => {
       const newDate = new Date(date);
       newDate.setDate(date.getDate() - date.getDay());
@@ -109,7 +107,6 @@ export function CampaignFilters({
       return endMonth;
     };
 
-    // Format date to YYYY-MM-DD string
     const formatDateForApi = (date: Date): string => {
       return date.toISOString().split('T')[0];
     };
@@ -159,10 +156,13 @@ export function CampaignFilters({
         end = now;
     }
     
-    setDateRange({ 
+    const newRange = { 
       startDate: formatDateForApi(start), 
       endDate: formatDateForApi(end) 
-    });
+    };
+    
+    console.log("CampaignFilters - Quick select date range:", newRange);
+    setDateRange(newRange);
   };
 
   return (
