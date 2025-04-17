@@ -18,27 +18,20 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
-  // Fixed date handling to ensure consistent dates regardless of timezone
+  // Simple direct date handler - no modification to dates
   const handleSelect = (selectedDate: Date | undefined) => {
+    console.log('DatePicker - Raw selected date:', selectedDate);
+    
     if (!selectedDate) {
       onSelect(undefined);
       return;
     }
     
-    // Extract date components to create a timezone-neutral date
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
-    const day = selectedDate.getDate();
+    // Pass the date directly without any modification
+    onSelect(selectedDate);
     
-    // Create date at noon to prevent day shifting across timezones
-    const standardizedDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
-    
-    console.log('DatePicker - Selected date details:');
-    console.log('  - Original date:', selectedDate.toISOString());
-    console.log('  - Components:', { year, month, day });
-    console.log('  - UTC noon date:', standardizedDate.toISOString());
-    
-    onSelect(standardizedDate);
+    // Log for debugging
+    console.log('DatePicker - Passed date directly to parent');
   };
 
   return (
