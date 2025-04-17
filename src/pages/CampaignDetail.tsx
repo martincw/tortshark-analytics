@@ -317,7 +317,7 @@ const CampaignDetail = () => {
     console.log("Saving edited entry with date:", editDate);
     
     // Create a simple YYYY-MM-DD string to store in the database
-    // This is critical - we're not using any date-fns functions to avoid any timezone conversions
+    // This is critical - we're explicitly formatting the date to ensure consistency
     const formattedDate = `${editDate.getUTCFullYear()}-${String(editDate.getUTCMonth() + 1).padStart(2, '0')}-${String(editDate.getUTCDate()).padStart(2, '0')}`;
     
     console.log("Manually formatted date to save:", formattedDate);
@@ -336,8 +336,8 @@ const CampaignDetail = () => {
     console.log("Full entry being updated:", updatedEntry);
     
     updateStatHistoryEntry(campaign.id, updatedEntry);
-    toast.success("Entry updated successfully");
     
+    // Close dialogs and reset state after updating
     setEditEntryDialogOpen(false);
     setEditingEntryId(null);
     setEditCalendarOpen(false);

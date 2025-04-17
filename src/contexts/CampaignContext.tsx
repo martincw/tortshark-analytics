@@ -479,8 +479,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     try {
       console.log("Updating stats history entry with date:", entry.date);
       
-      // Use the date string exactly as provided without any further formatting
-      // Since we've already formatted it correctly in the CampaignDetail component
+      console.log("Full stats entry being updated:", entry);
       
       const { error } = await supabase
         .from('campaign_stats_history')
@@ -500,9 +499,9 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         toast.error("Failed to update stat history entry");
       } else {
         toast.success("Stat history entry updated successfully");
+        
+        await fetchCampaigns();
       }
-      
-      await fetchCampaigns();
     } catch (err) {
       setError((err as Error).message);
       console.error("Failed to update stat history entry:", err);
