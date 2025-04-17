@@ -60,8 +60,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
-    const startOfCurrentWeek = startOfWeek(today);
-    const endOfCurrentWeek = endOfWeek(today);
+    const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 });
+    const endOfCurrentWeek = today;
 
     return {
       startDate: format(startOfCurrentWeek, 'yyyy-MM-dd'),
