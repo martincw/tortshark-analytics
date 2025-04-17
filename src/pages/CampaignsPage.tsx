@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from "react";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { Button } from "@/components/ui/button";
-import { Plus, Link, Bug, LayoutGrid, List, FileEdit, Calculator, PlusCircle } from "lucide-react";
+import { Plus, Link, Bug, LayoutGrid, List } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ const CampaignsPage = () => {
     checkAuth();
   }, []);
 
+  // Log date range for debugging
   useEffect(() => {
     if (dateRange.startDate) {
       console.log("CampaignsPage date range:", dateRange.startDate, "to", dateRange.endDate);
@@ -67,6 +69,7 @@ const CampaignsPage = () => {
     }
   };
 
+  // Show auth prompt if user is not authenticated
   if (!isAuthenticated && !isCheckingAuth) {
     return (
       <div className="space-y-6">
@@ -116,32 +119,49 @@ const CampaignsPage = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Mass Tort Campaigns</h1>
           <p className="text-muted-foreground mt-1">
-            Manage and track your marketing campaigns
+            Manage your case acquisition campaigns and track performance
           </p>
+          {dateRange.startDate && (
+            <div className="text-sm mt-1 text-muted-foreground">
+              Showing data from <span className="font-medium">{dateRange.startDate}</span> to <span className="font-medium">{dateRange.endDate}</span>
+            </div>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/campaigns/bulk-stats">
-              <FileEdit className="mr-2 h-4 w-4" />
-              Bulk Stats
-            </Link>
+        <div className="flex gap-2">
+          <div className="flex border rounded-md overflow-hidden mr-2">
+            <Button 
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm" 
+              className="rounded-none px-3"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Grid
+            </Button>
+            <Button 
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm" 
+              className="rounded-none px-3"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4 mr-1" />
+              List
+            </Button>
+          </div>
+          <Button onClick={() => navigate("/add-campaign")}>
+            <Plus className="mr-2 h-4 w-4" /> Add Campaign
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/campaigns/projections">
-              <Calculator className="mr-2 h-4 w-4" />
-              Profit Projections
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/campaigns/add">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Campaign
-            </Link>
+          <Button 
+            variant="outline" 
+            onClick={handleDebugToggle}
+            title="Debug Tools"
+          >
+            <Bug className="h-4 w-4" />
           </Button>
         </div>
       </div>
