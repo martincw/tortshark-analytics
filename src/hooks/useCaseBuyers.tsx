@@ -28,9 +28,20 @@ export const useCaseBuyers = () => {
 
   const addBuyer = async (name: string) => {
     try {
+      // Get the current user ID from Supabase auth
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error('You must be logged in to add a buyer');
+        return null;
+      }
+      
       const { data, error } = await supabase
         .from('case_buyers')
-        .insert([{ name }])
+        .insert([{ 
+          name, 
+          user_id: user.id 
+        }])
         .select()
         .single();
 

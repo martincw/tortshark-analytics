@@ -900,7 +900,9 @@ const CampaignDetail = () => {
           <CaseAttributionForm 
             campaignId={campaign.id}
             onAttributionAdded={() => {
-              fetchCampaigns();
+              // Replace this with a refresh method that exists in your context
+              // or just remove it if not needed for now
+              // fetchCampaigns();
             }}
           />
         </CardContent>

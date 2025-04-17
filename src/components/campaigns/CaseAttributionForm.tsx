@@ -61,7 +61,9 @@ export const CaseAttributionForm = ({ campaignId, onAttributionAdded }: CaseAttr
       toast.success("Cases attributed successfully");
       setCaseCount("");
       setPricePerCase("");
-      onAttributionAdded?.();
+      if (onAttributionAdded) {
+        onAttributionAdded();
+      }
     } catch (error) {
       console.error('Error attributing cases:', error);
       toast.error('Failed to attribute cases');
