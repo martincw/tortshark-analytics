@@ -1,4 +1,3 @@
-
 export interface Campaign {
   id: string;
   name: string;
@@ -81,4 +80,20 @@ export interface GoogleAdsMetrics {
   cpl: number; // Cost per lead
   adSpend: number;
   date: string;
+}
+
+export interface CaseBuyer {
+  id: string;
+  name: string;
+  created_at?: string;
+}
+
+export interface CaseAttribution {
+  id: string;
+  campaign_id: string;
+  buyer_id: string;
+  case_count: number;
+  price_per_case: number;
+  date: string;
+  created_at?: string;
 }

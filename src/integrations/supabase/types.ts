@@ -254,6 +254,78 @@ export type Database = {
         }
         Relationships: []
       }
+      case_attributions: {
+        Row: {
+          buyer_id: string
+          campaign_id: string
+          case_count: number
+          created_at: string | null
+          date: string
+          id: string
+          price_per_case: number
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id: string
+          campaign_id: string
+          case_count?: number
+          created_at?: string | null
+          date: string
+          id?: string
+          price_per_case?: number
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          campaign_id?: string
+          case_count?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          price_per_case?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_attributions_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "case_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_attributions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_buyers: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_ads_tokens: {
         Row: {
           access_token: string

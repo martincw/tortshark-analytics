@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -70,6 +69,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
+import { CaseAttributionForm } from "@/components/campaigns/CaseAttributionForm";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -371,19 +371,15 @@ const CampaignDetail = () => {
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
 
-  // Helper function to safely format dates
   const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
     try {
-      // First, try to parse the ISO string
       const date = parseISO(dateString);
       
-      // Check if the resulting date is valid
       if (!isValid(date)) {
         console.warn(`Invalid date after parsing: ${dateString}`);
         return "Invalid date";
       }
       
-      // Format the valid date
       return format(date, formatStr);
     } catch (error) {
       console.error(`Error formatting date: ${dateString}`, error);
@@ -392,7 +388,6 @@ const CampaignDetail = () => {
   };
 
   return (
-    
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -894,9 +889,25 @@ const CampaignDetail = () => {
         </CardContent>
       </Card>
       
+      <Card className="shadow-md border-accent/30 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Case Attribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <CaseAttributionForm 
+            campaignId={campaign.id}
+            onAttributionAdded={() => {
+              fetchCampaigns();
+            }}
+          />
+        </CardContent>
+      </Card>
+      
       <CampaignPerformanceSection campaign={campaign} />
       
-      {/* Add Stats Dialog */}
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -964,7 +975,6 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Entry Dialog */}
       <Dialog open={editEntryDialogOpen} onOpenChange={handleCancelEditEntry}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1032,7 +1042,6 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Entry Confirmation Dialog */}
       <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
