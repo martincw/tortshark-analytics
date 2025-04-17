@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -78,7 +78,7 @@ const CampaignDetail = () => {
     campaigns, 
     updateCampaign, 
     deleteCampaign, 
-    setSelectedCampaignId, 
+    setSelectedCampaignId,
     addStatHistoryEntry, 
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
@@ -130,6 +130,9 @@ const CampaignDetail = () => {
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
@@ -387,6 +390,30 @@ const CampaignDetail = () => {
     }
   };
 
+  const handleEditTitle = () => {
+    if (campaign) {
+      setEditedTitle(campaign.name);
+      setIsEditingTitle(true);
+    }
+  };
+
+  const handleSaveTitle = async () => {
+    if (campaign && editedTitle.trim()) {
+      await updateCampaign(campaign.id, {
+        ...campaign,
+        name: editedTitle.trim()
+      });
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleCancelTitleEdit = () => {
+    setIsEditingTitle(false);
+    if (campaign) {
+      setEditedTitle(campaign.name);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -400,7 +427,40 @@ const CampaignDetail = () => {
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Campaigns
           </Button>
-          <h1 className="text-3xl font-bold">{campaign.name}</h1>
+          {isEditingTitle ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                className="text-2xl font-bold h-12 w-[300px]"
+                placeholder="Campaign name"
+                autoFocus
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleSaveTitle}
+                disabled={!editedTitle.trim()}
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleCancelTitleEdit}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <h1 
+              className="text-3xl font-bold flex items-center gap-2 cursor-pointer group"
+              onClick={handleEditTitle}
+            >
+              {campaign.name}
+              <Edit className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </h1>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <DateRangePicker />
@@ -807,7 +867,7 @@ const CampaignDetail = () => {
       </div>
       
       <Card className="shadow-md border-accent/30 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3 flex flex-row items-center justify-between">
+        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-primary" />
             Stats History
