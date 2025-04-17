@@ -271,8 +271,8 @@ const CampaignDetail = () => {
       // Parse the date from entry.date
       let entryDate: Date;
       try {
-        entryDate = parseISO(entry.date);
-        if (!isValid(entryDate)) {
+        entryDate = new Date(entry.date);
+        if (isNaN(entryDate.getTime())) {
           console.warn(`Invalid date from entry: ${entry.date}, using current date instead`);
           entryDate = new Date();
         }
@@ -281,12 +281,14 @@ const CampaignDetail = () => {
         entryDate = new Date();
       }
       
-      console.log("Original entry date:", entry.date, "Parsed date:", entryDate);
+      console.log("Original entry date:", entry.date);
+      console.log("Parsed date object:", entryDate);
       
       // Set time to noon to avoid timezone issues
       entryDate.setHours(12, 0, 0, 0);
-      setEditDate(entryDate);
+      console.log("Normalized date at noon:", entryDate);
       
+      setEditDate(entryDate);
       setEditEntryDialogOpen(true);
     }, 100);
   };
@@ -299,7 +301,7 @@ const CampaignDetail = () => {
     
     console.log("Saving edited entry. Current edit date:", editDate);
     
-    // Format the date directly from the editDate without any adjustments
+    // Format the date for display and storage - use yyyy-MM-dd format for consistency
     const formattedDate = format(editDate, "yyyy-MM-dd");
     
     console.log("Formatted date to save:", formattedDate);

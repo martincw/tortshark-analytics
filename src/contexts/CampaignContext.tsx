@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
@@ -479,10 +480,17 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     try {
       console.log("Updating stats history entry with date:", entry.date);
       
+      // Ensure we're using the same date format as when saving
+      const dateString = typeof entry.date === 'string' 
+        ? entry.date // Use the date string as is if it's already a string
+        : format(entry.date, 'yyyy-MM-dd'); // Format the date only if it's a Date object
+      
+      console.log("Formatted date to be sent to database:", dateString);
+      
       const { error } = await supabase
         .from('campaign_stats_history')
         .update({
-          date: entry.date,
+          date: dateString,
           leads: entry.leads,
           cases: entry.cases,
           retainers: entry.retainers,
