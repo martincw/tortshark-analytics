@@ -21,12 +21,18 @@ export const calculateMetrics = (campaign: Campaign): CampaignMetrics => {
   const roi = stats.adSpend > 0 
     ? (manualStats.revenue / stats.adSpend) * 100 
     : 0;
+  
+  // Calculate earnings per lead
+  const earningsPerLead = manualStats.leads > 0
+    ? profit / manualStats.leads
+    : 0;
 
   return {
     costPerLead,
     cpa,
     profit,
-    roi
+    roi,
+    earningsPerLead
   };
 };
 

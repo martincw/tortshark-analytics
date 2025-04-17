@@ -1,3 +1,4 @@
+
 export interface Campaign {
   id: string;
   name: string;
@@ -51,6 +52,7 @@ export interface CampaignMetrics {
   cpa: number; // Cost per acquisition (case)
   profit: number;
   roi: number; // Return on investment percentage
+  earningsPerLead: number; // Added earningsPerLead metric
 }
 
 export interface DateRange {

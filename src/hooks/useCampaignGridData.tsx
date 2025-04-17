@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -56,7 +57,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   }, [campaigns, dateRange]);
   
   const groupedCampaigns = useMemo(() => {
-    return dateFilteredCampaigns.reduce((acc, campaign) => {
+    return dateFilteredCampaigns.reduce<Record<string, Campaign[]>>((acc, campaign) => {
       const tortType = campaign.name;
       
       if (!acc[tortType]) {
@@ -65,7 +66,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
       
       acc[tortType].push({...campaign});
       return acc;
-    }, {} as Record<string, Campaign[]>);
+    }, {});
   }, [dateFilteredCampaigns]);
   
   const consolidatedCampaigns = useMemo(() => {
@@ -108,7 +109,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   
   const calculateEarningsPerLead = (campaign: Campaign) => {
     const metrics = calculateMetrics(campaign);
-    return metrics.earningsPerLead || 0;
+    return metrics.profit / (campaign.manualStats.leads || 1);
   };
   
   const sortedAndFilteredCampaigns = useMemo(() => {
