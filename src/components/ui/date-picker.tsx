@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -25,15 +25,20 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
       return;
     }
     
-    // Create a new date at midnight local time
-    const newDate = new Date(selectedDate);
-    newDate.setHours(0, 0, 0, 0);
+    // Use our UTC-based approach for consistent date handling
+    // This ensures the date is always created at midnight UTC
+    const utcDate = new Date(Date.UTC(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+      0, 0, 0, 0
+    ));
     
     console.log('DatePicker - Selected date:', selectedDate);
-    console.log('DatePicker - Normalized date:', newDate);
-    console.log('DatePicker - Stored format:', formatDateForStorage(newDate));
+    console.log('DatePicker - UTC midnight date:', utcDate.toISOString());
+    console.log('DatePicker - Stored format:', formatDateForStorage(selectedDate));
     
-    onSelect(newDate);
+    onSelect(utcDate);
   };
 
   return (

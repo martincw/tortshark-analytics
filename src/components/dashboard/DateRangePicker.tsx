@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,19 +12,15 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { Calendar as CalendarIcon, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
   
-  // Format date strings to Date objects properly, preserving the exact day
+  // Format date strings to Date objects properly using our UTC parser
   const createDateFromStr = (dateStr: string | undefined): Date | undefined => {
     if (!dateStr) return undefined;
-    
-    // Create date at UTC noon to avoid timezone shifts
-    const date = new Date(dateStr + "T12:00:00Z");
-    
-    console.log(`DateRangePicker: Parsed date string ${dateStr} -> Date object:`, date.toISOString());
-    return date;
+    return parseStoredDate(dateStr);
   };
   
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -69,24 +64,18 @@ export function DateRangePicker() {
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    // Format dates as ISO date strings (YYYY-MM-DD) to avoid timezone issues
-    const formatDateToYYYYMMDD = (date: Date): string => {
-      // Get year, month, day directly to avoid timezone issues
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0'); // Add 1 as months are 0-indexed
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      const formatted = `${year}-${month}-${day}`;
-      console.log(`DateRangePicker: Formatting date ${date.toISOString()} to ${formatted}`);
-      return formatted;
-    };
-    
-    // Get selected date(s) and format them
+    // Use our UTC-based approach for dates
     const fromDate = tempDate.from;
     const toDate = tempDate.to || tempDate.from;
     
-    const formattedStartDate = formatDateToYYYYMMDD(fromDate);
-    const formattedEndDate = formatDateToYYYYMMDD(toDate);
+    // Format to YYYY-MM-DD using our utility
+    const formattedStartDate = formatDateForStorage(fromDate);
+    const formattedEndDate = formatDateForStorage(toDate);
+    
+    console.log(`DateRangePicker: Original from date:`, fromDate);
+    console.log(`DateRangePicker: Original to date:`, toDate);
+    console.log(`DateRangePicker: Formatted start date:`, formattedStartDate);
+    console.log(`DateRangePicker: Formatted end date:`, formattedEndDate);
     
     // Update local component state
     setDate({

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -8,6 +7,7 @@ import { formatCurrency } from "@/utils/campaignUtils";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { formatDateForStorage, parseStoredDate, formatDisplayDate } from "@/lib/utils/ManualDateUtils";
 
 interface FinancialStats {
   revenue: number;
@@ -15,47 +15,35 @@ interface FinancialStats {
   profit: number;
 }
 
-// Helper function to build date query boundaries for exact date matching
-function getExactDateQueryBoundaries(dateString: string) {
-  // Use exact date string matching (YYYY-MM-DD) instead of timestamps
-  console.log('Financial Stats using exact date match for:', dateString);
-  return dateString;
-}
-
 const DashboardFinancialStats: React.FC = () => {
   const { dateRange } = useCampaign();
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedDateString, setSelectedDateString] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDateString, setSelectedDateString] = useState<string>(formatDateForStorage(new Date()));
   
-  // Use the global date range when available
   useEffect(() => {
     if (dateRange.startDate) {
       console.log('DashboardFinancialStats: Using exact date string from context:', dateRange.startDate);
       
-      // Update the selected date for display
-      const newDate = new Date(dateRange.startDate + 'T12:00:00');
-      setSelectedDate(newDate);
+      const parsedDate = parseStoredDate(dateRange.startDate);
+      setSelectedDate(parsedDate);
       
-      // Store the date string for queries
       setSelectedDateString(dateRange.startDate);
     }
   }, [dateRange]);
 
-  // Handle date selection from the DatePicker
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
-      // Extract YYYY-MM-DD from the date for consistent queries
-      const dateStr = date.toISOString().split('T')[0];
-      console.log('Financial Stats - Selected date string:', dateStr);
+      const dateStr = formatDateForStorage(date);
+      console.log('Financial Stats - Selected date object:', date);
+      console.log('Financial Stats - Formatted date string for storage:', dateStr);
       
       setSelectedDate(date);
       setSelectedDateString(dateStr);
     }
   };
 
-  // Fetch financial data with the new exact date matching approach
   useEffect(() => {
     async function fetchFinancialStats() {
       if (!selectedDateString) return;
@@ -63,7 +51,6 @@ const DashboardFinancialStats: React.FC = () => {
       setLoading(true);
       console.log('Fetching financial stats for exact date:', selectedDateString);
       
-      // Use direct equality matching on the date field
       const { data: adSpendData, error: adSpendError } = await supabase
         .from('campaign_stats')
         .select('ad_spend')
@@ -111,6 +98,10 @@ const DashboardFinancialStats: React.FC = () => {
 
     fetchFinancialStats();
   }, [selectedDateString]);
+
+  const formatDateForDisplay = (date: Date) => {
+    return format(date, "MMMM d, yyyy");
+  };
 
   return (
     <Card className="shadow-md">
@@ -163,7 +154,7 @@ const DashboardFinancialStats: React.FC = () => {
         ) : (
           <div className="py-8 text-center text-muted-foreground">
             {selectedDate ? 
-              `No stats available for ${format(selectedDate, 'MMMM d, yyyy')}` : 
+              `No stats available for ${formatDateForDisplay(selectedDate)}` : 
               'Please select a date to view stats'}
           </div>
         )}
