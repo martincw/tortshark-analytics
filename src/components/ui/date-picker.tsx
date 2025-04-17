@@ -18,23 +18,24 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
+  // UPDATED: More robust date standardization
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      // Create a date string in YYYY-MM-DD format and then create a new Date from it
-      // This ensures the date is exactly what's displayed without any timezone adjustments
+      // Extract year, month, day directly to avoid timezone issues
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
+      
+      // Create date string in YYYY-MM-DD format
       const dateStr = `${year}-${month}-${day}`;
       
-      // Create a new date object from this string - this will be at local midnight
-      const standardizedDate = new Date(`${dateStr}T00:00:00`);
+      // Create a new date at noon to avoid timezone day-shifting
+      const standardizedDate = new Date(`${dateStr}T12:00:00`);
       
-      console.log('DatePicker - Selected date:', selectedDate);
+      console.log('DatePicker - Original selected date:', selectedDate.toString());
       console.log('DatePicker - Year:', year, 'Month:', month, 'Day:', day);
       console.log('DatePicker - Date string created:', dateStr);
-      console.log('DatePicker - Final standardized date:', standardizedDate);
-      console.log('DatePicker - Final date ISO string:', standardizedDate.toISOString());
+      console.log('DatePicker - Final standardized date:', standardizedDate.toString());
       
       onSelect(standardizedDate);
     } else {
