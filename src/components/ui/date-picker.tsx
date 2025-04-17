@@ -20,17 +20,21 @@ interface DatePickerProps {
 export function DatePicker({ date, onSelect, className }: DatePickerProps) {
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      // Create a new date at noon to avoid timezone issues
-      const standardizedDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        12, 0, 0, 0
-      );
+      // Create a date string in YYYY-MM-DD format and then create a new Date from it
+      // This ensures the date is exactly what's displayed without any timezone adjustments
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      // Create a new date object from this string - this will be at local midnight
+      const standardizedDate = new Date(`${dateStr}T00:00:00`);
       
       console.log('DatePicker - Selected date:', selectedDate);
-      console.log('DatePicker - Standardized date:', standardizedDate);
-      console.log('DatePicker - Formatted for display:', format(standardizedDate, "yyyy-MM-dd"));
+      console.log('DatePicker - Year:', year, 'Month:', month, 'Day:', day);
+      console.log('DatePicker - Date string created:', dateStr);
+      console.log('DatePicker - Final standardized date:', standardizedDate);
+      console.log('DatePicker - Final date ISO string:', standardizedDate.toISOString());
       
       onSelect(standardizedDate);
     } else {
