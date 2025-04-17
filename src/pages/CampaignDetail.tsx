@@ -268,26 +268,41 @@ const CampaignDetail = () => {
         adSpend: (entry.adSpend || 0).toString()
       });
       
-      // Parse the date from entry.date
+      // Convert the date string to a Date object in a safe way
       let entryDate: Date;
-      try {
-        entryDate = new Date(entry.date);
-        if (isNaN(entryDate.getTime())) {
-          console.warn(`Invalid date from entry: ${entry.date}, using current date instead`);
+      
+      console.log("Entry date from database:", entry.date);
+      
+      if (typeof entry.date === 'string') {
+        // Split the date string to get components (handle ISO format or yyyy-MM-dd)
+        const parts = entry.date.split('T')[0].split('-');
+        if (parts.length === 3) {
+          // Create a UTC date at noon
+          entryDate = new Date(Date.UTC(
+            parseInt(parts[0], 10),  // year
+            parseInt(parts[1], 10) - 1,  // month (0-based)
+            parseInt(parts[2], 10),  // day
+            12, 0, 0, 0  // noon UTC
+          ));
+          console.log("Constructed UTC date from parts:", entryDate);
+        } else {
+          console.warn("Could not parse date parts:", parts);
           entryDate = new Date();
+          entryDate.setHours(12, 0, 0, 0);
         }
-      } catch (error) {
-        console.error(`Error parsing date: ${entry.date}`, error);
-        entryDate = new Date();
+      } else {
+        // If it's already a Date object
+        entryDate = new Date(entry.date);
+        entryDate.setHours(12, 0, 0, 0);
       }
       
-      console.log("Original entry date:", entry.date);
-      console.log("Parsed date object:", entryDate);
+      if (isNaN(entryDate.getTime())) {
+        console.warn("Invalid date, using current date instead");
+        entryDate = new Date();
+        entryDate.setHours(12, 0, 0, 0);
+      }
       
-      // Set time to noon to avoid timezone issues
-      entryDate.setHours(12, 0, 0, 0);
-      console.log("Normalized date at noon:", entryDate);
-      
+      console.log("Final date object to use for editing:", entryDate);
       setEditDate(entryDate);
       setEditEntryDialogOpen(true);
     }, 100);
@@ -299,15 +314,17 @@ const CampaignDetail = () => {
     const entry = campaign.statsHistory.find(e => e.id === editingEntryId);
     if (!entry) return;
     
-    console.log("Saving edited entry. Current edit date:", editDate);
+    console.log("Saving edited entry with date:", editDate);
     
-    // Format the date for display and storage - use yyyy-MM-dd format for consistency
-    const formattedDate = format(editDate, "yyyy-MM-dd");
+    // Create a simple YYYY-MM-DD string to store in the database
+    // This is critical - we're not using any date-fns functions to avoid any timezone conversions
+    const formattedDate = `${editDate.getUTCFullYear()}-${String(editDate.getUTCMonth() + 1).padStart(2, '0')}-${String(editDate.getUTCDate()).padStart(2, '0')}`;
     
-    console.log("Formatted date to save:", formattedDate);
+    console.log("Manually formatted date to save:", formattedDate);
     
     const updatedEntry = {
       ...entry,
+      id: editingEntryId,
       date: formattedDate,
       leads: parseInt(editEntryData.leads) || 0,
       cases: parseInt(editEntryData.cases) || 0,
@@ -316,7 +333,7 @@ const CampaignDetail = () => {
       adSpend: parseFloat(editEntryData.adSpend) || 0
     };
     
-    console.log("Updating entry with:", updatedEntry);
+    console.log("Full entry being updated:", updatedEntry);
     
     updateStatHistoryEntry(campaign.id, updatedEntry);
     toast.success("Entry updated successfully");
