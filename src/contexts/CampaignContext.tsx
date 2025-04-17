@@ -269,6 +269,21 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             platform: campaign.platform,
             account_id: campaign.accountId,
             account_name: campaign.accountName,
+          },
+        ]);
+
+      if (campaignError) {
+        console.error("Error adding campaign:", campaignError);
+        setError(campaignError.message);
+        setIsLoading(false);
+        return null;
+      }
+
+      const { error: targetsError } = await supabase
+        .from('campaign_targets')
+        .insert([
+          {
+            campaign_id: newCampaignId,
             monthly_retainers: campaign.targets.monthlyRetainers,
             case_payout_amount: campaign.targets.casePayoutAmount,
             monthly_income: campaign.targets.monthlyIncome,
@@ -278,11 +293,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           },
         ]);
 
-      if (campaignError) {
-        console.error("Error adding campaign:", campaignError);
-        setError(campaignError.message);
-        setIsLoading(false);
-        return;
+      if (targetsError) {
+        console.error("Error adding campaign targets:", targetsError);
       }
 
       const { error: statsError } = await supabase
@@ -294,7 +306,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             impressions: 0,
             clicks: 0,
             cpc: 0,
-            date: formatDate(new Date()),
+            date: format(new Date(), 'yyyy-MM-dd'),
           },
         ]);
 
@@ -311,7 +323,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             cases: 0,
             retainers: 0,
             revenue: 0,
-            date: formatDate(new Date()),
+            date: format(new Date(), 'yyyy-MM-dd'),
           },
         ]);
 
@@ -321,10 +333,12 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
 
       await fetchCampaigns();
       toast.success("Campaign added successfully");
+      return newCampaignId;
     } catch (err) {
       setError((err as Error).message);
       console.error("Failed to add campaign:", err);
       toast.error("Failed to add campaign");
+      return null;
     } finally {
       setIsLoading(false);
     }

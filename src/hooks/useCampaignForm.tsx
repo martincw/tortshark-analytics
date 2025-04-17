@@ -163,10 +163,12 @@ export const useCampaignForm = () => {
       };
       
       console.log("Adding campaign with data:", newCampaign);
-      const campaignId = await addCampaign(newCampaign);
-      console.log("Campaign added with ID:", campaignId);
+      await addCampaign(newCampaign);
+      
+      // Instead of navigating directly to a specific campaign, go back to the campaigns list
+      // This ensures we're not trying to access a campaign that might not be fully loaded yet
       toast.success("Campaign added successfully");
-      navigate(`/campaign/${campaignId}`); // Navigate to campaign detail page
+      navigate("/campaigns");
     } catch (error) {
       console.error("Error adding campaign:", error);
       toast.error("Failed to add campaign. Please try again.");
