@@ -112,8 +112,21 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
 
   const dailyData = useMemo(() => {
     if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
+    
+    const hasDateRange = dateRange.startDate && dateRange.endDate;
+    let filteredStats = [...campaign.statsHistory];
+    
+    if (hasDateRange) {
+      const startDate = new Date(dateRange.startDate);
+      const endDate = new Date(dateRange.endDate);
+      
+      filteredStats = campaign.statsHistory.filter(entry => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= startDate && entryDate <= endDate;
+      });
+    }
 
-    return [...campaign.statsHistory]
+    return filteredStats
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(entry => {
         const leads = entry.leads || 0;
@@ -127,7 +140,7 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
           earningsPerLead: leads > 0 ? revenue / leads : 0
         };
       });
-  }, [campaign.statsHistory]);
+  }, [campaign.statsHistory, dateRange]);
 
   const chartConfig = {
     leads: {
@@ -166,11 +179,128 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
         <CardTitle>Campaign Performance</CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="weekly" className="w-full">
+        <Tabs defaultValue="daily" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="weekly">Weekly Target Progress</TabsTrigger>
             <TabsTrigger value="daily">Daily Stats</TabsTrigger>
+            <TabsTrigger value="weekly">Weekly Target Progress</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="daily" className="mt-4">
+            <div className="h-[350px] w-full">
+              <ChartContainer 
+                config={{
+                  adSpend: {
+                    label: "Ad Spend",
+                    theme: {
+                      light: "#ef4444",
+                      dark: "#f87171",
+                    },
+                  },
+                  costPerLead: {
+                    label: "Cost per Lead",
+                    theme: {
+                      light: "#6366f1",
+                      dark: "#818cf8",
+                    },
+                  },
+                  earningsPerLead: {
+                    label: "Earnings per Lead",
+                    theme: {
+                      light: "#10b981",
+                      dark: "#34d399",
+                    },
+                  }
+                }}
+                className="h-full w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={dailyData}
+                    margin={{ top: 10, right: 30, left: 30, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value: ValueType, name: NameType) => {
+                            const numValue = Number(value);
+                            return [formatCurrency(numValue), name];
+                          }}
+                        />
+                      }
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="adSpend"
+                      stroke="var(--color-adSpend)"
+                      yAxisId="left"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="costPerLead"
+                      stroke="var(--color-costPerLead)"
+                      yAxisId="right"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="earningsPerLead"
+                      stroke="var(--color-earningsPerLead)"
+                      yAxisId="right"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="bg-muted/50 p-3 rounded-md">
+                <div className="text-sm text-muted-foreground">Average Daily Ad Spend</div>
+                <div className="font-semibold mt-1">
+                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.adSpend, 0) / dailyData.length || 0)}
+                </div>
+              </div>
+              <div className="bg-muted/50 p-3 rounded-md">
+                <div className="text-sm text-muted-foreground">Average Cost per Lead</div>
+                <div className="font-semibold mt-1">
+                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.costPerLead, 0) / dailyData.length || 0)}
+                </div>
+              </div>
+              <div className="bg-muted/50 p-3 rounded-md">
+                <div className="text-sm text-muted-foreground">Average Earnings per Lead</div>
+                <div className="font-semibold mt-1">
+                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.earningsPerLead, 0) / dailyData.length || 0)}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
           
           <TabsContent value="weekly" className="mt-4">
             <div className="h-[350px] w-full">
@@ -280,120 +410,6 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
                   </div>
                 </>
               )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="daily" className="mt-4">
-            <div className="h-[350px] w-full">
-              <ChartContainer 
-                config={{
-                  adSpend: {
-                    label: "Ad Spend",
-                    theme: {
-                      light: "#ef4444",
-                      dark: "#f87171",
-                    },
-                  },
-                  costPerLead: {
-                    label: "Cost per Lead",
-                    theme: {
-                      light: "#6366f1",
-                      dark: "#818cf8",
-                    },
-                  },
-                  earningsPerLead: {
-                    label: "Earnings per Lead",
-                    theme: {
-                      light: "#10b981",
-                      dark: "#34d399",
-                    },
-                  }
-                }}
-                className="h-full w-full"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={dailyData}
-                    margin={{ top: 10, right: 30, left: 30, bottom: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <Tooltip
-                      content={
-                        <ChartTooltipContent 
-                          formatter={(value: ValueType, name: NameType) => {
-                            const numValue = Number(value);
-                            return [formatCurrency(numValue), name];
-                          }}
-                        />
-                      }
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="adSpend"
-                      stroke="var(--color-adSpend)"
-                      yAxisId="left"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="costPerLead"
-                      stroke="var(--color-costPerLead)"
-                      yAxisId="right"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="earningsPerLead"
-                      stroke="var(--color-earningsPerLead)"
-                      yAxisId="right"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Average Daily Ad Spend</div>
-                <div className="font-semibold mt-1">
-                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.adSpend, 0) / dailyData.length || 0)}
-                </div>
-              </div>
-              <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Average Cost per Lead</div>
-                <div className="font-semibold mt-1">
-                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.costPerLead, 0) / dailyData.length || 0)}
-                </div>
-              </div>
-              <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Average Earnings per Lead</div>
-                <div className="font-semibold mt-1">
-                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.earningsPerLead, 0) / dailyData.length || 0)}
-                </div>
-              </div>
             </div>
           </TabsContent>
         </Tabs>
