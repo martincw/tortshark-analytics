@@ -31,6 +31,38 @@ interface WeeklyPerformanceChartProps {
 export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps) {
   const { dateRange } = useCampaign();
   
+  const dailyData = useMemo(() => {
+    if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
+    
+    const hasDateRange = dateRange.startDate && dateRange.endDate;
+    let filteredStats = [...campaign.statsHistory];
+    
+    if (hasDateRange) {
+      const startDate = new Date(dateRange.startDate);
+      const endDate = new Date(dateRange.endDate);
+      
+      filteredStats = campaign.statsHistory.filter(entry => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= startDate && entryDate <= endDate;
+      });
+    }
+
+    return filteredStats
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(entry => {
+        const leads = entry.leads || 0;
+        const revenue = entry.revenue || 0;
+        const adSpend = entry.adSpend || 0;
+        
+        return {
+          date: format(new Date(entry.date), 'MMM dd'),
+          adSpend: adSpend,
+          costPerLead: leads > 0 ? adSpend / leads : 0,
+          earningsPerLead: leads > 0 ? revenue / leads : 0
+        };
+      });
+  }, [campaign.statsHistory, dateRange]);
+
   const chartData = useMemo(() => {
     const hasDateRange = dateRange.startDate && dateRange.endDate;
     
@@ -109,69 +141,6 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
       };
     });
   }, [campaign.statsHistory, campaign.targets, dateRange.startDate, dateRange.endDate]);
-
-  const dailyData = useMemo(() => {
-    if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
-    
-    const hasDateRange = dateRange.startDate && dateRange.endDate;
-    let filteredStats = [...campaign.statsHistory];
-    
-    if (hasDateRange) {
-      const startDate = new Date(dateRange.startDate);
-      const endDate = new Date(dateRange.endDate);
-      
-      filteredStats = campaign.statsHistory.filter(entry => {
-        const entryDate = new Date(entry.date);
-        return entryDate >= startDate && entryDate <= endDate;
-      });
-    }
-
-    return filteredStats
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(entry => {
-        const leads = entry.leads || 0;
-        const revenue = entry.revenue || 0;
-        const adSpend = entry.adSpend || 0;
-        
-        return {
-          date: format(new Date(entry.date), 'MMM dd'),
-          adSpend: adSpend,
-          costPerLead: leads > 0 ? adSpend / leads : 0,
-          earningsPerLead: leads > 0 ? revenue / leads : 0
-        };
-      });
-  }, [campaign.statsHistory, dateRange]);
-
-  const chartConfig = {
-    leads: {
-      label: "Leads",
-      theme: {
-        light: "#6366f1",
-        dark: "#818cf8",
-      },
-    },
-    cases: {
-      label: "Cases",
-      theme: {
-        light: "#f97316",
-        dark: "#fb923c",
-      },
-    },
-    revenue: {
-      label: "Revenue",
-      theme: {
-        light: "#10b981",
-        dark: "#34d399",
-      },
-    },
-    adSpend: {
-      label: "Ad Spend",
-      theme: {
-        light: "#ef4444",
-        dark: "#f87171",
-      },
-    }
-  };
 
   return (
     <Card className="w-full">
