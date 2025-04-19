@@ -542,6 +542,8 @@ const CampaignDetail = () => {
         </div>
       </div>
       
+      <CampaignPerformanceSection campaign={campaign} />
+      
       <div className="bg-gradient-to-br from-card/90 to-accent/10 rounded-xl p-6 shadow-md border">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
@@ -1009,8 +1011,6 @@ const CampaignDetail = () => {
           />
         </CardContent>
       </Card>
-      
-      <CampaignPerformanceSection campaign={campaign} />
       
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
         <DialogContent className="sm:max-w-md">
