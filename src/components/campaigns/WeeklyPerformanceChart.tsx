@@ -16,9 +16,13 @@ import {
   ResponsiveContainer,
   XAxis,
   YAxis,
+  Line,
+  LineChart,
+  Tooltip
 } from "recharts";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface WeeklyPerformanceChartProps {
   campaign: Campaign;
@@ -28,34 +32,28 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
   const { dateRange } = useCampaign();
   
   const chartData = useMemo(() => {
-    // Use the selected date range if available, otherwise use the last 4 weeks
     const hasDateRange = dateRange.startDate && dateRange.endDate;
     
-    // Create proper date objects from date strings - set time to ensure full day coverage
     let startDateForCalc, endDateForCalc;
     
     if (hasDateRange) {
-      // Create date objects with time set to start/end of day to ensure full day coverage
       startDateForCalc = startOfDay(new Date(dateRange.startDate));
       endDateForCalc = endOfDay(new Date(dateRange.endDate));
       
       console.log(`WeeklyPerformanceChart: Using date range ${startDateForCalc.toISOString()} to ${endDateForCalc.toISOString()}`);
     } else {
-      // Default to last 4 weeks if no date range
       endDateForCalc = endOfDay(new Date());
       startDateForCalc = startOfDay(subDays(endDateForCalc, 28));
     }
     
-    // Calculate number of weeks in the range
     const weeksToShow = Math.ceil((endDateForCalc.getTime() - startDateForCalc.getTime()) / (7 * 24 * 60 * 60 * 1000));
-    const adjustedWeeksToShow = Math.max(1, Math.min(weeksToShow, 8)); // Cap at 8 weeks
+    const adjustedWeeksToShow = Math.max(1, Math.min(weeksToShow, 8));
     
-    // Generate weekly periods
     const weeklyPeriods = Array.from({ length: adjustedWeeksToShow }).map((_, index) => {
       const currentEndDate = new Date(endDateForCalc);
       currentEndDate.setDate(endDateForCalc.getDate() - (index * 7));
       
-      const startDateOfWeek = startOfWeek(currentEndDate, { weekStartsOn: 1 }); // Monday as start of week
+      const startDateOfWeek = startOfWeek(currentEndDate, { weekStartsOn: 1 });
       const endDateOfWeek = endOfWeek(currentEndDate, { weekStartsOn: 1 });
       
       return {
@@ -65,17 +63,14 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
       };
     }).reverse();
     
-    // Calculate weekly targets
     const monthlyAdSpendTarget = campaign.targets.monthlySpend;
     const monthlyRevenueTarget = campaign.targets.monthlyIncome;
-    const weeklyAdSpendTarget = monthlyAdSpendTarget / 4.33; // Average weeks in a month
+    const weeklyAdSpendTarget = monthlyAdSpendTarget / 4.33;
     const weeklyRevenueTarget = monthlyRevenueTarget / 4.33;
-    const weeklyLeadsTarget = campaign.targets.monthlyRetainers * 30 / 4.33; // Estimate leads needed
+    const weeklyLeadsTarget = campaign.targets.monthlyRetainers * 30 / 4.33;
     const weeklyCasesTarget = campaign.targets.monthlyRetainers / 4.33;
     
-    // Process stats history by week
     return weeklyPeriods.map(period => {
-      // Filter stats for this week
       const weekStats = campaign.statsHistory.filter(entry => {
         const entryDate = parseISO(entry.date);
         return isWithinInterval(entryDate, { 
@@ -86,13 +81,11 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
       
       console.log(`WeeklyPerformanceChart: ${period.label} (${format(period.startDate, 'MMM d')} - ${format(period.endDate, 'MMM d')}) has ${weekStats.length} stats entries`);
       
-      // Aggregate stats for the week
       const weeklyAdSpend = weekStats.reduce((sum, entry) => sum + entry.adSpend, 0);
       const weeklyLeads = weekStats.reduce((sum, entry) => sum + entry.leads, 0);
       const weeklyCases = weekStats.reduce((sum, entry) => sum + entry.cases, 0);
       const weeklyRevenue = weekStats.reduce((sum, entry) => sum + entry.revenue, 0);
       
-      // Calculate percentages of targets
       const adSpendPercentage = (weeklyAdSpend / weeklyAdSpendTarget) * 100;
       const leadsPercentage = (weeklyLeads / weeklyLeadsTarget) * 100;
       const casesPercentage = (weeklyCases / weeklyCasesTarget) * 100;
@@ -105,7 +98,7 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
         leads: weeklyLeads,
         cases: weeklyCases,
         revenue: weeklyRevenue,
-        adSpendPercentage: Math.min(adSpendPercentage, 150), // Cap for display
+        adSpendPercentage: Math.min(adSpendPercentage, 150),
         leadsPercentage: Math.min(leadsPercentage, 150),
         casesPercentage: Math.min(casesPercentage, 150),
         revenuePercentage: Math.min(revenuePercentage, 150),
@@ -116,6 +109,25 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
       };
     });
   }, [campaign.statsHistory, campaign.targets, dateRange.startDate, dateRange.endDate]);
+
+  const dailyData = useMemo(() => {
+    if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
+
+    return [...campaign.statsHistory]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(entry => {
+        const leads = entry.leads || 0;
+        const revenue = entry.revenue || 0;
+        const adSpend = entry.adSpend || 0;
+        
+        return {
+          date: format(new Date(entry.date), 'MMM dd'),
+          adSpend: adSpend,
+          costPerLead: leads > 0 ? adSpend / leads : 0,
+          earningsPerLead: leads > 0 ? revenue / leads : 0
+        };
+      });
+  }, [campaign.statsHistory]);
 
   const chartConfig = {
     leads: {
@@ -151,117 +163,240 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Weekly Target Progress</CardTitle>
+        <CardTitle>Campaign Performance</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[350px] w-full">
-          <ChartContainer 
-            config={chartConfig}
-            className="h-full w-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={chartData}
-                margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+        <Tabs defaultValue="weekly" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="weekly">Weekly Target Progress</TabsTrigger>
+            <TabsTrigger value="daily">Daily Stats</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="weekly" className="mt-4">
+            <div className="h-[350px] w-full">
+              <ChartContainer 
+                config={chartConfig}
+                className="h-full w-full"
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  tickFormatter={(value) => `${value}%`}
-                  tickLine={false}
-                  axisLine={false}
-                  domain={[0, 120]}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent 
-                      formatter={(value: ValueType, name: NameType, props: any) => {
-                        const stringName = String(name);
-                        const metricName = stringName.replace('Percentage', '');
-                        
-                        if (stringName.includes('Percentage')) {
-                          const numValue = Number(value);
-                          return [`${numValue.toFixed(0)}% of target`, chartConfig[metricName as keyof typeof chartConfig]?.label || metricName];
-                        }
-                        
-                        return [value, name];
-                      }}
-                      labelFormatter={(label) => {
-                        const item = chartData.find(d => d.name === label);
-                        return item ? `${item.period}` : label;
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={chartData}
+                    margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `${value}%`}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, 120]}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value: ValueType, name: NameType, props: any) => {
+                            const stringName = String(name);
+                            const metricName = stringName.replace('Percentage', '');
+                            
+                            if (stringName.includes('Percentage')) {
+                              const numValue = Number(value);
+                              return [`${numValue.toFixed(0)}% of target`, chartConfig[metricName as keyof typeof chartConfig]?.label || metricName];
+                            }
+                            
+                            return [value, name];
+                          }}
+                          labelFormatter={(label) => {
+                            const item = chartData.find(d => d.name === label);
+                            return item ? `${item.period}` : label;
+                          }}
+                        />
+                      }
+                    />
+                    <Legend 
+                      formatter={(value: string) => {
+                        const metricName = value.replace('Percentage', '');
+                        return chartConfig[metricName as keyof typeof chartConfig]?.label || value;
                       }}
                     />
+                    <Bar 
+                      dataKey="leadsPercentage" 
+                      name="leadsPercentage" 
+                      fill="var(--color-leads)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="casesPercentage" 
+                      name="casesPercentage" 
+                      fill="var(--color-cases)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="revenuePercentage" 
+                      name="revenuePercentage" 
+                      fill="var(--color-revenue)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="adSpendPercentage" 
+                      name="adSpendPercentage" 
+                      fill="var(--color-adSpend)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              {chartData.length > 0 && (
+                <>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <div className="text-sm text-muted-foreground">Weekly Ad Spend Target</div>
+                    <div className="font-semibold mt-1">
+                      {formatCurrency(chartData[0].adSpendTarget)}
+                    </div>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <div className="text-sm text-muted-foreground">Weekly Leads Target</div>
+                    <div className="font-semibold mt-1">
+                      {formatNumber(Math.round(chartData[0].leadsTarget))}
+                    </div>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <div className="text-sm text-muted-foreground">Weekly Cases Target</div>
+                    <div className="font-semibold mt-1">
+                      {formatNumber(Math.round(chartData[0].casesTarget))}
+                    </div>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <div className="text-sm text-muted-foreground">Weekly Revenue Target</div>
+                    <div className="font-semibold mt-1">
+                      {formatCurrency(chartData[0].revenueTarget)}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="daily" className="mt-4">
+            <div className="h-[350px] w-full">
+              <ChartContainer 
+                config={{
+                  adSpend: {
+                    label: "Ad Spend",
+                    theme: {
+                      light: "#ef4444",
+                      dark: "#f87171",
+                    },
+                  },
+                  costPerLead: {
+                    label: "Cost per Lead",
+                    theme: {
+                      light: "#6366f1",
+                      dark: "#818cf8",
+                    },
+                  },
+                  earningsPerLead: {
+                    label: "Earnings per Lead",
+                    theme: {
+                      light: "#10b981",
+                      dark: "#34d399",
+                    },
                   }
-                />
-                <Legend 
-                  formatter={(value: string) => {
-                    const metricName = value.replace('Percentage', '');
-                    return chartConfig[metricName as keyof typeof chartConfig]?.label || value;
-                  }}
-                />
-                <Bar 
-                  dataKey="leadsPercentage" 
-                  name="leadsPercentage" 
-                  fill="var(--color-leads)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar 
-                  dataKey="casesPercentage" 
-                  name="casesPercentage" 
-                  fill="var(--color-cases)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar 
-                  dataKey="revenuePercentage" 
-                  name="revenuePercentage" 
-                  fill="var(--color-revenue)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar 
-                  dataKey="adSpendPercentage" 
-                  name="adSpendPercentage" 
-                  fill="var(--color-adSpend)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          {chartData.length > 0 && (
-            <>
+                }}
+                className="h-full w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={dailyData}
+                    margin={{ top: 10, right: 30, left: 30, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value: ValueType, name: NameType) => {
+                            const numValue = Number(value);
+                            return [formatCurrency(numValue), name];
+                          }}
+                        />
+                      }
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="adSpend"
+                      stroke="var(--color-adSpend)"
+                      yAxisId="left"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="costPerLead"
+                      stroke="var(--color-costPerLead)"
+                      yAxisId="right"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="earningsPerLead"
+                      stroke="var(--color-earningsPerLead)"
+                      yAxisId="right"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Weekly Ad Spend Target</div>
+                <div className="text-sm text-muted-foreground">Average Daily Ad Spend</div>
                 <div className="font-semibold mt-1">
-                  {formatCurrency(chartData[0].adSpendTarget)}
+                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.adSpend, 0) / dailyData.length || 0)}
                 </div>
               </div>
               <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Weekly Leads Target</div>
+                <div className="text-sm text-muted-foreground">Average Cost per Lead</div>
                 <div className="font-semibold mt-1">
-                  {formatNumber(Math.round(chartData[0].leadsTarget))}
+                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.costPerLead, 0) / dailyData.length || 0)}
                 </div>
               </div>
               <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Weekly Cases Target</div>
+                <div className="text-sm text-muted-foreground">Average Earnings per Lead</div>
                 <div className="font-semibold mt-1">
-                  {formatNumber(Math.round(chartData[0].casesTarget))}
+                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.earningsPerLead, 0) / dailyData.length || 0)}
                 </div>
               </div>
-              <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm text-muted-foreground">Weekly Revenue Target</div>
-                <div className="font-semibold mt-1">
-                  {formatCurrency(chartData[0].revenueTarget)}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
