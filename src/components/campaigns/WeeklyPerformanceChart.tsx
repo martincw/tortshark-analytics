@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import {
   ChartContainer,
@@ -141,6 +142,38 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
       };
     });
   }, [campaign.statsHistory, campaign.targets, dateRange.startDate, dateRange.endDate]);
+  
+  // Add the missing chartConfig object
+  const chartConfig = {
+    leads: {
+      label: "Leads",
+      theme: {
+        light: "#6366f1",
+        dark: "#818cf8",
+      },
+    },
+    cases: {
+      label: "Cases",
+      theme: {
+        light: "#f97316",
+        dark: "#fb923c",
+      },
+    },
+    revenue: {
+      label: "Revenue",
+      theme: {
+        light: "#10b981",
+        dark: "#34d399",
+      },
+    },
+    adSpend: {
+      label: "Ad Spend",
+      theme: {
+        light: "#ef4444",
+        dark: "#f87171",
+      },
+    }
+  };
 
   return (
     <Card className="w-full">
