@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,24 +53,18 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
-  // Use formatDateForStorage to ensure consistent date formatting
-  const formatDateKey = (date: Date): string => {
-    return formatDateForStorage(date);
-  };
-
+  // Generate week dates without relying on setHours (which can be affected by DST)
   const weekDates = Array.from({ length: 7 }, (_, i) => {
-    // Create a new date object to avoid mutating the original
     const newDate = new Date(startDate);
-    // Set to noon to avoid timezone issues
-    newDate.setHours(12, 0, 0, 0);
     newDate.setDate(startDate.getDate() + i);
-    
-    console.log(`BulkAdsStatsForm - Week date ${i}:`, newDate.toString());
-    console.log(`BulkAdsStatsForm - Week date ${i} ISO:`, newDate.toISOString());
-    console.log(`BulkAdsStatsForm - Week date ${i} formatted:`, formatDateKey(newDate));
-    
     return newDate;
   });
+  
+  // Pre-compute date keys for the entire week for consistent reference
+  const weekDateKeys = weekDates.map(date => formatDateForStorage(date));
+  
+  // Log the date keys for debugging
+  console.log("BulkAdsStatsForm - Week date keys:", weekDateKeys);
 
   const handleSelectAll = () => {
     const allSelected = uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
@@ -101,8 +95,8 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const initializeWeeklyStats = (campaignId: string) => {
     const emptyWeekStats: WeeklyAdStats = {};
     
-    weekDates.forEach(date => {
-      const dateKey = formatDateKey(date);
+    // Use the pre-computed date keys for consistency
+    weekDateKeys.forEach(dateKey => {
       emptyWeekStats[dateKey] = { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
     });
     
@@ -181,17 +175,19 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       }
       
       console.log("BulkAdsStatsForm - Selected campaign IDs:", selectedCampaignIds);
+      console.log("BulkAdsStatsForm - Stats data to save:", weeklyStatsData);
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
-        for (const date of weekDates) {
-          // Use formatDateForStorage to ensure consistent date format
-          const dateKey = formatDateKey(date);
+        // Use the pre-computed date keys for consistency
+        for (let i = 0; i < weekDateKeys.length; i++) {
+          const dateKey = weekDateKeys[i];
+          const date = weekDates[i];
+          
           const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
           
-          console.log(`BulkAdsStatsForm - Processing stats for campaign ${campaignId} on date:`, date.toString());
-          console.log(`BulkAdsStatsForm - Date key (YYYY-MM-DD): ${dateKey}`);
+          console.log(`BulkAdsStatsForm - Processing stats for campaign ${campaignId} on date key: ${dateKey}`);
           console.log(`BulkAdsStatsForm - Stats to save:`, dayStats);
           
           const { data, error: checkError } = await supabase
@@ -231,7 +227,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
               .insert({
                 id: uuidv4(),
                 campaign_id: campaignId,
-                date: dateKey,  // Using the string date format
+                date: dateKey,  // Store just the date key (YYYY-MM-DD)
                 ad_spend: dayStats.adSpend || 0,
                 leads: 0,
                 cases: 0,
@@ -249,7 +245,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       }
       
       // Use the last date in the week for campaign_stats
-      const recentDateKey = formatDateKey(weekDates[weekDates.length - 1]);
+      const recentDateKey = weekDateKeys[weekDateKeys.length - 1];
       console.log("BulkAdsStatsForm - Recent date key for campaign_stats:", recentDateKey);
       
       for (const campaignId of selectedCampaignIds) {
@@ -281,7 +277,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
               impressions: recentStats.impressions || 0,
               clicks: recentStats.clicks || 0,
               cpc: recentStats.cpc || 0,
-              date: recentDateKey  // Using the string date format
+              date: recentDateKey  // Store just the date key (YYYY-MM-DD)
             })
             .eq('id', existingAdStats.id);
             
@@ -297,7 +293,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             .insert({
               id: uuidv4(),
               campaign_id: campaignId,
-              date: recentDateKey,  // Using the string date format
+              date: recentDateKey,  // Store just the date key (YYYY-MM-DD)
               ad_spend: recentStats.adSpend || 0,
               impressions: recentStats.impressions || 0,
               clicks: recentStats.clicks || 0,
@@ -324,7 +320,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     }
   };
 
-  const currentDateKey = formatDateKey(weekDates[parseInt(activeDay)]);
+  const currentDateKey = weekDateKeys[parseInt(activeDay)];
   const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
 
   return (
@@ -392,23 +388,20 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                     />
                   </TableCell>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
-                  {weekDates.map((date, index) => {
-                    const dateKey = formatDateKey(date);
-                    return (
-                      <TableCell key={index}>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={weeklyStatsData[campaign.id]?.[dateKey]?.adSpend || ''}
-                          onChange={(e) => handleInputChange(campaign.id, dateKey, 'adSpend', e.target.value)}
-                          disabled={!selectedCampaigns[campaign.id]}
-                          placeholder="0"
-                          className="text-center"
-                        />
-                      </TableCell>
-                    );
-                  })}
+                  {weekDateKeys.map((dateKey, index) => (
+                    <TableCell key={index}>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={weeklyStatsData[campaign.id]?.[dateKey]?.adSpend || ''}
+                        onChange={(e) => handleInputChange(campaign.id, dateKey, 'adSpend', e.target.value)}
+                        disabled={!selectedCampaigns[campaign.id]}
+                        placeholder="0"
+                        className="text-center"
+                      />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
