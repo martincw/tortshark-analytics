@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -166,6 +167,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           
           console.log(`BulkStatsForm - Processing stats for campaign ${campaignId} on date:`, date.toString());
           console.log(`BulkStatsForm - Date key (YYYY-MM-DD): ${dateKey}`);
+          console.log(`BulkStatsForm - Day stats to save:`, dayStats);
           
           const { data: existingRecord, error: checkError } = await supabase
             .from('campaign_stats_history')
@@ -246,6 +248,15 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           continue;
         }
         
+        // Log the stats we're about to save to manual stats
+        console.log(`BulkStatsForm - Manual stats for campaign ${campaignId}:`, {
+          leads: recentStats.leads || 0,
+          cases: recentStats.cases || 0,
+          retainers: recentStats.cases || 0,
+          revenue: recentStats.revenue || 0,
+          date: recentDateKey
+        });
+        
         if (existingManualStats) {
           const { error: updateManualError } = await supabase
             .from('campaign_manual_stats')
@@ -260,6 +271,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             
           if (updateManualError) {
             console.error(`BulkStatsForm - Error updating manual stats for ${campaignId}:`, updateManualError);
+          } else {
+            console.log(`BulkStatsForm - Successfully updated manual stats for ${campaignId}`);
           }
         } else {
           const { error: insertManualError } = await supabase
@@ -276,6 +289,8 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             
           if (insertManualError) {
             console.error(`BulkStatsForm - Error inserting manual stats for ${campaignId}:`, insertManualError);
+          } else {
+            console.log(`BulkStatsForm - Successfully inserted manual stats for ${campaignId}`);
           }
         }
       }
