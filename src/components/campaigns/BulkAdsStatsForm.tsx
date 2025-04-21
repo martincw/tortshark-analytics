@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBulkStatsData, AdsStatsField } from "@/hooks/useBulkStatsData";
+import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
 import {
   Table,
   TableBody,
@@ -52,22 +53,23 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
-  // Ensure dates are formatted consistently as strings without time component
+  // Use formatDateForStorage to ensure consistent date formatting
   const formatDateKey = (date: Date): string => {
-    // Extract year, month, and day to ensure consistent formatting
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatDateForStorage(date);
   };
 
   const weekDates = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + i);
-    // Remove time component when generating week dates
-    const dateStr = formatDateKey(date);
-    const cleanDate = new Date(`${dateStr}T00:00:00`);
-    return cleanDate;
+    // Create a new date object to avoid mutating the original
+    const newDate = new Date(startDate);
+    // Set to noon to avoid timezone issues
+    newDate.setHours(12, 0, 0, 0);
+    newDate.setDate(startDate.getDate() + i);
+    
+    console.log(`BulkAdsStatsForm - Week date ${i}:`, newDate.toString());
+    console.log(`BulkAdsStatsForm - Week date ${i} ISO:`, newDate.toISOString());
+    console.log(`BulkAdsStatsForm - Week date ${i} formatted:`, formatDateKey(newDate));
+    
+    return newDate;
   });
 
   const handleSelectAll = () => {
@@ -178,20 +180,19 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         return;
       }
       
-      console.log("Selected campaign IDs:", selectedCampaignIds);
+      console.log("BulkAdsStatsForm - Selected campaign IDs:", selectedCampaignIds);
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
-          // Use consistent date formatting to avoid timezone issues
+          // Use formatDateForStorage to ensure consistent date format
           const dateKey = formatDateKey(date);
           const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
           
-          console.log(`Processing stats for campaign ${campaignId} on date ${dateKey}`);
-          console.log("Date object:", date);
-          console.log("Formatted date key:", dateKey);
-          console.log("Stats to save:", dayStats);
+          console.log(`BulkAdsStatsForm - Processing stats for campaign ${campaignId} on date:`, date.toString());
+          console.log(`BulkAdsStatsForm - Date key (YYYY-MM-DD): ${dateKey}`);
+          console.log(`BulkAdsStatsForm - Stats to save:`, dayStats);
           
           const { data, error: checkError } = await supabase
             .from('campaign_stats_history')
@@ -201,14 +202,14 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             .maybeSingle();
             
           if (checkError) {
-            console.error(`Error checking stats for ${campaignId} on ${dateKey}:`, checkError);
+            console.error(`BulkAdsStatsForm - Error checking stats for ${campaignId} on ${dateKey}:`, checkError);
             continue;
           }
           
-          console.log("Existing data check result:", data);
+          console.log("BulkAdsStatsForm - Existing data check result:", data);
           
           if (data) {
-            console.log(`Updating existing stats for ${campaignId} on ${dateKey}`);
+            console.log(`BulkAdsStatsForm - Updating existing stats for ${campaignId} on ${dateKey}`);
             const { error: updateError } = await supabase
               .from('campaign_stats_history')
               .update({ 
@@ -219,12 +220,12 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
               .eq('id', data.id);
               
             if (updateError) {
-              console.error(`Error updating stats for ${campaignId} on ${dateKey}:`, updateError);
+              console.error(`BulkAdsStatsForm - Error updating stats for ${campaignId} on ${dateKey}:`, updateError);
             } else {
-              console.log(`Successfully updated stats for ${campaignId} on ${dateKey}`);
+              console.log(`BulkAdsStatsForm - Successfully updated stats for ${campaignId} on ${dateKey}`);
             }
           } else {
-            console.log(`Inserting new stats for ${campaignId} on ${dateKey}`);
+            console.log(`BulkAdsStatsForm - Inserting new stats for ${campaignId} on ${dateKey}`);
             const { error: insertError } = await supabase
               .from('campaign_stats_history')
               .insert({
@@ -239,23 +240,24 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
               });
               
             if (insertError) {
-              console.error(`Error inserting stats for ${campaignId} on ${dateKey}:`, insertError);
+              console.error(`BulkAdsStatsForm - Error inserting stats for ${campaignId} on ${dateKey}:`, insertError);
             } else {
-              console.log(`Successfully inserted stats for ${campaignId} on ${dateKey}`);
+              console.log(`BulkAdsStatsForm - Successfully inserted stats for ${campaignId} on ${dateKey}`);
             }
           }
         }
       }
       
+      // Use the last date in the week for campaign_stats
       const recentDateKey = formatDateKey(weekDates[weekDates.length - 1]);
-      console.log("Recent date key for campaign_stats:", recentDateKey);
+      console.log("BulkAdsStatsForm - Recent date key for campaign_stats:", recentDateKey);
       
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         const recentStats = campaignWeeklyStats[recentDateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
-        console.log(`Updating campaign_stats for ${campaignId} with date ${recentDateKey}`);
-        console.log("Stats to save:", recentStats);
+        console.log(`BulkAdsStatsForm - Updating campaign_stats for ${campaignId} with date ${recentDateKey}`);
+        console.log("BulkAdsStatsForm - Stats to save:", recentStats);
         
         const { data: existingAdStats, error: checkAdStatsError } = await supabase
           .from('campaign_stats')
@@ -264,14 +266,14 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
           .maybeSingle();
           
         if (checkAdStatsError) {
-          console.error(`Error checking ad stats for ${campaignId}:`, checkAdStatsError);
+          console.error(`BulkAdsStatsForm - Error checking ad stats for ${campaignId}:`, checkAdStatsError);
           continue;
         }
         
-        console.log("Existing ad stats check result:", existingAdStats);
+        console.log("BulkAdsStatsForm - Existing ad stats check result:", existingAdStats);
         
         if (existingAdStats) {
-          console.log(`Updating existing ad stats for ${campaignId}`);
+          console.log(`BulkAdsStatsForm - Updating existing ad stats for ${campaignId}`);
           const { error: updateAdStatsError } = await supabase
             .from('campaign_stats')
             .update({
@@ -284,12 +286,12 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             .eq('id', existingAdStats.id);
             
           if (updateAdStatsError) {
-            console.error(`Error updating ad stats for ${campaignId}:`, updateAdStatsError);
+            console.error(`BulkAdsStatsForm - Error updating ad stats for ${campaignId}:`, updateAdStatsError);
           } else {
-            console.log(`Successfully updated ad stats for ${campaignId}`);
+            console.log(`BulkAdsStatsForm - Successfully updated ad stats for ${campaignId}`);
           }
         } else {
-          console.log(`Inserting new ad stats for ${campaignId}`);
+          console.log(`BulkAdsStatsForm - Inserting new ad stats for ${campaignId}`);
           const { error: insertAdStatsError } = await supabase
             .from('campaign_stats')
             .insert({
@@ -303,9 +305,9 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
             });
             
           if (insertAdStatsError) {
-            console.error(`Error inserting ad stats for ${campaignId}:`, insertAdStatsError);
+            console.error(`BulkAdsStatsForm - Error inserting ad stats for ${campaignId}:`, insertAdStatsError);
           } else {
-            console.log(`Successfully inserted ad stats for ${campaignId}`);
+            console.log(`BulkAdsStatsForm - Successfully inserted ad stats for ${campaignId}`);
           }
         }
       }
@@ -315,7 +317,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       setSelectedCampaigns({});
       setWeeklyStatsData({});
     } catch (err) {
-      console.error("Error in submission:", err);
+      console.error("BulkAdsStatsForm - Error in submission:", err);
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);

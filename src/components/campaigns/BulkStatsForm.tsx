@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBulkStatsData, StatsField } from "@/hooks/useBulkStatsData";
+import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
 import {
   Table,
   TableBody,
@@ -53,24 +54,21 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({});
   const [activeDay, setActiveDay] = useState<string>("0");
   
+  // Use formatDateForStorage to ensure consistent date formatting
   const formatDateKey = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    console.log(`BulkStatsForm - Formatting date key for: ${date.toString()}`);
-    console.log(`BulkStatsForm - Date components: Year=${year}, Month=${month}, Day=${day}`);
-    
-    return `${year}-${month}-${day}`;
+    return formatDateForStorage(date);
   };
   
   const weekDates = Array.from({ length: 7 }, (_, i) => {
+    // Create a new date object to avoid mutating the original
     const newDate = new Date(startDate);
+    // Set to noon to avoid timezone issues
     newDate.setHours(12, 0, 0, 0);
     newDate.setDate(startDate.getDate() + i);
     
     console.log(`BulkStatsForm - Week date ${i}:`, newDate.toString());
     console.log(`BulkStatsForm - Week date ${i} ISO:`, newDate.toISOString());
+    console.log(`BulkStatsForm - Week date ${i} formatted:`, formatDateKey(newDate));
     
     return newDate;
   });
@@ -162,6 +160,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
         
         for (const date of weekDates) {
+          // Use formatDateForStorage to ensure consistent date format
           const dateKey = formatDateKey(date);
           const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
           
@@ -230,6 +229,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
+      // Use the last date in the week for manual stats
       const recentDateKey = formatDateKey(weekDates[weekDates.length - 1]);
       console.log("BulkStatsForm - Recent date key for manual stats:", recentDateKey);
       
