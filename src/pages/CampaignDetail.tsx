@@ -71,6 +71,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
 import { CaseAttributionForm } from "@/components/campaigns/CaseAttributionForm";
 import { formatDateForStorage, formatDisplayDate, parseStoredDate, formatSafeDate } from "@/lib/utils/ManualDateUtils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -133,6 +134,7 @@ const CampaignDetail = () => {
   
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
+  const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
 
   useEffect(() => {
     if (campaign) {
@@ -408,6 +410,39 @@ const CampaignDetail = () => {
     setIsEditingTitle(false);
     if (campaign) {
       setEditedTitle(campaign.name);
+    }
+  };
+
+  const handleEntrySelect = (entryId: string) => {
+    setSelectedEntries(prev => {
+      if (prev.includes(entryId)) {
+        return prev.filter(id => id !== entryId);
+      } else {
+        return [...prev, entryId];
+      }
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedEntries.length === 0) {
+      toast.error("Please select at least one entry to delete");
+      return;
+    }
+
+    setDeleteEntryDialogOpen(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      for (const entryId of selectedEntries) {
+        await deleteStatHistoryEntry(campaign.id, entryId);
+      }
+      toast.success(`Successfully deleted ${selectedEntries.length} entries`);
+      setSelectedEntries([]);
+      setDeleteEntryDialogOpen(false);
+    } catch (error) {
+      console.error("Error deleting entries:", error);
+      toast.error("Failed to delete selected entries");
     }
   };
 
@@ -867,23 +902,38 @@ const CampaignDetail = () => {
       
       <Card className="shadow-md border-accent/30 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-primary" />
-            Stats History
-          </CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              setEditEntryDialogOpen(false);
-              setEditingEntryId(null);
-              setIsDailyStatsDialogOpen(true);
-            }}
-            className="shadow-sm"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Entry
-          </Button>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Stats History
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {selectedEntries.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  className="shadow-sm"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected ({selectedEntries.length})
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setEditEntryDialogOpen(false);
+                  setEditingEntryId(null);
+                  setIsDailyStatsDialogOpen(true);
+                }}
+                className="shadow-sm"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Entry
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           {campaign.statsHistory && campaign.statsHistory.length > 0 ? (
@@ -891,6 +941,18 @@ const CampaignDetail = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30">
+                    <TableHead className="w-[50px]">
+                      <Checkbox 
+                        checked={selectedEntries.length === campaign.statsHistory.length}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedEntries(campaign.statsHistory.map(entry => entry.id));
+                          } else {
+                            setSelectedEntries([]);
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHead className="font-medium">Date</TableHead>
                     <TableHead className="font-medium">Leads</TableHead>
                     <TableHead className="font-medium">Cases</TableHead>
@@ -905,6 +967,12 @@ const CampaignDetail = () => {
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map((entry) => (
                       <TableRow key={entry.id}>
+                        <TableCell>
+                          <Checkbox 
+                            checked={selectedEntries.includes(entry.id)}
+                            onCheckedChange={() => handleEntrySelect(entry.id)}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           {formatSafeDate(entry.date, "PP")}
                         </TableCell>
@@ -1106,12 +1174,17 @@ const CampaignDetail = () => {
           <DialogHeader>
             <DialogTitle>Confirm Delete</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this entry? This action cannot be undone.
+              Are you sure you want to delete {selectedEntries.length === 1 ? 'this entry' : `these ${selectedEntries.length} entries`}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteEntryDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDeleteEntry}>Delete</Button>
+            <Button 
+              variant="destructive" 
+              onClick={selectedEntries.length === 1 ? confirmDeleteEntry : confirmBulkDelete}
+            >
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
