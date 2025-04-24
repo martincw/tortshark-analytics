@@ -1,18 +1,16 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBulkStatsData, StatsField } from "@/hooks/useBulkStatsData";
-import { formatDateForStorage, createDateAtUTCNoon, createWeekDates } from "@/lib/utils/ManualDateUtils";
+import { useBulkStatsData } from "@/hooks/useBulkStatsData";
+import { formatDateForStorage, createWeekDates } from "@/lib/utils/ManualDateUtils";
 import {
   Table,
   TableBody,
@@ -34,64 +32,29 @@ type DailyStats = {
 };
 
 type WeeklyStats = {
-  [key: string]: DailyStats; // key is the date string in format YYYY-MM-DD
+  [key: string]: DailyStats;
 };
 
-const statsFields: { id: StatsField; label: string }[] = [
-  { id: 'leads', label: 'Leads' },
-  { id: 'cases', label: 'Cases' },
-  { id: 'revenue', label: 'Revenue ($)' },
-  { id: 'adSpend', label: 'Ad Spend ($)' },
-];
-
 export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
-  const { campaigns, fetchCampaigns } = useCampaign();
-  const { uniqueCampaigns, activeField, setActiveField, refreshAfterBulkUpdate } = useBulkStatsData();
+  const { uniqueCampaigns, refreshAfterBulkUpdate } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
+  const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({});
-  const [activeDay, setActiveDay] = useState<string>("0");
   
-  // Update weekDates generation to use our utility
   const weekDates = createWeekDates(startDate);
-  
-  // Pre-compute date keys for the entire week for consistent reference
   const weekDateKeys = weekDates.map(date => formatDateForStorage(date));
-  
-  console.log("BulkStatsForm - Week dates:", weekDates);
-  console.log("BulkStatsForm - Week date keys:", weekDateKeys);
-  
-  const handleSelectAll = () => {
-    const allSelected = uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
-    const newSelected = {};
-    
-    uniqueCampaigns.forEach(campaign => {
-      newSelected[campaign.id] = !allSelected;
-      
-      if (!allSelected && !weeklyStatsData[campaign.id]) {
-        initializeWeeklyStats(campaign.id);
-      }
-    });
-    
-    setSelectedCampaigns(newSelected);
-  };
 
-  const handleSelectCampaign = (campaignId: string) => {
-    setSelectedCampaigns(prev => ({
-      ...prev,
-      [campaignId]: !prev[campaignId]
-    }));
+  const handleCampaignSelect = (campaignId: string) => {
+    setSelectedCampaign(prev => prev === campaignId ? null : campaignId);
     
-    if (!selectedCampaigns[campaignId] && !weeklyStatsData[campaignId]) {
+    if (!weeklyStatsData[campaignId]) {
       initializeWeeklyStats(campaignId);
     }
   };
 
   const initializeWeeklyStats = (campaignId: string) => {
     const emptyWeekStats: WeeklyStats = {};
-    
-    // Use the pre-computed date keys for consistency
     weekDateKeys.forEach(dateKey => {
       emptyWeekStats[dateKey] = { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
     });
@@ -102,7 +65,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     }));
   };
 
-  const handleInputChange = (campaignId: string, dateKey: string, field: string, value: string) => {
+  const handleInputChange = (campaignId: string, dateKey: string, field: keyof DailyStats, value: string) => {
     const numValue = value === '' ? 0 : parseFloat(value);
     
     setWeeklyStatsData(prev => {
@@ -123,78 +86,56 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast.error("You must be logged in to add stats");
+    if (!user || !selectedCampaign) {
+      toast.error("Please select a campaign first");
       return;
     }
     
     setLoading(true);
     
     try {
-      const selectedCampaignIds = Object.entries(selectedCampaigns)
-        .filter(([_, isSelected]) => isSelected)
-        .map(([id]) => id);
+      const campaignWeeklyStats = weeklyStatsData[selectedCampaign] || {};
       
-      if (selectedCampaignIds.length === 0) {
-        toast.error("Please select at least one campaign");
-        setLoading(false);
-        return;
-      }
-      
-      console.log("BulkStatsForm - Selected campaign IDs:", selectedCampaignIds);
-      console.log("BulkStatsForm - Stats data to save:", weeklyStatsData);
-      
-      const allStatsToAdd = [];
-      
-      for (const campaignId of selectedCampaignIds) {
-        const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
+      for (let i = 0; i < weekDateKeys.length; i++) {
+        const dateKey = weekDateKeys[i];
+        const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
         
-        // Use the pre-computed date keys for consistency
-        for (let i = 0; i < weekDateKeys.length; i++) {
-          const dateKey = weekDateKeys[i];
-          const date = weekDates[i];
+        const { data: existingRecord, error: checkError } = await supabase
+          .from('campaign_stats_history')
+          .select('id')
+          .eq('campaign_id', selectedCampaign)
+          .eq('date', dateKey)
+          .maybeSingle();
           
-          const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-          
-          console.log(`BulkStatsForm - Processing stats for campaign ${campaignId} on date key: ${dateKey}`);
-          console.log(`BulkStatsForm - Day stats to save:`, dayStats);
-          
-          const { data: existingRecord, error: checkError } = await supabase
+        if (checkError) {
+          console.error(`Error checking stats for ${selectedCampaign} on ${dateKey}:`, checkError);
+          continue;
+        }
+        
+        if (existingRecord) {
+          const { error: updateError } = await supabase
             .from('campaign_stats_history')
-            .select('id')
-            .eq('campaign_id', campaignId)
-            .eq('date', dateKey)
-            .maybeSingle();
+            .update({
+              leads: dayStats.leads || 0,
+              cases: dayStats.cases || 0,
+              retainers: dayStats.cases || 0,
+              revenue: dayStats.revenue || 0,
+              ad_spend: dayStats.adSpend || 0,
+              date: dateKey
+            })
+            .eq('id', existingRecord.id);
             
-          if (checkError) {
-            console.error(`BulkStatsForm - Error checking stats for ${campaignId} on ${dateKey}:`, checkError);
-            continue;
+          if (updateError) {
+            console.error(`Error updating stats for ${selectedCampaign} on ${dateKey}:`, updateError);
+            toast.error(`Failed to update stats for ${dateKey}`);
           }
-          
-          if (existingRecord) {
-            console.log(`BulkStatsForm - Updating existing stats for ${campaignId} on ${dateKey}`);
-            const { error: updateError } = await supabase
-              .from('campaign_stats_history')
-              .update({
-                leads: dayStats.leads || 0,
-                cases: dayStats.cases || 0,
-                retainers: dayStats.cases || 0,
-                revenue: dayStats.revenue || 0,
-                ad_spend: dayStats.adSpend || 0,
-                date: dateKey // Store just the date key (YYYY-MM-DD)
-              })
-              .eq('id', existingRecord.id);
-              
-            if (updateError) {
-              console.error(`BulkStatsForm - Error updating stats for ${campaignId} on ${dateKey}:`, updateError);
-              toast.error(`Failed to update stats for ${dateKey}`);
-            }
-          } else {
-            console.log(`BulkStatsForm - Inserting new stats for ${campaignId} on ${dateKey}`);
-            allStatsToAdd.push({
+        } else {
+          const { error: insertError } = await supabase
+            .from('campaign_stats_history')
+            .insert({
               id: uuidv4(),
-              campaign_id: campaignId,
-              date: dateKey, // Store just the date key (YYYY-MM-DD)
+              campaign_id: selectedCampaign,
+              date: dateKey,
               leads: dayStats.leads || 0,
               cases: dayStats.cases || 0,
               retainers: dayStats.cases || 0,
@@ -202,199 +143,172 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               ad_spend: dayStats.adSpend || 0,
               created_at: new Date().toISOString()
             });
+            
+          if (insertError) {
+            console.error(`Error inserting stats for ${selectedCampaign} on ${dateKey}:`, insertError);
+            toast.error(`Failed to add stats for ${dateKey}`);
           }
         }
       }
       
-      if (allStatsToAdd.length > 0) {
-        console.log("BulkStatsForm - Bulk inserting new stats:", allStatsToAdd);
-        const { error } = await supabase
-          .from('campaign_stats_history')
-          .insert(allStatsToAdd);
-          
-        if (error) {
-          console.error("BulkStatsForm - Error adding stats:", error);
-          toast.error("Failed to add stats: " + error.message);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Use the last date in the week for manual stats
+      // Update manual stats with the most recent day's data
       const recentDateKey = weekDateKeys[weekDateKeys.length - 1];
-      console.log("BulkStatsForm - Recent date key for manual stats:", recentDateKey);
+      const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
       
-      for (const campaignId of selectedCampaignIds) {
-        const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
+      const { data: existingManualStats, error: checkManualError } = await supabase
+        .from('campaign_manual_stats')
+        .select('id')
+        .eq('campaign_id', selectedCampaign)
+        .maybeSingle();
         
-        const { data: existingManualStats, error: checkManualError } = await supabase
-          .from('campaign_manual_stats')
-          .select('id')
-          .eq('campaign_id', campaignId)
-          .maybeSingle();
-          
-        if (checkManualError) {
-          console.error(`BulkStatsForm - Error checking manual stats for ${campaignId}:`, checkManualError);
-          continue;
-        }
-        
-        // Log the stats we're about to save to manual stats
-        console.log(`BulkStatsForm - Manual stats for campaign ${campaignId}:`, {
-          leads: recentStats.leads || 0,
-          cases: recentStats.cases || 0,
-          retainers: recentStats.cases || 0,
-          revenue: recentStats.revenue || 0,
-          date: recentDateKey
-        });
-        
+      if (checkManualError) {
+        console.error(`Error checking manual stats for ${selectedCampaign}:`, checkManualError);
+      } else {
         if (existingManualStats) {
-          const { error: updateManualError } = await supabase
+          await supabase
             .from('campaign_manual_stats')
             .update({
               leads: recentStats.leads || 0,
               cases: recentStats.cases || 0,
               retainers: recentStats.cases || 0,
               revenue: recentStats.revenue || 0,
-              date: recentDateKey // Store just the date key (YYYY-MM-DD)
+              date: recentDateKey
             })
             .eq('id', existingManualStats.id);
-            
-          if (updateManualError) {
-            console.error(`BulkStatsForm - Error updating manual stats for ${campaignId}:`, updateManualError);
-          } else {
-            console.log(`BulkStatsForm - Successfully updated manual stats for ${campaignId}`);
-          }
         } else {
-          const { error: insertManualError } = await supabase
+          await supabase
             .from('campaign_manual_stats')
             .insert({
               id: uuidv4(),
-              campaign_id: campaignId,
-              date: recentDateKey, // Store just the date key (YYYY-MM-DD)
+              campaign_id: selectedCampaign,
+              date: recentDateKey,
               leads: recentStats.leads || 0,
               cases: recentStats.cases || 0,
               retainers: recentStats.cases || 0,
               revenue: recentStats.revenue || 0
             });
-            
-          if (insertManualError) {
-            console.error(`BulkStatsForm - Error inserting manual stats for ${campaignId}:`, insertManualError);
-          } else {
-            console.log(`BulkStatsForm - Successfully inserted manual stats for ${campaignId}`);
-          }
         }
       }
       
       refreshAfterBulkUpdate();
-      await fetchCampaigns();
+      toast.success("Stats saved successfully");
       
-      toast.success(`Stats added for ${selectedCampaignIds.length} campaigns for the entire week`);
-      
-      setSelectedCampaigns({});
+      setSelectedCampaign(null);
       setWeeklyStatsData({});
     } catch (err) {
-      console.error("BulkStatsForm - Error in submission:", err);
+      console.error("Error in submission:", err);
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  const currentDateKey = weekDateKeys[parseInt(activeDay)];
-  const formattedActiveDate = format(weekDates[parseInt(activeDay)], "EEE, MMM d");
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-2 mb-4">
-        <Checkbox
-          id="select-all"
-          checked={uniqueCampaigns.length > 0 && uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
-          onCheckedChange={handleSelectAll}
-        />
-        <label htmlFor="select-all" className="text-sm font-medium">
-          Select All Campaigns
-        </label>
-      </div>
-
-      <div className="flex justify-between items-center mb-4">
-        <Tabs defaultValue="leads" value={activeField} onValueChange={(value) => setActiveField(value as StatsField)}>
-          <TabsList>
-            {statsFields.map((field) => (
-              <TabsTrigger key={field.id} value={field.id}>
-                {field.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        
-        <Tabs defaultValue="0" value={activeDay} onValueChange={setActiveDay} className="ml-4">
-          <TabsList className="justify-start">
-            {weekDates.map((date, index) => (
-              <TabsTrigger 
-                key={index}
-                value={index.toString()}
-              >
-                {format(date, "EEE, d")}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
-      
-      <p className="text-sm text-muted-foreground mb-4">
-        Entering <span className="font-semibold">{statsFields.find(f => f.id === activeField)?.label}</span> for: <span className="font-semibold">{formattedActiveDate}</span>
-      </p>
-
       <div className="grid grid-cols-1 gap-4">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]"></TableHead>
               <TableHead>Campaign</TableHead>
-              {weekDates.map((date, index) => (
-                <TableHead key={index} className="text-center">{format(date, "EEE, d")}</TableHead>
-              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {uniqueCampaigns.map((campaign) => (
-              <TableRow key={campaign.id} className={selectedCampaigns[campaign.id] ? "bg-muted/50" : ""}>
+              <TableRow key={campaign.id} className={selectedCampaign === campaign.id ? "bg-muted/50" : ""}>
                 <TableCell>
                   <Checkbox
                     id={`select-${campaign.id}`}
-                    checked={selectedCampaigns[campaign.id] || false}
-                    onCheckedChange={() => handleSelectCampaign(campaign.id)}
+                    checked={selectedCampaign === campaign.id}
+                    onCheckedChange={() => handleCampaignSelect(campaign.id)}
                   />
                 </TableCell>
                 <TableCell className="font-medium">{campaign.name}</TableCell>
-                {weekDateKeys.map((dateKey, index) => (
-                  <TableCell key={index}>
-                    <Input
-                      type="number"
-                      min="0"
-                      step={activeField === 'revenue' || activeField === 'adSpend' ? "0.01" : "1"}
-                      value={weeklyStatsData[campaign.id]?.[dateKey]?.[activeField] || ''}
-                      onChange={(e) => handleInputChange(campaign.id, dateKey, activeField, e.target.value)}
-                      disabled={!selectedCampaigns[campaign.id]}
-                      placeholder="0"
-                      className="text-center"
-                    />
-                  </TableCell>
-                ))}
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
 
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSubmit} 
-          disabled={loading || Object.values(selectedCampaigns).filter(Boolean).length === 0}
-        >
-          {loading ? "Saving..." : "Save All Stats"}
-        </Button>
+        {selectedCampaign && (
+          <div className="mt-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Leads</TableHead>
+                  <TableHead className="text-right">Cases</TableHead>
+                  <TableHead className="text-right">Revenue ($)</TableHead>
+                  <TableHead className="text-right">Ad Spend ($)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {weekDates.map((date, index) => {
+                  const dateKey = weekDateKeys[index];
+                  const dayStats = weeklyStatsData[selectedCampaign]?.[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
+                  
+                  return (
+                    <TableRow key={dateKey}>
+                      <TableCell className="font-medium">
+                        {format(date, "EEE, MMM d")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={dayStats.leads || ''}
+                          onChange={(e) => handleInputChange(selectedCampaign, dateKey, 'leads', e.target.value)}
+                          className="w-24 ml-auto"
+                          placeholder="0"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={dayStats.cases || ''}
+                          onChange={(e) => handleInputChange(selectedCampaign, dateKey, 'cases', e.target.value)}
+                          className="w-24 ml-auto"
+                          placeholder="0"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={dayStats.revenue || ''}
+                          onChange={(e) => handleInputChange(selectedCampaign, dateKey, 'revenue', e.target.value)}
+                          className="w-24 ml-auto"
+                          placeholder="0"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={dayStats.adSpend || ''}
+                          onChange={(e) => handleInputChange(selectedCampaign, dateKey, 'adSpend', e.target.value)}
+                          className="w-24 ml-auto"
+                          placeholder="0"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+
+            <div className="flex justify-end mt-4">
+              <Button 
+                onClick={handleSubmit} 
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Save All Stats"}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
