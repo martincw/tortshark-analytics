@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -12,7 +13,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { Calendar as CalendarIcon, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, parseStoredDate, formatDisplayDate } from "@/lib/utils/ManualDateUtils";
 
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
@@ -64,23 +65,19 @@ export function DateRangePicker() {
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    // Use our UTC-based approach for dates
-    const fromDate = tempDate.from;
-    const toDate = tempDate.to || tempDate.from;
-    
     // Format to YYYY-MM-DD using our utility
-    const formattedStartDate = formatDateForStorage(fromDate);
-    const formattedEndDate = formatDateForStorage(toDate);
+    const formattedStartDate = formatDateForStorage(tempDate.from);
+    const formattedEndDate = formatDateForStorage(tempDate.to || tempDate.from);
     
-    console.log(`DateRangePicker: Original from date:`, fromDate);
-    console.log(`DateRangePicker: Original to date:`, toDate);
+    console.log(`DateRangePicker: Original from date:`, tempDate.from);
+    console.log(`DateRangePicker: Original to date:`, tempDate.to);
     console.log(`DateRangePicker: Formatted start date:`, formattedStartDate);
     console.log(`DateRangePicker: Formatted end date:`, formattedEndDate);
     
     // Update local component state
     setDate({
-      from: fromDate,
-      to: toDate
+      from: tempDate.from,
+      to: tempDate.to || tempDate.from
     });
     
     // Create a new object reference to trigger re-renders in dependent components

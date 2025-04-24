@@ -13,21 +13,26 @@ import { format, addDays } from "date-fns";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { formatDateForStorage, getLocalDateString } from "@/lib/utils/ManualDateUtils";
 
 const BulkStatsPage = () => {
-  // Initialize the start date with noon time to avoid timezone issues
+  // Initialize with a date at noon UTC
   const initialDate = new Date();
-  initialDate.setHours(12, 0, 0, 0);
   
   const [startDate, setStartDate] = useState<Date>(initialDate);
   const endDate = addDays(startDate, 6); // 7 days total (start date + 6 more days)
+
+  console.log("BulkStatsPage - Initial startDate:", startDate);
+  console.log("BulkStatsPage - Initial startDate as string:", formatDateForStorage(startDate));
+  console.log("BulkStatsPage - Initial endDate:", endDate);
+  console.log("BulkStatsPage - Initial endDate as string:", formatDateForStorage(endDate));
 
   const moveWeek = (direction: 'previous' | 'next') => {
     setStartDate(prevDate => {
       const offset = direction === 'previous' ? -7 : 7;
       const newDate = addDays(prevDate, offset);
-      // Ensure the time is set to noon
-      newDate.setHours(12, 0, 0, 0);
+      console.log(`BulkStatsPage - Moving week ${direction}:`, newDate);
+      console.log(`BulkStatsPage - New date as string:`, formatDateForStorage(newDate));
       return newDate;
     });
   };
@@ -35,7 +40,8 @@ const BulkStatsPage = () => {
   // Handle date selection from the DatePicker
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      // The DatePicker component already normalizes to noon
+      console.log("BulkStatsPage - New date selected:", date);
+      console.log("BulkStatsPage - Selected date as string:", formatDateForStorage(date));
       setStartDate(date);
     }
   };

@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -24,13 +25,12 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
       return;
     }
     
-    // Create a copy to avoid mutating the original date
-    const newDate = new Date(selectedDate);
-    // Set to noon to avoid timezone issues
-    newDate.setHours(12, 0, 0, 0);
+    // Use the selected date directly - don't adjust time
+    console.log('DatePicker - Selected date (original):', selectedDate);
+    console.log('DatePicker - formatDateForStorage result:', formatDateForStorage(selectedDate));
     
-    console.log('DatePicker - Selected date:', selectedDate);
-    console.log('DatePicker - Normalized date (noon):', newDate.toISOString());
+    // Clone to avoid mutations
+    const newDate = new Date(selectedDate);
     
     onSelect(newDate);
   };
