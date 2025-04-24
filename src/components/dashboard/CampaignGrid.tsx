@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
 import { Campaign } from "@/types/campaign";
+import { standardizeDateString } from "@/lib/utils/ManualDateUtils";
 
 interface CampaignGridProps {
   filteredCampaigns?: Campaign[];
@@ -51,7 +52,11 @@ export function CampaignGrid({ filteredCampaigns }: CampaignGridProps) {
 
   // Log the date range to ensure it's consistent with other components
   React.useEffect(() => {
-    console.log("CampaignGrid using date range:", dateRange.startDate, "to", dateRange.endDate);
+    console.log("CampaignGrid using date range:", 
+      dateRange.startDate ? standardizeDateString(dateRange.startDate) : null, 
+      "to", 
+      dateRange.endDate ? standardizeDateString(dateRange.endDate) : null
+    );
     console.log(`CampaignGrid received ${campaignsToUse.length} campaigns`);
   }, [dateRange, campaignsToUse]);
 
