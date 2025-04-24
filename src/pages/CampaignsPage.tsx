@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
-  const { campaigns, isLoading, dateRange } = useCampaign();
+  const { campaigns, isLoading, dateRange, fetchCampaigns } = useCampaign();
   const [showDebug, setShowDebug] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -31,6 +31,27 @@ const CampaignsPage = () => {
     
     checkAuth();
   }, []);
+  
+  // Check local storage directly and add button to reload campaigns
+  useEffect(() => {
+    console.log("CampaignsPage - Campaigns count:", campaigns.length);
+    
+    // Check localStorage directly
+    const storedCampaigns = localStorage.getItem("campaigns");
+    if (storedCampaigns) {
+      try {
+        const parsed = JSON.parse(storedCampaigns);
+        console.log("CampaignsPage - localStorage campaigns:", 
+          Array.isArray(parsed) ? parsed.length : 'not an array',
+          Array.isArray(parsed) && parsed.length > 0 ? parsed.map(c => c.name) : '');
+      } catch (e) {
+        console.error("CampaignsPage - Error parsing localStorage campaigns:", e);
+      }
+    } else {
+      console.log("CampaignsPage - No campaigns in localStorage");
+    }
+    
+  }, [campaigns]);
 
   // Log date range for debugging
   useEffect(() => {
@@ -66,6 +87,17 @@ const CampaignsPage = () => {
       }
     } else {
       toast.error("No campaign data found in localStorage");
+    }
+  };
+  
+  const handleReloadCampaigns = async () => {
+    try {
+      toast.info("Refreshing campaigns...");
+      await fetchCampaigns();
+      toast.success("Campaigns refreshed");
+    } catch (error) {
+      console.error("Error reloading campaigns:", error);
+      toast.error("Failed to refresh campaigns");
     }
   };
 
@@ -173,6 +205,9 @@ const CampaignsPage = () => {
             <Button size="sm" variant="outline" onClick={inspectLocalStorage}>
               Inspect LocalStorage
             </Button>
+            <Button size="sm" variant="outline" onClick={handleReloadCampaigns}>
+              Refresh Campaigns
+            </Button>
             <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
               Refresh Page
             </Button>
@@ -211,6 +246,6 @@ const CampaignsPage = () => {
       )}
     </div>
   );
-};
+}
 
 export default CampaignsPage;

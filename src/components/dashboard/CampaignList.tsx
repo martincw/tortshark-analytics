@@ -15,6 +15,12 @@ export function CampaignList({ campaigns, onClearFilters }: CampaignListProps) {
   
   React.useEffect(() => {
     console.log("CampaignList - Using date range:", dateRange.startDate, "to", dateRange.endDate);
+    console.log("CampaignList - Received campaigns count:", campaigns.length);
+    if (campaigns.length > 0) {
+      console.log("CampaignList - Campaign names:", campaigns.map(c => c.name));
+    } else {
+      console.log("CampaignList - No campaigns to display");
+    }
     
     // Calculate total metrics to debug
     const totalLeads = campaigns.reduce((sum, camp) => sum + camp.manualStats.leads, 0);
