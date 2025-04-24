@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,16 +136,17 @@ const BulkStatsPage = () => {
             </Button>
           </div>
 
-          <div className="flex items-center gap-4 mt-2">
+          <div className="flex flex-wrap justify-center items-center gap-4 mt-2 p-2 bg-muted/30 rounded-md border border-border">
             {weekDates.map((date) => (
-              <div key={date.toISOString()} className="flex items-center space-x-2">
+              <div key={date.toISOString()} className="flex items-center space-x-2 bg-background p-2 rounded-md shadow-sm">
                 <Checkbox
                   id={`date-${date.toISOString()}`}
                   checked={selectedDates.includes(formatDateForStorage(date))}
                   onCheckedChange={() => handleDateCheckboxChange(date)}
+                  className="h-5 w-5 border-2"
                 />
-                <label htmlFor={`date-${date.toISOString()}`} className="text-sm">
-                  {format(date, "dd")}
+                <label htmlFor={`date-${date.toISOString()}`} className="text-sm font-medium">
+                  {format(date, "EEE dd")}
                 </label>
               </div>
             ))}
