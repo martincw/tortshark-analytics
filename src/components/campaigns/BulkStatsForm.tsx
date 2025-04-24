@@ -4,6 +4,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -19,6 +20,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface BulkStatsFormProps {
   startDate: Date;
@@ -41,6 +51,9 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const [loading, setLoading] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyStats>>({});
+  const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'adSpend' | null>(null);
+  const [bulkPasteDialogOpen, setBulkPasteDialogOpen] = useState(false);
+  const [pasteContent, setPasteContent] = useState("");
   
   const weekDates = createWeekDates(startDate);
   const weekDateKeys = weekDates.map(date => formatDateForStorage(date));
@@ -83,6 +96,44 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       };
     });
+  };
+
+  const handleBulkPaste = () => {
+    if (!selectedCampaign || !bulkPasteField) return;
+
+    const values = pasteContent
+      .trim()
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line !== '')
+      .map(value => isNaN(parseFloat(value)) ? 0 : parseFloat(value));
+
+    // Only take up to 7 values (one week)
+    const validValues = values.slice(0, 7);
+
+    setWeeklyStatsData(prev => {
+      const campaignStats = { ...(prev[selectedCampaign] || {}) };
+      
+      validValues.forEach((value, index) => {
+        if (index < weekDateKeys.length) {
+          const dateKey = weekDateKeys[index];
+          campaignStats[dateKey] = {
+            ...(campaignStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 }),
+            [bulkPasteField]: value
+          };
+        }
+      });
+
+      return {
+        ...prev,
+        [selectedCampaign]: campaignStats
+      };
+    });
+
+    setBulkPasteDialogOpen(false);
+    setPasteContent("");
+    setBulkPasteField(null);
+    toast.success(`Pasted ${validValues.length} values for ${bulkPasteField}`);
   };
 
   const handleSubmit = async () => {
@@ -235,10 +286,62 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead className="text-right">Cases</TableHead>
-                  <TableHead className="text-right">Revenue ($)</TableHead>
-                  <TableHead className="text-right">Ad Spend ($)</TableHead>
+                  <TableHead className="text-right">
+                    Leads
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => {
+                        setBulkPasteField('leads');
+                        setBulkPasteDialogOpen(true);
+                      }}
+                    >
+                      Bulk Paste
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    Cases
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => {
+                        setBulkPasteField('cases');
+                        setBulkPasteDialogOpen(true);
+                      }}
+                    >
+                      Bulk Paste
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    Revenue ($)
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => {
+                        setBulkPasteField('revenue');
+                        setBulkPasteDialogOpen(true);
+                      }}
+                    >
+                      Bulk Paste
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    Ad Spend ($)
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => {
+                        setBulkPasteField('adSpend');
+                        setBulkPasteDialogOpen(true);
+                      }}
+                    >
+                      Bulk Paste
+                    </Button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -310,6 +413,33 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           </div>
         )}
       </div>
+
+      <Dialog open={bulkPasteDialogOpen} onOpenChange={setBulkPasteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Paste {bulkPasteField}</DialogTitle>
+            <DialogDescription>
+              Paste your data (one value per line) for the week. Only the first 7 values will be used.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              placeholder="Paste your values here, one per line"
+              value={pasteContent}
+              onChange={(e) => setPasteContent(e.target.value)}
+              className="min-h-[200px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPasteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkPaste}>
+              Apply Values
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
