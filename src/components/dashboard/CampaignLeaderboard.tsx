@@ -13,6 +13,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Campaign } from "@/types/campaign";
+import { useCampaign } from "@/contexts/CampaignContext";
+import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface LeaderboardMetric {
   id: string;
@@ -28,7 +30,9 @@ interface CampaignLeaderboardProps {
 }
 
 export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardProps) {
-  console.log(`CampaignLeaderboard received ${filteredCampaigns.length} filtered campaigns`);
+  const { dateRange } = useCampaign();
+  
+  console.log(`CampaignLeaderboard received ${filteredCampaigns.length} filtered campaigns with date range:`, dateRange);
 
   const leaderboardData = useMemo(() => {
     if (!filteredCampaigns.length) return {
@@ -37,8 +41,24 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       profitPerLeadLeaders: []
     };
     
-    // Calculate metrics for each campaign
-    const campaignsWithMetrics = filteredCampaigns.map(campaign => {
+    // Filter campaign stats by date range if provided
+    const campaignsWithFilteredStats = filteredCampaigns.map(campaign => {
+      // Create a copy of the campaign
+      const filteredCampaign = { ...campaign };
+      
+      // Filter stats history by date range if both dates are provided
+      if (dateRange.startDate && dateRange.endDate && campaign.statsHistory) {
+        console.log(`Filtering stats history for ${campaign.name} by date range:`, dateRange);
+        filteredCampaign.statsHistory = campaign.statsHistory.filter(entry => 
+          isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)
+        );
+      }
+      
+      return filteredCampaign;
+    });
+    
+    // Calculate metrics for each campaign based on filtered stats
+    const campaignsWithMetrics = campaignsWithFilteredStats.map(campaign => {
       const metrics = calculateMetrics(campaign);
       const epl = campaign.manualStats.leads > 0 
         ? campaign.manualStats.revenue / campaign.manualStats.leads 
@@ -102,7 +122,7 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       eplLeaders,
       profitPerLeadLeaders
     };
-  }, [filteredCampaigns]);
+  }, [filteredCampaigns, dateRange]);
 
   if (!filteredCampaigns.length) {
     return null;

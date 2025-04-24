@@ -23,7 +23,7 @@ const DashboardFinancialStats: React.FC = () => {
       if (!dateRange.startDate) return;
       
       setLoading(true);
-      console.log('Fetching financial stats for date:', dateRange.startDate);
+      console.log('Fetching financial stats for date range:', dateRange);
       
       const { data: adSpendData, error: adSpendError } = await supabase
         .from('campaign_stats')
@@ -71,7 +71,7 @@ const DashboardFinancialStats: React.FC = () => {
     }
 
     fetchFinancialStats();
-  }, [dateRange.startDate]);
+  }, [dateRange.startDate, dateRange.endDate]); // Added endDate as dependency to react to both date changes
 
   return (
     <Card className="shadow-md">

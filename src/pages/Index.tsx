@@ -1,11 +1,11 @@
 
-import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import DashboardFinancialStats from "@/components/dashboard/DashboardFinancialStats";
 import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
+import { useEffect } from "react";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns } = useCampaign();
@@ -14,6 +14,12 @@ const Index = () => {
   const filteredCampaigns = selectedCampaignIds.length > 0
     ? campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id))
     : campaigns;
+  
+  // Log when date range or filtered campaigns change to help debug
+  useEffect(() => {
+    console.log("Index component - date range updated:", dateRange);
+    console.log(`Filtered campaigns count: ${filteredCampaigns.length}`);
+  }, [dateRange, filteredCampaigns.length]);
   
   return (
     <div className="space-y-6">
