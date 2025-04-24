@@ -1,25 +1,38 @@
+/**
+ * Creates a Date object at UTC noon for a given date to avoid timezone issues
+ */
+const createDateAtUTCNoon = (date: Date): Date => {
+  return new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+    12, 0, 0, 0
+  ));
+};
 
 /**
  * Formats a Date object to YYYY-MM-DD format for consistent storage
  * This function ensures dates are stored in a format that won't be affected by timezones
  */
 export const formatDateForStorage = (date: Date): string => {
-  // Get UTC components to avoid timezone issues
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
+  // Ensure the date is at UTC noon
+  const utcNoonDate = createDateAtUTCNoon(date);
+  
+  const year = utcNoonDate.getUTCFullYear();
+  const month = String(utcNoonDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(utcNoonDate.getUTCDate()).padStart(2, '0');
   
   console.log(`formatDateForStorage: Input Date:`, date);
+  console.log(`formatDateForStorage: UTC noon date:`, utcNoonDate);
   console.log(`formatDateForStorage: UTC components - Year: ${year}, Month: ${month}, Day: ${day}`);
   
-  // Create a string in YYYY-MM-DD format (no time component)
   const result = `${year}-${month}-${day}`;
   console.log(`formatDateForStorage: Result:`, result);
   return result;
 };
 
 /**
- * Parses a YYYY-MM-DD string into a Date object at UTC midnight
+ * Parses a YYYY-MM-DD string into a Date object at UTC noon
  */
 export const parseStoredDate = (dateString: string): Date => {
   console.log(`parseStoredDate: Input String:`, dateString);
@@ -27,7 +40,7 @@ export const parseStoredDate = (dateString: string): Date => {
   // Parse the date components
   const [year, month, day] = dateString.split('-').map(Number);
   
-  // Create a UTC date
+  // Create a UTC date at noon
   const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
   console.log(`parseStoredDate: Result:`, date);
   
@@ -59,3 +72,19 @@ export const getLocalDateString = (date: Date): string => {
   
   return `${year}-${month}-${day}`;
 };
+
+/**
+ * Creates a week's worth of dates starting from a given date, all at UTC noon
+ */
+export const createWeekDates = (startDate: Date): Date[] => {
+  // Ensure start date is at UTC noon
+  const utcNoonStartDate = createDateAtUTCNoon(startDate);
+  
+  return Array.from({ length: 7 }, (_, i) => {
+    const newDate = new Date(utcNoonStartDate);
+    newDate.setUTCDate(utcNoonStartDate.getUTCDate() + i);
+    return newDate;
+  });
+};
+
+export { createDateAtUTCNoon };

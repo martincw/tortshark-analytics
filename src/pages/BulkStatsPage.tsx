@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,30 +8,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatDateForStorage, getLocalDateString } from "@/lib/utils/ManualDateUtils";
+import { createDateAtUTCNoon, formatDateForStorage } from "@/lib/utils/ManualDateUtils";
 
 const BulkStatsPage = () => {
-  // Initialize with a date at noon UTC
-  const initialDate = new Date();
-  
+  // Initialize with UTC noon date
+  const initialDate = createDateAtUTCNoon(new Date());
   const [startDate, setStartDate] = useState<Date>(initialDate);
-  const endDate = addDays(startDate, 6); // 7 days total (start date + 6 more days)
 
   console.log("BulkStatsPage - Initial startDate:", startDate);
   console.log("BulkStatsPage - Initial startDate as string:", formatDateForStorage(startDate));
-  console.log("BulkStatsPage - Initial endDate:", endDate);
-  console.log("BulkStatsPage - Initial endDate as string:", formatDateForStorage(endDate));
 
   const moveWeek = (direction: 'previous' | 'next') => {
     setStartDate(prevDate => {
+      const newDate = new Date(prevDate);
       const offset = direction === 'previous' ? -7 : 7;
-      const newDate = addDays(prevDate, offset);
+      newDate.setUTCDate(prevDate.getUTCDate() + offset);
       console.log(`BulkStatsPage - Moving week ${direction}:`, newDate);
-      console.log(`BulkStatsPage - New date as string:`, formatDateForStorage(newDate));
       return newDate;
     });
   };
@@ -40,9 +35,11 @@ const BulkStatsPage = () => {
   // Handle date selection from the DatePicker
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
+      const utcNoonDate = createDateAtUTCNoon(date);
       console.log("BulkStatsPage - New date selected:", date);
-      console.log("BulkStatsPage - Selected date as string:", formatDateForStorage(date));
-      setStartDate(date);
+      console.log("BulkStatsPage - UTC noon date:", utcNoonDate);
+      console.log("BulkStatsPage - Selected date as string:", formatDateForStorage(utcNoonDate));
+      setStartDate(utcNoonDate);
     }
   };
 
@@ -68,7 +65,7 @@ const BulkStatsPage = () => {
             <div className="text-center">
               <p className="font-medium">Week of {format(startDate, "MMM d")}</p>
               <p className="text-sm text-muted-foreground">
-                {format(startDate, "MMM d")} - {format(endDate, "MMM d, yyyy")}
+                {format(startDate, "MMM d")} - {format(addDays(startDate, 6), "MMM d, yyyy")}
               </p>
             </div>
             
@@ -99,7 +96,7 @@ const BulkStatsPage = () => {
             <CardHeader>
               <CardTitle>Bulk Manual Stats</CardTitle>
               <CardDescription>
-                Add leads, cases, retainers, and revenue for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(endDate, "MMMM d, yyyy")}.
+                Add leads, cases, retainers, and revenue for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -113,7 +110,7 @@ const BulkStatsPage = () => {
             <CardHeader>
               <CardTitle>Bulk Ad Stats</CardTitle>
               <CardDescription>
-                Add ad spend, impressions, clicks, and CPC for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(endDate, "MMMM d, yyyy")}.
+                Add ad spend, impressions, clicks, and CPC for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}.
               </CardDescription>
             </CardHeader>
             <CardContent>

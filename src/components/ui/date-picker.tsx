@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, createDateAtUTCNoon } from "@/lib/utils/ManualDateUtils";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -25,14 +25,13 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
       return;
     }
     
-    // Use the selected date directly - don't adjust time
+    // Convert the selected date to UTC noon
+    const utcNoonDate = createDateAtUTCNoon(selectedDate);
     console.log('DatePicker - Selected date (original):', selectedDate);
-    console.log('DatePicker - formatDateForStorage result:', formatDateForStorage(selectedDate));
+    console.log('DatePicker - UTC noon date:', utcNoonDate);
+    console.log('DatePicker - formatDateForStorage result:', formatDateForStorage(utcNoonDate));
     
-    // Clone to avoid mutations
-    const newDate = new Date(selectedDate);
-    
-    onSelect(newDate);
+    onSelect(utcNoonDate);
   };
 
   return (

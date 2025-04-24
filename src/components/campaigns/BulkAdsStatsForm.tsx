@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBulkStatsData, AdsStatsField } from "@/hooks/useBulkStatsData";
-import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, createWeekDates } from "@/lib/utils/ManualDateUtils";
 import {
   Table,
   TableBody,
@@ -53,17 +52,13 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   const [weeklyStatsData, setWeeklyStatsData] = useState<Record<string, WeeklyAdStats>>({}); // campaign_id -> { date -> stats }
   const [activeDay, setActiveDay] = useState<string>("0"); // Changed to string to match TabsTrigger value
   
-  // Generate week dates without relying on setHours (which can be affected by DST)
-  const weekDates = Array.from({ length: 7 }, (_, i) => {
-    const newDate = new Date(startDate);
-    newDate.setDate(startDate.getDate() + i);
-    return newDate;
-  });
+  // Update weekDates generation to use our utility
+  const weekDates = createWeekDates(startDate);
   
   // Pre-compute date keys for the entire week for consistent reference
   const weekDateKeys = weekDates.map(date => formatDateForStorage(date));
   
-  // Log the date keys for debugging
+  console.log("BulkAdsStatsForm - Week dates:", weekDates);
   console.log("BulkAdsStatsForm - Week date keys:", weekDateKeys);
 
   const handleSelectAll = () => {
