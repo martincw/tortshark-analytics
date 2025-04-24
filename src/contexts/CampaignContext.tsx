@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useState,
@@ -25,6 +24,7 @@ import {
   getLocalDateString,
   createDateBoundaries,
 } from "@/lib/utils/ManualDateUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CampaignContextType {
   campaigns: Campaign[];
@@ -79,38 +79,92 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
   const [caseBuyers, setCaseBuyers] = useState<CaseBuyer[]>([]);
   const [caseAttributions, setCaseAttributions] = useState<CaseAttribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasRestoredData, setHasRestoredData] = useState(false);
 
-  // Load campaigns from local storage on component mount
-  useEffect(() => {
-    setIsLoading(true);
+  const loadFromLocalStorage = (key: string) => {
     try {
-      const storedCampaigns = localStorage.getItem("campaigns");
-      const initialCampaigns = storedCampaigns ? JSON.parse(storedCampaigns) : [];
-      setCampaigns(initialCampaigns);
-
-      const storedAccountConnections = localStorage.getItem("accountConnections");
-      const initialAccountConnections = storedAccountConnections ? JSON.parse(storedAccountConnections) : [];
-      setAccountConnections(initialAccountConnections);
-
-      const storedCaseBuyers = localStorage.getItem("caseBuyers");
-      const initialCaseBuyers = storedCaseBuyers ? JSON.parse(storedCaseBuyers) : [];
-      setCaseBuyers(initialCaseBuyers);
-
-      const storedCaseAttributions = localStorage.getItem("caseAttributions");
-      const initialCaseAttributions = storedCaseAttributions ? JSON.parse(storedCaseAttributions) : [];
-      setCaseAttributions(initialCaseAttributions);
+      const storedData = localStorage.getItem(key);
+      console.log(`Loading ${key} from localStorage:`, storedData ? 'found' : 'not found');
+      
+      if (!storedData) {
+        console.log(`No ${key} data in localStorage`);
+        return null;
+      }
+      
+      const parsedData = JSON.parse(storedData);
+      console.log(`Parsed ${key} data:`, Array.isArray(parsedData) ? `${parsedData.length} items` : 'not an array');
+      
+      if (Array.isArray(parsedData)) {
+        return parsedData;
+      } else {
+        console.error(`Invalid ${key} data format in localStorage`);
+        return null;
+      }
     } catch (error) {
-      console.error("Error loading data from local storage:", error);
-      toast.error("Error loading data from local storage");
-    } finally {
-      setIsLoading(false);
+      console.error(`Error loading ${key} from localStorage:`, error);
+      return null;
     }
-  }, []);
+  };
 
-  // Save campaigns to local storage whenever campaigns state changes
   useEffect(() => {
-    localStorage.setItem("campaigns", JSON.stringify(campaigns));
-  }, [campaigns]);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const storedCampaigns = loadFromLocalStorage("campaigns");
+        if (storedCampaigns && Array.isArray(storedCampaigns)) {
+          console.log("Setting campaigns from localStorage:", storedCampaigns.length);
+          console.log("Campaign names:", storedCampaigns.map(c => c.name));
+          setCampaigns(storedCampaigns);
+        } else {
+          console.warn("No valid campaigns found in localStorage");
+          setCampaigns([]);
+        }
+
+        const storedConnections = loadFromLocalStorage("accountConnections");
+        if (storedConnections) setAccountConnections(storedConnections);
+
+        const storedBuyers = loadFromLocalStorage("caseBuyers");
+        if (storedBuyers) setCaseBuyers(storedBuyers);
+
+        const storedAttributions = loadFromLocalStorage("caseAttributions");
+        if (storedAttributions) setCaseAttributions(storedAttributions);
+
+        setHasRestoredData(true);
+      } catch (error) {
+        console.error("Error loading application data:", error);
+        toast.error("Error loading data. Please try refreshing the page.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (!hasRestoredData) {
+      loadData();
+    }
+  }, [hasRestoredData]);
+
+  const saveToLocalStorage = (key: string, data: any) => {
+    try {
+      if (!data) {
+        console.warn(`Attempting to save null/undefined data for ${key}`);
+        return;
+      }
+      
+      const jsonString = JSON.stringify(data);
+      localStorage.setItem(key, jsonString);
+      console.log(`Saved ${key} to localStorage:`, Array.isArray(data) ? `${data.length} items` : 'not an array');
+    } catch (error) {
+      console.error(`Error saving ${key} to localStorage:`, error);
+      toast.error(`Failed to save ${key} data`);
+    }
+  };
+
+  useEffect(() => {
+    if (campaigns.length > 0 || hasRestoredData) {
+      console.log("Saving campaigns to localStorage:", campaigns.length);
+      saveToLocalStorage("campaigns", campaigns);
+    }
+  }, [campaigns, hasRestoredData]);
 
   useEffect(() => {
     localStorage.setItem("accountConnections", JSON.stringify(accountConnections));
@@ -129,6 +183,7 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
   };
 
   const addCampaign = (campaign: Omit<Campaign, "id" | "stats" | "statsHistory">) => {
+    console.log("Adding new campaign:", campaign.name);
     const newCampaign: Campaign = {
       id: uuidv4(),
       stats: {
@@ -149,7 +204,13 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
       ...campaign,
     };
 
-    setCampaigns([...campaigns, newCampaign]);
+    setCampaigns(prevCampaigns => {
+      const updatedCampaigns = [...prevCampaigns, newCampaign];
+      console.log("Updated campaigns count:", updatedCampaigns.length);
+      return updatedCampaigns;
+    });
+    
+    saveToLocalStorage("campaigns_backup", [...campaigns, newCampaign]);
     toast.success("Campaign added successfully");
   };
 
@@ -256,10 +317,8 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
     try {
       console.log(`Deleting stats entry ${entryId} from campaign ${campaignId}`);
       
-      // Create a deep copy of the current campaigns
       const updatedCampaigns = JSON.parse(JSON.stringify(campaigns));
       
-      // Find the campaign by ID
       const campaign = updatedCampaigns.find((c: Campaign) => c.id === campaignId);
       
       if (!campaign) {
@@ -268,14 +327,12 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
         return;
       }
       
-      // Check if the campaign has stats history
       if (!campaign.statsHistory || !Array.isArray(campaign.statsHistory)) {
         console.error(`No stats history found for campaign ${campaignId}`);
         toast.error("No stats history to delete");
         return;
       }
       
-      // Find the entry to delete
       const entryIndex = campaign.statsHistory.findIndex((entry: StatHistoryEntry) => entry.id === entryId);
       
       if (entryIndex === -1) {
@@ -284,24 +341,20 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
         return;
       }
       
-      // Remove the entry
       campaign.statsHistory.splice(entryIndex, 1);
       console.log(`Deleted entry ${entryId} from campaign ${campaignId}`);
       
-      // Recalculate campaign totals
       updateCampaignTotals(campaign);
       
-      // Update state with the modified campaigns
       setCampaigns(updatedCampaigns);
       
-      // Save to storage
       saveCampaignsToStorage(updatedCampaigns);
       
       toast.success("Entry deleted successfully");
     } catch (error) {
       console.error("Error deleting stats entry:", error);
       toast.error("Failed to delete entry");
-      throw error; // Re-throw the error so the caller can handle it
+      throw error;
     }
   };
 
@@ -341,10 +394,8 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
   const syncAccountConnection = async (id: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Simulate an API call to sync the account connection
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Update the account connection with a new lastSynced date
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       const now = new Date();
       const updatedAccountConnections = accountConnections.map((accountConnection) =>
         accountConnection.id === id ? { ...accountConnection, lastSynced: now.toISOString() } : accountConnection
@@ -361,8 +412,6 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
   };
 
   const fetchGoogleAdsMetrics = async (campaignId: string, startDate: string, endDate: string): Promise<GoogleAdsMetrics[]> => {
-    // In a real application, this function would make an API call to Google Ads
-    // For this example, we'll return some dummy data
     return new Promise((resolve) => {
       setTimeout(() => {
         const metrics: GoogleAdsMetrics[] = [
@@ -440,15 +489,11 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
     toast.success("Case attribution deleted successfully");
   };
 
-  // Add the missing functions
   const fetchGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
     setIsLoading(true);
     try {
-      // Simulate an API call to fetch Google Ads accounts
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // In a real implementation, this would call a real API
-      // For now, we'll return dummy data
       const dummyAccounts: AccountConnection[] = [
         {
           id: uuidv4(),
@@ -461,9 +506,7 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
         }
       ];
       
-      // Add these accounts to our state
       setAccountConnections(prev => {
-        // Don't add duplicates
         const existingIds = new Set(prev.map(acc => acc.customerId));
         const newAccounts = dummyAccounts.filter(acc => !existingIds.has(acc.customerId));
         
@@ -485,17 +528,35 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
-  
-  const fetchCampaigns = async (): Promise<Campaign[]> => {
+
+  const fetchCampaigns = async () => {
     setIsLoading(true);
     try {
-      // In a real app, this would call an API
-      // For now, we'll just return the current state
+      const storedCampaigns = loadFromLocalStorage("campaigns");
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (storedCampaigns && storedCampaigns.length > 0) {
+        console.log("Loaded campaigns from localStorage:", storedCampaigns.length);
+        setCampaigns(storedCampaigns);
+        return storedCampaigns;
+      }
       
-      return campaigns;
+      const backupData = localStorage.getItem("campaigns_backup");
+      if (backupData) {
+        try {
+          const parsedBackup = JSON.parse(backupData);
+          if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
+            console.log("Restored campaigns from backup:", parsedBackup.length);
+            setCampaigns(parsedBackup);
+            saveToLocalStorage("campaigns", parsedBackup);
+            return parsedBackup;
+          }
+        } catch (error) {
+          console.error("Error parsing backup data:", error);
+        }
+      }
+      
+      console.warn("No campaign data found in localStorage or backup");
+      return [];
     } catch (error) {
       console.error("Error fetching campaigns:", error);
       toast.error("Failed to fetch campaigns");
@@ -504,11 +565,9 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
-  
+
   const migrateFromLocalStorage = async (): Promise<void> => {
     try {
-      // This would migrate data to a database in a real app
-      // For now we'll just simulate the operation
       setIsLoading(true);
       await new Promise(resolve => setTimeout(resolve, 1500));
       
