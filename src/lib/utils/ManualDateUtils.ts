@@ -1,7 +1,9 @@
+
 /**
  * Creates a Date object at UTC noon for a given date to avoid timezone issues
  */
 const createDateAtUTCNoon = (date: Date): Date => {
+  // Create a new date set to noon UTC for the same date
   return new Date(Date.UTC(
     date.getUTCFullYear(),
     date.getUTCMonth(),
@@ -15,15 +17,12 @@ const createDateAtUTCNoon = (date: Date): Date => {
  * This function ensures dates are stored in a format that won't be affected by timezones
  */
 export const formatDateForStorage = (date: Date): string => {
-  // Ensure the date is at UTC noon
-  const utcNoonDate = createDateAtUTCNoon(date);
-  
-  const year = utcNoonDate.getUTCFullYear();
-  const month = String(utcNoonDate.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(utcNoonDate.getUTCDate()).padStart(2, '0');
+  // We don't create a new UTC noon date here - we expect the date to already be properly handled
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
   
   console.log(`formatDateForStorage: Input Date:`, date);
-  console.log(`formatDateForStorage: UTC noon date:`, utcNoonDate);
   console.log(`formatDateForStorage: UTC components - Year: ${year}, Month: ${month}, Day: ${day}`);
   
   const result = `${year}-${month}-${day}`;
@@ -81,10 +80,26 @@ export const createWeekDates = (startDate: Date): Date[] => {
   const utcNoonStartDate = createDateAtUTCNoon(startDate);
   
   return Array.from({ length: 7 }, (_, i) => {
+    // Create a new date object for each day to avoid mutating the original
     const newDate = new Date(utcNoonStartDate);
+    // Use UTC date methods for consistency
     newDate.setUTCDate(utcNoonStartDate.getUTCDate() + i);
     return newDate;
   });
+};
+
+/**
+ * Converts a local date to a consistent UTC noon date
+ * This is crucial for form input dates which might be in local timezone
+ */
+export const localDateToUTCNoon = (localDate: Date): Date => {
+  // Extract local year, month, day
+  const year = localDate.getFullYear();
+  const month = localDate.getMonth();
+  const day = localDate.getDate();
+  
+  // Create new UTC date at noon using these components
+  return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
 };
 
 export { createDateAtUTCNoon };
