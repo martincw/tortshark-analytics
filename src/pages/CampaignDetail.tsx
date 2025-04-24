@@ -381,12 +381,14 @@ const CampaignDetail = () => {
     setIsDeletingEntry(true);
     
     try {
-      const success = await deleteStatHistoryEntry(id, entryToDelete);
+      await deleteStatHistoryEntry(id, entryToDelete);
       
-      if (success) {
-        setDeleteEntryDialogOpen(false);
-        setEntryToDelete(null);
-      }
+      setDeleteEntryDialogOpen(false);
+      setEntryToDelete(null);
+      toast.success("Entry deleted successfully");
+    } catch (error) {
+      console.error("Error deleting entry:", error);
+      toast.error("Failed to delete entry");
     } finally {
       setIsDeletingEntry(false);
     }
@@ -405,10 +407,11 @@ const CampaignDetail = () => {
       let failCount = 0;
       
       for (const entryId of selectedEntries) {
-        const success = await deleteStatHistoryEntry(id, entryId);
-        if (success) {
+        try {
+          await deleteStatHistoryEntry(id, entryId);
           successCount++;
-        } else {
+        } catch (error) {
+          console.error(`Error deleting entry ${entryId}:`, error);
           failCount++;
         }
       }
