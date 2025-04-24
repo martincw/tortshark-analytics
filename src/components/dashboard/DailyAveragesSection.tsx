@@ -5,16 +5,19 @@ import { BarChart, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { Campaign } from "@/types/campaign";
+import { useCampaign } from "@/contexts/CampaignContext";
+import { differenceInDays, parseISO } from "date-fns";
+import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface DailyAveragesSectionProps {
   filteredCampaigns: Campaign[];
 }
 
 export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSectionProps) {
-  console.log(`DailyAveragesSection received ${filteredCampaigns.length} filtered campaigns`);
+  const { dateRange } = useCampaign();
   
   const averages = useMemo(() => {
-    if (filteredCampaigns.length === 0) {
+    if (!dateRange.startDate || !dateRange.endDate || filteredCampaigns.length === 0) {
       return {
         adSpend: 0,
         leads: 0,
@@ -22,26 +25,31 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         revenue: 0,
         profit: 0,
         roi: 0,
-        daysInRange: 1 // Prevent division by zero
+        daysInRange: 1
       };
     }
     
-    // Calculate aggregated metrics
+    // Calculate total metrics within date range
     let totalAdSpend = 0;
     let totalLeads = 0;
     let totalCases = 0;
     let totalRevenue = 0;
     
     filteredCampaigns.forEach(campaign => {
-      totalAdSpend += campaign.stats.adSpend || 0;
-      totalLeads += campaign.manualStats.leads || 0;
-      totalCases += campaign.manualStats.cases || 0;
-      totalRevenue += campaign.manualStats.revenue || 0;
+      campaign.statsHistory.forEach(entry => {
+        if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+          totalAdSpend += entry.adSpend || 0;
+          totalLeads += entry.leads || 0;
+          totalCases += entry.cases || 0;
+          totalRevenue += entry.revenue || 0;
+        }
+      });
     });
     
-    // Assuming the filtered data represents the date range
-    // If only one campaign, default to 1 day range
-    const daysInRange = 1; // Fixed for daily average
+    // Calculate number of days in the selected range
+    const startDate = parseISO(dateRange.startDate);
+    const endDate = parseISO(dateRange.endDate);
+    const daysInRange = differenceInDays(endDate, startDate) + 1; // Add 1 to include both start and end dates
     
     // Calculate daily averages
     const dailyAdSpend = totalAdSpend / daysInRange;
@@ -50,6 +58,16 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const dailyRevenue = totalRevenue / daysInRange;
     const dailyProfit = dailyRevenue - dailyAdSpend;
     const roi = dailyAdSpend > 0 ? (dailyProfit / dailyAdSpend) * 100 : 0;
+    
+    console.log('Daily averages calculated:', {
+      daysInRange,
+      dailyAdSpend,
+      dailyLeads,
+      dailyCases,
+      dailyRevenue,
+      dailyProfit,
+      roi
+    });
     
     return {
       adSpend: dailyAdSpend,
@@ -60,7 +78,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       roi,
       daysInRange
     };
-  }, [filteredCampaigns]);
+  }, [filteredCampaigns, dateRange]);
   
   return (
     <Card>
@@ -72,7 +90,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         <div className="text-xs text-muted-foreground">
           {averages.daysInRange > 1 
             ? `Averaged across ${averages.daysInRange} days` 
-            : "Daily performance metrics"}
+            : "Daily metrics"}
         </div>
       </CardHeader>
       <CardContent>

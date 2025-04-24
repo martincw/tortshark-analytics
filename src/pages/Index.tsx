@@ -25,15 +25,15 @@ const Index = () => {
     <div className="space-y-6">
       <DashboardHeader />
       
-      {/* Campaign Leaderboard - Full Width */}
-      <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
-      
       {/* Financial Stats and Daily Averages - Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DashboardFinancialStats />
         <DailyAveragesSection filteredCampaigns={filteredCampaigns} />
       </div>
 
+      {/* Campaign Leaderboard - Full Width */}
+      <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
+      
       {/* Campaign Grid */}
       <CampaignGrid filteredCampaigns={filteredCampaigns} />
     </div>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
+import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 
 interface FinancialStats {
   revenue: number;
@@ -14,64 +14,60 @@ interface FinancialStats {
 }
 
 const DashboardFinancialStats: React.FC = () => {
-  const { dateRange } = useCampaign();
+  const { dateRange, selectedCampaignIds, campaigns } = useCampaign();
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   
   useEffect(() => {
-    async function fetchFinancialStats() {
-      if (!dateRange.startDate) return;
+    async function calculateFinancialStats() {
+      if (!dateRange.startDate || !dateRange.endDate) return;
       
       setLoading(true);
-      console.log('Fetching financial stats for date range:', dateRange);
+      console.log('Calculating financial stats for date range:', dateRange);
       
-      const { data: adSpendData, error: adSpendError } = await supabase
-        .from('campaign_stats')
-        .select('ad_spend')
-        .eq('date', dateRange.startDate);
-
-      const { data: revenueData, error: revenueError } = await supabase
-        .from('campaign_stats_history')
-        .select('revenue')
-        .eq('date', dateRange.startDate);
-
-      if (adSpendError) {
-        console.error('Error fetching ad spend data:', adSpendError);
+      try {
+        // Filter campaigns if specific ones are selected
+        const relevantCampaigns = selectedCampaignIds.length > 0
+          ? campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id))
+          : campaigns;
+        
+        // Calculate totals from campaign history within date range
+        let totalRevenue = 0;
+        let totalCost = 0;
+        
+        relevantCampaigns.forEach(campaign => {
+          campaign.statsHistory.forEach(entry => {
+            if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+              totalRevenue += entry.revenue || 0;
+              totalCost += entry.adSpend || 0;
+            }
+          });
+        });
+        
+        const profit = totalRevenue - totalCost;
+        
+        console.log('Financial data calculated:', {
+          revenue: totalRevenue,
+          cost: totalCost,
+          profit,
+          dateRange,
+          campaignsCount: relevantCampaigns.length
+        });
+        
+        setStats({
+          revenue: totalRevenue,
+          cost: totalCost,
+          profit
+        });
+      } catch (error) {
+        console.error('Error calculating financial stats:', error);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      if (revenueError) {
-        console.error('Error fetching revenue data:', revenueError);
-        setLoading(false);
-        return;
-      }
-
-      const totalCost = adSpendData?.reduce((sum, row) => sum + Number(row.ad_spend || 0), 0) || 0;
-      const totalRevenue = revenueData?.reduce((sum, row) => sum + Number(row.revenue || 0), 0) || 0;
-      const profit = totalRevenue - totalCost;
-
-      console.log('Financial data for date', dateRange.startDate, {
-        revenue: totalRevenue,
-        cost: totalCost,
-        profit,
-        entries: {
-          adSpend: adSpendData?.length || 0,
-          revenue: revenueData?.length || 0
-        }
-      });
-
-      setStats({
-        revenue: totalRevenue,
-        cost: totalCost,
-        profit
-      });
-      
-      setLoading(false);
     }
 
-    fetchFinancialStats();
-  }, [dateRange.startDate, dateRange.endDate]); // Added endDate as dependency to react to both date changes
+    calculateFinancialStats();
+  }, [dateRange, campaigns, selectedCampaignIds]);
 
   return (
     <Card className="shadow-md">
@@ -115,8 +111,8 @@ const DashboardFinancialStats: React.FC = () => {
         ) : (
           <div className="py-8 text-center text-muted-foreground">
             {dateRange.startDate ? 
-              `No stats available for ${dateRange.startDate}` : 
-              'Please select a date to view stats'}
+              `No stats available for selected date range` : 
+              'Please select a date range to view stats'}
           </div>
         )}
       </CardContent>
