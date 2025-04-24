@@ -1,3 +1,4 @@
+
 /**
  * Date utilities to ensure consistent date handling across the application.
  * These utilities help with timezone-related issues when storing and displaying dates.
@@ -22,7 +23,7 @@ const createDateAtUTCNoon = (date: Date): Date => {
  * Formats a Date object to YYYY-MM-DD format for consistent storage
  * This function ensures dates are stored in a format that won't be affected by timezones
  */
-export const formatDateForStorage = (date: Date): string => {
+const formatDateForStorage = (date: Date): string => {
   // We don't create a new UTC noon date here - we expect the date to already be properly handled
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -34,7 +35,7 @@ export const formatDateForStorage = (date: Date): string => {
 /**
  * Parses a YYYY-MM-DD string into a Date object at UTC noon
  */
-export const parseStoredDate = (dateString: string): Date => {
+const parseStoredDate = (dateString: string): Date => {
   // Parse the date components
   const [year, month, day] = dateString.split('-').map(Number);
   
@@ -45,7 +46,7 @@ export const parseStoredDate = (dateString: string): Date => {
 /**
  * Formats a YYYY-MM-DD string for display
  */
-export const formatDisplayDate = (dateStr: string): string => {
+const formatDisplayDate = (dateStr: string): string => {
   const date = parseStoredDate(dateStr);
   
   return date.toLocaleDateString('en-US', {
@@ -59,7 +60,7 @@ export const formatDisplayDate = (dateStr: string): string => {
  * Get local date string (YYYY-MM-DD) from a Date object
  * This handles timezone conversions to ensure the date in local timezone is used
  */
-export const getLocalDateString = (date: Date): string => {
+const getLocalDateString = (date: Date): string => {
   const localDate = new Date(date);
   const year = localDate.getFullYear();
   const month = String(localDate.getMonth() + 1).padStart(2, '0');
@@ -71,7 +72,7 @@ export const getLocalDateString = (date: Date): string => {
 /**
  * Creates a week's worth of dates starting from a given date, all at UTC noon
  */
-export const createWeekDates = (startDate: Date): Date[] => {
+const createWeekDates = (startDate: Date): Date[] => {
   // Ensure start date is at UTC noon
   const utcNoonStartDate = createDateAtUTCNoon(startDate);
   
@@ -88,7 +89,7 @@ export const createWeekDates = (startDate: Date): Date[] => {
  * Converts a local date to a consistent UTC noon date
  * This is crucial for form input dates which might be in local timezone
  */
-export const localDateToUTCNoon = (localDate: Date): Date => {
+const localDateToUTCNoon = (localDate: Date): Date => {
   // Extract local year, month, day
   const year = localDate.getFullYear();
   const month = localDate.getMonth();
@@ -102,7 +103,7 @@ export const localDateToUTCNoon = (localDate: Date): Date => {
  * Formats a date safely for display, handling various input formats
  * and ensuring consistent output regardless of timezone
  */
-export const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
+const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
   try {
     if (!dateString) {
       return "Invalid date";
@@ -151,7 +152,7 @@ const getWeekStartDate = (date: Date): Date => {
   return monday;
 };
 
-// Export all the date utilities
+// Export all date utilities in a single export statement
 export { 
   createDateAtUTCNoon, 
   formatDateForStorage, 
