@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
