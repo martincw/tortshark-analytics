@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
 import { Crown, TrendingUp, DollarSign, Award } from "lucide-react";
@@ -31,53 +30,41 @@ interface CampaignLeaderboardProps {
 
 export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardProps) {
   const { dateRange } = useCampaign();
-  
-  console.log(`CampaignLeaderboard received ${filteredCampaigns.length} filtered campaigns with date range:`, dateRange);
 
   const leaderboardData = useMemo(() => {
-    if (!filteredCampaigns.length) return {
+    if (!filteredCampaigns.length || !dateRange.startDate || !dateRange.endDate) return {
       profitLeaders: [],
       eplLeaders: [],
       profitPerLeadLeaders: []
     };
-    
-    // Filter campaign stats by date range if provided
-    const campaignsWithFilteredStats = filteredCampaigns.map(campaign => {
-      // Create a copy of the campaign
-      const filteredCampaign = { ...campaign };
-      
-      // Filter stats history by date range if both dates are provided
-      if (dateRange.startDate && dateRange.endDate && campaign.statsHistory) {
-        console.log(`Filtering stats history for ${campaign.name} by date range:`, dateRange);
-        filteredCampaign.statsHistory = campaign.statsHistory.filter(entry => 
-          isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)
-        );
-      }
-      
-      return filteredCampaign;
-    });
-    
-    // Calculate metrics for each campaign based on filtered stats
-    const campaignsWithMetrics = campaignsWithFilteredStats.map(campaign => {
-      const metrics = calculateMetrics(campaign);
-      const epl = campaign.manualStats.leads > 0 
-        ? campaign.manualStats.revenue / campaign.manualStats.leads 
-        : 0;
-      const profitPerLead = campaign.manualStats.leads > 0 
-        ? metrics.profit / campaign.manualStats.leads 
-        : 0;
-      const costPerLead = metrics.costPerLead;
+
+    // Calculate metrics for each campaign based on filtered stats within date range
+    const campaignsWithMetrics = filteredCampaigns.map(campaign => {
+      // Filter stats history by date range
+      const filteredStats = campaign.statsHistory.filter(entry =>
+        isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)
+      );
+
+      // Sum up metrics from filtered stats
+      const totalRevenue = filteredStats.reduce((sum, entry) => sum + (entry.revenue || 0), 0);
+      const totalAdSpend = filteredStats.reduce((sum, entry) => sum + (entry.adSpend || 0), 0);
+      const totalLeads = filteredStats.reduce((sum, entry) => sum + (entry.leads || 0), 0);
+      const profit = totalRevenue - totalAdSpend;
+      const epl = totalLeads > 0 ? totalRevenue / totalLeads : 0;
+      const profitPerLead = totalLeads > 0 ? profit / totalLeads : 0;
+      const costPerLead = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
 
       return {
         id: campaign.id,
         name: campaign.name,
         accountName: campaign.accountName,
-        profit: metrics.profit,
+        profit,
         epl,
         profitPerLead,
-        costPerLead
+        costPerLead,
+        hasData: filteredStats.length > 0
       };
-    });
+    }).filter(c => c.hasData); // Only include campaigns with data in the date range
 
     // Sort by profit (descending)
     const profitLeaders = [...campaignsWithMetrics]
