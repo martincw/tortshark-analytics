@@ -98,6 +98,13 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     });
   };
 
+  // Clean numeric string from currency symbols and formatting
+  const cleanNumericValue = (value: string): number => {
+    // Remove currency symbols, commas, and other non-numeric characters except decimal points
+    const cleanedValue = value.replace(/[$,\s]/g, '');
+    return cleanedValue === '' ? 0 : parseFloat(cleanedValue);
+  };
+
   const handleBulkPaste = () => {
     if (!selectedCampaign || !bulkPasteField) return;
 
@@ -106,7 +113,10 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== '')
-      .map(value => isNaN(parseFloat(value)) ? 0 : parseFloat(value));
+      .map(value => {
+        const cleanedValue = cleanNumericValue(value);
+        return isNaN(cleanedValue) ? 0 : cleanedValue;
+      });
 
     // Only take up to 7 values (one week)
     const validValues = values.slice(0, 7);
@@ -287,6 +297,20 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">
+                    Ad Spend ($)
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => {
+                        setBulkPasteField('adSpend');
+                        setBulkPasteDialogOpen(true);
+                      }}
+                    >
+                      Bulk Paste
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right">
                     Leads
                     <Button
                       variant="ghost"
@@ -328,20 +352,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                       Bulk Paste
                     </Button>
                   </TableHead>
-                  <TableHead className="text-right">
-                    Ad Spend ($)
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-2"
-                      onClick={() => {
-                        setBulkPasteField('adSpend');
-                        setBulkPasteDialogOpen(true);
-                      }}
-                    >
-                      Bulk Paste
-                    </Button>
-                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -353,6 +363,17 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                     <TableRow key={dateKey}>
                       <TableCell className="font-medium">
                         {format(date, "EEE, MMM d")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={dayStats.adSpend || ''}
+                          onChange={(e) => handleInputChange(selectedCampaign, dateKey, 'adSpend', e.target.value)}
+                          className="w-24 ml-auto"
+                          placeholder="0"
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <Input
@@ -385,17 +406,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                           placeholder="0"
                         />
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={dayStats.adSpend || ''}
-                          onChange={(e) => handleInputChange(selectedCampaign, dateKey, 'adSpend', e.target.value)}
-                          className="w-24 ml-auto"
-                          placeholder="0"
-                        />
-                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -420,6 +430,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             <DialogTitle>Bulk Paste {bulkPasteField}</DialogTitle>
             <DialogDescription>
               Paste your data (one value per line) for the week. Only the first 7 values will be used.
+              Currency symbols ($) and commas will be automatically removed.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
