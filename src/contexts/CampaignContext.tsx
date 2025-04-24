@@ -1,633 +1,606 @@
-import React, {
-  createContext,
-  useState,
-  useEffect,
-  useContext,
-  useCallback,
-} from "react";
-import { v4 as uuidv4 } from "uuid";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
+import { v4 as uuidv4 } from 'uuid';
+import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { toast } from "sonner";
-import {
-  Campaign,
-  CampaignStats,
-  ManualStats,
-  StatHistoryEntry,
-  CampaignTargets,
-  DateRange,
-  AccountConnection,
-  GoogleAdsMetrics,
-  CaseAttribution,
-  CaseBuyer,
-} from "@/types/campaign";
-import {
-  formatDateForStorage,
-  getLocalDateString,
-  createDateBoundaries,
-} from "@/lib/utils/ManualDateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./AuthContext";
 
 interface CampaignContextType {
   campaigns: Campaign[];
-  accountConnections: AccountConnection[];
-  selectedCampaignId: string | null;
-  selectedCampaignIds: string[];
-  dateRange: DateRange;
-  caseBuyers: CaseBuyer[];
-  caseAttributions: CaseAttribution[];
   isLoading: boolean;
+  error: string | null;
+  selectedCampaignId: string | null;
+  dateRange: DateRange;
+  setDateRange: (range: DateRange) => void;
   setSelectedCampaignId: (id: string | null) => void;
-  setSelectedCampaignIds: (ids: string[]) => void;
-  setDateRange: (dateRange: DateRange) => void;
-  addCampaign: (campaign: Omit<Campaign, "id" | "stats" | "statsHistory">) => void;
+  addCampaign: (campaign: Omit<Campaign, "id">) => void;
   updateCampaign: (id: string, updates: Partial<Campaign>) => void;
   deleteCampaign: (id: string) => void;
-  addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => void;
-  updateStatHistoryEntry: (campaignId: string, entry: StatHistoryEntry) => void;
-  deleteStatHistoryEntry: (campaignId: string, entryId: string) => Promise<void>;
-  updateCampaignStats: (campaignId: string, stats: CampaignStats) => void;
-  addAccountConnection: (accountConnection: AccountConnection) => void;
-  updateAccountConnection: (id: string, updates: Partial<AccountConnection>) => void;
-  deleteAccountConnection: (id: string) => void;
-  syncAccountConnection: (id: string) => Promise<void>;
-  fetchGoogleAdsMetrics: (campaignId: string, startDate: string, endDate: string) => Promise<GoogleAdsMetrics[]>;
-  addCaseBuyer: (caseBuyer: Omit<CaseBuyer, "id">) => void;
-  updateCaseBuyer: (id: string, updates: Partial<CaseBuyer>) => void;
-  deleteCaseBuyer: (id: string) => void;
-  addCaseAttribution: (caseAttribution: Omit<CaseAttribution, "id">) => void;
-  updateCaseAttribution: (id: string, updates: Partial<CaseAttribution>) => void;
-  deleteCaseAttribution: (id: string) => void;
-  fetchGoogleAdsAccounts: () => Promise<AccountConnection[]>;
-  fetchCampaigns: () => Promise<Campaign[]>;
-  migrateFromLocalStorage: () => Promise<void>;
+  addStatHistoryEntry: (campaignId: string, entry: any) => void;
+  updateStatHistoryEntry: (campaignId: string, entry: any) => void;
+  deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
+  fetchCampaigns: () => Promise<void>;
+  accountConnections: AccountConnection[];
+  fetchGoogleAdsAccounts: () => Promise<any>;
+  addAccountConnection: (connection: AccountConnection) => void;
+  selectedCampaignIds: string[];
+  setSelectedCampaignIds: (ids: string[]) => void;
+  migrateFromLocalStorage?: () => Promise<void>;
 }
 
-const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
+export const CampaignContext = createContext<CampaignContextType>({
+  campaigns: [],
+  isLoading: false,
+  error: null,
+  selectedCampaignId: null,
+  dateRange: { startDate: '', endDate: '' },
+  setDateRange: () => {},
+  setSelectedCampaignId: () => {},
+  addCampaign: () => {},
+  updateCampaign: () => {},
+  deleteCampaign: () => {},
+  addStatHistoryEntry: () => {},
+  updateStatHistoryEntry: () => {},
+  deleteStatHistoryEntry: () => {},
+  fetchCampaigns: async () => {},
+  accountConnections: [],
+  fetchGoogleAdsAccounts: async () => [],
+  addAccountConnection: () => {},
+  selectedCampaignIds: [],
+  setSelectedCampaignIds: () => {},
+});
 
-interface CampaignProviderProps {
-  children: React.ReactNode;
-}
+export const useCampaign = () => useContext(CampaignContext);
 
-const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
+export const CampaignProvider = ({ children }: { children: React.ReactNode }) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: getLocalDateString(new Date()),
-    endDate: getLocalDateString(new Date()),
-  });
-  const [caseBuyers, setCaseBuyers] = useState<CaseBuyer[]>([]);
-  const [caseAttributions, setCaseAttributions] = useState<CaseAttribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasRestoredData, setHasRestoredData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const today = new Date();
+    const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 });
+    const endOfCurrentWeek = today;
 
-  const loadFromLocalStorage = (key: string) => {
-    try {
-      const storedData = localStorage.getItem(key);
-      console.log(`Loading ${key} from localStorage:`, storedData ? 'found' : 'not found');
-      
-      if (!storedData) {
-        console.log(`No ${key} data in localStorage`);
-        return null;
-      }
-      
-      const parsedData = JSON.parse(storedData);
-      console.log(`Parsed ${key} data:`, Array.isArray(parsedData) ? `${parsedData.length} items` : 'not an array');
-      
-      if (Array.isArray(parsedData)) {
-        return parsedData;
-      } else {
-        console.error(`Invalid ${key} data format in localStorage`);
-        return null;
-      }
-    } catch (error) {
-      console.error(`Error loading ${key} from localStorage:`, error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const storedCampaigns = loadFromLocalStorage("campaigns");
-        if (storedCampaigns && Array.isArray(storedCampaigns)) {
-          console.log("Setting campaigns from localStorage:", storedCampaigns.length);
-          console.log("Campaign names:", storedCampaigns.map(c => c.name));
-          setCampaigns(storedCampaigns);
-        } else {
-          console.warn("No valid campaigns found in localStorage");
-          setCampaigns([]);
-        }
-
-        const storedConnections = loadFromLocalStorage("accountConnections");
-        if (storedConnections) setAccountConnections(storedConnections);
-
-        const storedBuyers = loadFromLocalStorage("caseBuyers");
-        if (storedBuyers) setCaseBuyers(storedBuyers);
-
-        const storedAttributions = loadFromLocalStorage("caseAttributions");
-        if (storedAttributions) setCaseAttributions(storedAttributions);
-
-        setHasRestoredData(true);
-      } catch (error) {
-        console.error("Error loading application data:", error);
-        toast.error("Error loading data. Please try refreshing the page.");
-      } finally {
-        setIsLoading(false);
-      }
+    return {
+      startDate: format(startOfCurrentWeek, 'yyyy-MM-dd'),
+      endDate: format(endOfCurrentWeek, 'yyyy-MM-dd'),
     };
-
-    if (!hasRestoredData) {
-      loadData();
-    }
-  }, [hasRestoredData]);
-
-  const saveToLocalStorage = (key: string, data: any) => {
-    try {
-      if (!data) {
-        console.warn(`Attempting to save null/undefined data for ${key}`);
-        return;
-      }
-      
-      const jsonString = JSON.stringify(data);
-      localStorage.setItem(key, jsonString);
-      console.log(`Saved ${key} to localStorage:`, Array.isArray(data) ? `${data.length} items` : 'not an array');
-    } catch (error) {
-      console.error(`Error saving ${key} to localStorage:`, error);
-      toast.error(`Failed to save ${key} data`);
-    }
+  });
+  const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+  
+  const { user } = useAuth();
+  
+  const formatDate = (date: Date): string => {
+    return format(date, 'yyyy-MM-dd');
   };
 
-  useEffect(() => {
-    if (campaigns.length > 0 || hasRestoredData) {
-      console.log("Saving campaigns to localStorage:", campaigns.length);
-      saveToLocalStorage("campaigns", campaigns);
-    }
-  }, [campaigns, hasRestoredData]);
-
-  useEffect(() => {
-    localStorage.setItem("accountConnections", JSON.stringify(accountConnections));
-  }, [accountConnections]);
-
-  useEffect(() => {
-    localStorage.setItem("caseBuyers", JSON.stringify(caseBuyers));
-  }, [caseBuyers]);
-
-  useEffect(() => {
-    localStorage.setItem("caseAttributions", JSON.stringify(caseAttributions));
-  }, [caseAttributions]);
-
-  const saveCampaignsToStorage = (campaignsToSave: Campaign[]) => {
-    localStorage.setItem("campaigns", JSON.stringify(campaignsToSave));
-  };
-
-  const addCampaign = (campaign: Omit<Campaign, "id" | "stats" | "statsHistory">) => {
-    console.log("Adding new campaign:", campaign.name);
-    const newCampaign: Campaign = {
-      id: uuidv4(),
-      stats: {
-        adSpend: 0,
-        impressions: 0,
-        clicks: 0,
-        cpc: 0,
-        date: formatDateForStorage(new Date()),
-      },
-      manualStats: {
-        leads: 0,
-        cases: 0,
-        retainers: 0,
-        revenue: 0,
-        date: formatDateForStorage(new Date()),
-      },
-      statsHistory: [],
-      ...campaign,
-    };
-
-    setCampaigns(prevCampaigns => {
-      const updatedCampaigns = [...prevCampaigns, newCampaign];
-      console.log("Updated campaigns count:", updatedCampaigns.length);
-      return updatedCampaigns;
-    });
-    
-    saveToLocalStorage("campaigns_backup", [...campaigns, newCampaign]);
-    toast.success("Campaign added successfully");
-  };
-
-  const updateCampaign = (id: string, updates: Partial<Campaign>) => {
-    const updatedCampaigns = campaigns.map((campaign) =>
-      campaign.id === id ? { ...campaign, ...updates } : campaign
-    );
-    setCampaigns(updatedCampaigns);
-    saveCampaignsToStorage(updatedCampaigns);
-    toast.success("Campaign updated successfully");
-  };
-
-  const deleteCampaign = (id: string) => {
-    const updatedCampaigns = campaigns.filter((campaign) => campaign.id !== id);
-    setCampaigns(updatedCampaigns);
-    saveCampaignsToStorage(updatedCampaigns);
-    toast.success("Campaign deleted successfully");
-  };
-
-  const updateCampaignTotals = (campaign: Campaign) => {
-    if (!campaign) {
-      console.error("Campaign is undefined, cannot update totals.");
-      return;
-    }
-
-    if (!campaign.statsHistory || !Array.isArray(campaign.statsHistory)) {
-      console.error("Campaign statsHistory is undefined or not an array.");
-      return;
-    }
-
-    let totalLeads = campaign.manualStats.leads || 0;
-    let totalCases = campaign.manualStats.cases || 0;
-    let totalRevenue = campaign.manualStats.revenue || 0;
-    let totalAdSpend = campaign.stats.adSpend || 0;
-
-    campaign.statsHistory.forEach((entry) => {
-      totalLeads += entry.leads || 0;
-      totalCases += entry.cases || 0;
-      totalRevenue += entry.revenue || 0;
-      totalAdSpend += entry.adSpend || 0;
-    });
-
-    campaign.manualStats.leads = totalLeads;
-    campaign.manualStats.cases = totalCases;
-    campaign.manualStats.revenue = totalRevenue;
-    campaign.stats.adSpend = totalAdSpend;
-  };
-
-  const addStatHistoryEntry = (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => {
-    const newEntry: StatHistoryEntry = {
-      id: uuidv4(),
-      ...entry,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedCampaigns = JSON.parse(JSON.stringify(campaigns));
-    const campaign = updatedCampaigns.find((c: Campaign) => c.id === campaignId);
-
-    if (!campaign) {
-      console.error(`Campaign ${campaignId} not found for adding stats history`);
-      toast.error("Campaign not found");
-      return;
-    }
-
-    if (!campaign.statsHistory) {
-      campaign.statsHistory = [];
-    }
-
-    campaign.statsHistory.push(newEntry);
-
-    updateCampaignTotals(campaign);
-    setCampaigns(updatedCampaigns);
-    saveCampaignsToStorage(updatedCampaigns);
-    toast.success("Stats history added successfully");
-  };
-
-  const updateStatHistoryEntry = (campaignId: string, entry: StatHistoryEntry) => {
-    const updatedCampaigns = JSON.parse(JSON.stringify(campaigns));
-    const campaign = updatedCampaigns.find((c: Campaign) => c.id === campaignId);
-
-    if (!campaign) {
-      console.error(`Campaign ${campaignId} not found for updating stats history`);
-      toast.error("Campaign not found");
-      return;
-    }
-
-    const entryIndex = campaign.statsHistory.findIndex((e: StatHistoryEntry) => e.id === entry.id);
-
-    if (entryIndex === -1) {
-      console.error(`Entry ${entry.id} not found in campaign ${campaignId}`);
-      toast.error("Entry not found");
-      return;
-    }
-
-    campaign.statsHistory[entryIndex] = entry;
-
-    updateCampaignTotals(campaign);
-    setCampaigns(updatedCampaigns);
-    saveCampaignsToStorage(updatedCampaigns);
-    toast.success("Stats history updated successfully");
-  };
-
-  const deleteStatHistoryEntry = async (campaignId: string, entryId: string): Promise<void> => {
-    try {
-      console.log(`Deleting stats entry ${entryId} from campaign ${campaignId}`);
-      
-      const updatedCampaigns = JSON.parse(JSON.stringify(campaigns));
-      
-      const campaign = updatedCampaigns.find((c: Campaign) => c.id === campaignId);
-      
-      if (!campaign) {
-        console.error(`Campaign ${campaignId} not found for deletion`);
-        toast.error("Campaign not found");
-        return;
-      }
-      
-      if (!campaign.statsHistory || !Array.isArray(campaign.statsHistory)) {
-        console.error(`No stats history found for campaign ${campaignId}`);
-        toast.error("No stats history to delete");
-        return;
-      }
-      
-      const entryIndex = campaign.statsHistory.findIndex((entry: StatHistoryEntry) => entry.id === entryId);
-      
-      if (entryIndex === -1) {
-        console.error(`Entry ${entryId} not found in campaign ${campaignId}`);
-        toast.error("Entry not found");
-        return;
-      }
-      
-      campaign.statsHistory.splice(entryIndex, 1);
-      console.log(`Deleted entry ${entryId} from campaign ${campaignId}`);
-      
-      updateCampaignTotals(campaign);
-      
-      setCampaigns(updatedCampaigns);
-      
-      saveCampaignsToStorage(updatedCampaigns);
-      
-      toast.success("Entry deleted successfully");
-    } catch (error) {
-      console.error("Error deleting stats entry:", error);
-      toast.error("Failed to delete entry");
-      throw error;
-    }
-  };
-
-  const updateCampaignStats = (campaignId: string, stats: CampaignStats) => {
-    const updatedCampaigns = campaigns.map((campaign) =>
-      campaign.id === campaignId ? { ...campaign, stats: stats } : campaign
-    );
-    setCampaigns(updatedCampaigns);
-    saveCampaignsToStorage(updatedCampaigns);
-  };
-
-  const addAccountConnection = (accountConnection: AccountConnection) => {
-    const newAccountConnection: AccountConnection = {
-      ...accountConnection,
-      id: uuidv4(),
-    };
-    setAccountConnections([...accountConnections, newAccountConnection]);
-    toast.success("Account connection added successfully");
-  };
-
-  const updateAccountConnection = (id: string, updates: Partial<AccountConnection>) => {
-    const updatedAccountConnections = accountConnections.map((accountConnection) =>
-      accountConnection.id === id ? { ...accountConnection, ...updates } : accountConnection
-    );
-    setAccountConnections(updatedAccountConnections);
-    localStorage.setItem("accountConnections", JSON.stringify(updatedAccountConnections));
-    toast.success("Account connection updated successfully");
-  };
-
-  const deleteAccountConnection = (id: string) => {
-    const updatedAccountConnections = accountConnections.filter((accountConnection) => accountConnection.id !== id);
-    setAccountConnections(updatedAccountConnections);
-    localStorage.setItem("accountConnections", JSON.stringify(updatedAccountConnections));
-    toast.success("Account connection deleted successfully");
-  };
-
-  const syncAccountConnection = async (id: string): Promise<void> => {
+  const fetchCampaigns = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
+    
+    if (!user) {
+      console.log("User not authenticated, skipping campaign fetch.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const now = new Date();
-      const updatedAccountConnections = accountConnections.map((accountConnection) =>
-        accountConnection.id === id ? { ...accountConnection, lastSynced: now.toISOString() } : accountConnection
-      );
-      setAccountConnections(updatedAccountConnections);
-      localStorage.setItem("accountConnections", JSON.stringify(updatedAccountConnections));
-      toast.success("Account connection synced successfully");
-    } catch (error) {
-      console.error("Error syncing account connection:", error);
-      toast.error("Failed to sync account connection");
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select(`
+          *,
+          campaign_stats(*),
+          campaign_manual_stats(*),
+          campaign_stats_history(*),
+          campaign_targets(*)
+        `)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error fetching campaigns:", error);
+        setError(error.message);
+      }
+
+      if (data) {
+        const typedCampaigns = data.map(campaign => {
+          const stats = campaign.campaign_stats && campaign.campaign_stats.length > 0
+            ? {
+              adSpend: campaign.campaign_stats[0].ad_spend || 0,
+              impressions: campaign.campaign_stats[0].impressions || 0,
+              clicks: campaign.campaign_stats[0].clicks || 0,
+              cpc: campaign.campaign_stats[0].cpc || 0,
+              date: campaign.campaign_stats[0].date || '',
+            }
+            : { adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: '' };
+
+          const manualStats = campaign.campaign_manual_stats && campaign.campaign_manual_stats.length > 0
+            ? {
+              leads: campaign.campaign_manual_stats[0].leads || 0,
+              cases: campaign.campaign_manual_stats[0].cases || 0,
+              retainers: campaign.campaign_manual_stats[0].retainers || 0,
+              revenue: campaign.campaign_manual_stats[0].revenue || 0,
+              date: campaign.campaign_manual_stats[0].date || '',
+            }
+            : { leads: 0, cases: 0, retainers: 0, revenue: 0, date: '' };
+
+          const statsHistory = campaign.campaign_stats_history
+            ? campaign.campaign_stats_history.map(history => {
+              let formattedDate = history.date || '';
+              
+              if (formattedDate && typeof formattedDate === 'string') {
+                try {
+                  if (formattedDate.includes('T')) {
+                    formattedDate = format(parseISO(formattedDate), 'yyyy-MM-dd');
+                  }
+                } catch (err) {
+                  console.error(`Error formatting date ${formattedDate}:`, err);
+                }
+              }
+              
+              return {
+                id: history.id,
+                date: formattedDate,
+                leads: history.leads || 0,
+                cases: history.cases || 0,
+                retainers: history.retainers || 0,
+                revenue: history.revenue || 0,
+                adSpend: history.ad_spend || 0,
+                createdAt: history.created_at || ''
+              };
+            })
+            : [];
+
+          const platform = campaign.platform as "google" | "facebook" | "linkedin";
+          
+          const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
+            ? {
+                monthlyRetainers: campaign.campaign_targets[0].monthly_retainers || 0,
+                casePayoutAmount: campaign.campaign_targets[0].case_payout_amount || 0,
+                monthlyIncome: campaign.campaign_targets[0].monthly_income || 0,
+                monthlySpend: campaign.campaign_targets[0].monthly_spend || 0,
+                targetROAS: campaign.campaign_targets[0].target_roas || 0,
+                targetProfit: campaign.campaign_targets[0].target_profit || 0,
+              }
+            : {
+                monthlyRetainers: 0,
+                casePayoutAmount: 0,
+                monthlyIncome: 0,
+                monthlySpend: 0,
+                targetROAS: 0,
+                targetProfit: 0,
+              };
+
+          return {
+            id: campaign.id,
+            name: campaign.name,
+            platform: platform,
+            accountId: campaign.account_id,
+            accountName: campaign.account_name,
+            stats: stats,
+            manualStats: manualStats,
+            statsHistory: statsHistory,
+            targets: targets,
+          };
+        });
+        
+        setCampaigns(typedCampaigns);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to fetch campaigns:", err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchGoogleAdsMetrics = async (campaignId: string, startDate: string, endDate: string): Promise<GoogleAdsMetrics[]> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const metrics: GoogleAdsMetrics[] = [
-          {
-            impressions: Math.floor(Math.random() * 1000),
-            clicks: Math.floor(Math.random() * 100),
-            ctr: Math.random() * 0.1,
-            cpc: Math.random() * 2,
-            cpl: Math.random() * 10,
-            adSpend: Math.floor(Math.random() * 500),
-            date: startDate,
-          },
-          {
-            impressions: Math.floor(Math.random() * 1000),
-            clicks: Math.floor(Math.random() * 100),
-            ctr: Math.random() * 0.1,
-            cpc: Math.random() * 2,
-            cpl: Math.random() * 10,
-            adSpend: Math.floor(Math.random() * 500),
-            date: endDate,
-          },
-        ];
-        resolve(metrics);
-      }, 500);
-    });
-  };
-
-  const addCaseBuyer = (caseBuyer: Omit<CaseBuyer, "id">) => {
-    const newCaseBuyer: CaseBuyer = {
-      ...caseBuyer,
-      id: uuidv4(),
-    };
-    setCaseBuyers([...caseBuyers, newCaseBuyer]);
-    toast.success("Case buyer added successfully");
-  };
-
-  const updateCaseBuyer = (id: string, updates: Partial<CaseBuyer>) => {
-    const updatedCaseBuyers = caseBuyers.map((caseBuyer) =>
-      caseBuyer.id === id ? { ...caseBuyer, ...updates } : caseBuyer
-    );
-    setCaseBuyers(updatedCaseBuyers);
-    localStorage.setItem("caseBuyers", JSON.stringify(updatedCaseBuyers));
-    toast.success("Case buyer updated successfully");
-  };
-
-  const deleteCaseBuyer = (id: string) => {
-    const updatedCaseBuyers = caseBuyers.filter((caseBuyer) => caseBuyer.id !== id);
-    setCaseBuyers(updatedCaseBuyers);
-    localStorage.setItem("caseBuyers", JSON.stringify(updatedCaseBuyers));
-    toast.success("Case buyer deleted successfully");
-  };
-
-  const addCaseAttribution = (caseAttribution: Omit<CaseAttribution, "id">) => {
-    const newCaseAttribution: CaseAttribution = {
-      ...caseAttribution,
-      id: uuidv4(),
-    };
-    setCaseAttributions([...caseAttributions, newCaseAttribution]);
-    toast.success("Case attribution added successfully");
-  };
-
-  const updateCaseAttribution = (id: string, updates: Partial<CaseAttribution>) => {
-    const updatedCaseAttributions = caseAttributions.map((caseAttribution) =>
-      caseAttribution.id === id ? { ...caseAttribution, ...updates } : caseAttribution
-    );
-    setCaseAttributions(updatedCaseAttributions);
-    localStorage.setItem("caseAttributions", JSON.stringify(updatedCaseAttributions));
-    toast.success("Case attribution updated successfully");
-  };
-
-  const deleteCaseAttribution = (id: string) => {
-    const updatedCaseAttributions = caseAttributions.filter((caseAttribution) => caseAttribution.id !== id);
-    setCaseAttributions(updatedCaseAttributions);
-    localStorage.setItem("caseAttributions", JSON.stringify(updatedCaseAttributions));
-    toast.success("Case attribution deleted successfully");
-  };
-
-  const fetchGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
-    setIsLoading(true);
+  const fetchGoogleAdsAccounts = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsLoading(true);
       
-      const dummyAccounts: AccountConnection[] = [
-        {
-          id: uuidv4(),
-          name: "Main Ad Account",
-          platform: "google",
-          isConnected: true,
-          lastSynced: new Date().toISOString(),
-          customerId: "123456789",
-          credentials: {}
-        }
-      ];
+      const { data, error } = await supabase
+        .from('account_connections')
+        .select('*')
+        .eq('user_id', user?.id);
+        
+      if (error) {
+        console.error("Error fetching account connections:", error);
+        throw error;
+      }
       
-      setAccountConnections(prev => {
-        const existingIds = new Set(prev.map(acc => acc.customerId));
-        const newAccounts = dummyAccounts.filter(acc => !existingIds.has(acc.customerId));
+      const connections: AccountConnection[] = data.map(conn => {
+        let processedCredentials: Record<string, any> = {};
         
-        if (newAccounts.length === 0) {
-          return prev;
+        if (conn.credentials) {
+          if (typeof conn.credentials === 'string') {
+            try {
+              processedCredentials = JSON.parse(conn.credentials);
+            } catch (error) {
+              console.error("Error parsing credentials string:", error);
+              processedCredentials = {};
+            }
+          } else if (typeof conn.credentials === 'object') {
+            processedCredentials = conn.credentials as Record<string, any>;
+          }
         }
         
-        const updated = [...prev, ...newAccounts];
-        localStorage.setItem("accountConnections", JSON.stringify(updated));
-        return updated;
+        return {
+          id: conn.id,
+          name: conn.name,
+          platform: conn.platform as "google" | "facebook" | "linkedin",
+          isConnected: conn.is_connected,
+          lastSynced: conn.last_synced,
+          customerId: conn.customer_id,
+          credentials: processedCredentials
+        };
       });
       
-      return dummyAccounts;
+      setAccountConnections(connections);
+      return connections;
     } catch (error) {
-      console.error("Error fetching Google Ads accounts:", error);
+      console.error("Error in fetchGoogleAdsAccounts:", error);
       toast.error("Failed to fetch Google Ads accounts");
       return [];
     } finally {
       setIsLoading(false);
     }
   };
+  
+  const addAccountConnection = (connection: AccountConnection) => {
+    setAccountConnections(prev => {
+      const exists = prev.some(conn => conn.id === connection.id);
+      if (exists) {
+        return prev.map(conn => conn.id === connection.id ? connection : conn);
+      } else {
+        return [...prev, connection];
+      }
+    });
+  };
 
-  const fetchCampaigns = async () => {
+  useEffect(() => {
+    if (user) {
+      fetchCampaigns();
+      fetchGoogleAdsAccounts();
+    }
+  }, [fetchCampaigns, user]);
+
+  const addCampaign = async (campaign: Omit<Campaign, "id">) => {
     setIsLoading(true);
+    setError(null);
+
     try {
-      const storedCampaigns = loadFromLocalStorage("campaigns");
-      
-      if (storedCampaigns && storedCampaigns.length > 0) {
-        console.log("Loaded campaigns from localStorage:", storedCampaigns.length);
-        setCampaigns(storedCampaigns);
-        return storedCampaigns;
+      const newCampaignId = uuidv4();
+
+      const { error: campaignError } = await supabase
+        .from('campaigns')
+        .insert([
+          {
+            id: newCampaignId,
+            user_id: user?.id,
+            name: campaign.name,
+            platform: campaign.platform,
+            account_id: campaign.accountId,
+            account_name: campaign.accountName,
+          },
+        ]);
+
+      if (campaignError) {
+        console.error("Error adding campaign:", campaignError);
+        setError(campaignError.message);
+        setIsLoading(false);
+        return null;
+      }
+
+      const { error: targetsError } = await supabase
+        .from('campaign_targets')
+        .insert([
+          {
+            campaign_id: newCampaignId,
+            monthly_retainers: campaign.targets.monthlyRetainers,
+            case_payout_amount: campaign.targets.casePayoutAmount,
+            monthly_income: campaign.targets.monthlyIncome,
+            monthly_spend: campaign.targets.monthlySpend,
+            target_roas: campaign.targets.targetROAS,
+            target_profit: campaign.targets.targetProfit,
+          },
+        ]);
+
+      if (targetsError) {
+        console.error("Error adding campaign targets:", targetsError);
+      }
+
+      const { error: statsError } = await supabase
+        .from('campaign_stats')
+        .insert([
+          {
+            campaign_id: newCampaignId,
+            ad_spend: 0,
+            impressions: 0,
+            clicks: 0,
+            cpc: 0,
+            date: format(new Date(), 'yyyy-MM-dd'),
+          },
+        ]);
+
+      if (statsError) {
+        console.error("Error adding campaign stats:", statsError);
       }
       
-      const backupData = localStorage.getItem("campaigns_backup");
-      if (backupData) {
-        try {
-          const parsedBackup = JSON.parse(backupData);
-          if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
-            console.log("Restored campaigns from backup:", parsedBackup.length);
-            setCampaigns(parsedBackup);
-            saveToLocalStorage("campaigns", parsedBackup);
-            return parsedBackup;
-          }
-        } catch (error) {
-          console.error("Error parsing backup data:", error);
+      const { error: manualStatsError } = await supabase
+        .from('campaign_manual_stats')
+        .insert([
+          {
+            campaign_id: newCampaignId,
+            leads: 0,
+            cases: 0,
+            retainers: 0,
+            revenue: 0,
+            date: format(new Date(), 'yyyy-MM-dd'),
+          },
+        ]);
+
+      if (manualStatsError) {
+        console.error("Error adding campaign manual stats:", manualStatsError);
+      }
+
+      await fetchCampaigns();
+      toast.success("Campaign added successfully");
+      return newCampaignId;
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to add campaign:", err);
+      toast.error("Failed to add campaign");
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const campaignUpdates: { [key: string]: any } = {};
+      if (updates.name !== undefined) campaignUpdates.name = updates.name;
+      if (updates.platform !== undefined) campaignUpdates.platform = updates.platform;
+      if (updates.accountId !== undefined) campaignUpdates.account_id = updates.accountId;
+      if (updates.accountName !== undefined) campaignUpdates.account_name = updates.accountName;
+      if (updates.targets !== undefined) {
+        campaignUpdates.monthly_retainers = updates.targets.monthlyRetainers;
+        campaignUpdates.case_payout_amount = updates.targets.casePayoutAmount;
+        campaignUpdates.monthly_income = updates.targets.monthlyIncome;
+        campaignUpdates.monthly_spend = updates.targets.monthlySpend;
+        campaignUpdates.target_roas = updates.targets.targetROAS;
+        campaignUpdates.target_profit = updates.targets.targetProfit;
+      }
+
+      const { error: campaignError } = await supabase
+        .from('campaigns')
+        .update(campaignUpdates)
+        .eq('id', id);
+
+      if (campaignError) {
+        console.error("Error updating campaign:", campaignError);
+        setError(campaignError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (updates.manualStats) {
+        const manualStatsUpdates = {
+          leads: updates.manualStats.leads,
+          cases: updates.manualStats.cases,
+          retainers: updates.manualStats.retainers,
+          revenue: updates.manualStats.revenue,
+          date: updates.manualStats.date,
+        };
+
+        const { error: manualStatsError } = await supabase
+          .from('campaign_manual_stats')
+          .update(manualStatsUpdates)
+          .eq('campaign_id', id);
+
+        if (manualStatsError) {
+          console.error("Error updating campaign manual stats:", manualStatsError);
         }
       }
-      
-      console.warn("No campaign data found in localStorage or backup");
-      return [];
-    } catch (error) {
-      console.error("Error fetching campaigns:", error);
-      toast.error("Failed to fetch campaigns");
-      return [];
+
+      await fetchCampaigns();
+      toast.success("Campaign updated successfully");
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to update campaign:", err);
+      toast.error("Failed to update campaign");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const migrateFromLocalStorage = async (): Promise<void> => {
+  const deleteCampaign = async (id: string) => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const { error: campaignError } = await supabase
+        .from('campaigns')
+        .delete()
+        .eq('id', id);
+
+      if (campaignError) {
+        console.error("Error deleting campaign:", campaignError);
+        setError(campaignError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      await fetchCampaigns();
+      toast.success("Campaign deleted successfully");
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to delete campaign:", err);
+      toast.error("Failed to delete campaign");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const addStatHistoryEntry = async (campaignId: string, entry: any) => {
+    setIsLoading(true);
+    setError(null);
+  
+    try {
+      const { data, error } = await supabase
+        .from('campaign_stats_history')
+        .insert([
+          {
+            id: uuidv4(),
+            campaign_id: campaignId,
+            date: entry.date,
+            leads: entry.leads,
+            cases: entry.cases,
+            retainers: entry.retainers,
+            revenue: entry.revenue,
+            ad_spend: entry.adSpend,
+            created_at: new Date().toISOString()
+          }
+        ]);
+  
+      if (error) {
+        console.error("Error adding stat history entry:", error);
+        setError(error.message);
+        toast.error("Failed to add stat history entry");
+      } else {
+        toast.success("Stat history entry added successfully");
+      }
+  
+      await fetchCampaigns();
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to add stat history entry:", err);
+      toast.error("Failed to add stat history entry");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const updateStatHistoryEntry = async (campaignId: string, entry: any) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Ensure the date is in the correct format (YYYY-MM-DD)
+      let formattedDate = entry.date;
       
-      toast.success("Data migration completed successfully");
-    } catch (error) {
-      console.error("Error migrating data:", error);
-      toast.error("Failed to migrate data");
+      console.log("Entry date before formatting:", entry.date);
+      console.log("Entry date type:", typeof entry.date);
+      
+      // Don't attempt to reformat if it's already in YYYY-MM-DD format
+      if (typeof entry.date === 'string' && entry.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.log("Date is already in YYYY-MM-DD format, using as is:", entry.date);
+        formattedDate = entry.date;
+      } else if (entry.date instanceof Date) {
+        formattedDate = format(entry.date, 'yyyy-MM-dd');
+        console.log("Formatted date from Date object:", formattedDate);
+      }
+      
+      const { error } = await supabase
+        .from('campaign_stats_history')
+        .update({
+          date: formattedDate,
+          leads: entry.leads,
+          cases: entry.cases,
+          retainers: entry.retainers,
+          revenue: entry.revenue,
+          ad_spend: entry.adSpend
+        })
+        .eq('id', entry.id);
+        
+      if (error) {
+        console.error("Error updating stat history entry:", error);
+        setError(error.message);
+        toast.error("Failed to update stat history entry");
+      } else {
+        toast.success("Stat history entry updated successfully");
+        await fetchCampaigns();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to update stat history entry:", err);
+      toast.error("Failed to update stat history entry");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const deleteStatHistoryEntry = async (campaignId: string, entryId: string) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`Attempting to delete entry ${entryId} for campaign ${campaignId}`);
+      
+      // Query to delete the entry using both campaignId and entryId
+      const { data, error, count } = await supabase
+        .from('campaign_stats_history')
+        .delete({ count: 'exact' })
+        .eq('id', entryId)
+        .eq('campaign_id', campaignId);
+        
+      if (error) {
+        console.error("Error deleting stat history entry:", error);
+        setError(error.message);
+        toast.error("Failed to delete stat history entry");
+        return false;
+      } 
+      
+      if (count === 0) {
+        console.warn(`No entries found with id ${entryId} for campaign ${campaignId}`);
+        toast.error("No matching entries found to delete");
+        return false;
+      }
+      
+      console.log(`Successfully deleted ${count} entries`);
+      toast.success("Stat history entry deleted successfully");
+      await fetchCampaigns();
+      return true;
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to delete stat history entry:", err);
+      toast.error("Failed to delete stat history entry");
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const contextValue = {
+  const value = {
     campaigns,
-    accountConnections,
-    selectedCampaignId,
-    selectedCampaignIds,
-    dateRange,
-    caseBuyers,
-    caseAttributions,
     isLoading,
-    setSelectedCampaignId,
-    setSelectedCampaignIds,
+    error,
+    selectedCampaignId,
+    dateRange,
     setDateRange,
+    setSelectedCampaignId,
     addCampaign,
     updateCampaign,
     deleteCampaign,
     addStatHistoryEntry,
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
-    updateCampaignStats,
-    addAccountConnection,
-    updateAccountConnection,
-    deleteAccountConnection,
-    syncAccountConnection,
-    fetchGoogleAdsMetrics,
-    addCaseBuyer,
-    updateCaseBuyer,
-    deleteCaseBuyer,
-    addCaseAttribution,
-    updateCaseAttribution,
-    deleteCaseAttribution,
-    fetchGoogleAdsAccounts,
     fetchCampaigns,
-    migrateFromLocalStorage,
+    accountConnections,
+    fetchGoogleAdsAccounts,
+    addAccountConnection,
+    selectedCampaignIds,
+    setSelectedCampaignIds
   };
 
   return (
-    <CampaignContext.Provider value={contextValue}>
+    <CampaignContext.Provider value={value}>
       {children}
     </CampaignContext.Provider>
   );
 };
-
-const useCampaign = (): CampaignContextType => {
-  const context = useContext(CampaignContext);
-  if (context === undefined) {
-    throw new Error("useCampaign must be used within a CampaignProvider");
-  }
-  return context;
-};
-
-export { CampaignProvider, useCampaign };

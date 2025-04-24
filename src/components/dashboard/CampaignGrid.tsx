@@ -37,27 +37,6 @@ export function CampaignGrid({ filteredCampaigns }: CampaignGridProps) {
     checkAuth();
   }, []);
   
-  // Log campaigns to debug
-  React.useEffect(() => {
-    console.log("CampaignGrid - context campaigns:", campaigns.length);
-    console.log("CampaignGrid - filteredCampaigns prop:", filteredCampaigns?.length);
-    
-    // Check localStorage directly
-    const storedCampaigns = localStorage.getItem("campaigns");
-    if (storedCampaigns) {
-      try {
-        const parsed = JSON.parse(storedCampaigns);
-        console.log("CampaignGrid - localStorage campaigns:", 
-          Array.isArray(parsed) ? parsed.length : 'not an array',
-          Array.isArray(parsed) && parsed.length > 0 ? parsed.map(c => c.name) : '');
-      } catch (e) {
-        console.error("CampaignGrid - Error parsing localStorage campaigns:", e);
-      }
-    } else {
-      console.log("CampaignGrid - No campaigns in localStorage");
-    }
-  }, [campaigns, filteredCampaigns]);
-  
   const campaignsToUse = filteredCampaigns || campaigns;
   
   const {
