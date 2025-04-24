@@ -1,5 +1,12 @@
 
 /**
+ * Date utilities to ensure consistent date handling across the application.
+ * These utilities help with timezone-related issues when storing and displaying dates.
+ */
+
+import { addDays, format } from "date-fns";
+
+/**
  * Creates a Date object at UTC noon for a given date to avoid timezone issues
  */
 const createDateAtUTCNoon = (date: Date): Date => {
@@ -124,8 +131,7 @@ export const formatSafeDate = (dateString: string, formatStr: string = "PP"): st
       dateObj = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
     }
     
-    // Import format from date-fns dynamically to avoid missing import errors
-    const { format } = require('date-fns');
+    // Use date-fns format function
     return format(dateObj, formatStr);
   } catch (error) {
     console.error(`Error formatting date: ${dateString}`, error);
@@ -133,9 +139,5 @@ export const formatSafeDate = (dateString: string, formatStr: string = "PP"): st
   }
 };
 
-/**
- * Import addDays from date-fns to avoid "Cannot find name 'addDays'" errors
- */
-import { addDays, format } from "date-fns";
-
+// Export all the date utilities
 export { createDateAtUTCNoon, addDays, format };
