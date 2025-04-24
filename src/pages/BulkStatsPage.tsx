@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate } from "@/lib/utils/ManualDateUtils";
 
 const BulkStatsPage = () => {
-  // Initialize with UTC noon date for the current Monday
+  // Use the current date to get the start date for the current week (Monday)
   const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
   const [startDate, setStartDate] = useState<Date>(initialDate);
 
@@ -18,7 +19,6 @@ const BulkStatsPage = () => {
     setStartDate(prevDate => {
       const newDate = new Date(prevDate);
       const offset = direction === 'previous' ? -7 : 7;
-      // Use UTC methods for consistency
       newDate.setUTCDate(prevDate.getUTCDate() + offset);
       return getWeekStartDate(newDate); // Ensure we always snap to Monday
     });
@@ -27,9 +27,21 @@ const BulkStatsPage = () => {
   // Handle date selection from the DatePicker
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      setStartDate(getWeekStartDate(date)); // Ensure selected date starts on Monday
+      // Always ensure the selected date starts on a Monday
+      const weekStart = getWeekStartDate(date);
+      console.log(`Selected date: ${date.toISOString()}, Week start: ${weekStart.toISOString()}`);
+      setStartDate(weekStart);
     }
   };
+
+  // Create an array of 7 days (Monday to Sunday) for display in the UI
+  const weekDates = React.useMemo(() => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      dates.push(addDays(startDate, i));
+    }
+    return dates;
+  }, [startDate]);
 
   return (
     <div className="container mx-auto py-6 space-y-6">

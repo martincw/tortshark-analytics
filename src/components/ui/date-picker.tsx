@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { formatDateForStorage, createDateAtUTCNoon, localDateToUTCNoon } from "@/lib/utils/ManualDateUtils";
+import { localDateToUTCNoon } from "@/lib/utils/ManualDateUtils";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -25,9 +25,10 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
       return;
     }
     
-    // Critical fix: Convert the local date from the calendar to UTC noon
+    // Convert the local date from the calendar to UTC noon
     // This ensures that the date selected in the UI is the same date stored in the database
     const utcNoonDate = localDateToUTCNoon(selectedDate);
+    console.log(`DatePicker: Selected ${selectedDate.toISOString()}, converted to UTC noon: ${utcNoonDate.toISOString()}`);
     
     onSelect(utcNoonDate);
   };
@@ -53,7 +54,6 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
           selected={date}
           onSelect={handleSelect}
           initialFocus
-          className="pointer-events-auto"
         />
       </PopoverContent>
     </Popover>
