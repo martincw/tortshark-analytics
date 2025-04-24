@@ -1,4 +1,3 @@
-
 /**
  * Date utilities to ensure consistent date handling across the application.
  * These utilities help with timezone-related issues when storing and displaying dates.
@@ -139,5 +138,30 @@ export const formatSafeDate = (dateString: string, formatStr: string = "PP"): st
   }
 };
 
+/**
+ * Gets the Monday of the week containing the given date
+ */
+const getWeekStartDate = (date: Date): Date => {
+  const utcNoonDate = createDateAtUTCNoon(date);
+  const day = utcNoonDate.getUTCDay();
+  const diff = (day === 0 ? -6 : 1) - day; // If Sunday, go back 6 days, else adjust to Monday
+  
+  const monday = new Date(utcNoonDate);
+  monday.setUTCDate(utcNoonDate.getUTCDate() + diff);
+  return monday;
+};
+
 // Export all the date utilities
-export { createDateAtUTCNoon, addDays, format };
+export { 
+  createDateAtUTCNoon, 
+  formatDateForStorage, 
+  parseStoredDate, 
+  formatDisplayDate,
+  getLocalDateString,
+  createWeekDates,
+  localDateToUTCNoon,
+  formatSafeDate,
+  addDays,
+  format,
+  getWeekStartDate
+};

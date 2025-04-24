@@ -1,22 +1,17 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { createDateAtUTCNoon, formatDateForStorage, format, addDays } from "@/lib/utils/ManualDateUtils";
+import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate } from "@/lib/utils/ManualDateUtils";
 
 const BulkStatsPage = () => {
-  // Initialize with UTC noon date to ensure consistent date handling
-  const initialDate = createDateAtUTCNoon(new Date());
+  // Initialize with UTC noon date for the current Monday
+  const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
   const [startDate, setStartDate] = useState<Date>(initialDate);
 
   const moveWeek = (direction: 'previous' | 'next') => {
@@ -25,14 +20,14 @@ const BulkStatsPage = () => {
       const offset = direction === 'previous' ? -7 : 7;
       // Use UTC methods for consistency
       newDate.setUTCDate(prevDate.getUTCDate() + offset);
-      return newDate;
+      return getWeekStartDate(newDate); // Ensure we always snap to Monday
     });
   };
   
   // Handle date selection from the DatePicker
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      setStartDate(date); // The DatePicker already handles UTC noon conversion
+      setStartDate(getWeekStartDate(date)); // Ensure selected date starts on Monday
     }
   };
 
