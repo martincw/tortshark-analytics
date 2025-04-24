@@ -58,45 +58,47 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   const weekDateKeys = weekDates.map(date => formatDateForStorage(date));
 
   const handleCampaignSelect = async (campaignId: string) => {
-    setSelectedCampaign(prev => prev === campaignId ? null : campaignId);
+    // Check if we're selecting or deselecting
+    const isDeselecting = selectedCampaign === campaignId;
     
-    if (!weeklyStatsData[campaignId]) {
-      if (prev === campaignId) {
-        // If deselecting, don't fetch data
-        return;
-      }
-      
-      // Fetch existing stats for this campaign
-      const { data: existingStats, error } = await supabase
-        .from('campaign_stats_history')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .in('date', weekDateKeys);
-        
-      if (error) {
-        console.error("Error fetching existing stats:", error);
-        toast.error("Failed to load existing stats");
-        initializeWeeklyStats(campaignId);
-        return;
-      }
-
-      // Initialize stats with existing data
-      const weekStats: WeeklyStats = {};
-      weekDateKeys.forEach(dateKey => {
-        const existingStat = existingStats?.find(stat => stat.date === dateKey);
-        weekStats[dateKey] = {
-          leads: existingStat?.leads || 0,
-          cases: existingStat?.cases || 0,
-          revenue: existingStat?.revenue || 0,
-          adSpend: existingStat?.ad_spend || 0
-        };
-      });
-
-      setWeeklyStatsData(prev => ({
-        ...prev,
-        [campaignId]: weekStats
-      }));
+    // Update the selected campaign state
+    setSelectedCampaign(isDeselecting ? null : campaignId);
+    
+    // If deselecting or we already have data, don't fetch
+    if (isDeselecting || weeklyStatsData[campaignId]) {
+      return;
     }
+    
+    // Fetch existing stats for this campaign
+    const { data: existingStats, error } = await supabase
+      .from('campaign_stats_history')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .in('date', weekDateKeys);
+      
+    if (error) {
+      console.error("Error fetching existing stats:", error);
+      toast.error("Failed to load existing stats");
+      initializeWeeklyStats(campaignId);
+      return;
+    }
+
+    // Initialize stats with existing data
+    const weekStats: WeeklyStats = {};
+    weekDateKeys.forEach(dateKey => {
+      const existingStat = existingStats?.find(stat => stat.date === dateKey);
+      weekStats[dateKey] = {
+        leads: existingStat?.leads || 0,
+        cases: existingStat?.cases || 0,
+        revenue: existingStat?.revenue || 0,
+        adSpend: existingStat?.ad_spend || 0
+      };
+    });
+
+    setWeeklyStatsData(prev => ({
+      ...prev,
+      [campaignId]: weekStats
+    }));
   };
 
   const initializeWeeklyStats = (campaignId: string) => {
