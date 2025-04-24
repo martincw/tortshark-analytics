@@ -3,8 +3,7 @@ import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
-import { OverviewStats } from "@/components/dashboard/OverviewStats";
-import DashboardFinancialStats from "@/components/dashboard/DashboardFinancialStats"; // Changed to default import
+import DashboardFinancialStats from "@/components/dashboard/DashboardFinancialStats";
 import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
 
@@ -20,21 +19,16 @@ const Index = () => {
     <div className="space-y-6">
       <DashboardHeader />
       
-      {/* Dashboard Content */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <OverviewStats filteredCampaigns={filteredCampaigns} />
-      </div>
+      {/* Campaign Leaderboard - Full Width */}
+      <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="col-span-1 lg:col-span-2 space-y-6">
-          <DashboardFinancialStats />
-          <DailyAveragesSection filteredCampaigns={filteredCampaigns} />
-        </div>
-        <div className="space-y-6">
-          <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
-        </div>
+      {/* Financial Stats and Daily Averages - Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DashboardFinancialStats />
+        <DailyAveragesSection filteredCampaigns={filteredCampaigns} />
       </div>
 
+      {/* Campaign Grid */}
       <CampaignGrid filteredCampaigns={filteredCampaigns} />
     </div>
   );

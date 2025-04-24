@@ -1,13 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
-import { Label } from "@/components/ui/label";
-import { format } from "date-fns";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { formatDateForStorage, parseStoredDate, formatDisplayDate } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
 
 interface FinancialStats {
   revenue: number;
@@ -19,47 +17,23 @@ const DashboardFinancialStats: React.FC = () => {
   const { dateRange } = useCampaign();
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedDateString, setSelectedDateString] = useState<string>(formatDateForStorage(new Date()));
   
   useEffect(() => {
-    if (dateRange.startDate) {
-      console.log('DashboardFinancialStats: Using exact date string from context:', dateRange.startDate);
-      
-      const parsedDate = parseStoredDate(dateRange.startDate);
-      setSelectedDate(parsedDate);
-      
-      setSelectedDateString(dateRange.startDate);
-    }
-  }, [dateRange]);
-
-  const handleDateChange = (date: Date | undefined) => {
-    if (date) {
-      const dateStr = formatDateForStorage(date);
-      console.log('Financial Stats - Selected date object:', date);
-      console.log('Financial Stats - Formatted date string for storage:', dateStr);
-      
-      setSelectedDate(date);
-      setSelectedDateString(dateStr);
-    }
-  };
-
-  useEffect(() => {
     async function fetchFinancialStats() {
-      if (!selectedDateString) return;
+      if (!dateRange.startDate) return;
       
       setLoading(true);
-      console.log('Fetching financial stats for exact date:', selectedDateString);
+      console.log('Fetching financial stats for date:', dateRange.startDate);
       
       const { data: adSpendData, error: adSpendError } = await supabase
         .from('campaign_stats')
         .select('ad_spend')
-        .eq('date', selectedDateString);
+        .eq('date', dateRange.startDate);
 
       const { data: revenueData, error: revenueError } = await supabase
         .from('campaign_stats_history')
         .select('revenue')
-        .eq('date', selectedDateString);
+        .eq('date', dateRange.startDate);
 
       if (adSpendError) {
         console.error('Error fetching ad spend data:', adSpendError);
@@ -77,7 +51,7 @@ const DashboardFinancialStats: React.FC = () => {
       const totalRevenue = revenueData?.reduce((sum, row) => sum + Number(row.revenue || 0), 0) || 0;
       const profit = totalRevenue - totalCost;
 
-      console.log('Financial data for date', selectedDateString, {
+      console.log('Financial data for date', dateRange.startDate, {
         revenue: totalRevenue,
         cost: totalCost,
         profit,
@@ -97,11 +71,7 @@ const DashboardFinancialStats: React.FC = () => {
     }
 
     fetchFinancialStats();
-  }, [selectedDateString]);
-
-  const formatDateForDisplay = (date: Date) => {
-    return format(date, "MMMM d, yyyy");
-  };
+  }, [dateRange.startDate]);
 
   return (
     <Card className="shadow-md">
@@ -112,19 +82,10 @@ const DashboardFinancialStats: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        <div className="mb-4">
-          <Label htmlFor="dashboardDate" className="mb-2 block">Select Date</Label>
-          <DatePicker 
-            date={selectedDate} 
-            onSelect={handleDateChange}
-            className="w-full" 
-          />
-        </div>
-        
         {loading ? (
           <div className="py-8 text-center text-muted-foreground">Loading stats...</div>
-        ) : selectedDate && stats ? (
-          <div className="grid grid-cols-3 gap-4 mt-4">
+        ) : stats ? (
+          <div className="grid grid-cols-3 gap-4">
             <div className="bg-accent/10 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
                 <Wallet className="h-4 w-4" />
@@ -153,8 +114,8 @@ const DashboardFinancialStats: React.FC = () => {
           </div>
         ) : (
           <div className="py-8 text-center text-muted-foreground">
-            {selectedDate ? 
-              `No stats available for ${formatDateForDisplay(selectedDate)}` : 
+            {dateRange.startDate ? 
+              `No stats available for ${dateRange.startDate}` : 
               'Please select a date to view stats'}
           </div>
         )}
