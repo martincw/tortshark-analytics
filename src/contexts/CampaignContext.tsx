@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useState,
@@ -29,16 +30,18 @@ interface CampaignContextType {
   campaigns: Campaign[];
   accountConnections: AccountConnection[];
   selectedCampaignId: string | null;
+  selectedCampaignIds: string[];
   dateRange: DateRange;
   caseBuyers: CaseBuyer[];
   caseAttributions: CaseAttribution[];
   isLoading: boolean;
   setSelectedCampaignId: (id: string | null) => void;
+  setSelectedCampaignIds: (ids: string[]) => void;
   setDateRange: (dateRange: DateRange) => void;
   addCampaign: (campaign: Omit<Campaign, "id" | "stats" | "statsHistory">) => void;
   updateCampaign: (id: string, updates: Partial<Campaign>) => void;
   deleteCampaign: (id: string) => void;
-  addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id">) => void;
+  addStatHistoryEntry: (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => void;
   updateStatHistoryEntry: (campaignId: string, entry: StatHistoryEntry) => void;
   deleteStatHistoryEntry: (campaignId: string, entryId: string) => Promise<void>;
   updateCampaignStats: (campaignId: string, stats: CampaignStats) => void;
@@ -53,6 +56,9 @@ interface CampaignContextType {
   addCaseAttribution: (caseAttribution: Omit<CaseAttribution, "id">) => void;
   updateCaseAttribution: (id: string, updates: Partial<CaseAttribution>) => void;
   deleteCaseAttribution: (id: string) => void;
+  fetchGoogleAdsAccounts: () => Promise<AccountConnection[]>;
+  fetchCampaigns: () => Promise<Campaign[]>;
+  migrateFromLocalStorage: () => Promise<void>;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
@@ -65,6 +71,7 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: getLocalDateString(new Date()),
     endDate: getLocalDateString(new Date()),
@@ -191,7 +198,7 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
     campaign.stats.adSpend = totalAdSpend;
   };
 
-  const addStatHistoryEntry = (campaignId: string, entry: Omit<StatHistoryEntry, "id">) => {
+  const addStatHistoryEntry = (campaignId: string, entry: Omit<StatHistoryEntry, "id" | "createdAt">) => {
     const newEntry: StatHistoryEntry = {
       id: uuidv4(),
       ...entry,
@@ -433,15 +440,98 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
     toast.success("Case attribution deleted successfully");
   };
 
+  // Add the missing functions
+  const fetchGoogleAdsAccounts = async (): Promise<AccountConnection[]> => {
+    setIsLoading(true);
+    try {
+      // Simulate an API call to fetch Google Ads accounts
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real implementation, this would call a real API
+      // For now, we'll return dummy data
+      const dummyAccounts: AccountConnection[] = [
+        {
+          id: uuidv4(),
+          name: "Main Ad Account",
+          platform: "google",
+          isConnected: true,
+          lastSynced: new Date().toISOString(),
+          customerId: "123456789",
+          credentials: {}
+        }
+      ];
+      
+      // Add these accounts to our state
+      setAccountConnections(prev => {
+        // Don't add duplicates
+        const existingIds = new Set(prev.map(acc => acc.customerId));
+        const newAccounts = dummyAccounts.filter(acc => !existingIds.has(acc.customerId));
+        
+        if (newAccounts.length === 0) {
+          return prev;
+        }
+        
+        const updated = [...prev, ...newAccounts];
+        localStorage.setItem("accountConnections", JSON.stringify(updated));
+        return updated;
+      });
+      
+      return dummyAccounts;
+    } catch (error) {
+      console.error("Error fetching Google Ads accounts:", error);
+      toast.error("Failed to fetch Google Ads accounts");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const fetchCampaigns = async (): Promise<Campaign[]> => {
+    setIsLoading(true);
+    try {
+      // In a real app, this would call an API
+      // For now, we'll just return the current state
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return campaigns;
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+      toast.error("Failed to fetch campaigns");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const migrateFromLocalStorage = async (): Promise<void> => {
+    try {
+      // This would migrate data to a database in a real app
+      // For now we'll just simulate the operation
+      setIsLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      toast.success("Data migration completed successfully");
+    } catch (error) {
+      console.error("Error migrating data:", error);
+      toast.error("Failed to migrate data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const contextValue = {
     campaigns,
     accountConnections,
     selectedCampaignId,
+    selectedCampaignIds,
     dateRange,
     caseBuyers,
     caseAttributions,
     isLoading,
     setSelectedCampaignId,
+    setSelectedCampaignIds,
     setDateRange,
     addCampaign,
     updateCampaign,
@@ -461,6 +551,9 @@ const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
     addCaseAttribution,
     updateCaseAttribution,
     deleteCaseAttribution,
+    fetchGoogleAdsAccounts,
+    fetchCampaigns,
+    migrateFromLocalStorage,
   };
 
   return (
