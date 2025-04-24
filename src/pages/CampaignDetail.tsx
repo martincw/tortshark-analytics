@@ -96,6 +96,7 @@ const CampaignDetail = () => {
     addStatHistoryEntry, 
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
+    deleteStatHistoryEntries,
     dateRange, 
     setDateRange 
   } = useCampaign();
@@ -381,12 +382,12 @@ const CampaignDetail = () => {
     setIsDeletingEntry(true);
     
     try {
-      const success = await deleteStatHistoryEntry(id, entryToDelete);
-      
-      if (success) {
-        setDeleteEntryDialogOpen(false);
-        setEntryToDelete(null);
-      }
+      await deleteStatHistoryEntry(campaign.id, entryToDelete);
+      toast.success("Stat entry deleted successfully");
+      setSelectedEntries([]);
+    } catch (error) {
+      console.error("Error deleting stat entry:", error);
+      toast.error("Failed to delete stat entry");
     } finally {
       setIsDeletingEntry(false);
     }
@@ -401,32 +402,12 @@ const CampaignDetail = () => {
     setIsDeletingEntry(true);
     
     try {
-      let successCount = 0;
-      let failCount = 0;
-      
-      for (const entryId of selectedEntries) {
-        const success = await deleteStatHistoryEntry(id, entryId);
-        if (success) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      }
-      
-      if (successCount > 0) {
-        toast.success(`Successfully deleted ${successCount} entries`);
-      }
-      
-      if (failCount > 0) {
-        toast.error(`Failed to delete ${failCount} entries`);
-      }
-      
+      await deleteStatHistoryEntries(campaign.id, selectedEntries);
+      toast.success(`${selectedEntries.length} stat entries deleted successfully`);
       setSelectedEntries([]);
-      setDeleteEntryDialogOpen(false);
-      setIsDeletingBulk(false);
     } catch (error) {
-      console.error("Error during bulk deletion:", error);
-      toast.error("An error occurred during deletion");
+      console.error("Error deleting stat entries:", error);
+      toast.error("Failed to delete stat entries");
     } finally {
       setIsDeletingEntry(false);
     }
