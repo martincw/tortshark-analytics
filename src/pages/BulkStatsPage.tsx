@@ -11,12 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate } from "@/lib/utils/ManualDateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const BulkStatsPage = () => {
   const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
   const [startDate, setStartDate] = useState<Date>(initialDate);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
   const moveWeek = (direction: 'previous' | 'next') => {
     setStartDate(prevDate => {
@@ -35,6 +37,17 @@ const BulkStatsPage = () => {
     }
   };
 
+  const handleDateCheckboxChange = (date: Date) => {
+    const dateStr = formatDateForStorage(date);
+    setSelectedDates(prev => {
+      if (prev.includes(dateStr)) {
+        return prev.filter(d => d !== dateStr);
+      } else {
+        return [...prev, dateStr];
+      }
+    });
+  };
+
   const weekDates = React.useMemo(() => {
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -44,24 +57,25 @@ const BulkStatsPage = () => {
   }, [startDate]);
 
   const handleBulkDelete = async () => {
+    if (selectedDates.length === 0) {
+      toast.error("Please select at least one date to delete");
+      return;
+    }
+
     setIsDeleting(true);
     try {
-      const startDateStr = formatDateForStorage(startDate);
-      const endDate = addDays(startDate, 6);
-      const endDateStr = formatDateForStorage(endDate);
-      
       const { error } = await supabase
         .from('campaign_stats_history')
         .delete()
-        .gte('date', startDateStr)
-        .lte('date', endDateStr);
+        .in('date', selectedDates);
         
       if (error) {
         throw error;
       }
       
-      toast.success("Stats deleted successfully");
+      toast.success("Selected stats deleted successfully");
       setShowDeleteConfirm(false);
+      setSelectedDates([]);
     } catch (error) {
       console.error("Error deleting stats:", error);
       toast.error("Failed to delete stats");
@@ -114,10 +128,26 @@ const BulkStatsPage = () => {
               variant="destructive"
               size="sm"
               onClick={() => setShowDeleteConfirm(true)}
+              disabled={selectedDates.length === 0}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Week
+              Delete Selected ({selectedDates.length})
             </Button>
+          </div>
+
+          <div className="flex items-center gap-4 mt-2">
+            {weekDates.map((date) => (
+              <div key={date.toISOString()} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`date-${date.toISOString()}`}
+                  checked={selectedDates.includes(formatDateForStorage(date))}
+                  onCheckedChange={() => handleDateCheckboxChange(date)}
+                />
+                <label htmlFor={`date-${date.toISOString()}`} className="text-sm">
+                  {format(date, "dd")}
+                </label>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -160,9 +190,9 @@ const BulkStatsPage = () => {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Bulk Delete</DialogTitle>
+            <DialogTitle>Confirm Delete Selected Days</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete all stats for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}? This action cannot be undone.
+              Are you sure you want to delete stats for the selected {selectedDates.length} day(s)? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
