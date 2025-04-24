@@ -29,12 +29,6 @@ export function DatePicker({ date, onSelect, className }: DatePickerProps) {
     // This ensures that the date selected in the UI is the same date stored in the database
     const utcNoonDate = localDateToUTCNoon(selectedDate);
     
-    console.log('DatePicker - Selected date (original local timezone):', selectedDate);
-    console.log('DatePicker - Year:', selectedDate.getFullYear(), 'Month:', selectedDate.getMonth() + 1, 'Day:', selectedDate.getDate());
-    console.log('DatePicker - Converted to UTC noon date:', utcNoonDate);
-    console.log('DatePicker - UTC Year:', utcNoonDate.getUTCFullYear(), 'UTC Month:', utcNoonDate.getUTCMonth() + 1, 'UTC Day:', utcNoonDate.getUTCDate());
-    console.log('DatePicker - formatDateForStorage result:', formatDateForStorage(utcNoonDate));
-    
     onSelect(utcNoonDate);
   };
 

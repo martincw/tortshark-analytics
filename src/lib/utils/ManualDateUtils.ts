@@ -22,28 +22,18 @@ export const formatDateForStorage = (date: Date): string => {
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
   
-  console.log(`formatDateForStorage: Input Date:`, date);
-  console.log(`formatDateForStorage: UTC components - Year: ${year}, Month: ${month}, Day: ${day}`);
-  
-  const result = `${year}-${month}-${day}`;
-  console.log(`formatDateForStorage: Result:`, result);
-  return result;
+  return `${year}-${month}-${day}`;
 };
 
 /**
  * Parses a YYYY-MM-DD string into a Date object at UTC noon
  */
 export const parseStoredDate = (dateString: string): Date => {
-  console.log(`parseStoredDate: Input String:`, dateString);
-  
   // Parse the date components
   const [year, month, day] = dateString.split('-').map(Number);
   
   // Create a UTC date at noon
-  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  console.log(`parseStoredDate: Result:`, date);
-  
-  return date;
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
 };
 
 /**
@@ -102,4 +92,50 @@ export const localDateToUTCNoon = (localDate: Date): Date => {
   return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
 };
 
-export { createDateAtUTCNoon };
+/**
+ * Formats a date safely for display, handling various input formats
+ * and ensuring consistent output regardless of timezone
+ */
+export const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
+  try {
+    if (!dateString) {
+      return "Invalid date";
+    }
+    
+    // Parse the date string to a Date object
+    let dateObj: Date;
+    
+    if (dateString.includes('T')) {
+      // Handle ISO format strings
+      dateObj = new Date(dateString);
+      
+      // Check if valid
+      if (isNaN(dateObj.getTime())) {
+        throw new Error(`Invalid ISO date: ${dateString}`);
+      }
+    } else {
+      // Handle YYYY-MM-DD format
+      const [year, month, day] = dateString.split('-').map(Number);
+      if (!year || !month || !day) {
+        throw new Error(`Invalid date format: ${dateString}`);
+      }
+      
+      // Create date at UTC noon to avoid timezone issues
+      dateObj = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    }
+    
+    // Import format from date-fns dynamically to avoid missing import errors
+    const { format } = require('date-fns');
+    return format(dateObj, formatStr);
+  } catch (error) {
+    console.error(`Error formatting date: ${dateString}`, error);
+    return "Invalid date";
+  }
+};
+
+/**
+ * Import addDays from date-fns to avoid "Cannot find name 'addDays'" errors
+ */
+import { addDays, format } from "date-fns";
+
+export { createDateAtUTCNoon, addDays, format, formatSafeDate };

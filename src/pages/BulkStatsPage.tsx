@@ -9,30 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { createDateAtUTCNoon, formatDateForStorage, localDateToUTCNoon } from "@/lib/utils/ManualDateUtils";
+import { createDateAtUTCNoon, formatDateForStorage, format, addDays } from "@/lib/utils/ManualDateUtils";
 
 const BulkStatsPage = () => {
   // Initialize with UTC noon date to ensure consistent date handling
   const initialDate = createDateAtUTCNoon(new Date());
   const [startDate, setStartDate] = useState<Date>(initialDate);
-
-  console.log("BulkStatsPage - Initial startDate:", startDate);
-  console.log("BulkStatsPage - Initial startDate as ISO:", startDate.toISOString());
-  console.log("BulkStatsPage - Initial startDate as string:", formatDateForStorage(startDate));
-  console.log("BulkStatsPage - Initial local time components:", {
-    year: startDate.getFullYear(),
-    month: startDate.getMonth() + 1,
-    day: startDate.getDate()
-  });
-  console.log("BulkStatsPage - Initial UTC time components:", {
-    year: startDate.getUTCFullYear(),
-    month: startDate.getUTCMonth() + 1,
-    day: startDate.getUTCDate()
-  });
 
   const moveWeek = (direction: 'previous' | 'next') => {
     setStartDate(prevDate => {
@@ -40,7 +25,6 @@ const BulkStatsPage = () => {
       const offset = direction === 'previous' ? -7 : 7;
       // Use UTC methods for consistency
       newDate.setUTCDate(prevDate.getUTCDate() + offset);
-      console.log(`BulkStatsPage - Moving week ${direction}:`, newDate);
       return newDate;
     });
   };
@@ -48,9 +32,6 @@ const BulkStatsPage = () => {
   // Handle date selection from the DatePicker
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      console.log("BulkStatsPage - New date selected:", date);
-      console.log("BulkStatsPage - Date as ISO:", date.toISOString());
-      console.log("BulkStatsPage - Selected date as string:", formatDateForStorage(date));
       setStartDate(date); // The DatePicker already handles UTC noon conversion
     }
   };

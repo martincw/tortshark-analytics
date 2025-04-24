@@ -252,6 +252,56 @@ const CampaignDetail = () => {
     setRevenue((parseFloat(revenue) + newRevenue).toString());
   };
   
+  const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
+    try {
+      if (!dateString) {
+        console.warn(`Empty date string received`);
+        return "Invalid date";
+      }
+      
+      // First, standardize the date format to handle different input formats
+      let dateToFormat: Date;
+      
+      // Handle ISO strings or YYYY-MM-DD format
+      if (dateString.includes('T')) {
+        // ISO format - create a date object and set to noon of the same day to avoid timezone issues
+        dateToFormat = new Date(dateString);
+        
+        // Extract just the date components and create a new date at noon UTC
+        const year = dateToFormat.getUTCFullYear();
+        const month = dateToFormat.getUTCMonth();
+        const day = dateToFormat.getUTCDate();
+        dateToFormat = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+      } else {
+        // YYYY-MM-DD format - split and create date at noon
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+          dateToFormat = new Date(Date.UTC(
+            parseInt(parts[0]),
+            parseInt(parts[1]) - 1,
+            parseInt(parts[2]),
+            12, 0, 0, 0
+          ));
+        } else {
+          throw new Error(`Invalid date format: ${dateString}`);
+        }
+      }
+      
+      // Validate date is valid
+      if (isNaN(dateToFormat.getTime())) {
+        console.warn(`Invalid date after parsing: ${dateString}`);
+        return "Invalid date";
+      }
+      
+      // Import necessary functions from date-fns
+      const { format } = require('date-fns');
+      return format(dateToFormat, formatStr);
+    } catch (error) {
+      console.error(`Error formatting date: ${dateString}`, error);
+      return "Invalid date";
+    }
+  };
+
   const handleEditEntry = (entry: any) => {
     console.log("Editing entry:", entry);
     
@@ -387,51 +437,6 @@ const CampaignDetail = () => {
   const profitPerCase = campaign.manualStats.cases > 0 
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
-
-  const formatSafeDate = (dateString: string, formatStr: string = "PP"): string => {
-    try {
-      if (!dateString) {
-        console.warn(`Empty date string received`);
-        return "Invalid date";
-      }
-      
-      // First, standardize the date format to handle different input formats
-      let dateToFormat: Date;
-      
-      console.log(`Formatting date string: "${dateString}"`);
-      
-      // Handle ISO strings or YYYY-MM-DD format
-      if (dateString.includes('T')) {
-        // ISO format - create a date object and set to noon of the same day to avoid timezone issues
-        dateToFormat = new Date(dateString);
-      } else {
-        // YYYY-MM-DD format - split and create date at noon
-        const parts = dateString.split('-');
-        if (parts.length === 3) {
-          dateToFormat = new Date(
-            parseInt(parts[0]),
-            parseInt(parts[1]) - 1,
-            parseInt(parts[2]),
-            12, 0, 0, 0
-          );
-        } else {
-          throw new Error(`Invalid date format: ${dateString}`);
-        }
-      }
-      
-      // Validate date is valid
-      if (isNaN(dateToFormat.getTime())) {
-        console.warn(`Invalid date after parsing: ${dateString}`);
-        return "Invalid date";
-      }
-      
-      console.log(`Parsed date: ${dateToFormat.toISOString()}, will format as: ${formatStr}`);
-      return format(dateToFormat, formatStr);
-    } catch (error) {
-      console.error(`Error formatting date: ${dateString}`, error);
-      return "Invalid date";
-    }
-  };
 
   const handleEditTitle = () => {
     if (campaign) {
