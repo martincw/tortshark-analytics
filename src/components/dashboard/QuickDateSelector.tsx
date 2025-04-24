@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Calendar, Clock, History, ArrowRight } from "lucide-react";
@@ -165,7 +164,7 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
 
   return (
     <div className="flex flex-col space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 gap-2">
         <Button 
           variant={isSelected('Today') ? "default" : "outline"} 
           size="sm" 
@@ -202,27 +201,6 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
           <Calendar className="mr-2 h-4 w-4" />
           This Month
         </Button>
-      </div>
-      
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Button 
-          variant={isSelected('WeekToDate') ? "default" : "outline"} 
-          size="sm" 
-          onClick={() => handleQuickSelect('WeekToDate')}
-          className="w-full justify-start"
-        >
-          <ArrowRight className="mr-2 h-4 w-4" />
-          Week To Date
-        </Button>
-        <Button 
-          variant={isSelected('MonthToDate') ? "default" : "outline"} 
-          size="sm" 
-          onClick={() => handleQuickSelect('MonthToDate')}
-          className="w-full justify-start"
-        >
-          <ArrowRight className="mr-2 h-4 w-4" />
-          Month To Date
-        </Button>
         <Button 
           variant={isSelected('Last7Days') ? "default" : "outline"} 
           size="sm" 
@@ -243,17 +221,13 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         </Button>
       </div>
       
-      {currentRange && onClear && (
-        <div className="flex justify-between items-center mt-2 pt-3 border-t">
-          <div className="text-sm text-muted-foreground">
-            {currentRange.startDate === currentRange.endDate 
-              ? `Selected: ${currentRange.startDate}` 
-              : `From ${currentRange.startDate} to ${currentRange.endDate}`}
-          </div>
+      {currentRange?.startDate && onClear && (
+        <div className="flex justify-between items-center pt-3 border-t">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={onClear}
+            className="w-full"
           >
             Clear Selection
           </Button>

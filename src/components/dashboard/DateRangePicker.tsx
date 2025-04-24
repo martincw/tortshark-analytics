@@ -10,15 +10,20 @@ import {
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { Calendar as CalendarIcon, Save } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatDateForStorage, parseStoredDate, formatDisplayDate } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
+import QuickDateSelector from "./QuickDateSelector";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function DateRangePicker() {
   const { dateRange, setDateRange } = useCampaign();
   
-  // Format date strings to Date objects properly using our UTC parser
   const createDateFromStr = (dateStr: string | undefined): Date | undefined => {
     if (!dateStr) return undefined;
     return parseStoredDate(dateStr);
@@ -32,11 +37,8 @@ export function DateRangePicker() {
   const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
-  // Update local state when dateRange prop changes
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
-      console.log("DateRangePicker: External date range changed:", dateRange);
-      
       setDate({
         from: createDateFromStr(dateRange.startDate),
         to: createDateFromStr(dateRange.endDate),
@@ -49,51 +51,50 @@ export function DateRangePicker() {
     }
   }, [dateRange]);
   
-  // Save dateRange to localStorage when it changes
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
       localStorage.setItem('dateRange', JSON.stringify(dateRange));
-      console.log('Date range saved to localStorage:', dateRange);
     }
   }, [dateRange]);
   
   const handleTempDateChange = (value: DateRange | undefined) => {
-    console.log("DateRangePicker: Temp date changed:", value);
     setTempDate(value);
   };
 
   const handleSaveDate = () => {
     if (!tempDate?.from) return;
     
-    // Format to YYYY-MM-DD using our utility
     const formattedStartDate = formatDateForStorage(tempDate.from);
     const formattedEndDate = formatDateForStorage(tempDate.to || tempDate.from);
     
-    console.log(`DateRangePicker: Original from date:`, tempDate.from);
-    console.log(`DateRangePicker: Original to date:`, tempDate.to);
-    console.log(`DateRangePicker: Formatted start date:`, formattedStartDate);
-    console.log(`DateRangePicker: Formatted end date:`, formattedEndDate);
-    
-    // Update local component state
     setDate({
       from: tempDate.from,
       to: tempDate.to || tempDate.from
     });
     
-    // Create a new object reference to trigger re-renders in dependent components
     const newDateRange = {
       startDate: formattedStartDate,
       endDate: formattedEndDate,
     };
     
-    console.log(`DateRangePicker: Setting new date range:`, newDateRange);
     setDateRange(newDateRange);
     setIsPopoverOpen(false);
     toast.success("Date range updated");
   };
 
+  const handleDateSelect = (range: any) => {
+    setDateRange(range);
+  };
+  
+  const handleClearDates = () => {
+    setDateRange({ startDate: "", endDate: "" });
+    setDate(undefined);
+    setTempDate(undefined);
+    toast.success("Date range cleared");
+  };
+
   return (
-    <div className="grid gap-2">
+    <div className="flex gap-2 items-center">
       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -101,7 +102,7 @@ export function DateRangePicker() {
             variant={"outline"}
             size="sm"
             className={cn(
-              "justify-start text-left font-normal bg-background",
+              "justify-start text-left font-normal",
               !date && "text-muted-foreground"
             )}
           >
@@ -115,7 +116,7 @@ export function DateRangePicker() {
                 format(date.from, "PPP")
               )
             ) : (
-              <span>Calendar</span>
+              <span>Select dates</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -136,13 +137,32 @@ export function DateRangePicker() {
                 className="w-full" 
                 disabled={!tempDate?.from}
               >
-                <Save className="mr-2 h-4 w-4" /> 
                 Apply Date Range
               </Button>
             </div>
           </div>
         </PopoverContent>
       </Popover>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-primary/20 border-primary/30 hover:bg-primary/30 text-primary-foreground font-medium"
+          >
+            Quick Select
+            <ChevronDown className="ml-2 h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-[300px] p-4" align="end">
+          <QuickDateSelector
+            onSelect={handleDateSelect}
+            currentRange={dateRange}
+            onClear={handleClearDates}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
