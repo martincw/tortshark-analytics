@@ -1,19 +1,41 @@
+
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
+import { OverviewStats } from "@/components/dashboard/OverviewStats";
+import { DashboardFinancialStats } from "@/components/dashboard/DashboardFinancialStats";
+import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
+import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
 
 const Index = () => {
-  const { dateRange } = useCampaign();
+  const { dateRange, selectedCampaignIds, campaigns } = useCampaign();
+  
+  // Filter campaigns by selected IDs if any are selected
+  const filteredCampaigns = selectedCampaignIds.length > 0
+    ? campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id))
+    : campaigns;
   
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-        <div className="w-full md:w-auto">
-          <DateRangePicker />
-        </div>
+      <DashboardHeader />
+      
+      {/* Dashboard Content */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <OverviewStats />
       </div>
       
-      {/* Dashboard content will go here */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="col-span-1 lg:col-span-2 space-y-6">
+          <DashboardFinancialStats />
+          <DailyAveragesSection />
+        </div>
+        <div className="space-y-6">
+          <CampaignLeaderboard />
+        </div>
+      </div>
+
+      <CampaignGrid filteredCampaigns={filteredCampaigns} />
     </div>
   );
 };
