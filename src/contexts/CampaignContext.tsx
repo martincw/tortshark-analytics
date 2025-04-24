@@ -19,7 +19,8 @@ interface CampaignContextType {
   deleteCampaign: (id: string) => void;
   addStatHistoryEntry: (campaignId: string, entry: any) => void;
   updateStatHistoryEntry: (campaignId: string, entry: any) => void;
-  deleteStatHistoryEntry: (campaignId: string, entryId: string) => void;
+  deleteStatHistoryEntry: (campaignId: string, entryId: string) => Promise<boolean>;
+  deleteStatHistoryEntries: (campaignId: string, entryIds: string[]) => Promise<void>;
   fetchCampaigns: () => Promise<void>;
   accountConnections: AccountConnection[];
   fetchGoogleAdsAccounts: () => Promise<any>;
@@ -42,7 +43,8 @@ export const CampaignContext = createContext<CampaignContextType>({
   deleteCampaign: () => {},
   addStatHistoryEntry: () => {},
   updateStatHistoryEntry: () => {},
-  deleteStatHistoryEntry: () => {},
+  deleteStatHistoryEntry: async () => false,
+  deleteStatHistoryEntries: async () => {},
   fetchCampaigns: async () => {},
   accountConnections: [],
   fetchGoogleAdsAccounts: async () => [],
@@ -575,6 +577,34 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       setIsLoading(false);
     }
   };
+  
+  const deleteStatHistoryEntries = async (campaignId: string, entryIds: string[]) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Delete all entries at once
+      const { error } = await supabase
+        .from('campaign_stats_history')
+        .delete()
+        .eq('campaign_id', campaignId)
+        .in('id', entryIds);
+      
+      if (error) {
+        console.error("Error deleting stat history entries:", error);
+        setError(error.message);
+        throw error;
+      }
+      
+      await fetchCampaigns();
+    } catch (err) {
+      setError((err as Error).message);
+      console.error("Failed to delete stat history entries:", err);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const value = {
     campaigns,
@@ -590,6 +620,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     addStatHistoryEntry,
     updateStatHistoryEntry,
     deleteStatHistoryEntry,
+    deleteStatHistoryEntries,
     fetchCampaigns,
     accountConnections,
     fetchGoogleAdsAccounts,
