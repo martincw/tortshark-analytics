@@ -1,4 +1,3 @@
-
 /**
  * Date utilities to ensure consistent date handling across the application.
  * These utilities help with timezone-related issues when storing and displaying dates.
@@ -231,13 +230,23 @@ const isDateInRange = (dateStr: string, startDateStr: string, endDateStr: string
     const standardStart = standardizeDateString(startDateStr);
     const standardEnd = standardizeDateString(endDateStr);
     
+    console.log(`Checking if ${standardDate} is between ${standardStart} and ${standardEnd}`);
+    
     // Parse all dates to UTC noon for consistent comparison
     const date = parseStoredDate(standardDate);
     const startDate = parseStoredDate(standardStart);
     const endDate = parseStoredDate(standardEnd);
     
+    console.log(`Parsed dates for comparison:`, {
+      date: date.toISOString(),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
+    
     // Check if date is within range (inclusive)
-    return date >= startDate && date <= endDate;
+    const result = date >= startDate && date <= endDate;
+    console.log(`isDateInRange result: ${result}`);
+    return result;
   } catch (error) {
     console.error(`Error checking date range: ${dateStr} in ${startDateStr} to ${endDateStr}`, error);
     return false;

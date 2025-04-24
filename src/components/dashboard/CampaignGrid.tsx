@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
 import { Campaign } from "@/types/campaign";
-import { standardizeDateString } from "@/lib/utils/ManualDateUtils";
+import { standardizeDateString, isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface CampaignGridProps {
   filteredCampaigns?: Campaign[];
@@ -52,12 +52,34 @@ export function CampaignGrid({ filteredCampaigns }: CampaignGridProps) {
 
   // Log the date range to ensure it's consistent with other components
   React.useEffect(() => {
-    console.log("CampaignGrid using date range:", 
-      dateRange.startDate ? standardizeDateString(dateRange.startDate) : null, 
+    const standardizedStartDate = dateRange.startDate ? standardizeDateString(dateRange.startDate) : null;
+    const standardizedEndDate = dateRange.endDate ? standardizeDateString(dateRange.endDate) : null;
+    
+    console.log(
+      "CampaignGrid using date range:", 
+      standardizedStartDate, 
       "to", 
-      dateRange.endDate ? standardizeDateString(dateRange.endDate) : null
+      standardizedEndDate
     );
+    
     console.log(`CampaignGrid received ${campaignsToUse.length} campaigns`);
+    
+    // Debug stats history dates for any date-related issues
+    if (campaignsToUse.length > 0) {
+      campaignsToUse.forEach(campaign => {
+        if (campaign.statsHistory && campaign.statsHistory.length > 0) {
+          console.log(`Campaign ${campaign.name} (${campaign.id}) has ${campaign.statsHistory.length} history entries`);
+          
+          // Check if any entries fall within the current date range
+          const entriesInRange = campaign.statsHistory.filter(entry => 
+            dateRange.startDate && dateRange.endDate && 
+            isDateInRange(entry.date, dateRange.startDate, dateRange.endDate)
+          );
+          
+          console.log(`${entriesInRange.length} entries fall within the current date range`);
+        }
+      });
+    }
   }, [dateRange, campaignsToUse]);
 
   const clearFilters = () => {

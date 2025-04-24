@@ -35,6 +35,8 @@ import {
   LineChart,
   BarChart,
   CircleDollarSign,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -46,6 +48,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { format, parseISO, isValid } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -135,7 +147,10 @@ const CampaignDetail = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
   const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
-
+  const [isDeletingEntry, setIsDeletingEntry] = useState(false);
+  const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
@@ -353,15 +368,68 @@ const CampaignDetail = () => {
     setEditingEntryId(null);
     
     setEntryToDelete(entryId);
+    setDeleteConfirmMessage("Are you sure you want to delete this entry? This action cannot be undone.");
     setDeleteEntryDialogOpen(true);
   };
   
-  const confirmDeleteEntry = () => {
-    if (!entryToDelete) return;
+  const confirmDeleteEntry = async () => {
+    if (!entryToDelete || !id) {
+      toast.error("Missing entry or campaign information");
+      return;
+    }
     
-    deleteStatHistoryEntry(campaign.id, entryToDelete);
-    setDeleteEntryDialogOpen(false);
-    setEntryToDelete(null);
+    setIsDeletingEntry(true);
+    
+    try {
+      const success = await deleteStatHistoryEntry(id, entryToDelete);
+      
+      if (success) {
+        setDeleteEntryDialogOpen(false);
+        setEntryToDelete(null);
+      }
+    } finally {
+      setIsDeletingEntry(false);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (!id || selectedEntries.length === 0) {
+      toast.error("No entries selected for deletion");
+      return;
+    }
+    
+    setIsDeletingEntry(true);
+    
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const entryId of selectedEntries) {
+        const success = await deleteStatHistoryEntry(id, entryId);
+        if (success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast.success(`Successfully deleted ${successCount} entries`);
+      }
+      
+      if (failCount > 0) {
+        toast.error(`Failed to delete ${failCount} entries`);
+      }
+      
+      setSelectedEntries([]);
+      setDeleteEntryDialogOpen(false);
+      setIsDeletingBulk(false);
+    } catch (error) {
+      console.error("Error during bulk deletion:", error);
+      toast.error("An error occurred during deletion");
+    } finally {
+      setIsDeletingEntry(false);
+    }
   };
 
   const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
@@ -429,21 +497,9 @@ const CampaignDetail = () => {
       return;
     }
 
+    setDeleteConfirmMessage(`Are you sure you want to delete ${selectedEntries.length} selected entries? This action cannot be undone.`);
+    setIsDeletingBulk(true);
     setDeleteEntryDialogOpen(true);
-  };
-
-  const confirmBulkDelete = async () => {
-    try {
-      for (const entryId of selectedEntries) {
-        await deleteStatHistoryEntry(campaign.id, entryId);
-      }
-      toast.success(`Successfully deleted ${selectedEntries.length} entries`);
-      setSelectedEntries([]);
-      setDeleteEntryDialogOpen(false);
-    } catch (error) {
-      console.error("Error deleting entries:", error);
-      toast.error("Failed to delete selected entries");
-    }
   };
 
   return (
@@ -914,6 +970,7 @@ const CampaignDetail = () => {
                   size="sm"
                   onClick={handleBulkDelete}
                   className="shadow-sm"
+                  disabled={selectedEntries.length === 0}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Selected ({selectedEntries.length})
@@ -943,7 +1000,7 @@ const CampaignDetail = () => {
                   <TableRow className="bg-muted/30">
                     <TableHead className="w-[50px]">
                       <Checkbox 
-                        checked={selectedEntries.length === campaign.statsHistory.length}
+                        checked={selectedEntries.length === campaign.statsHistory.length && campaign.statsHistory.length > 0}
                         onCheckedChange={(checked) => {
                           if (checked) {
                             setSelectedEntries(campaign.statsHistory.map(entry => entry.id));
@@ -1169,25 +1226,46 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirm Delete</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedEntries.length === 1 ? 'this entry' : `these ${selectedEntries.length} entries`}? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteEntryDialogOpen(false)}>Cancel</Button>
-            <Button 
-              variant="destructive" 
-              onClick={selectedEntries.length === 1 ? confirmDeleteEntry : confirmBulkDelete}
+      <AlertDialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isDeletingBulk ? "Delete Multiple Entries" : "Delete Entry"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirmMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={isDeletingEntry} 
+              onClick={() => {
+                setIsDeletingBulk(false);
+                setEntryToDelete(null);
+              }}
             >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={isDeletingBulk ? confirmBulkDelete : confirmDeleteEntry}
+              disabled={isDeletingEntry}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeletingEntry ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete {isDeletingBulk ? `${selectedEntries.length} Entries` : "Entry"}
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

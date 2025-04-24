@@ -540,24 +540,37 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     setError(null);
     
     try {
-      const { error } = await supabase
+      console.log(`Attempting to delete entry ${entryId} for campaign ${campaignId}`);
+      
+      // Query to delete the entry using both campaignId and entryId
+      const { data, error, count } = await supabase
         .from('campaign_stats_history')
-        .delete()
-        .eq('id', entryId);
+        .delete({ count: 'exact' })
+        .eq('id', entryId)
+        .eq('campaign_id', campaignId);
         
       if (error) {
         console.error("Error deleting stat history entry:", error);
         setError(error.message);
         toast.error("Failed to delete stat history entry");
-      } else {
-        toast.success("Stat history entry deleted successfully");
+        return false;
+      } 
+      
+      if (count === 0) {
+        console.warn(`No entries found with id ${entryId} for campaign ${campaignId}`);
+        toast.error("No matching entries found to delete");
+        return false;
       }
       
+      console.log(`Successfully deleted ${count} entries`);
+      toast.success("Stat history entry deleted successfully");
       await fetchCampaigns();
+      return true;
     } catch (err) {
       setError((err as Error).message);
       console.error("Failed to delete stat history entry:", err);
       toast.error("Failed to delete stat history entry");
+      return false;
     } finally {
       setIsLoading(false);
     }
