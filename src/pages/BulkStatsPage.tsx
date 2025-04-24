@@ -1,40 +1,40 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate } from "@/lib/utils/ManualDateUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 const BulkStatsPage = () => {
-  // Use the current date to get the start date for the current week (Monday)
   const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
   const [startDate, setStartDate] = useState<Date>(initialDate);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const moveWeek = (direction: 'previous' | 'next') => {
     setStartDate(prevDate => {
       const newDate = new Date(prevDate);
       const offset = direction === 'previous' ? -7 : 7;
       newDate.setUTCDate(prevDate.getUTCDate() + offset);
-      return getWeekStartDate(newDate); // Ensure we always snap to Monday
+      return getWeekStartDate(newDate);
     });
   };
-  
-  // Handle date selection from the DatePicker
+
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      // Always ensure the selected date starts on a Monday
       const weekStart = getWeekStartDate(date);
       console.log(`Selected date: ${date.toISOString()}, Week start: ${weekStart.toISOString()}`);
       setStartDate(weekStart);
     }
   };
 
-  // Create an array of 7 days (Monday to Sunday) for display in the UI
   const weekDates = React.useMemo(() => {
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -42,6 +42,33 @@ const BulkStatsPage = () => {
     }
     return dates;
   }, [startDate]);
+
+  const handleBulkDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const startDateStr = formatDateForStorage(startDate);
+      const endDate = addDays(startDate, 6);
+      const endDateStr = formatDateForStorage(endDate);
+      
+      const { error } = await supabase
+        .from('campaign_stats_history')
+        .delete()
+        .gte('date', startDateStr)
+        .lte('date', endDateStr);
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast.success("Stats deleted successfully");
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error("Error deleting stats:", error);
+      toast.error("Failed to delete stats");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -78,10 +105,20 @@ const BulkStatsPage = () => {
             </Button>
           </div>
           
-          <DatePicker 
-            date={startDate} 
-            onSelect={handleDateSelect} 
-          />
+          <div className="flex items-center gap-2">
+            <DatePicker 
+              date={startDate} 
+              onSelect={handleDateSelect} 
+            />
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Week
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -119,6 +156,33 @@ const BulkStatsPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete all stats for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Stats"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
