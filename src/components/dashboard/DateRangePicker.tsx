@@ -80,10 +80,13 @@ export function DateRangePicker() {
     setDateRange(newDateRange);
     setIsPopoverOpen(false);
     toast.success("Date range updated");
+    
+    console.log("Date range updated via calendar picker:", newDateRange);
   };
 
   const handleDateSelect = (range: any) => {
     setDateRange(range);
+    console.log("Date range updated via quick select:", range);
   };
   
   const handleClearDates = () => {

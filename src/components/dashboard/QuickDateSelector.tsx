@@ -1,7 +1,9 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Calendar, Clock, History, ArrowRight } from "lucide-react";
+import { CalendarDays, Calendar, Clock, History } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export interface DateRange {
   startDate: string;
@@ -104,10 +106,13 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         end = now;
     }
     
-    onSelect({ 
+    const newRange = { 
       startDate: formatDateForApi(start), 
       endDate: formatDateForApi(end) 
-    });
+    };
+    
+    onSelect(newRange);
+    toast.success(`Date range updated to ${format(start, 'MMM dd')} - ${format(end, 'MMM dd')}`);
   };
 
   // Function to highlight the selected range button
