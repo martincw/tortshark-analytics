@@ -138,4 +138,4 @@ export const formatSafeDate = (dateString: string, formatStr: string = "PP"): st
  */
 import { addDays, format } from "date-fns";
 
-export { createDateAtUTCNoon, addDays, format, formatSafeDate };
+export { createDateAtUTCNoon, addDays, format };
