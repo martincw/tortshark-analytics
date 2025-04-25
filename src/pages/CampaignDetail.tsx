@@ -52,7 +52,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
-import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, parseStoredDate, format } from "@/lib/utils/ManualDateUtils";
 import { StatsHistoryTable } from "@/components/campaigns/StatsHistoryTable";
 import { StatHistoryEntry } from "@/types/campaign";
 import { Calendar } from "@/components/ui/calendar";
