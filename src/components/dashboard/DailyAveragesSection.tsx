@@ -40,6 +40,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const daysWithEntries = new Set<string>();
     
     filteredCampaigns.forEach(campaign => {
+      console.log(`Processing campaign: ${campaign.name} (${campaign.id})`);
       campaign.statsHistory.forEach(entry => {
         if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
           console.log(`Including daily averages for ${campaign.name} on date ${entry.date}:`, {
@@ -75,7 +76,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const dailyCases = totalCases / effectiveDays;
     const dailyRevenue = totalRevenue / effectiveDays;
     const dailyProfit = dailyRevenue - dailyAdSpend;
-    const roi = dailyAdSpend > 0 ? (dailyProfit / dailyAdSpend) * 100 : 0;
+    const roi = dailyAdSpend > 0 ? ((dailyRevenue - dailyAdSpend) / dailyAdSpend) * 100 : 0;
     
     console.log('Calculated daily averages:', {
       dailyAdSpend,

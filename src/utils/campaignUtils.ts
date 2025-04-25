@@ -10,6 +10,8 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
 
   if (dateRange && dateRange.startDate && dateRange.endDate) {
     console.log(`Calculating metrics for date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+    console.log('Campaign ID:', campaign.id);
+    console.log('Stats history entries:', campaign.statsHistory.length);
     
     // Filter and sum stats from history within date range
     campaign.statsHistory.forEach(entry => {
@@ -26,25 +28,25 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
         totalCases += entry.cases;
         totalAdSpend += entry.adSpend || 0;
       } else {
-        console.log(`Excluding stats for date ${entry.date} from calculation`);
+        console.log(`Excluding stats for date ${entry.date} from calculation - outside date range`);
       }
     });
     
-    console.log('Calculated metrics for date range:', {
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
+    console.log('Calculated totals:', {
       totalRevenue,
       totalLeads,
       totalCases,
       totalAdSpend
     });
   } else {
-    // If no date range provided, use all stats
-    console.log('No date range provided, using all campaign stats');
-    totalRevenue = campaign.manualStats.revenue;
-    totalLeads = campaign.manualStats.leads;
-    totalCases = campaign.manualStats.cases;
-    totalAdSpend = campaign.stats.adSpend;
+    // If no date range provided, use statsHistory totals instead of manualStats
+    console.log('No date range provided, using all campaign stats from history');
+    campaign.statsHistory.forEach(entry => {
+      totalRevenue += entry.revenue;
+      totalLeads += entry.leads;
+      totalCases += entry.cases;
+      totalAdSpend += entry.adSpend || 0;
+    });
   }
 
   // Avoid division by zero
@@ -58,9 +60,9 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   
   const profit = totalRevenue - totalAdSpend;
   
-  // Calculate ROI as return percentage beyond 100%
+  // Calculate ROI as return percentage
   const roi = totalAdSpend > 0 
-    ? (totalRevenue / totalAdSpend) * 100 
+    ? ((totalRevenue - totalAdSpend) / totalAdSpend) * 100 
     : 0;
   
   // Calculate earnings per lead
@@ -68,7 +70,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     ? profit / totalLeads
     : 0;
 
-  return {
+  const metrics = {
     revenue: totalRevenue,
     leads: totalLeads,
     cases: totalCases,
@@ -79,6 +81,10 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     roi,
     earningsPerLead
   };
+
+  console.log('Final calculated metrics:', metrics);
+  
+  return metrics;
 };
 
 // Format currency with $ and commas
