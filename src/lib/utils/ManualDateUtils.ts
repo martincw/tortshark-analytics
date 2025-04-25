@@ -1,3 +1,4 @@
+
 /**
  * Date utilities to ensure consistent date handling across the application.
  * These utilities help with timezone-related issues when storing and displaying dates.
@@ -143,8 +144,9 @@ const formatSafeDate = (dateString: string, formatStr: string = "PP"): string =>
  */
 const getWeekStartDate = (date: Date): Date => {
   const utcNoonDate = createDateAtUTCNoon(date);
+  // Always use 1 (Monday) as the weekStartsOn value for consistency
   const day = utcNoonDate.getUTCDay();
-  const diff = (day === 0 ? -6 : 1) - day; // If Sunday, go back 6 days, else adjust to Monday
+  const diff = day === 0 ? -6 : 1 - day; // If Sunday (0), go back 6 days, otherwise adjust to Monday
   
   const monday = new Date(utcNoonDate);
   monday.setUTCDate(utcNoonDate.getUTCDate() + diff);
@@ -220,6 +222,7 @@ const createDateBoundaries = (startDateStr: string, endDateStr: string): { start
 /**
  * Determines if a date string falls within a date range
  * Safely handles both ISO dates and YYYY-MM-DD strings
+ * Uses date-fns' isWithinInterval for more reliable date comparison
  */
 const isDateInRange = (dateStr: string, startDateStr: string, endDateStr: string): boolean => {
   if (!dateStr || !startDateStr || !endDateStr) return false;
@@ -237,15 +240,23 @@ const isDateInRange = (dateStr: string, startDateStr: string, endDateStr: string
     const startDate = parseStoredDate(standardStart);
     const endDate = parseStoredDate(standardEnd);
     
+    // Add one day to end date to make the range inclusive of the entire end date
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setUTCHours(23, 59, 59, 999);
+    
     console.log(`Parsed dates for comparison:`, {
       date: date.toISOString(),
       startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      endDate: adjustedEndDate.toISOString()
     });
     
-    // Check if date is within range (inclusive)
-    const result = date >= startDate && date <= endDate;
-    console.log(`isDateInRange result: ${result}`);
+    // Use date-fns isWithinInterval for more reliable comparison
+    const result = isWithinInterval(date, { 
+      start: startDate,
+      end: adjustedEndDate
+    });
+    
+    console.log(`isDateInRange result for ${dateStr}: ${result}`);
     return result;
   } catch (error) {
     console.error(`Error checking date range: ${dateStr} in ${startDateStr} to ${endDateStr}`, error);

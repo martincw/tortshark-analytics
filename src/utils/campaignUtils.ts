@@ -9,14 +9,24 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   let totalAdSpend = 0;
 
   if (dateRange && dateRange.startDate && dateRange.endDate) {
+    console.log(`Calculating metrics for date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+    
     // Filter and sum stats from history within date range
     campaign.statsHistory.forEach(entry => {
       if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        console.log(`Including stats for date ${entry.date} in calculation`);
+        console.log(`Including stats for date ${entry.date} in calculation: `, {
+          leads: entry.leads,
+          cases: entry.cases,
+          revenue: entry.revenue,
+          adSpend: entry.adSpend || 0
+        });
+        
         totalRevenue += entry.revenue;
         totalLeads += entry.leads;
         totalCases += entry.cases;
         totalAdSpend += entry.adSpend || 0;
+      } else {
+        console.log(`Excluding stats for date ${entry.date} from calculation`);
       }
     });
     
@@ -30,6 +40,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     });
   } else {
     // If no date range provided, use all stats
+    console.log('No date range provided, using all campaign stats');
     totalRevenue = campaign.manualStats.revenue;
     totalLeads = campaign.manualStats.leads;
     totalCases = campaign.manualStats.cases;
@@ -102,7 +113,7 @@ export const formatNumber = (value: number): string => {
   if (value >= 1000) {
     return `${(value / 1000).toFixed(1)}K`;
   }
-  return value.toString();
+  return value.toFixed(1);
 };
 
 // Get color class based on performance metrics

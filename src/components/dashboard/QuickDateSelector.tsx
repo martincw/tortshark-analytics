@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Calendar, Clock, History } from "lucide-react";
@@ -11,18 +12,13 @@ export interface DateRange {
 
 // Helper functions for date calculations
 const getStartOfWeek = (date: Date): Date => {
-  const newDate = new Date(date);
-  newDate.setDate(date.getDate() - date.getDay());
-  newDate.setHours(0, 0, 0, 0);
-  return newDate;
+  // Always use Monday as the start of the week
+  return startOfWeek(date, { weekStartsOn: 1 });
 };
 
 const getEndOfWeek = (date: Date): Date => {
-  const startOfWeek = getStartOfWeek(date);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
-  return endOfWeek;
+  // Always use Sunday as the end of the week
+  return endOfWeek(date, { weekStartsOn: 1 });
 };
 
 const getStartOfMonth = (date: Date): Date => {
@@ -63,8 +59,8 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
     switch (option) {
       case 'ThisWeek':
         // Set start to Monday of current week
-        start = startOfWeek(today, { weekStartsOn: 1 });
-        end = endOfWeek(today, { weekStartsOn: 1 });
+        start = getStartOfWeek(today);
+        end = getEndOfWeek(today);
         break;
       case 'Last7Days':
         start = subDays(today, 6);
@@ -92,6 +88,10 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         start = today;
         end = now;
         break;
+      case 'ThisMonth':
+        start = getStartOfMonth(today);
+        end = getEndOfMonth(today);
+        break;
       default:
         start = today;
         end = now;
@@ -103,7 +103,17 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
     };
     
     onSelect(newRange);
-    toast.success(`Date range updated to ${format(start, 'MMM dd')} - ${format(end, 'MMM dd')}`);
+    
+    // Show more descriptive toast messages
+    let toastMessage = "";
+    if (option === 'ThisWeek') {
+      toastMessage = `Date range updated to This Week (${format(start, 'MMM dd')} - ${format(end, 'MMM dd')})`;
+    } else {
+      toastMessage = `Date range updated to ${format(start, 'MMM dd')} - ${format(end, 'MMM dd')}`;
+    }
+    
+    toast.success(toastMessage);
+    console.log(`Selected ${option}: ${JSON.stringify(newRange)}`);
   };
 
   // Function to highlight the selected range button
@@ -118,8 +128,6 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
     yesterdayStart.setDate(today.getDate() - 1);
     
     switch (option) {
-      case 'WeekToDate':
-        return startDate.getTime() === getStartOfWeek(today).getTime();
       case 'MonthToDate':
         return startDate.getTime() === getStartOfMonth(today).getTime();
       case 'Last7Days':
@@ -131,9 +139,11 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         last30Start.setDate(today.getDate() - 29);
         return startDate.getTime() === last30Start.getTime();
       case 'ThisWeek':
+        const thisWeekStart = getStartOfWeek(today);
+        const thisWeekEnd = getEndOfWeek(today);
         return (
-          startDate.getTime() === getStartOfWeek(today).getTime() &&
-          endDate.getTime() === getEndOfWeek(today).getTime()
+          format(startDate, "yyyy-MM-dd") === format(thisWeekStart, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(thisWeekEnd, "yyyy-MM-dd")
         );
       case 'ThisMonth':
         return (
