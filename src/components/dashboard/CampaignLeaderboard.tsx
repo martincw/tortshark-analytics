@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, Medal, Ribbon, Trophy } from "lucide-react";
@@ -68,6 +67,19 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     }
   };
 
+  const getMetricColorClass = (metricType: string, value: number) => {
+    switch(metricType) {
+      case 'revenue':
+        return value > 0 ? "text-green-600 font-semibold" : "";
+      case 'adSpend':
+        return value > 0 ? "text-red-600 font-semibold" : "";
+      case 'profit':
+        return value > 0 ? "text-emerald-700 font-bold" : "";
+      default:
+        return "";
+    }
+  };
+
   if (!leaderboardData.byProfit.length) {
     return null;
   }
@@ -106,9 +118,15 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">Manual Entry</div>
+                      <div className="flex gap-2 text-xs text-muted-foreground">
+                        <span>Revenue: <span className={getMetricColorClass('revenue', campaign.metrics.revenue)}>{formatCurrency(campaign.metrics.revenue)}</span></span>
+                        <span>Ad Spend: <span className={getMetricColorClass('adSpend', campaign.metrics.adSpend)}>{formatCurrency(campaign.metrics.adSpend)}</span></span>
+                        <span>Profit: <span className={getMetricColorClass('profit', campaign.metrics.profit)}>{formatCurrency(campaign.metrics.profit)}</span></span>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(campaign.metrics.profit)}</TableCell>
+                    <TableCell className={`text-right ${getMetricColorClass('profit', campaign.metrics.profit)}`}>
+                      {formatCurrency(campaign.metrics.profit)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
