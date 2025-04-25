@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, Medal, Ribbon, Trophy } from "lucide-react";
@@ -58,8 +59,8 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     }
   };
 
-  const getRowClassName = (rank: number) => {
-    switch(rank) {
+  const getRowClassName = (index: number) => {
+    switch(index) {
       case 0: return "bg-success-muted hover:bg-success-muted/75";
       case 1: return "bg-gray-50 hover:bg-gray-100";
       case 2: return "bg-amber-50 hover:bg-amber-100";
@@ -105,15 +106,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
-                      <div className="flex gap-2 text-xs text-muted-foreground">
-                        <span>Revenue: <span className="text-green-600 font-semibold">{formatCurrency(campaign.metrics.revenue)}</span></span>
-                        <span>Ad Spend: <span className="text-red-600 font-semibold">{formatCurrency(campaign.metrics.adSpend)}</span></span>
-                        <span>Profit: <span className="text-success-DEFAULT font-bold">{formatCurrency(campaign.metrics.profit)}</span></span>
-                      </div>
+                      <div className="text-xs text-muted-foreground">Manual Entry</div>
                     </TableCell>
-                    <TableCell className="text-right text-success-DEFAULT font-bold">
-                      {formatCurrency(campaign.metrics.profit)}
-                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(campaign.metrics.profit)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -150,8 +145,8 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="text-green-600 font-semibold">{formatCurrency(campaign.metrics.earningsPerLead)}</div>
-                      <div className="text-xs text-red-600">
+                      <div>{formatCurrency(campaign.metrics.earningsPerLead)}</div>
+                      <div className="text-xs text-muted-foreground">
                         CPL: {formatCurrency(campaign.metrics.costPerLead)}
                       </div>
                     </TableCell>
@@ -190,8 +185,8 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="text-success-DEFAULT font-bold">{formatCurrency(campaign.metrics.profit / (campaign.metrics.leads || 1))}</div>
-                      <div className="text-xs text-red-600">
+                      <div>{formatCurrency(campaign.metrics.profit / (campaign.metrics.leads || 1))}</div>
+                      <div className="text-xs text-muted-foreground">
                         CPL: {formatCurrency(campaign.metrics.costPerLead)}
                       </div>
                     </TableCell>
