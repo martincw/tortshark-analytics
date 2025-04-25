@@ -1,7 +1,7 @@
 
 import React, { useMemo } from "react";
-import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
-import { BarChart } from "lucide-react";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPeriodStats } from "@/utils/campaignUtils";
+import { BarChart, DollarSign, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { BadgeStat } from "@/components/ui/badge-stat";
@@ -34,16 +34,16 @@ export function PerformanceSummary({ filteredCampaigns }: PerformanceSummaryProp
     
     console.log('PerformanceSummary - Calculating metrics for', filteredCampaigns.length, 'campaigns with date range:', dateRange);
     
-    // Calculate metrics for each campaign using calculateMetrics for consistency
-    const campaignsMetrics = filteredCampaigns.map(campaign => calculateMetrics(campaign, dateRange));
-    console.log('PerformanceSummary - Individual campaign metrics:', campaignsMetrics);
+    // Calculate metrics for each campaign using getPeriodStats for consistency
+    const campaignsStats = filteredCampaigns.map(campaign => getPeriodStats(campaign, dateRange));
+    console.log('PerformanceSummary - Campaign stats:', campaignsStats);
     
     // Aggregate metrics across all campaigns
-    const totals = campaignsMetrics.reduce((acc, metrics) => ({
-      leads: acc.leads + (metrics.leads || 0),
-      cases: acc.cases + (metrics.cases || 0),
-      revenue: acc.revenue + (metrics.revenue || 0),
-      adSpend: acc.adSpend + (metrics.adSpend || 0)
+    const totals = campaignsStats.reduce((acc, stats) => ({
+      leads: acc.leads + (stats.leads || 0),
+      cases: acc.cases + (stats.cases || 0),
+      revenue: acc.revenue + (stats.revenue || 0),
+      adSpend: acc.adSpend + (stats.adSpend || 0)
     }), { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
     
     console.log('PerformanceSummary - Aggregated totals:', totals);

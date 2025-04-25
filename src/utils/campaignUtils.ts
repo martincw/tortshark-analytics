@@ -1,5 +1,4 @@
-
-import { Campaign, CampaignMetrics, DateRange, StatHistoryEntry } from "../types/campaign";
+import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
@@ -17,8 +16,6 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   const profit = periodStats.revenue - periodStats.adSpend;
   const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
   const earningsPerLead = periodStats.leads > 0 ? profit / periodStats.leads : 0;
-  const conversionRate = periodStats.leads > 0 ? (periodStats.cases / periodStats.leads) * 100 : 0;
-  const profitMargin = periodStats.revenue > 0 ? (profit / periodStats.revenue) * 100 : 0;
 
   const metrics = {
     revenue: periodStats.revenue,
@@ -29,9 +26,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     cpa,
     profit,
     roi,
-    earningsPerLead,
-    conversionRate,
-    profitMargin
+    earningsPerLead
   };
 
   console.log('Final calculated metrics:', metrics);
@@ -67,52 +62,77 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   
   console.log(`Calculating period stats for range: ${dateRange.startDate} to ${dateRange.endDate}`);
   
-  const periodStats = campaign.statsHistory
-    .filter(entry => isDateInRange(entry.date, dateRange.startDate, dateRange.endDate))
-    .reduce((acc, entry) => {
+  const periodStats = campaign.statsHistory.reduce((acc, entry) => {
+    if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+      console.log(`Including stats for date ${entry.date} in period calculation:`, entry);
       return {
         leads: acc.leads + entry.leads,
         cases: acc.cases + entry.cases,
         revenue: acc.revenue + entry.revenue,
         adSpend: acc.adSpend + (entry.adSpend || 0)
       };
-    }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
+    }
+    return acc;
+  }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
   
-  console.log('Filtered period stats:', periodStats);
+  console.log('Period stats calculation result:', periodStats);
   return periodStats;
 };
 
-// Helper to sort stats history entries by date (newest first)
-export const sortStatHistoryByDate = (entries: StatHistoryEntry[]): StatHistoryEntry[] => {
-  return [...entries].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return dateB - dateA; // Newest first
-  });
-};
-
 export const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+  return `$${value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
 };
 
-export const formatNumber = (value: number): string => {
-  return new Intl.NumberFormat('en-US').format(value);
+export const formatCurrencyCompact = (value: number): string => {
+  if (Math.abs(value) >= 1000) {
+    return `$${value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+  }
+  return formatCurrency(value);
 };
 
 export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// Get performance background class based on ROI
+export const formatNumber = (value: number): string => {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
+  }
+  return value.toFixed(1);
+};
+
+export const getPerformanceClass = (roi: number): string => {
+  if (roi > 200) return "text-success-DEFAULT font-bold";
+  if (roi > 100) return "text-secondary font-bold";
+  if (roi > 0) return "text-secondary";
+  return "text-error-DEFAULT";
+};
+
+export const getTrendDirection = (value: number): "up" | "down" | "neutral" => {
+  if (value > 0) return "up";
+  if (value < 0) return "down";
+  return "neutral";
+};
+
+export const getPerformanceLabel = (roi: number): string => {
+  if (roi > 200) return "Excellent";
+  if (roi > 100) return "Good";
+  if (roi > 0) return "Positive";
+  return "Needs Improvement";
+};
+
 export const getPerformanceBgClass = (roi: number): string => {
-  if (roi >= 300) return "bg-success-DEFAULT/10";
-  if (roi >= 200) return "bg-success-DEFAULT/5";
-  if (roi >= 100) return "bg-secondary/10";
-  if (roi > 0) return "bg-secondary/5";
-  return "bg-error-DEFAULT/10";
+  if (roi > 200) return "bg-success-muted";
+  if (roi > 100) return "bg-secondary/15";
+  if (roi > 0) return "bg-secondary/10";
+  return "bg-error-muted";
 };
