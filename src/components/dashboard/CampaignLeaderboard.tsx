@@ -1,7 +1,6 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Award } from "lucide-react";
+import { Award, Medal, Ribbon, Trophy } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
@@ -31,7 +30,6 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       };
     });
     
-    // Sort by different metrics
     const byProfit = [...campaignsWithMetrics]
       .sort((a, b) => b.metrics.profit - a.metrics.profit)
       .slice(0, 5);
@@ -51,6 +49,24 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     };
   }, [filteredCampaigns, dateRange]);
   
+  const getRankIcon = (rank: number) => {
+    switch(rank) {
+      case 0: return <Trophy className="h-4 w-4 text-yellow-400" />;
+      case 1: return <Medal className="h-4 w-4 text-gray-400" />;
+      case 2: return <Ribbon className="h-4 w-4 text-amber-700" />;
+      default: return null;
+    }
+  };
+
+  const getRowClassName = (index: number) => {
+    switch(index) {
+      case 0: return "bg-yellow-50 hover:bg-yellow-100";
+      case 1: return "bg-gray-50 hover:bg-gray-100";
+      case 2: return "bg-amber-50 hover:bg-amber-100";
+      default: return "";
+    }
+  };
+
   if (!leaderboardData.byProfit.length) {
     return null;
   }
@@ -65,7 +81,6 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Highest Profit */}
           <div>
             <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
               <span className="text-muted-foreground">$</span> Highest Profit
@@ -80,8 +95,14 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
               </TableHeader>
               <TableBody>
                 {leaderboardData.byProfit.map((campaign, index) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
+                  <TableRow 
+                    key={campaign.id}
+                    className={getRowClassName(index)}
+                  >
+                    <TableCell className="font-medium flex items-center gap-1">
+                      {getRankIcon(index)}
+                      {index + 1}
+                    </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
                       <div className="text-xs text-muted-foreground">Manual Entry</div>
@@ -93,7 +114,6 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
             </Table>
           </div>
 
-          {/* Highest EPL */}
           <div>
             <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
               <span className="text-muted-foreground">↗</span> Highest EPL 
@@ -109,8 +129,14 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
               </TableHeader>
               <TableBody>
                 {leaderboardData.byEarningsPerLead.map((campaign, index) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
+                  <TableRow 
+                    key={campaign.id}
+                    className={getRowClassName(index)}
+                  >
+                    <TableCell className="font-medium flex items-center gap-1">
+                      {getRankIcon(index)}
+                      {index + 1}
+                    </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
                       <div className="text-xs text-muted-foreground">Manual Entry</div>
@@ -127,7 +153,6 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
             </Table>
           </div>
 
-          {/* Highest Profit Per Lead */}
           <div>
             <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
               <span className="text-muted-foreground">👑</span> Highest Profit Per Lead
@@ -142,8 +167,14 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
               </TableHeader>
               <TableBody>
                 {leaderboardData.byProfitPerLead.map((campaign, index) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
+                  <TableRow 
+                    key={campaign.id}
+                    className={getRowClassName(index)}
+                  >
+                    <TableCell className="font-medium flex items-center gap-1">
+                      {getRankIcon(index)}
+                      {index + 1}
+                    </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
                       <div className="text-xs text-muted-foreground">Manual Entry</div>
