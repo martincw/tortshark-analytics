@@ -207,7 +207,7 @@ const CampaignsPage = () => {
           </div>
         </div>
       ) : (
-        <CampaignGrid />
+        <CampaignGrid filteredCampaigns={campaigns} />
       )}
     </div>
   );

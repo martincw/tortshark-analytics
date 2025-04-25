@@ -12,8 +12,7 @@ interface CampaignGridProps {
 
 export function CampaignGrid({ filteredCampaigns }: CampaignGridProps) {
   const { dateRange } = useCampaign();
-  const { filteredAndSortedCampaigns, sortField, setSortField, sortDirection, setSortDirection } = 
-    useCampaignGridData(filteredCampaigns, dateRange);
+  const { sortedAndFilteredCampaigns } = useCampaignGridData(filteredCampaigns);
 
   useEffect(() => {
     console.log(`CampaignGrid received ${filteredCampaigns.length} campaigns`);
@@ -30,11 +29,10 @@ export function CampaignGrid({ filteredCampaigns }: CampaignGridProps) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAndSortedCampaigns.map((campaign) => (
+        {sortedAndFilteredCampaigns.map((campaign) => (
           <CampaignCard 
             key={campaign.id} 
-            campaign={campaign} 
-            dateRange={dateRange}
+            campaign={campaign}
           />
         ))}
       </div>

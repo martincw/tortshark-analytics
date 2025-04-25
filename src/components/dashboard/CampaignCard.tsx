@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Campaign } from "@/types/campaign";
+import { Campaign, DateRange } from "@/types/campaign";
 import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPerformanceBgClass } from "@/utils/campaignUtils";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { useCampaign } from "@/contexts/CampaignContext";

@@ -34,7 +34,7 @@ const Index = () => {
       {/* Campaign Leaderboard - Full Width */}
       <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
       
-      {/* Campaign Grid - Remove redundant date selector */}
+      {/* Campaign Grid - Pass filteredCampaigns */}
       <CampaignGrid filteredCampaigns={filteredCampaigns} />
     </div>
   );
