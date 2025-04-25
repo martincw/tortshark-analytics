@@ -1,7 +1,6 @@
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
-// Calculate metrics for a campaign within a date range
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
   console.log('Calculating metrics for campaign:', campaign.id);
   console.log('Using date range:', dateRange);
@@ -34,7 +33,6 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   return metrics;
 };
 
-// Get period stats within a specific date range
 export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   if (!campaign.statsHistory || campaign.statsHistory.length === 0) {
     console.log('No stats history available for getPeriodStats');
@@ -81,7 +79,6 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   return periodStats;
 };
 
-// Format currency with $ and commas
 export const formatCurrency = (value: number): string => {
   return `$${value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -89,7 +86,6 @@ export const formatCurrency = (value: number): string => {
   })}`;
 };
 
-// Format short currency (no cents for large numbers)
 export const formatCurrencyCompact = (value: number): string => {
   if (Math.abs(value) >= 1000) {
     return `$${value.toLocaleString('en-US', {
@@ -100,12 +96,10 @@ export const formatCurrencyCompact = (value: number): string => {
   return formatCurrency(value);
 };
 
-// Format percentage values
 export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// Format large numbers with abbreviations
 export const formatNumber = (value: number): string => {
   if (value >= 1000000) {
     return `${(value / 1000000).toFixed(1)}M`;
@@ -116,7 +110,6 @@ export const formatNumber = (value: number): string => {
   return value.toFixed(1);
 };
 
-// Get color class based on performance metrics
 export const getPerformanceClass = (roi: number): string => {
   if (roi > 200) return "text-success-DEFAULT font-bold";
   if (roi > 100) return "text-secondary font-bold";
@@ -124,14 +117,12 @@ export const getPerformanceClass = (roi: number): string => {
   return "text-error-DEFAULT";
 };
 
-// Get trend direction based on metrics
 export const getTrendDirection = (value: number): "up" | "down" | "neutral" => {
   if (value > 0) return "up";
   if (value < 0) return "down";
   return "neutral";
 };
 
-// Get performance label based on metrics
 export const getPerformanceLabel = (roi: number): string => {
   if (roi > 200) return "Excellent";
   if (roi > 100) return "Good";
@@ -139,7 +130,6 @@ export const getPerformanceLabel = (roi: number): string => {
   return "Needs Improvement";
 };
 
-// Get background class based on performance
 export const getPerformanceBgClass = (roi: number): string => {
   if (roi > 200) return "bg-success-muted";
   if (roi > 100) return "bg-secondary/15";

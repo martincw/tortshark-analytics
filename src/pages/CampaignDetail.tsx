@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -179,7 +179,12 @@ const CampaignDetail = () => {
     );
   }
   
-  const metrics = calculateMetrics(campaign);
+  const metrics = useMemo(() => {
+    console.log('CampaignDetail - Calculating metrics with date range:', dateRange);
+    return calculateMetrics(campaign, dateRange);
+  }, [campaign, dateRange]);
+
+  console.log('CampaignDetail - Calculated metrics:', metrics);
 
   const getRoiClass = () => {
     if (metrics.roi > 200) return "text-success-DEFAULT";
@@ -581,11 +586,11 @@ const CampaignDetail = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-sm text-muted-foreground block">Revenue</span>
-                <span className="text-2xl font-bold">{formatCurrency(campaign.manualStats.revenue)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(metrics.revenue)}</span>
               </div>
               <div>
                 <span className="text-sm text-muted-foreground block">Ad Spend</span>
-                <span className="text-2xl font-bold">{formatCurrency(campaign.stats.adSpend)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(metrics.adSpend)}</span>
               </div>
             </div>
             <div className="pt-4 mt-4 border-t">
@@ -611,11 +616,11 @@ const CampaignDetail = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-sm text-muted-foreground block">Leads</span>
-                <span className="text-2xl font-bold">{formatNumber(campaign.manualStats.leads)}</span>
+                <span className="text-2xl font-bold">{formatNumber(metrics.leads)}</span>
               </div>
               <div>
                 <span className="text-sm text-muted-foreground block">Cases</span>
-                <span className="text-2xl font-bold">{formatNumber(campaign.manualStats.cases)}</span>
+                <span className="text-2xl font-bold">{formatNumber(metrics.cases)}</span>
               </div>
             </div>
             <div className="pt-4 mt-4 border-t">

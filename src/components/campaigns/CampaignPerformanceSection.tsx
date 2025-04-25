@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,6 @@ interface CampaignPerformanceSectionProps {
 export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSectionProps) {
   const { dateRange } = useCampaign();
   
-  // Calculate metrics based on date range
   const metrics = useMemo(() => {
     console.log('CampaignPerformanceSection - Calculating metrics with date range:', dateRange);
     const calculatedMetrics = calculateMetrics(campaign, dateRange);
@@ -43,19 +43,19 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-sm text-muted-foreground">Leads</span>
-                  <div className="text-2xl font-semibold">{formatNumber(campaign.manualStats.leads)}</div>
+                  <div className="text-2xl font-semibold">{formatNumber(metrics.leads)}</div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Cases</span>
-                  <div className="text-2xl font-semibold">{formatNumber(campaign.manualStats.cases)}</div>
+                  <div className="text-2xl font-semibold">{formatNumber(metrics.cases)}</div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Revenue</span>
-                  <div className="text-2xl font-semibold">{formatCurrency(campaign.manualStats.revenue)}</div>
+                  <div className="text-2xl font-semibold">{formatCurrency(metrics.revenue)}</div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Ad Spend</span>
-                  <div className="text-2xl font-semibold">{formatCurrency(campaign.stats.adSpend)}</div>
+                  <div className="text-2xl font-semibold">{formatCurrency(metrics.adSpend)}</div>
                 </div>
               </div>
             </CardContent>
