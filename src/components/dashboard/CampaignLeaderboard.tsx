@@ -1,9 +1,10 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, Medal, Ribbon, Trophy } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber } from "@/utils/campaignUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface CampaignLeaderboardProps {
@@ -60,7 +61,7 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
 
   const getRowClassName = (index: number) => {
     switch(index) {
-      case 0: return "bg-yellow-50 hover:bg-yellow-100";
+      case 0: return "bg-success-muted hover:bg-success-muted/75";
       case 1: return "bg-gray-50 hover:bg-gray-100";
       case 2: return "bg-amber-50 hover:bg-amber-100";
       default: return "";
@@ -139,7 +140,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">Manual Entry</div>
+                      <div className="text-xs text-muted-foreground">
+                        Leads: {formatNumber(campaign.metrics.leads)}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div>{formatCurrency(campaign.metrics.earningsPerLead)}</div>
@@ -177,7 +180,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">Manual Entry</div>
+                      <div className="text-xs text-muted-foreground">
+                        Leads: {formatNumber(campaign.metrics.leads)}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div>{formatCurrency(campaign.metrics.profit / (campaign.metrics.leads || 1))}</div>
