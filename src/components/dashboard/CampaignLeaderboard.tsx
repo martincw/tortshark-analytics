@@ -58,25 +58,12 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     }
   };
 
-  const getRowClassName = (index: number) => {
-    switch(index) {
+  const getRowClassName = (rank: number) => {
+    switch(rank) {
       case 0: return "bg-success-muted hover:bg-success-muted/75";
       case 1: return "bg-gray-50 hover:bg-gray-100";
       case 2: return "bg-amber-50 hover:bg-amber-100";
       default: return "";
-    }
-  };
-
-  const getMetricColorClass = (metricType: string, value: number) => {
-    switch(metricType) {
-      case 'revenue':
-        return value > 0 ? "text-green-600 font-semibold" : "";
-      case 'adSpend':
-        return value > 0 ? "text-red-600 font-semibold" : "";
-      case 'profit':
-        return value > 0 ? "text-emerald-700 font-bold" : "";
-      default:
-        return "";
     }
   };
 
@@ -119,12 +106,12 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     <TableCell>
                       <div>{campaign.name}</div>
                       <div className="flex gap-2 text-xs text-muted-foreground">
-                        <span>Revenue: <span className={getMetricColorClass('revenue', campaign.metrics.revenue)}>{formatCurrency(campaign.metrics.revenue)}</span></span>
-                        <span>Ad Spend: <span className={getMetricColorClass('adSpend', campaign.metrics.adSpend)}>{formatCurrency(campaign.metrics.adSpend)}</span></span>
-                        <span>Profit: <span className={getMetricColorClass('profit', campaign.metrics.profit)}>{formatCurrency(campaign.metrics.profit)}</span></span>
+                        <span>Revenue: <span className="text-green-600 font-semibold">{formatCurrency(campaign.metrics.revenue)}</span></span>
+                        <span>Ad Spend: <span className="text-red-600 font-semibold">{formatCurrency(campaign.metrics.adSpend)}</span></span>
+                        <span>Profit: <span className="text-success-DEFAULT font-bold">{formatCurrency(campaign.metrics.profit)}</span></span>
                       </div>
                     </TableCell>
-                    <TableCell className={`text-right ${getMetricColorClass('profit', campaign.metrics.profit)}`}>
+                    <TableCell className="text-right text-success-DEFAULT font-bold">
                       {formatCurrency(campaign.metrics.profit)}
                     </TableCell>
                   </TableRow>
@@ -163,8 +150,8 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div>{formatCurrency(campaign.metrics.earningsPerLead)}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-green-600 font-semibold">{formatCurrency(campaign.metrics.earningsPerLead)}</div>
+                      <div className="text-xs text-red-600">
                         CPL: {formatCurrency(campaign.metrics.costPerLead)}
                       </div>
                     </TableCell>
@@ -203,8 +190,8 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div>{formatCurrency(campaign.metrics.profit / (campaign.metrics.leads || 1))}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-success-DEFAULT font-bold">{formatCurrency(campaign.metrics.profit / (campaign.metrics.leads || 1))}</div>
+                      <div className="text-xs text-red-600">
                         CPL: {formatCurrency(campaign.metrics.costPerLead)}
                       </div>
                     </TableCell>
