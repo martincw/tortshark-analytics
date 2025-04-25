@@ -1,6 +1,5 @@
-
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
-import { isWithinInterval, parseISO } from "date-fns";
+import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 
 // Calculate metrics for a campaign within a date range
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
@@ -10,18 +9,24 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   let totalAdSpend = 0;
 
   if (dateRange && dateRange.startDate && dateRange.endDate) {
-    const startDate = parseISO(dateRange.startDate);
-    const endDate = parseISO(dateRange.endDate);
-
     // Filter and sum stats from history within date range
     campaign.statsHistory.forEach(entry => {
-      const entryDate = parseISO(entry.date);
-      if (isWithinInterval(entryDate, { start: startDate, end: endDate })) {
+      if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+        console.log(`Including stats for date ${entry.date} in calculation`);
         totalRevenue += entry.revenue;
         totalLeads += entry.leads;
         totalCases += entry.cases;
         totalAdSpend += entry.adSpend || 0;
       }
+    });
+    
+    console.log('Calculated metrics for date range:', {
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      totalRevenue,
+      totalLeads,
+      totalCases,
+      totalAdSpend
     });
   } else {
     // If no date range provided, use all stats

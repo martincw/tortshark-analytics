@@ -1,8 +1,7 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Calendar, Clock, History } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, subDays } from "date-fns";
 import { toast } from "sonner";
 
 export interface DateRange {
@@ -62,33 +61,25 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
     const now = new Date();
 
     switch (option) {
-      case 'WeekToDate':
-        start = getStartOfWeek(today);
-        end = now;
+      case 'ThisWeek':
+        // Set start to Monday of current week
+        start = startOfWeek(today, { weekStartsOn: 1 });
+        end = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'Last7Days':
+        start = subDays(today, 6);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
         break;
       case 'MonthToDate':
         start = getStartOfMonth(today);
         end = now;
-        break;
-      case 'Last7Days':
-        start = new Date(today);
-        start.setDate(today.getDate() - 6);
-        end = new Date();
-        end.setHours(23, 59, 59, 999);
         break;
       case 'Last30Days':
         start = new Date(today);
         start.setDate(today.getDate() - 29);
         end = new Date();
         end.setHours(23, 59, 59, 999);
-        break;
-      case 'ThisWeek':
-        start = getStartOfWeek(today);
-        end = getEndOfWeek(today);
-        break;
-      case 'ThisMonth':
-        start = getStartOfMonth(today);
-        end = getEndOfMonth(today);
         break;
       case 'Yesterday':
         start = new Date(today);
@@ -195,7 +186,7 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
           className="w-full justify-start"
         >
           <CalendarDays className="mr-2 h-4 w-4" />
-          This Week
+          This Week (Mon-Sun)
         </Button>
         <Button 
           variant={isSelected('ThisMonth') ? "default" : "outline"} 

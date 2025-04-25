@@ -1,11 +1,10 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, DollarSign, TrendingUp } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { differenceInDays, parseISO } from "date-fns";
-import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
+import { formatCurrency } from "@/utils/campaignUtils";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface DailyAveragesSectionProps {
@@ -79,7 +78,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-error-DEFAULT/10 p-4 rounded-lg">
+          <div className="bg-error-DEFAULT/10 p-4 rounded-lg border border-error-DEFAULT/20">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <DollarSign className="h-4 w-4" />
               Daily Ad Spend
@@ -89,7 +88,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className="bg-accent/10 p-4 rounded-lg">
+          <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <BarChart className="h-4 w-4" />
               Daily Leads
@@ -99,7 +98,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className="bg-accent/10 p-4 rounded-lg">
+          <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <BarChart className="h-4 w-4" />
               Daily Cases
@@ -109,7 +108,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className="bg-success-DEFAULT/10 p-4 rounded-lg">
+          <div className="bg-success-DEFAULT/10 p-4 rounded-lg border border-success-DEFAULT/20">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <DollarSign className="h-4 w-4" />
               Daily Revenue
@@ -119,7 +118,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className="bg-success-DEFAULT/10 p-4 rounded-lg">
+          <div className="bg-success-DEFAULT/10 p-4 rounded-lg border border-success-DEFAULT/20">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <DollarSign className="h-4 w-4" />
               Daily Profit
@@ -129,7 +128,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className="bg-accent/10 p-4 rounded-lg">
+          <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <TrendingUp className="h-4 w-4" />
               Daily ROI
