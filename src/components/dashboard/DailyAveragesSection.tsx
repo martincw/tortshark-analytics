@@ -1,12 +1,11 @@
 
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
+import { BarChart, DollarSign, TrendingUp } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { differenceInDays, parseISO } from "date-fns";
+import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface DailyAveragesSectionProps {
@@ -17,7 +16,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
   const { dateRange } = useCampaign();
   
   const averages = useMemo(() => {
-    if (!dateRange.startDate || !dateRange.endDate || !filteredCampaigns || filteredCampaigns.length === 0) {
+    if (!dateRange.startDate || !dateRange.endDate || !filteredCampaigns) {
       return {
         adSpend: 0,
         leads: 0,
@@ -49,7 +48,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     // Calculate number of days in the selected range
     const startDate = parseISO(dateRange.startDate);
     const endDate = parseISO(dateRange.endDate);
-    const daysInRange = differenceInDays(endDate, startDate) + 1; // Add 1 to include both start and end dates
+    const daysInRange = differenceInDays(endDate, startDate) + 1;
     
     // Calculate daily averages
     const dailyAdSpend = totalAdSpend / daysInRange;
@@ -58,16 +57,6 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const dailyRevenue = totalRevenue / daysInRange;
     const dailyProfit = dailyRevenue - dailyAdSpend;
     const roi = dailyAdSpend > 0 ? (dailyProfit / dailyAdSpend) * 100 : 0;
-    
-    console.log('Daily averages calculated:', {
-      daysInRange,
-      dailyAdSpend,
-      dailyLeads,
-      dailyCases,
-      dailyRevenue,
-      dailyProfit,
-      roi
-    });
     
     return {
       adSpend: dailyAdSpend,
@@ -79,63 +68,75 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       daysInRange
     };
   }, [filteredCampaigns, dateRange]);
-  
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-md font-medium flex items-center gap-2">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg font-medium flex items-center gap-2">
           <BarChart className="h-5 w-5 text-primary" />
           Daily Performance Averages
         </CardTitle>
-        <div className="text-xs text-muted-foreground">
-          {averages.daysInRange > 1 
-            ? `Averaged across ${averages.daysInRange} days` 
-            : "Daily metrics"}
-        </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="bg-accent/5 rounded-lg p-4 flex flex-col items-center justify-center text-center space-y-1">
-            <span className="text-xs text-muted-foreground">Daily Ad Spend</span>
-            <span className="text-lg font-semibold">{formatCurrency(averages.adSpend)}</span>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-error-DEFAULT/10 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <DollarSign className="h-4 w-4" />
+              Daily Ad Spend
+            </div>
+            <div className="text-xl font-bold text-error-DEFAULT">
+              {formatCurrency(averages.adSpend)}
+            </div>
           </div>
           
-          <div className="bg-accent/5 rounded-lg p-4 flex flex-col items-center justify-center text-center space-y-1">
-            <span className="text-xs text-muted-foreground">Daily Leads</span>
-            <span className="text-lg font-semibold">{formatNumber(averages.leads)}</span>
+          <div className="bg-accent/10 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <BarChart className="h-4 w-4" />
+              Daily Leads
+            </div>
+            <div className="text-xl font-bold">
+              {averages.leads.toFixed(1)}
+            </div>
           </div>
           
-          <div className="bg-accent/5 rounded-lg p-4 flex flex-col items-center justify-center text-center space-y-1">
-            <span className="text-xs text-muted-foreground">Daily Cases</span>
-            <span className="text-lg font-semibold">{formatNumber(averages.cases)}</span>
+          <div className="bg-accent/10 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <BarChart className="h-4 w-4" />
+              Daily Cases
+            </div>
+            <div className="text-xl font-bold">
+              {averages.cases.toFixed(1)}
+            </div>
           </div>
           
-          <div className="bg-accent/5 rounded-lg p-4 flex flex-col items-center justify-center text-center space-y-1">
-            <span className="text-xs text-muted-foreground">Daily Revenue</span>
-            <span className="text-lg font-semibold">{formatCurrency(averages.revenue)}</span>
+          <div className="bg-success-DEFAULT/10 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <DollarSign className="h-4 w-4" />
+              Daily Revenue
+            </div>
+            <div className="text-xl font-bold text-success-DEFAULT">
+              {formatCurrency(averages.revenue)}
+            </div>
           </div>
           
-          <div className="bg-accent/5 rounded-lg p-4 flex flex-col items-center justify-center text-center space-y-1">
-            <span className="text-xs text-muted-foreground">Daily Profit</span>
-            <span className={cn(
-              "text-lg font-semibold",
-              averages.profit > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
-            )}>
+          <div className="bg-success-DEFAULT/10 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <DollarSign className="h-4 w-4" />
+              Daily Profit
+            </div>
+            <div className="text-xl font-bold text-success-DEFAULT">
               {formatCurrency(averages.profit)}
-            </span>
+            </div>
           </div>
           
-          <div className="bg-accent/5 rounded-lg p-4 flex flex-col items-center justify-center text-center space-y-1">
-            <span className="text-xs text-muted-foreground flex items-center justify-center">
-              <TrendingUp className="h-3 w-3 mr-1" />
+          <div className="bg-accent/10 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <TrendingUp className="h-4 w-4" />
               Daily ROI
-            </span>
-            <span className={cn(
-              "text-lg font-semibold",
-              averages.roi > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
-            )}>
-              {formatPercent(averages.roi)}
-            </span>
+            </div>
+            <div className="text-xl font-bold">
+              {averages.roi.toFixed(1)}%
+            </div>
           </div>
         </div>
       </CardContent>
