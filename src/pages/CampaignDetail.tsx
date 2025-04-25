@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent, sortStatHistoryByDate } from "@/utils/campaignUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { StatCard } from "@/components/ui/stat-card";
@@ -14,7 +14,7 @@ import {
   Trash2,
   DollarSign,
   Users,
-  FileCheck,
+  Plus,
   TrendingUp,
   BarChart3,
   CreditCard,
@@ -23,21 +23,11 @@ import {
   X,
   CalendarDays,
   Target,
-  PlusCircle,
-  Calendar,
-  MoreHorizontal,
   Check,
-  ChevronDown,
-  ChevronUp,
   Clock,
   FileText,
   Wallet,
-  TrendingDown,
-  LineChart,
-  BarChart,
   CircleDollarSign,
-  AlertTriangle,
-  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -60,31 +50,14 @@ import {
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { format, parseISO, isValid } from "date-fns";
+import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
+import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
+import { formatDateForStorage, parseStoredDate } from "@/lib/utils/ManualDateUtils";
+import { StatsHistoryTable } from "@/components/campaigns/StatsHistoryTable";
+import { StatHistoryEntry } from "@/types/campaign";
+import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
-import { DatePicker } from "@/components/ui/date-picker";
-import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
-import { CaseAttributionForm } from "@/components/campaigns/CaseAttributionForm";
-import { formatDateForStorage, formatDisplayDate, parseStoredDate, formatSafeDate } from "@/lib/utils/ManualDateUtils";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -106,23 +79,16 @@ const CampaignDetail = () => {
     if (id) {
       setSelectedCampaignId(id);
     }
-    
-    console.log("Campaign ID from URL:", id);
-    console.log("Available campaigns:", campaigns.map(c => ({ id: c.id, name: c.name })));
-  }, [id, setSelectedCampaignId, campaigns]);
+  }, [id, setSelectedCampaignId]);
   
   const campaign = campaigns.find((c) => c.id === id);
   
-  useEffect(() => {
-    console.log("Found campaign:", campaign);
-  }, [campaign]);
-  
   const [isEditing, setIsEditing] = useState(false);
-  const [isAddingManualStats, setIsAddingManualStats] = useState(false);
   const [leadCount, setLeadCount] = useState("0");
   const [caseCount, setCaseCount] = useState("0");
   const [revenue, setRevenue] = useState("0");
   
+  // Stats dialog states
   const [isDailyStatsDialogOpen, setIsDailyStatsDialogOpen] = useState(false);
   const [dailyStats, setDailyStats] = useState({
     leads: "0",
@@ -133,6 +99,7 @@ const CampaignDetail = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   
+  // Entry editing states
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntryData, setEditEntryData] = useState({
     leads: "0",
@@ -143,17 +110,20 @@ const CampaignDetail = () => {
   const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
   const [editDate, setEditDate] = useState<Date>(new Date());
-  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
-  const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   
+  // Title editing states
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
+  
+  // Deletion states
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
   const [isDeletingEntry, setIsDeletingEntry] = useState(false);
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   
-  // Initialize metrics with empty values outside of conditional rendering
+  // Calculate metrics consistently using the utility function
   const metrics = useMemo(() => {
     if (!campaign) {
       return {
@@ -165,7 +135,9 @@ const CampaignDetail = () => {
         cpa: 0,
         profit: 0,
         roi: 0,
-        earningsPerLead: 0
+        earningsPerLead: 0,
+        conversionRate: 0,
+        profitMargin: 0
       };
     }
     
@@ -175,22 +147,16 @@ const CampaignDetail = () => {
 
   console.log('CampaignDetail - Calculated metrics:', metrics);
   
+  // Update form fields when campaign changes
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
       setCaseCount(campaign.manualStats.cases.toString());
       setRevenue(campaign.manualStats.revenue.toString());
-      
-      console.log("Updated form fields with campaign data", {
-        leads: campaign.manualStats.leads,
-        cases: campaign.manualStats.cases,
-        revenue: campaign.manualStats.revenue
-      });
     }
   }, [campaign]);
   
   if (!campaign) {
-    console.log("Campaign not found for ID:", id);
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
@@ -202,12 +168,40 @@ const CampaignDetail = () => {
     );
   }
 
+  // Helper functions for styling
   const getRoiClass = () => {
     if (metrics.roi > 200) return "text-success-DEFAULT";
     if (metrics.roi > 0) return "text-secondary"; 
     return "text-error-DEFAULT";
   };
   
+  const getRoiVariant = () => {
+    if (metrics.roi >= 100) return "success";
+    if (metrics.roi >= 70) return "warning";
+    return "error";
+  };
+  
+  const getCasesVariant = () => {
+    const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
+    if (casesProgress >= 100) return "success";
+    if (casesProgress >= 70) return "warning";
+    return "error";
+  };
+  
+  const getProfitVariant = () => {
+    const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
+    if (profitProgress >= 100) return "success";
+    if (profitProgress >= 70) return "warning";
+    return "error";
+  };
+  
+  // Calculated values
+  const profitPerCase = metrics.cases > 0 ? metrics.profit / metrics.cases : 0;
+  const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
+  const casesProgress = Math.min(Math.round((metrics.cases / campaign.targets.monthlyRetainers) * 100), 100);
+  const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
+
+  // Handler functions
   const handleSave = () => {
     updateCampaign(campaign.id, {
       manualStats: {
@@ -232,7 +226,6 @@ const CampaignDetail = () => {
   
   const onCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      console.log("Selected date in add dialog:", date);
       setSelectedDate(date);
       setCalendarOpen(false);
     }
@@ -240,7 +233,6 @@ const CampaignDetail = () => {
   
   const onEditCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      console.log("Selected edit date:", date);
       setEditDate(date);
       setEditCalendarOpen(false);
     }
@@ -258,15 +250,6 @@ const CampaignDetail = () => {
     }
     
     const formattedDate = formatDateForStorage(selectedDate);
-    
-    console.log("Adding new stats history entry:", {
-      campaignId: campaign.id,
-      date: formattedDate,
-      leads: newLeads,
-      cases: newCases,
-      revenue: newRevenue,
-      adSpend: newAdSpend
-    });
     
     addStatHistoryEntry(campaign.id, {
       date: formattedDate,
@@ -286,15 +269,9 @@ const CampaignDetail = () => {
       revenue: "0",
       adSpend: "0"
     });
-    
-    setLeadCount((parseInt(leadCount) + newLeads).toString());
-    setCaseCount((parseInt(caseCount) + newCases).toString());
-    setRevenue((parseFloat(revenue) + newRevenue).toString());
   };
   
-  const handleEditEntry = (entry: any) => {
-    console.log("Editing entry:", entry);
-    
+  const handleEditEntry = (entry: StatHistoryEntry) => {
     // Reset states first to avoid UI issues
     setEditEntryDialogOpen(false);
     setEditingEntryId(null);
@@ -308,41 +285,8 @@ const CampaignDetail = () => {
         adSpend: (entry.adSpend || 0).toString()
       });
       
-      // Convert the date string to a Date object in a safe way
-      let entryDate: Date;
-      
-      console.log("Entry date from database:", entry.date);
-      
-      if (typeof entry.date === 'string') {
-        // Split the date string to get components (handle ISO format or yyyy-MM-dd)
-        const parts = entry.date.split('T')[0].split('-');
-        if (parts.length === 3) {
-          // Create a UTC date at noon
-          entryDate = new Date(Date.UTC(
-            parseInt(parts[0], 10),  // year
-            parseInt(parts[1], 10) - 1,  // month (0-based)
-            parseInt(parts[2], 10),  // day
-            12, 0, 0, 0  // noon UTC
-          ));
-          console.log("Constructed UTC date from parts:", entryDate);
-        } else {
-          console.warn("Could not parse date parts:", parts);
-          entryDate = new Date();
-          entryDate.setHours(12, 0, 0, 0);
-        }
-      } else {
-        // If it's already a Date object
-        entryDate = new Date(entry.date);
-        entryDate.setHours(12, 0, 0, 0);
-      }
-      
-      if (isNaN(entryDate.getTime())) {
-        console.warn("Invalid date, using current date instead");
-        entryDate = new Date();
-        entryDate.setHours(12, 0, 0, 0);
-      }
-      
-      console.log("Final date object to use for editing:", entryDate);
+      // Convert the date string to a Date object
+      const entryDate = parseStoredDate(entry.date);
       setEditDate(entryDate);
       setEditEntryDialogOpen(true);
     }, 100);
@@ -356,9 +300,6 @@ const CampaignDetail = () => {
     
     const formattedDate = formatDateForStorage(editDate);
     
-    console.log("Saving edited entry date:", formattedDate);
-    console.log("Original edit date object:", editDate);
-    
     const updatedEntry = {
       ...entry,
       id: editingEntryId,
@@ -369,8 +310,6 @@ const CampaignDetail = () => {
       revenue: parseFloat(editEntryData.revenue) || 0,
       adSpend: parseFloat(editEntryData.adSpend) || 0
     };
-    
-    console.log("Full entry being updated:", updatedEntry);
     
     updateStatHistoryEntry(campaign.id, updatedEntry);
     
@@ -391,6 +330,7 @@ const CampaignDetail = () => {
     
     setEntryToDelete(entryId);
     setDeleteConfirmMessage("Are you sure you want to delete this entry? This action cannot be undone.");
+    setIsDeletingBulk(false);
     setDeleteEntryDialogOpen(true);
   };
   
@@ -406,12 +346,24 @@ const CampaignDetail = () => {
       await deleteStatHistoryEntry(campaign.id, entryToDelete);
       toast.success("Stat entry deleted successfully");
       setSelectedEntries([]);
+      setDeleteEntryDialogOpen(false);
     } catch (error) {
       console.error("Error deleting stat entry:", error);
       toast.error("Failed to delete stat entry");
     } finally {
       setIsDeletingEntry(false);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedEntries.length === 0) {
+      toast.error("Please select at least one entry to delete");
+      return;
+    }
+
+    setDeleteConfirmMessage(`Are you sure you want to delete ${selectedEntries.length} selected entries? This action cannot be undone.`);
+    setIsDeletingBulk(true);
+    setDeleteEntryDialogOpen(true);
   };
 
   const confirmBulkDelete = async () => {
@@ -426,6 +378,7 @@ const CampaignDetail = () => {
       await deleteStatHistoryEntries(campaign.id, selectedEntries);
       toast.success(`${selectedEntries.length} stat entries deleted successfully`);
       setSelectedEntries([]);
+      setDeleteEntryDialogOpen(false);
     } catch (error) {
       console.error("Error deleting stat entries:", error);
       toast.error("Failed to delete stat entries");
@@ -433,32 +386,6 @@ const CampaignDetail = () => {
       setIsDeletingEntry(false);
     }
   };
-
-  const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
-  const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
-  const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
-  
-  const getRoiVariant = () => {
-    if (roiProgress >= 100) return "success";
-    if (roiProgress >= 70) return "warning";
-    return "error";
-  };
-  
-  const getCasesVariant = () => {
-    if (casesProgress >= 100) return "success";
-    if (casesProgress >= 70) return "warning";
-    return "error";
-  };
-  
-  const getProfitVariant = () => {
-    if (profitProgress >= 100) return "success";
-    if (profitProgress >= 70) return "warning";
-    return "error";
-  };
-  
-  const profitPerCase = campaign.manualStats.cases > 0 
-    ? metrics.profit / campaign.manualStats.cases 
-    : 0;
 
   const handleEditTitle = () => {
     if (campaign) {
@@ -491,17 +418,6 @@ const CampaignDetail = () => {
         return [...prev, entryId];
       }
     });
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedEntries.length === 0) {
-      toast.error("Please select at least one entry to delete");
-      return;
-    }
-
-    setDeleteConfirmMessage(`Are you sure you want to delete ${selectedEntries.length} selected entries? This action cannot be undone.`);
-    setIsDeletingBulk(true);
-    setDeleteEntryDialogOpen(true);
   };
 
   return (
@@ -642,7 +558,7 @@ const CampaignDetail = () => {
             <div className="pt-4 mt-4 border-t">
               <div className="flex justify-between mb-2">
                 <span className="font-medium">Target Cases</span>
-                <span className="font-bold">{campaign.manualStats.cases} of {campaign.targets.monthlyRetainers}</span>
+                <span className="font-bold">{metrics.cases} of {campaign.targets.monthlyRetainers}</span>
               </div>
               <CustomProgressBar
                 value={casesProgress}
@@ -707,10 +623,8 @@ const CampaignDetail = () => {
           <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
             <Wallet className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Earnings Per Lead</span>
-            <span className={`text-xl font-semibold ${campaign.manualStats.leads > 0 && campaign.manualStats.revenue / campaign.manualStats.leads > metrics.costPerLead ? "text-success-DEFAULT" : ""}`}>
-              {campaign.manualStats.leads > 0 
-                ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.leads) 
-                : "$0.00"}
+            <span className={`text-xl font-semibold ${metrics.earningsPerLead > 0 ? "text-success-DEFAULT" : ""}`}>
+              {formatCurrency(metrics.earningsPerLead)}
             </span>
           </div>
           
@@ -718,9 +632,7 @@ const CampaignDetail = () => {
             <Target className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Conversion Rate</span>
             <span className="text-xl font-semibold">
-              {campaign.manualStats.leads > 0 
-                ? `${((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1)}%` 
-                : "0%"}
+              {formatPercent(metrics.conversionRate)}
             </span>
           </div>
         </div>
@@ -761,70 +673,80 @@ const CampaignDetail = () => {
         />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-6">
         <Card className="shadow-md border-accent/30 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              Performance Summary
+              Manual Stats Input
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Ad Spend</span>
-                <span className="text-xl font-semibold">{formatCurrency(campaign.stats.adSpend)}</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="leads">Total Leads</Label>
+                <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                  <span className="text-sm text-muted-foreground block mb-1">Leads</span>
+                  <span className="text-xl font-semibold">
+                    {isEditing ? (
+                      <Input
+                        id="leads"
+                        type="number"
+                        value={leadCount}
+                        onChange={(e) => setLeadCount(e.target.value)}
+                        className="h-8 w-full"
+                      />
+                    ) : (
+                      formatNumber(campaign.manualStats.leads)
+                    )}
+                  </span>
+                </div>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
-                <span className="text-xl font-semibold">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={revenue}
-                      onChange={(e) => setRevenue(e.target.value)}
-                      className="h-8 w-full"
-                    />
-                  ) : (
-                    formatCurrency(campaign.manualStats.revenue)
-                  )}
-                </span>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cases">Total Cases</Label>
+                <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                  <span className="text-sm text-muted-foreground block mb-1">Cases</span>
+                  <span className="text-xl font-semibold">
+                    {isEditing ? (
+                      <Input
+                        id="cases"
+                        type="number"
+                        value={caseCount}
+                        onChange={(e) => setCaseCount(e.target.value)}
+                        className="h-8 w-full"
+                      />
+                    ) : (
+                      formatNumber(campaign.manualStats.cases)
+                    )}
+                  </span>
+                </div>
               </div>
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Leads</span>
-                <span className="text-xl font-semibold">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={leadCount}
-                      onChange={(e) => setLeadCount(e.target.value)}
-                      className="h-8 w-full"
-                    />
-                  ) : (
-                    formatNumber(campaign.manualStats.leads)
-                  )}
-                </span>
-              </div>
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Cases</span>
-                <span className="text-xl font-semibold">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={caseCount}
-                      onChange={(e) => setCaseCount(e.target.value)}
-                      className="h-8 w-full"
-                    />
-                  ) : (
-                    formatNumber(campaign.manualStats.cases)
-                  )}
-                </span>
+              
+              <div className="space-y-2">
+                <Label htmlFor="revenue">Total Revenue</Label>
+                <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+                  <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
+                  <span className="text-xl font-semibold">
+                    {isEditing ? (
+                      <Input
+                        id="revenue"
+                        type="number"
+                        value={revenue}
+                        onChange={(e) => setRevenue(e.target.value)}
+                        className="h-8 w-full"
+                      />
+                    ) : (
+                      formatCurrency(campaign.manualStats.revenue)
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
             
             <div className="pt-4 border-t">
               <h4 className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">Key Metrics</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <BadgeStat
                   label="Cost Per Lead"
                   value={formatCurrency(metrics.costPerLead)}
@@ -836,25 +758,282 @@ const CampaignDetail = () => {
                   className="bg-background/50"
                 />
                 <BadgeStat
-                  label="Lead to Case Ratio"
-                  value={`${campaign.manualStats.leads > 0 ? ((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1) : "0"}%`}
+                  label="Lead to Case Conversion"
+                  value={formatPercent(metrics.conversionRate)}
                   className="bg-background/50"
                 />
                 <BadgeStat
                   label="Avg. Revenue Per Case"
-                  value={campaign.manualStats.cases > 0 
-                    ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.cases)
-                    : "$0.00"}
+                  value={metrics.cases > 0 
+                    ? formatCurrency(metrics.revenue / metrics.cases)
+                    : "$0"}
                   className="bg-background/50"
                 />
               </div>
             </div>
           </CardContent>
         </Card>
+        
+        <div className="mt-6">
+          <StatsHistoryTable
+            entries={campaign.statsHistory || []}
+            dateRange={dateRange}
+            onEdit={handleEditEntry}
+            onDelete={handleDeleteEntryConfirm}
+            selectedEntries={selectedEntries}
+            onSelectEntry={handleEntrySelect}
+            onBulkDelete={handleBulkDelete}
+          />
+        </div>
       </div>
+      
+      {/* Add Stats Dialog */}
+      <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Daily Stats</DialogTitle>
+            <DialogDescription>
+              Enter the daily statistics for this campaign.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stat-date" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="stat-date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {selectedDate ? (
+                        format(selectedDate, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={onCalendarSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stat-leads" className="text-right">
+                Leads
+              </Label>
+              <Input
+                id="stat-leads"
+                type="number"
+                placeholder="0"
+                value={dailyStats.leads}
+                onChange={(e) => setDailyStats({...dailyStats, leads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stat-cases" className="text-right">
+                Cases
+              </Label>
+              <Input
+                id="stat-cases"
+                type="number"
+                placeholder="0"
+                value={dailyStats.cases}
+                onChange={(e) => setDailyStats({...dailyStats, cases: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stat-revenue" className="text-right">
+                Revenue
+              </Label>
+              <Input
+                id="stat-revenue"
+                type="number"
+                placeholder="0"
+                value={dailyStats.revenue}
+                onChange={(e) => setDailyStats({...dailyStats, revenue: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stat-adspend" className="text-right">
+                Ad Spend
+              </Label>
+              <Input
+                id="stat-adspend"
+                type="number"
+                placeholder="0"
+                value={dailyStats.adSpend}
+                onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDailyStatsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDailyStats}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Entry Dialog */}
+      <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Stats Entry</DialogTitle>
+            <DialogDescription>
+              Update the statistics for this entry.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-date" className="text-right">
+                Date
+              </Label>
+              <div className="col-span-3">
+                <Popover open={editCalendarOpen} onOpenChange={setEditCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="edit-date"
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editDate}
+                      onSelect={onEditCalendarSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-leads" className="text-right">
+                Leads
+              </Label>
+              <Input
+                id="edit-leads"
+                type="number"
+                placeholder="0"
+                value={editEntryData.leads}
+                onChange={(e) => setEditEntryData({...editEntryData, leads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-cases" className="text-right">
+                Cases
+              </Label>
+              <Input
+                id="edit-cases"
+                type="number"
+                placeholder="0"
+                value={editEntryData.cases}
+                onChange={(e) => setEditEntryData({...editEntryData, cases: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-revenue" className="text-right">
+                Revenue
+              </Label>
+              <Input
+                id="edit-revenue"
+                type="number"
+                placeholder="0"
+                value={editEntryData.revenue}
+                onChange={(e) => setEditEntryData({...editEntryData, revenue: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-adspend" className="text-right">
+                Ad Spend
+              </Label>
+              <Input
+                id="edit-adspend"
+                type="number"
+                placeholder="0"
+                value={editEntryData.adSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={handleCancelEditEntry}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleDeleteEntryConfirm(editingEntryId!)}
+              className="mr-auto"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+            <Button onClick={handleSaveEditedEntry}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Entry Alert Dialog */}
+      <AlertDialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirmMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingEntry}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={isDeletingBulk ? confirmBulkDelete : confirmDeleteEntry} 
+              disabled={isDeletingEntry}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingEntry ? (
+                <>Loading...</>
+              ) : (
+                <>Delete</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export default CampaignDetail;
-

@@ -1,5 +1,5 @@
 
-import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
+import { Campaign, CampaignMetrics, DateRange, StatHistoryEntry } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
@@ -17,6 +17,8 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   const profit = periodStats.revenue - periodStats.adSpend;
   const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
   const earningsPerLead = periodStats.leads > 0 ? profit / periodStats.leads : 0;
+  const conversionRate = periodStats.leads > 0 ? (periodStats.cases / periodStats.leads) * 100 : 0;
+  const profitMargin = periodStats.revenue > 0 ? (profit / periodStats.revenue) * 100 : 0;
 
   const metrics = {
     revenue: periodStats.revenue,
@@ -27,7 +29,9 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     cpa,
     profit,
     roi,
-    earningsPerLead
+    earningsPerLead,
+    conversionRate,
+    profitMargin
   };
 
   console.log('Final calculated metrics:', metrics);
@@ -78,6 +82,15 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   return periodStats;
 };
 
+// Helper to sort stats history entries by date (newest first)
+export const sortStatHistoryByDate = (entries: StatHistoryEntry[]): StatHistoryEntry[] => {
+  return [...entries].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateB - dateA; // Newest first
+  });
+};
+
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -95,7 +108,7 @@ export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// Add the missing getPerformanceBgClass function
+// Get performance background class based on ROI
 export const getPerformanceBgClass = (roi: number): string => {
   if (roi >= 300) return "bg-success-DEFAULT/10";
   if (roi >= 200) return "bg-success-DEFAULT/5";
