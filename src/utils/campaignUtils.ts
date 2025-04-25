@@ -94,3 +94,12 @@ export const formatNumber = (value: number): string => {
 export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
+
+// Add the missing getPerformanceBgClass function
+export const getPerformanceBgClass = (roi: number): string => {
+  if (roi >= 300) return "bg-success-DEFAULT/10";
+  if (roi >= 200) return "bg-success-DEFAULT/5";
+  if (roi >= 100) return "bg-secondary/10";
+  if (roi > 0) return "bg-secondary/5";
+  return "bg-error-DEFAULT/10";
+};
