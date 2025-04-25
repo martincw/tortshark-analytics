@@ -27,15 +27,15 @@ const Index = () => {
       
       {/* Financial Stats and Daily Averages - Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DashboardFinancialStats campaigns={filteredCampaigns} />
-        <DailyAveragesSection campaigns={filteredCampaigns} />
+        <DashboardFinancialStats />
+        <DailyAveragesSection filteredCampaigns={filteredCampaigns} />
       </div>
 
       {/* Campaign Leaderboard - Full Width */}
-      <CampaignLeaderboard campaigns={filteredCampaigns} />
+      <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
       
       {/* Campaign Grid - Remove redundant date selector */}
-      <CampaignGrid campaigns={filteredCampaigns} />
+      <CampaignGrid filteredCampaigns={filteredCampaigns} />
     </div>
   );
 };

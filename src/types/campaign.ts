@@ -48,6 +48,10 @@ export interface CampaignTargets {
 }
 
 export interface CampaignMetrics {
+  revenue?: number;
+  leads?: number;
+  cases?: number;
+  adSpend?: number;
   costPerLead: number;
   cpa: number; // Cost per acquisition (case)
   profit: number;

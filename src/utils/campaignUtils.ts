@@ -1,3 +1,4 @@
+
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isWithinInterval, parseISO } from "date-fns";
 
@@ -8,7 +9,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   let totalCases = 0;
   let totalAdSpend = 0;
 
-  if (dateRange) {
+  if (dateRange && dateRange.startDate && dateRange.endDate) {
     const startDate = parseISO(dateRange.startDate);
     const endDate = parseISO(dateRange.endDate);
 
@@ -52,6 +53,10 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     : 0;
 
   return {
+    revenue: totalRevenue,
+    leads: totalLeads,
+    cases: totalCases,
+    adSpend: totalAdSpend,
     costPerLead,
     cpa,
     profit,

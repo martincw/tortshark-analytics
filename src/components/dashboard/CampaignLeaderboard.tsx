@@ -1,28 +1,12 @@
-import React, { useMemo } from "react";
-import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
-import { Crown, TrendingUp, DollarSign, Award } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { ArrowUpDown, Trophy } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { calculateMetrics, formatCurrency, formatPercent, getPerformanceClass } from "@/utils/campaignUtils";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
-
-interface LeaderboardMetric {
-  id: string;
-  name: string;
-  accountName: string;
-  value: number;
-  formattedValue: string;
-  costPerLead?: number;
-}
+import { cn } from '@/lib/utils';
 
 interface CampaignLeaderboardProps {
   filteredCampaigns: Campaign[];
@@ -30,210 +14,80 @@ interface CampaignLeaderboardProps {
 
 export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardProps) {
   const { dateRange } = useCampaign();
-
-  const leaderboardData = useMemo(() => {
-    if (!filteredCampaigns.length || !dateRange.startDate || !dateRange.endDate) return {
-      profitLeaders: [],
-      eplLeaders: [],
-      profitPerLeadLeaders: []
-    };
-
-    // Calculate metrics for each campaign based on filtered stats within date range
+  
+  const campaignsByROI = useMemo(() => {
+    if (!filteredCampaigns || filteredCampaigns.length === 0) {
+      return [];
+    }
+    
     const campaignsWithMetrics = filteredCampaigns.map(campaign => {
-      // Filter stats history by date range
-      const filteredStats = campaign.statsHistory.filter(entry =>
-        isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)
-      );
-
-      // Sum up metrics from filtered stats
-      const totalRevenue = filteredStats.reduce((sum, entry) => sum + (entry.revenue || 0), 0);
-      const totalAdSpend = filteredStats.reduce((sum, entry) => sum + (entry.adSpend || 0), 0);
-      const totalLeads = filteredStats.reduce((sum, entry) => sum + (entry.leads || 0), 0);
-      const profit = totalRevenue - totalAdSpend;
-      const epl = totalLeads > 0 ? totalRevenue / totalLeads : 0;
-      const profitPerLead = totalLeads > 0 ? profit / totalLeads : 0;
-      const costPerLead = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
-
+      const metrics = calculateMetrics(campaign, dateRange);
       return {
-        id: campaign.id,
-        name: campaign.name,
-        accountName: campaign.accountName,
-        profit,
-        epl,
-        profitPerLead,
-        costPerLead,
-        hasData: filteredStats.length > 0
+        ...campaign,
+        metrics
       };
-    }).filter(c => c.hasData); // Only include campaigns with data in the date range
-
-    // Sort by profit (descending)
-    const profitLeaders = [...campaignsWithMetrics]
-      .sort((a, b) => b.profit - a.profit)
-      .slice(0, 5)
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        accountName: c.accountName,
-        value: c.profit,
-        formattedValue: formatCurrency(c.profit)
-      }));
-
-    // Sort by EPL (descending)
-    const eplLeaders = [...campaignsWithMetrics]
-      .sort((a, b) => b.epl - a.epl)
-      .slice(0, 5)
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        accountName: c.accountName,
-        value: c.epl,
-        formattedValue: formatCurrency(c.epl),
-        costPerLead: c.costPerLead
-      }));
-
-    // Sort by profit per lead (descending)
-    const profitPerLeadLeaders = [...campaignsWithMetrics]
-      .sort((a, b) => b.profitPerLead - a.profitPerLead)
-      .slice(0, 5)
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        accountName: c.accountName,
-        value: c.profitPerLead,
-        formattedValue: formatCurrency(c.profitPerLead),
-        costPerLead: c.costPerLead
-      }));
-
-    return {
-      profitLeaders,
-      eplLeaders,
-      profitPerLeadLeaders
-    };
+    });
+    
+    // Sort by ROI descending
+    return campaignsWithMetrics.sort((a, b) => b.metrics.roi - a.metrics.roi).slice(0, 5);
   }, [filteredCampaigns, dateRange]);
-
-  if (!filteredCampaigns.length) {
+  
+  if (!campaignsByROI.length) {
     return null;
   }
-
+  
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-primary" />
-          Campaign Leaderboard
+      <CardHeader className="pb-2">
+        <CardTitle className="text-md font-medium flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-primary" />
+          Top Performing Campaigns
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <LeaderboardSection 
-            title="Highest Profit" 
-            icon={<DollarSign className="h-4 w-4" />}
-            leaders={leaderboardData.profitLeaders} 
-            emptyMessage="No profit data available" 
-            showCostPerLead={false}
-          />
-          
-          <LeaderboardSection 
-            title="Highest EPL" 
-            icon={<TrendingUp className="h-4 w-4" />}
-            leaders={leaderboardData.eplLeaders} 
-            emptyMessage="No EPL data available" 
-            tooltip="Earnings Per Lead"
-            showCostPerLead={true}
-          />
-          
-          <LeaderboardSection 
-            title="Highest Profit Per Lead" 
-            icon={<Crown className="h-4 w-4" />}
-            leaders={leaderboardData.profitPerLeadLeaders} 
-            emptyMessage="No profit per lead data available" 
-            showCostPerLead={true}
-          />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left pb-2 font-medium">Campaign</th>
+                <th className="text-right pb-2 font-medium">
+                  <div className="flex items-center justify-end">
+                    <ArrowUpDown className="h-3 w-3 mr-1" />
+                    ROI
+                  </div>
+                </th>
+                <th className="text-right pb-2 font-medium">Ad Spend</th>
+                <th className="text-right pb-2 font-medium">Revenue</th>
+                <th className="text-right pb-2 font-medium">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaignsByROI.map((campaign) => (
+                <tr key={campaign.id} className="border-b border-muted last:border-0">
+                  <td className="py-3">
+                    <div className="font-medium">{campaign.name}</div>
+                    <div className="text-xs text-muted-foreground">{campaign.platform}</div>
+                  </td>
+                  <td className="py-3 text-right">
+                    <span className={cn(getPerformanceClass(campaign.metrics.roi))}>
+                      {formatPercent(campaign.metrics.roi)}
+                    </span>
+                  </td>
+                  <td className="py-3 text-right">{formatCurrency(campaign.metrics.adSpend || 0)}</td>
+                  <td className="py-3 text-right">{formatCurrency(campaign.metrics.revenue || 0)}</td>
+                  <td className="py-3 text-right">
+                    <span className={cn(
+                      campaign.metrics.profit >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
+                    )}>
+                      {formatCurrency(campaign.metrics.profit)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-interface LeaderboardSectionProps {
-  title: string;
-  icon: React.ReactNode;
-  leaders: LeaderboardMetric[];
-  emptyMessage: string;
-  tooltip?: string;
-  showCostPerLead?: boolean;
-}
-
-function LeaderboardSection({ 
-  title, 
-  icon, 
-  leaders, 
-  emptyMessage,
-  tooltip,
-  showCostPerLead = false
-}: LeaderboardSectionProps) {
-  return (
-    <div>
-      <h3 className="text-sm font-medium flex items-center gap-1.5 mb-2 text-muted-foreground">
-        {icon}
-        {title}
-        {tooltip && (
-          <span className="text-xs text-muted-foreground/70 italic">
-            ({tooltip})
-          </span>
-        )}
-      </h3>
-      
-      {leaders.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12 text-center">#</TableHead>
-              <TableHead>Campaign</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leaders.map((leader, index) => (
-              <TableRow key={leader.id} className={cn(
-                "transition-colors",
-                index === 0 && "bg-amber-50/30",
-                index === 1 && "bg-zinc-100/30",
-                index === 2 && "bg-amber-50/10"
-              )}>
-                <TableCell className="text-center font-medium">
-                  {index === 0 ? (
-                    <span className="text-amber-500">
-                      <Award className="h-4 w-4 inline" />
-                    </span>
-                  ) : (
-                    index + 1
-                  )}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {leader.name}
-                  <div className="text-xs text-muted-foreground">{leader.accountName}</div>
-                </TableCell>
-                <TableCell className={cn(
-                  "text-right font-medium",
-                  leader.value > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"
-                )}>
-                  {leader.formattedValue}
-                  {showCostPerLead && leader.costPerLead !== undefined && (
-                    <div className="text-xs text-muted-foreground">
-                      CPL: {formatCurrency(leader.costPerLead)}
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <div className="text-center p-4 text-sm text-muted-foreground">
-          {emptyMessage}
-        </div>
-      )}
-    </div>
   );
 }

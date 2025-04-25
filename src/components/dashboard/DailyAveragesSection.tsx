@@ -17,7 +17,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
   const { dateRange } = useCampaign();
   
   const averages = useMemo(() => {
-    if (!dateRange.startDate || !dateRange.endDate || filteredCampaigns.length === 0) {
+    if (!dateRange.startDate || !dateRange.endDate || !filteredCampaigns || filteredCampaigns.length === 0) {
       return {
         adSpend: 0,
         leads: 0,
