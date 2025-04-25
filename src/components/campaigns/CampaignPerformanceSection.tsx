@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend
 import { calculateMetrics, formatCurrency, formatPercent } from "@/utils/campaignUtils";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { isWithinInterval, parseISO } from "date-fns";
 
 interface CampaignPerformanceSectionProps {
   campaign: Campaign;
@@ -17,27 +17,44 @@ interface CampaignPerformanceSectionProps {
 
 export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSectionProps) {
   const { dateRange } = useCampaign();
-  const metrics = calculateMetrics(campaign);
+  const metrics = calculateMetrics(campaign, dateRange);
   
-  // Calculate monthly target percentages
+  // Calculate total stats within date range for monthly targets
+  const startDate = parseISO(dateRange.startDate);
+  const endDate = parseISO(dateRange.endDate);
+  
+  const periodStats = campaign.statsHistory.reduce((acc, entry) => {
+    const entryDate = parseISO(entry.date);
+    if (isWithinInterval(entryDate, { start: startDate, end: endDate })) {
+      return {
+        leads: acc.leads + entry.leads,
+        cases: acc.cases + entry.cases,
+        revenue: acc.revenue + entry.revenue,
+        adSpend: acc.adSpend + (entry.adSpend || 0)
+      };
+    }
+    return acc;
+  }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
+  
+  // Calculate monthly target percentages using filtered data
   const monthlyData = [
     {
       name: "Progress",
-      leads: Math.min((campaign.manualStats.leads / campaign.targets.monthlyRetainers) * 100, 120),
-      cases: Math.min((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100, 120),
-      revenue: Math.min((campaign.manualStats.revenue / campaign.targets.monthlyIncome) * 100, 120),
-      adSpend: Math.min((campaign.stats.adSpend / campaign.targets.monthlySpend) * 100, 120),
-      actualLeads: campaign.manualStats.leads,
-      actualCases: campaign.manualStats.cases,
-      actualRevenue: campaign.manualStats.revenue,
-      actualAdSpend: campaign.stats.adSpend,
-      targetLeads: campaign.targets.monthlyRetainers * 30, // Estimate leads needed based on target retainers
+      leads: Math.min((periodStats.leads / campaign.targets.monthlyRetainers) * 100, 120),
+      cases: Math.min((periodStats.cases / campaign.targets.monthlyRetainers) * 100, 120),
+      revenue: Math.min((periodStats.revenue / campaign.targets.monthlyIncome) * 100, 120),
+      adSpend: Math.min((periodStats.adSpend / campaign.targets.monthlySpend) * 100, 120),
+      actualLeads: periodStats.leads,
+      actualCases: periodStats.cases,
+      actualRevenue: periodStats.revenue,
+      actualAdSpend: periodStats.adSpend,
+      targetLeads: campaign.targets.monthlyRetainers * 30,
       targetCases: campaign.targets.monthlyRetainers,
       targetRevenue: campaign.targets.monthlyIncome,
       targetAdSpend: campaign.targets.monthlySpend
     }
   ];
-  
+
   const chartConfig = {
     leads: {
       label: "Leads",

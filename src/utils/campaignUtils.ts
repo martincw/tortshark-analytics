@@ -1,30 +1,54 @@
+import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
+import { isWithinInterval, parseISO } from "date-fns";
 
-import { Campaign, CampaignMetrics } from "../types/campaign";
+// Calculate metrics for a campaign within a date range
+export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
+  let totalRevenue = 0;
+  let totalLeads = 0;
+  let totalCases = 0;
+  let totalAdSpend = 0;
 
-// Calculate metrics for a campaign
-export const calculateMetrics = (campaign: Campaign): CampaignMetrics => {
-  const { stats, manualStats } = campaign;
-  
+  if (dateRange) {
+    const startDate = parseISO(dateRange.startDate);
+    const endDate = parseISO(dateRange.endDate);
+
+    // Filter and sum stats from history within date range
+    campaign.statsHistory.forEach(entry => {
+      const entryDate = parseISO(entry.date);
+      if (isWithinInterval(entryDate, { start: startDate, end: endDate })) {
+        totalRevenue += entry.revenue;
+        totalLeads += entry.leads;
+        totalCases += entry.cases;
+        totalAdSpend += entry.adSpend || 0;
+      }
+    });
+  } else {
+    // If no date range provided, use all stats
+    totalRevenue = campaign.manualStats.revenue;
+    totalLeads = campaign.manualStats.leads;
+    totalCases = campaign.manualStats.cases;
+    totalAdSpend = campaign.stats.adSpend;
+  }
+
   // Avoid division by zero
-  const costPerLead = manualStats.leads > 0 
-    ? stats.adSpend / manualStats.leads 
+  const costPerLead = totalLeads > 0 
+    ? totalAdSpend / totalLeads 
     : 0;
   
-  const cpa = manualStats.cases > 0 
-    ? stats.adSpend / manualStats.cases 
+  const cpa = totalCases > 0 
+    ? totalAdSpend / totalCases 
     : 0;
   
-  const profit = manualStats.revenue - stats.adSpend;
+  const profit = totalRevenue - totalAdSpend;
   
-  // Fix: Calculate ROI as return percentage beyond 100%
-  // Example: If you spent $100 and got back $300, that's a 200% ROI
-  const roi = stats.adSpend > 0 
-    ? (manualStats.revenue / stats.adSpend) * 100 
+  // Calculate ROI as return percentage beyond 100%
+  const roi = totalAdSpend > 0 
+    ? (totalRevenue / totalAdSpend) * 100 
     : 0;
   
   // Calculate earnings per lead
-  const earningsPerLead = manualStats.leads > 0
-    ? profit / manualStats.leads
+  const earningsPerLead = totalLeads > 0
+    ? profit / totalLeads
     : 0;
 
   return {
