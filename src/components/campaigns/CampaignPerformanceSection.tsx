@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +7,9 @@ import GoogleAdsMetrics from "./GoogleAdsMetrics";
 import { WeeklyPerformanceChart } from "./WeeklyPerformanceChart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
-import { calculateMetrics, formatCurrency, formatPercent } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatPercent, getPeriodStats } from "@/utils/campaignUtils";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { isWithinInterval, parseISO } from "date-fns";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface CampaignPerformanceSectionProps {
@@ -21,36 +21,15 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
   
   // Calculate metrics based on date range
   const metrics = useMemo(() => {
+    console.log('CampaignPerformanceSection - Calculating metrics with date range:', dateRange);
     return calculateMetrics(campaign, dateRange);
   }, [campaign, dateRange]);
   
-  // Calculate period stats within date range
+  // Calculate period stats within date range using the shared utility function
   const periodStats = useMemo(() => {
-    if (!dateRange.startDate || !dateRange.endDate) {
-      console.log('No date range provided for period stats calculation');
-      return {
-        leads: 0,
-        cases: 0,
-        revenue: 0,
-        adSpend: 0
-      };
-    }
-    
-    console.log(`Calculating period stats for range: ${dateRange.startDate} to ${dateRange.endDate}`);
-    
-    return campaign.statsHistory.reduce((acc, entry) => {
-      if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        console.log(`Including stats for date ${entry.date}:`, entry);
-        return {
-          leads: acc.leads + entry.leads,
-          cases: acc.cases + entry.cases,
-          revenue: acc.revenue + entry.revenue,
-          adSpend: acc.adSpend + (entry.adSpend || 0)
-        };
-      }
-      return acc;
-    }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
-  }, [campaign.statsHistory, dateRange]);
+    console.log('CampaignPerformanceSection - Getting period stats with date range:', dateRange);
+    return getPeriodStats(campaign, dateRange);
+  }, [campaign, dateRange]);
   
   console.log('Period stats calculated:', periodStats);
   console.log('Metrics calculated:', metrics);

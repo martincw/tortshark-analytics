@@ -1,6 +1,6 @@
 
 import React, { useMemo } from "react";
-import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { BarChart, DollarSign, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -29,18 +29,29 @@ export function PerformanceSummary({ filteredCampaigns }: PerformanceSummaryProp
       };
     }
     
+    console.log('PerformanceSummary - Calculating metrics for', filteredCampaigns.length, 'campaigns');
+    
     // Calculate metrics directly from the filtered campaigns
     let totalLeads = 0;
     let totalCases = 0;
     let totalRevenue = 0;
     let totalAdSpend = 0;
     
-    // Aggregate metrics from filtered campaigns
+    // Aggregate metrics from filtered campaigns' stats history
     filteredCampaigns.forEach(campaign => {
-      totalLeads += campaign.manualStats.leads || 0;
-      totalCases += campaign.manualStats.cases || 0;
-      totalRevenue += campaign.manualStats.revenue || 0;
-      totalAdSpend += campaign.stats.adSpend || 0;
+      // Use calculateMetrics to get consistent values for each campaign
+      const campaignMetrics = calculateMetrics(campaign);
+      totalLeads += campaignMetrics.leads || 0;
+      totalCases += campaignMetrics.cases || 0;
+      totalRevenue += campaignMetrics.revenue || 0;
+      totalAdSpend += campaignMetrics.adSpend || 0;
+    });
+    
+    console.log('PerformanceSummary - Aggregated totals:', {
+      totalLeads,
+      totalCases,
+      totalRevenue,
+      totalAdSpend
     });
     
     // Calculate derived metrics

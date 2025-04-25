@@ -4,6 +4,7 @@ import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculateMetrics, formatCurrency } from "@/utils/campaignUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface ProfitProjectionProps {
   campaign: Campaign;
@@ -11,11 +12,42 @@ interface ProfitProjectionProps {
 }
 
 export function ProfitProjection({ campaign, targetProfit }: ProfitProjectionProps) {
-  const metrics = calculateMetrics(campaign);
+  const { dateRange } = useCampaign();
+  const metrics = calculateMetrics(campaign, dateRange);
   
   // Calculate all the projection metrics
   const projectionData = useMemo(() => {
-    const recentStats = campaign.statsHistory.slice(-7);
+    // Get recent history that falls within the date range if available
+    let recentStats = campaign.statsHistory;
+    
+    if (dateRange && dateRange.startDate && dateRange.endDate) {
+      console.log('ProfitProjection - Using date range for projections:', dateRange);
+    } else {
+      // If no date range, use the most recent 7 days
+      recentStats = campaign.statsHistory.slice(-7);
+      console.log('ProfitProjection - Using most recent 7 days for projections');
+    }
+    
+    if (recentStats.length === 0) {
+      console.log('ProfitProjection - No stats available for projection');
+      return {
+        targetProfit,
+        avgDailyLeads: 0,
+        conversion: 0,
+        costPerLead: 0,
+        profitPerCase: 0,
+        casesNeeded: 0,
+        leadsNeeded: 0,
+        dailyAdSpendNeeded: 0,
+        weeklyAdSpendNeeded: 0,
+        daysToTarget: 0,
+        projectedRevenue: 0,
+        projectedCost: 0,
+        avgDailyAdSpend: 0,
+        averageRevenue: 0
+      };
+    }
+    
     // Get average daily values from recent history
     const avgDailyLeads = recentStats.length > 0 
       ? recentStats.reduce((sum, day) => sum + day.leads, 0) / recentStats.length
@@ -23,15 +55,22 @@ export function ProfitProjection({ campaign, targetProfit }: ProfitProjectionPro
     
     const avgDailyAdSpend = recentStats.length > 0 && recentStats.some(s => s.adSpend)
       ? recentStats.reduce((sum, day) => sum + (day.adSpend || 0), 0) / recentStats.length
-      : campaign.stats.adSpend / 30; // Fallback to monthly average
+      : metrics.adSpend / 30; // Fallback to monthly average
     
-    const conversion = campaign.manualStats.leads > 0 
-      ? campaign.manualStats.cases / campaign.manualStats.leads 
+    const conversion = metrics.leads > 0 
+      ? metrics.cases / metrics.leads 
       : 0;
     
-    const averageRevenue = campaign.manualStats.cases > 0 
-      ? campaign.manualStats.revenue / campaign.manualStats.cases 
+    const averageRevenue = metrics.cases > 0 
+      ? metrics.revenue / metrics.cases 
       : campaign.targets.casePayoutAmount;
+    
+    console.log('ProfitProjection - Base metrics for calculation:', {
+      avgDailyLeads,
+      avgDailyAdSpend,
+      conversion,
+      averageRevenue
+    });
     
     // Projection calculations
     const costPerLead = avgDailyLeads > 0 ? avgDailyAdSpend / avgDailyLeads : 0;
@@ -60,7 +99,7 @@ export function ProfitProjection({ campaign, targetProfit }: ProfitProjectionPro
     // Projected cost
     const projectedCost = leadsNeeded * costPerLead;
     
-    return {
+    const result = {
       targetProfit,
       avgDailyLeads,
       conversion: conversion * 100, // Convert to percentage
@@ -76,7 +115,10 @@ export function ProfitProjection({ campaign, targetProfit }: ProfitProjectionPro
       avgDailyAdSpend,
       averageRevenue
     };
-  }, [campaign, targetProfit, metrics.cpa]);
+    
+    console.log('ProfitProjection - Calculated projection data:', result);
+    return result;
+  }, [campaign, targetProfit, metrics, dateRange]);
 
   return (
     <Card>
