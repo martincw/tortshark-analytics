@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import {
   ChartContainer,
@@ -7,7 +6,7 @@ import {
 } from "@/components/ui/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Campaign } from "@/types/campaign";
-import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, getPeriodStats } from "@/utils/campaignUtils";
 import {
   Bar,
   BarChart,
@@ -38,27 +37,20 @@ interface WeeklyPerformanceChartProps {
 
 export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps) {
   const { dateRange } = useCampaign();
-  
+
   const dailyData = useMemo(() => {
     if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
     
-    const hasDateRange = dateRange.startDate && dateRange.endDate;
-    let filteredStats = [...campaign.statsHistory];
+    // Filter stats by date range
+    const filteredStats = campaign.statsHistory.filter(entry => {
+      if (!dateRange.startDate || !dateRange.endDate) return true;
+      return isDateInRange(entry.date, dateRange.startDate, dateRange.endDate);
+    });
     
-    if (hasDateRange) {
-      console.log(`WeeklyPerformanceChart: Using date range ${dateRange.startDate} to ${dateRange.endDate}`);
-      
-      // Filter by date range using our custom utility
-      filteredStats = campaign.statsHistory.filter(entry => 
-        isDateInRange(entry.date, dateRange.startDate, dateRange.endDate)
-      );
-      
-      console.log(`WeeklyPerformanceChart: Filtered ${filteredStats.length} out of ${campaign.statsHistory.length} stats entries`);
-    }
+    console.log('WeeklyPerformanceChart - Filtered stats:', filteredStats);
 
     return filteredStats
       .sort((a, b) => {
-        // Parse dates for proper comparison
         const dateA = parseStoredDate(standardizeDateString(a.date));
         const dateB = parseStoredDate(standardizeDateString(b.date));
         return dateA.getTime() - dateB.getTime();
@@ -79,19 +71,23 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
   }, [campaign.statsHistory, dateRange]);
 
   const chartData = useMemo(() => {
+    if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
+    
     const hasDateRange = dateRange.startDate && dateRange.endDate;
+    const { startDate, endDate } = hasDateRange ? dateRange : {
+      startDate: undefined,
+      endDate: undefined
+    };
+    
+    console.log('WeeklyPerformanceChart - Using date range:', { startDate, endDate });
     
     let startDateForCalc, endDateForCalc;
     
     if (hasDateRange) {
-      // Use consistent date handling with our utilities
-      const { start, end } = createDateBoundaries(dateRange.startDate, dateRange.endDate);
-      startDateForCalc = start;
-      endDateForCalc = end;
-      
-      console.log(`WeeklyPerformanceChart: Using date range ${start.toISOString()} to ${end.toISOString()}`);
+      const boundaries = createDateBoundaries(startDate!, endDate!);
+      startDateForCalc = boundaries.start;
+      endDateForCalc = boundaries.end;
     } else {
-      // Default to the current day if no date range
       const now = new Date();
       endDateForCalc = new Date(Date.UTC(
         now.getUTCFullYear(),
@@ -99,8 +95,6 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
         now.getUTCDate(),
         23, 59, 59, 999
       ));
-      
-      // 28 days ago
       startDateForCalc = new Date(Date.UTC(
         now.getUTCFullYear(),
         now.getUTCMonth(),
@@ -108,7 +102,7 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
         0, 0, 0, 0
       ));
     }
-    
+
     const weeksToShow = Math.ceil((endDateForCalc.getTime() - startDateForCalc.getTime()) / (7 * 24 * 60 * 60 * 1000));
     const adjustedWeeksToShow = Math.max(1, Math.min(weeksToShow, 8));
     
@@ -135,50 +129,31 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
     const weeklyRevenueTarget = monthlyRevenueTarget / 4.33;
     const weeklyLeadsTarget = campaign.targets.monthlyRetainers * 30 / 4.33;
     const weeklyCasesTarget = campaign.targets.monthlyRetainers / 4.33;
-    
-    return weeklyPeriods.map(period => {
-      // Filter stats by each week's date range
-      const weekStats = campaign.statsHistory.filter(entry => {
-        const entryDateStr = standardizeDateString(entry.date);
-        const entryDate = parseStoredDate(entryDateStr);
-        
-        return (
-          entryDate >= period.startDate &&
-          entryDate <= period.endDate
-        );
-      });
-      
-      console.log(`WeeklyPerformanceChart: ${period.label} (${format(period.startDate, 'MMM d')} - ${format(period.endDate, 'MMM d')}) has ${weekStats.length} stats entries`);
-      
-      const weeklyAdSpend = weekStats.reduce((sum, entry) => sum + entry.adSpend, 0);
-      const weeklyLeads = weekStats.reduce((sum, entry) => sum + entry.leads, 0);
-      const weeklyCases = weekStats.reduce((sum, entry) => sum + entry.cases, 0);
-      const weeklyRevenue = weekStats.reduce((sum, entry) => sum + entry.revenue, 0);
-      
-      const adSpendPercentage = (weeklyAdSpend / weeklyAdSpendTarget) * 100;
-      const leadsPercentage = (weeklyLeads / weeklyLeadsTarget) * 100;
-      const casesPercentage = (weeklyCases / weeklyCasesTarget) * 100;
-      const revenuePercentage = (weeklyRevenue / weeklyRevenueTarget) * 100;
-      
-      return {
-        name: period.label,
-        period: `${format(period.startDate, 'MMM d')} - ${format(period.endDate, 'MMM d')}`,
-        adSpend: weeklyAdSpend,
-        leads: weeklyLeads,
-        cases: weeklyCases,
-        revenue: weeklyRevenue,
-        adSpendPercentage: Math.min(adSpendPercentage, 150),
-        leadsPercentage: Math.min(leadsPercentage, 150),
-        casesPercentage: Math.min(casesPercentage, 150),
-        revenuePercentage: Math.min(revenuePercentage, 150),
-        adSpendTarget: weeklyAdSpendTarget,
-        leadsTarget: weeklyLeadsTarget,
-        casesTarget: weeklyCasesTarget,
-        revenueTarget: weeklyRevenueTarget
-      };
-    });
-  }, [campaign.statsHistory, campaign.targets, dateRange.startDate, dateRange.endDate]);
-  
+
+    // Filter stats using getPeriodStats for consistency
+    const periodStats = getPeriodStats(campaign, dateRange);
+    console.log('WeeklyPerformanceChart - Period stats:', periodStats);
+
+    const weeklyData = {
+      name: 'Current Period',
+      period: `${format(startDateForCalc, 'MMM d')} - ${format(endDateForCalc, 'MMM d')}`,
+      adSpend: periodStats.adSpend,
+      leads: periodStats.leads,
+      cases: periodStats.cases,
+      revenue: periodStats.revenue,
+      adSpendPercentage: Math.min((periodStats.adSpend / weeklyAdSpendTarget) * 100, 150),
+      leadsPercentage: Math.min((periodStats.leads / weeklyLeadsTarget) * 100, 150),
+      casesPercentage: Math.min((periodStats.cases / weeklyCasesTarget) * 100, 150),
+      revenuePercentage: Math.min((periodStats.revenue / weeklyRevenueTarget) * 100, 150),
+      adSpendTarget: weeklyAdSpendTarget,
+      leadsTarget: weeklyLeadsTarget,
+      casesTarget: weeklyCasesTarget,
+      revenueTarget: weeklyRevenueTarget
+    };
+
+    return [weeklyData];
+  }, [campaign.statsHistory, campaign.targets, dateRange]);
+
   // Add the missing chartConfig object
   const chartConfig = {
     leads: {

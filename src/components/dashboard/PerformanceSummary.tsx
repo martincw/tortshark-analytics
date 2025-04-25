@@ -1,5 +1,6 @@
+
 import React, { useMemo } from "react";
-import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getPeriodStats } from "@/utils/campaignUtils";
 import { BarChart, DollarSign, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -33,30 +34,31 @@ export function PerformanceSummary({ filteredCampaigns }: PerformanceSummaryProp
     
     console.log('PerformanceSummary - Calculating metrics for', filteredCampaigns.length, 'campaigns with date range:', dateRange);
     
-    // Calculate metrics for each campaign using the date range
-    const campaignsMetrics = filteredCampaigns.map(campaign => calculateMetrics(campaign, dateRange));
+    // Calculate metrics for each campaign using getPeriodStats for consistency
+    const campaignsStats = filteredCampaigns.map(campaign => getPeriodStats(campaign, dateRange));
+    console.log('PerformanceSummary - Campaign stats:', campaignsStats);
     
     // Aggregate metrics across all campaigns
-    const totals = campaignsMetrics.reduce((acc, metrics) => ({
-      leads: acc.leads + (metrics.leads || 0),
-      cases: acc.cases + (metrics.cases || 0),
-      revenue: acc.revenue + (metrics.revenue || 0),
-      adSpend: acc.adSpend + (metrics.adSpend || 0),
-      profit: acc.profit + metrics.profit
-    }), { leads: 0, cases: 0, revenue: 0, adSpend: 0, profit: 0 });
+    const totals = campaignsStats.reduce((acc, stats) => ({
+      leads: acc.leads + (stats.leads || 0),
+      cases: acc.cases + (stats.cases || 0),
+      revenue: acc.revenue + (stats.revenue || 0),
+      adSpend: acc.adSpend + (stats.adSpend || 0)
+    }), { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
     
     console.log('PerformanceSummary - Aggregated totals:', totals);
     
-    // Calculate derived metrics
+    const profit = totals.revenue - totals.adSpend;
     const costPerLead = totals.leads > 0 ? totals.adSpend / totals.leads : 0;
     const costPerCase = totals.cases > 0 ? totals.adSpend / totals.cases : 0;
     const revenuePerCase = totals.cases > 0 ? totals.revenue / totals.cases : 0;
     const conversionRate = totals.leads > 0 ? (totals.cases / totals.leads) * 100 : 0;
-    const roi = totals.adSpend > 0 ? (totals.profit / totals.adSpend) * 100 : 0;
-    const profitMargin = totals.revenue > 0 ? (totals.profit / totals.revenue) * 100 : 0;
+    const roi = totals.adSpend > 0 ? (profit / totals.adSpend) * 100 : 0;
+    const profitMargin = totals.revenue > 0 ? (profit / totals.revenue) * 100 : 0;
     
     return {
       ...totals,
+      profit,
       costPerLead,
       costPerCase,
       revenuePerCase,
