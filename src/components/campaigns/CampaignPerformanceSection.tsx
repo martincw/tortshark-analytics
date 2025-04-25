@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,7 @@ import { calculateMetrics, formatCurrency, formatPercent } from "@/utils/campaig
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { isWithinInterval, parseISO } from "date-fns";
+import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 interface CampaignPerformanceSectionProps {
   campaign: Campaign;
@@ -17,24 +18,42 @@ interface CampaignPerformanceSectionProps {
 
 export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSectionProps) {
   const { dateRange } = useCampaign();
-  const metrics = calculateMetrics(campaign, dateRange);
   
-  // Calculate total stats within date range for monthly targets
-  const startDate = parseISO(dateRange.startDate);
-  const endDate = parseISO(dateRange.endDate);
+  // Calculate metrics based on date range
+  const metrics = useMemo(() => {
+    return calculateMetrics(campaign, dateRange);
+  }, [campaign, dateRange]);
   
-  const periodStats = campaign.statsHistory.reduce((acc, entry) => {
-    const entryDate = parseISO(entry.date);
-    if (isWithinInterval(entryDate, { start: startDate, end: endDate })) {
+  // Calculate period stats within date range
+  const periodStats = useMemo(() => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      console.log('No date range provided for period stats calculation');
       return {
-        leads: acc.leads + entry.leads,
-        cases: acc.cases + entry.cases,
-        revenue: acc.revenue + entry.revenue,
-        adSpend: acc.adSpend + (entry.adSpend || 0)
+        leads: 0,
+        cases: 0,
+        revenue: 0,
+        adSpend: 0
       };
     }
-    return acc;
-  }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
+    
+    console.log(`Calculating period stats for range: ${dateRange.startDate} to ${dateRange.endDate}`);
+    
+    return campaign.statsHistory.reduce((acc, entry) => {
+      if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+        console.log(`Including stats for date ${entry.date}:`, entry);
+        return {
+          leads: acc.leads + entry.leads,
+          cases: acc.cases + entry.cases,
+          revenue: acc.revenue + entry.revenue,
+          adSpend: acc.adSpend + (entry.adSpend || 0)
+        };
+      }
+      return acc;
+    }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
+  }, [campaign.statsHistory, dateRange]);
+  
+  console.log('Period stats calculated:', periodStats);
+  console.log('Metrics calculated:', metrics);
   
   // Calculate monthly target percentages using filtered data
   const monthlyData = [
@@ -90,7 +109,7 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
   const chartKey = `chart-${dateRange.startDate}-${dateRange.endDate}`;
 
   return (
-    <div className="grid gap-6">
+    <div className="space-y-8">
       <Tabs defaultValue="weekly" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="weekly">Weekly Performance</TabsTrigger>
@@ -240,7 +259,7 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
                     <div>
                       <span className="text-xs text-muted-foreground">Cases Needed</span>
                       <div className="text-lg font-semibold mt-0.5">
-                        {metrics.cpa > 0 ? Math.ceil(campaign.stats.adSpend / metrics.cpa) : 0}
+                        {metrics.adSpend > 0 ? Math.ceil(periodStats.adSpend / metrics.cpa) : 0}
                       </div>
                     </div>
                   </div>
@@ -251,16 +270,16 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
                     <div>
                       <span className="text-xs text-muted-foreground">Lead → Case Rate</span>
                       <div className="text-lg font-semibold mt-0.5">
-                        {campaign.manualStats.leads > 0 ? 
-                          `${((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1)}%` : 
+                        {periodStats.leads > 0 ? 
+                          `${((periodStats.cases / periodStats.leads) * 100).toFixed(1)}%` : 
                           "0%"}
                       </div>
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground">Avg Revenue/Case</span>
                       <div className="text-lg font-semibold mt-0.5">
-                        {campaign.manualStats.cases > 0 ? 
-                          formatCurrency(campaign.manualStats.revenue / campaign.manualStats.cases) : 
+                        {periodStats.cases > 0 ? 
+                          formatCurrency(periodStats.revenue / periodStats.cases) : 
                           "$0.00"}
                       </div>
                     </div>

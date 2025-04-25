@@ -1,5 +1,5 @@
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
-import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
+import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 // Calculate metrics for a campaign within a date range
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
@@ -16,7 +16,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     // Filter and sum stats from history within date range
     campaign.statsHistory.forEach(entry => {
       if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        console.log(`Including stats for date ${entry.date} in calculation: `, {
+        console.log(`Including stats for date ${entry.date} in calculation:`, {
           leads: entry.leads,
           cases: entry.cases,
           revenue: entry.revenue,
@@ -39,7 +39,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
       totalAdSpend
     });
   } else {
-    // If no date range provided, use statsHistory totals instead of manualStats
+    // If no date range provided, use statsHistory totals
     console.log('No date range provided, using all campaign stats from history');
     campaign.statsHistory.forEach(entry => {
       totalRevenue += entry.revenue;
@@ -49,26 +49,12 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     });
   }
 
-  // Avoid division by zero
-  const costPerLead = totalLeads > 0 
-    ? totalAdSpend / totalLeads 
-    : 0;
-  
-  const cpa = totalCases > 0 
-    ? totalAdSpend / totalCases 
-    : 0;
-  
+  // Calculate derived metrics
+  const costPerLead = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
+  const cpa = totalCases > 0 ? totalAdSpend / totalCases : 0;
   const profit = totalRevenue - totalAdSpend;
-  
-  // Calculate ROI as return percentage
-  const roi = totalAdSpend > 0 
-    ? ((totalRevenue - totalAdSpend) / totalAdSpend) * 100 
-    : 0;
-  
-  // Calculate earnings per lead
-  const earningsPerLead = totalLeads > 0
-    ? profit / totalLeads
-    : 0;
+  const roi = totalAdSpend > 0 ? ((totalRevenue - totalAdSpend) / totalAdSpend) * 100 : 0;
+  const earningsPerLead = totalLeads > 0 ? profit / totalLeads : 0;
 
   const metrics = {
     revenue: totalRevenue,
