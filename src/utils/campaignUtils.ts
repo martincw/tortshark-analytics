@@ -1,95 +1,28 @@
-
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
 // Calculate metrics for a campaign within a date range
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
-  let totalRevenue = 0;
-  let totalLeads = 0;
-  let totalCases = 0;
-  let totalAdSpend = 0;
+  console.log('Calculating metrics for campaign:', campaign.id);
+  console.log('Using date range:', dateRange);
 
-  // Check if there's any data in statsHistory
-  if (!campaign.statsHistory || campaign.statsHistory.length === 0) {
-    console.log('No stats history available for campaign:', campaign.id);
-    return {
-      revenue: 0,
-      leads: 0,
-      cases: 0,
-      adSpend: 0,
-      costPerLead: 0,
-      cpa: 0,
-      profit: 0,
-      roi: 0,
-      earningsPerLead: 0
-    };
-  }
-
-  // Count entries that match the date range for logging purposes
-  let entriesInRange = 0;
-
-  if (dateRange && dateRange.startDate && dateRange.endDate) {
-    console.log(`Calculating metrics for date range: ${dateRange.startDate} to ${dateRange.endDate}`);
-    console.log('Campaign ID:', campaign.id);
-    console.log('Stats history entries:', campaign.statsHistory.length);
-    
-    // Filter and sum stats from history within date range
-    campaign.statsHistory.forEach(entry => {
-      if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        entriesInRange++;
-        console.log(`Including stats for date ${entry.date} in calculation:`, {
-          leads: entry.leads,
-          cases: entry.cases,
-          revenue: entry.revenue,
-          adSpend: entry.adSpend || 0
-        });
-        
-        totalRevenue += entry.revenue;
-        totalLeads += entry.leads;
-        totalCases += entry.cases;
-        totalAdSpend += entry.adSpend || 0;
-      } else {
-        // Skip logging for entries outside range to reduce console clutter
-      }
-    });
-    
-    console.log(`Found ${entriesInRange} entries in date range out of ${campaign.statsHistory.length} total entries`);
-    console.log('Calculated totals from filtered history:', {
-      totalRevenue,
-      totalLeads,
-      totalCases,
-      totalAdSpend
-    });
-  } else {
-    // If no date range provided, use all statsHistory totals
-    console.log('No date range provided, using all campaign stats from history');
-    campaign.statsHistory.forEach(entry => {
-      totalRevenue += entry.revenue;
-      totalLeads += entry.leads;
-      totalCases += entry.cases;
-      totalAdSpend += entry.adSpend || 0;
-    });
-    
-    console.log('Calculated totals from all history:', {
-      totalRevenue,
-      totalLeads,
-      totalCases,
-      totalAdSpend
-    });
-  }
-
-  // Calculate derived metrics (safely avoiding division by zero)
-  const costPerLead = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
-  const cpa = totalCases > 0 ? totalAdSpend / totalCases : 0;
-  const profit = totalRevenue - totalAdSpend;
-  const roi = totalAdSpend > 0 ? ((totalRevenue - totalAdSpend) / totalAdSpend) * 100 : 0;
-  const earningsPerLead = totalLeads > 0 ? profit / totalLeads : 0;
+  // Get filtered stats based on date range
+  const periodStats = getPeriodStats(campaign, dateRange);
+  
+  console.log('Period stats:', periodStats);
+  
+  // Calculate metrics using period stats
+  const costPerLead = periodStats.leads > 0 ? periodStats.adSpend / periodStats.leads : 0;
+  const cpa = periodStats.cases > 0 ? periodStats.adSpend / periodStats.cases : 0;
+  const profit = periodStats.revenue - periodStats.adSpend;
+  const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
+  const earningsPerLead = periodStats.leads > 0 ? profit / periodStats.leads : 0;
 
   const metrics = {
-    revenue: totalRevenue,
-    leads: totalLeads,
-    cases: totalCases,
-    adSpend: totalAdSpend,
+    revenue: periodStats.revenue,
+    leads: periodStats.leads,
+    cases: periodStats.cases,
+    adSpend: periodStats.adSpend,
     costPerLead,
     cpa,
     profit,
@@ -98,7 +31,6 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   };
 
   console.log('Final calculated metrics:', metrics);
-  
   return metrics;
 };
 

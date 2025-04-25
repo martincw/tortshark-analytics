@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { BarChart, DollarSign, TrendingUp, Users } from "lucide-react";
@@ -6,12 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { Campaign } from "@/types/campaign";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface PerformanceSummaryProps {
   filteredCampaigns: Campaign[];
 }
 
 export function PerformanceSummary({ filteredCampaigns }: PerformanceSummaryProps) {
+  const { dateRange } = useCampaign();
+
   const summaryData = useMemo(() => {
     if (filteredCampaigns.length === 0) {
       return {
@@ -29,46 +31,32 @@ export function PerformanceSummary({ filteredCampaigns }: PerformanceSummaryProp
       };
     }
     
-    console.log('PerformanceSummary - Calculating metrics for', filteredCampaigns.length, 'campaigns');
+    console.log('PerformanceSummary - Calculating metrics for', filteredCampaigns.length, 'campaigns with date range:', dateRange);
     
-    // Calculate metrics directly from the filtered campaigns
-    let totalLeads = 0;
-    let totalCases = 0;
-    let totalRevenue = 0;
-    let totalAdSpend = 0;
+    // Calculate metrics for each campaign using the date range
+    const campaignsMetrics = filteredCampaigns.map(campaign => calculateMetrics(campaign, dateRange));
     
-    // Aggregate metrics from filtered campaigns' stats history
-    filteredCampaigns.forEach(campaign => {
-      // Use calculateMetrics to get consistent values for each campaign
-      const campaignMetrics = calculateMetrics(campaign);
-      totalLeads += campaignMetrics.leads || 0;
-      totalCases += campaignMetrics.cases || 0;
-      totalRevenue += campaignMetrics.revenue || 0;
-      totalAdSpend += campaignMetrics.adSpend || 0;
-    });
+    // Aggregate metrics across all campaigns
+    const totals = campaignsMetrics.reduce((acc, metrics) => ({
+      leads: acc.leads + (metrics.leads || 0),
+      cases: acc.cases + (metrics.cases || 0),
+      revenue: acc.revenue + (metrics.revenue || 0),
+      adSpend: acc.adSpend + (metrics.adSpend || 0),
+      profit: acc.profit + metrics.profit
+    }), { leads: 0, cases: 0, revenue: 0, adSpend: 0, profit: 0 });
     
-    console.log('PerformanceSummary - Aggregated totals:', {
-      totalLeads,
-      totalCases,
-      totalRevenue,
-      totalAdSpend
-    });
+    console.log('PerformanceSummary - Aggregated totals:', totals);
     
     // Calculate derived metrics
-    const totalProfit = totalRevenue - totalAdSpend;
-    const costPerLead = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
-    const costPerCase = totalCases > 0 ? totalAdSpend / totalCases : 0;
-    const revenuePerCase = totalCases > 0 ? totalRevenue / totalCases : 0;
-    const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
-    const roi = totalAdSpend > 0 ? (totalProfit / totalAdSpend) * 100 : 0;
-    const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const costPerLead = totals.leads > 0 ? totals.adSpend / totals.leads : 0;
+    const costPerCase = totals.cases > 0 ? totals.adSpend / totals.cases : 0;
+    const revenuePerCase = totals.cases > 0 ? totals.revenue / totals.cases : 0;
+    const conversionRate = totals.leads > 0 ? (totals.cases / totals.leads) * 100 : 0;
+    const roi = totals.adSpend > 0 ? (totals.profit / totals.adSpend) * 100 : 0;
+    const profitMargin = totals.revenue > 0 ? (totals.profit / totals.revenue) * 100 : 0;
     
     return {
-      adSpend: totalAdSpend,
-      leads: totalLeads,
-      cases: totalCases,
-      revenue: totalRevenue,
-      profit: totalProfit,
+      ...totals,
       costPerLead,
       costPerCase,
       revenuePerCase,
@@ -76,8 +64,8 @@ export function PerformanceSummary({ filteredCampaigns }: PerformanceSummaryProp
       roi,
       profitMargin
     };
-  }, [filteredCampaigns]);
-  
+  }, [filteredCampaigns, dateRange]);
+
   if (filteredCampaigns.length === 0) {
     return null;
   }
