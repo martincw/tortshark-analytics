@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
 import { useCampaignForm } from "@/hooks/useCampaignForm";
 import CampaignDetailsSection from "./CampaignDetailsSection";
 import CampaignTargetsSection from "./CampaignTargetsSection";
+import CampaignMappingSection from "./CampaignMappingSection";
 import { toast } from "sonner";
 
 interface CampaignFormProps {
@@ -36,7 +36,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
     targetMonthlyIncome,
     targetMonthlySpend,
     availableAccounts,
-    handleSubmit
+    handleSubmit,
+    id
   } = useCampaignForm();
 
   const onSubmitWithLogging = (e: React.FormEvent) => {
@@ -91,6 +92,11 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
             setTargetROAS={setTargetROAS}
             targetMonthlyIncome={targetMonthlyIncome}
             targetMonthlySpend={targetMonthlySpend}
+          />
+
+          <CampaignMappingSection
+            campaignId={id}
+            availableAccounts={availableAccounts}
           />
         </CardContent>
         <CardFooter className="flex justify-between">

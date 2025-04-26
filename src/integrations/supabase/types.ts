@@ -48,6 +48,50 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_ad_mappings: {
+        Row: {
+          created_at: string | null
+          google_account_id: string
+          google_campaign_id: string
+          google_campaign_name: string
+          id: string
+          is_active: boolean
+          last_synced: string | null
+          tortshark_campaign_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          google_account_id: string
+          google_campaign_id: string
+          google_campaign_name: string
+          id?: string
+          is_active?: boolean
+          last_synced?: string | null
+          tortshark_campaign_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          google_account_id?: string
+          google_campaign_id?: string
+          google_campaign_name?: string
+          id?: string
+          is_active?: boolean
+          last_synced?: string | null
+          tortshark_campaign_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_ad_mappings_tortshark_campaign_id_fkey"
+            columns: ["tortshark_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_manual_stats: {
         Row: {
           campaign_id: string
