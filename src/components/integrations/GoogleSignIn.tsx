@@ -8,11 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import Google from "./Google";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { 
-  initiateGoogleAuth, 
-  handleOAuthCallback,
-  getGoogleAdsCredentials
-} from "@/services/googleAdsService";
+import { initiateGoogleAuth } from "@/services/googleAdsService";
 import { supabase } from "@/integrations/supabase/client";
 
 interface GoogleSignInProps {
@@ -29,7 +25,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [requestState, setRequestState] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -38,6 +33,13 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     };
     
     checkLoginStatus();
+
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -48,30 +50,18 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     
     setIsSigningIn(true);
     setAuthError(null);
-    setRequestState('pending');
-    
-    // Set a timeout to prevent endless loading
-    const timeoutId = setTimeout(() => {
-      if (requestState === 'pending') {
-        setRequestState('error');
-        setAuthError("Connection request timed out. Please try again.");
-        setIsSigningIn(false);
-        toast.error("Connection request timed out");
-      }
-    }, 30000);
     
     try {
       console.log("Starting Google sign-in process");
-      await initiateGoogleAuth();
-      // We won't reach here typically because of the redirect
-      setRequestState('success');
+      const { url } = await initiateGoogleAuth();
+      
+      // Redirect to Google auth URL
+      window.location.href = url;
     } catch (error) {
       console.error("Error initiating Google Auth:", error);
-      setAuthError(error.message || "Failed to initiate Google authentication");
-      toast.error("Failed to initiate Google authentication");
-      setRequestState('error');
+      setAuthError(error instanceof Error ? error.message : "Failed to initiate Google authentication");
+      toast.error("Failed to connect to Google Ads");
       setIsSigningIn(false);
-      clearTimeout(timeoutId);
     }
   };
 
@@ -88,16 +78,15 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         {authError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="space-y-2">
-              <p className="font-medium">Authentication error:</p>
-              <p>{authError}</p>
+            <AlertDescription>
+              {authError}
               <div className="text-xs mt-2">
                 <p>Troubleshooting steps:</p>
                 <ul className="list-disc pl-5 mt-1 space-y-1">
-                  <li>Ensure you're logged in to your Supabase account</li>
-                  <li>Check that your Google Cloud OAuth client is properly configured</li>
-                  <li>Verify that your browser isn't blocking third-party cookies</li>
-                  <li>Disable any ad-blockers or privacy extensions</li>
+                  <li>Sign in to your account first</li>
+                  <li>Check your internet connection</li>
+                  <li>Clear your browser cache</li>
+                  <li>Try using a different browser</li>
                 </ul>
               </div>
             </AlertDescription>
@@ -111,13 +100,16 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           variant="outline"
         >
           <Google className="mr-2 h-4 w-4" />
-          {isSigningIn ? "Signing in..." : "Sign in with Google"}
+          {isSigningIn ? "Connecting..." : "Connect Google Ads"}
         </Button>
         
         {!isLoggedIn && (
-          <p className="text-xs text-center mt-2 text-amber-600">
-            Please sign in to your account first before connecting Google Ads
-          </p>
+          <Alert variant="warning">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Please sign in to your account first before connecting Google Ads
+            </AlertDescription>
+          </Alert>
         )}
         
         {(isConnecting || isSigningIn) && (

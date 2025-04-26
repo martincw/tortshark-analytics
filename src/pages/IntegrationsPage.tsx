@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
@@ -66,91 +65,60 @@ const IntegrationsPage = () => {
   useEffect(() => {
     const processOAuthCallback = async () => {
       // Check if we have code parameter in URL and haven't processed it yet
-      if (window.location.search.includes('code=') && !callbackProcessed.current) {
-        callbackProcessed.current = true;
-        setIsProcessingOAuth(true);
-        setAuthError(null);
-        setNetworkError(false);
-        
-        console.log("OAuth callback detected, starting processing...");
-        
-        // Set a timeout to prevent endless loading
-        const timeout = setTimeout(() => {
-          setIsProcessingOAuth(false);
-          setAuthError("OAuth processing timed out. Please try again.");
-          console.error("OAuth processing timeout triggered");
-        }, 30000); // 30 seconds timeout
-        
-        try {
-          if (!user) {
-            setAuthError("You must be logged in to connect Google Ads");
-            clearTimeout(timeout);
-            return;
-          }
-          
-          console.log("Processing OAuth callback with code from URL");
-          const urlParams = new URLSearchParams(window.location.search);
-          console.log("State param:", urlParams.get('state'));
-          console.log("Error param:", urlParams.get('error'));
-          
-          // Clean URL before processing to avoid double-processing
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-          
-          const success = await handleOAuthCallback();
-          
-          if (success) {
-            toast.success("Successfully connected to Google Ads");
-            
-            if (fetchGoogleAdsAccounts) {
-              try {
-                console.log("Fetching Google Ads accounts after successful authentication");
-                const accounts = await fetchGoogleAdsAccounts();
-                console.log("Fetched Google Ads accounts:", accounts);
-                
-                if (accounts.length > 0) {
-                  toast.success(`Found ${accounts.length} Google Ads accounts`);
-                } else {
-                  toast.info("No Google Ads accounts found");
-                }
-              } catch (accountsError) {
-                console.error("Error fetching Google Ads accounts:", accountsError);
-                toast.error("Connected to Google but failed to fetch accounts");
-              }
-            }
-          } else {
-            setAuthError("Failed to process authentication. Please try again.");
-            console.error("OAuth callback processing failed without error");
-          }
-        } catch (error) {
-          console.error("Error processing OAuth callback:", error);
-          
-          if (error.message && (
-            error.message.includes("Failed to fetch") || 
-            error.message.includes("NetworkError") || 
-            error.message.includes("refused to connect")
-          )) {
-            setNetworkError(true);
-            setAuthError(`Network error: Unable to connect to Google authentication servers. 
-                          Please check your internet connection and firewall settings.`);
-          } else {
-            setAuthError(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-          
-          if (error instanceof Error) {
-            setDebugInfo({
-              message: error.message,
-              stack: error.stack,
-              time: new Date().toISOString()
-            });
-          }
-        } finally {
-          clearTimeout(timeout);
-          setIsProcessingOAuth(false);
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const error = urlParams.get('error');
+      
+      if (!code || callbackProcessed.current) {
+        return;
+      }
+
+      console.log("OAuth callback detected, starting processing...");
+      callbackProcessed.current = true;
+      setIsProcessingOAuth(true);
+      setAuthError(null);
+      
+      try {
+        if (!user) {
+          throw new Error("You must be logged in to connect Google Ads");
         }
+        
+        // Clean URL before processing
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
+        const success = await handleOAuthCallback(code);
+        
+        if (success) {
+          toast.success("Successfully connected to Google Ads");
+          
+          if (fetchGoogleAdsAccounts) {
+            try {
+              console.log("Fetching Google Ads accounts");
+              const accounts = await fetchGoogleAdsAccounts();
+              
+              if (accounts.length > 0) {
+                toast.success(`Found ${accounts.length} Google Ads accounts`);
+              } else {
+                toast.info("No Google Ads accounts found");
+              }
+            } catch (accountsError) {
+              console.error("Error fetching accounts:", accountsError);
+              toast.error("Connected to Google but failed to fetch accounts");
+            }
+          }
+        } else {
+          setAuthError("Failed to process authentication. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error processing OAuth callback:", error);
+        setAuthError(error instanceof Error ? error.message : "Unknown error occurred");
+        toast.error("Failed to connect to Google Ads");
+      } finally {
+        setIsProcessingOAuth(false);
       }
     };
-    
+
     if (user) {
       processOAuthCallback();
     }
