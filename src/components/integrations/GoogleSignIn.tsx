@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import Google from "./Google";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { initiateGoogleAuth } from "@/services/googleAdsService";
+import { initiateGoogleAdsConnection, processOAuthCallback, validateConnection } from "@/services/googleAdsConnection";
 import { supabase } from "@/integrations/supabase/client";
 
 interface GoogleSignInProps {
@@ -24,16 +25,22 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   
   useEffect(() => {
     const checkLoginStatus = async () => {
       const { data } = await supabase.auth.getSession();
       setIsLoggedIn(!!data.session);
+      
+      if (data.session) {
+        // Validate existing connection
+        const isValid = await validateConnection();
+        console.log("Connection validation result:", isValid);
+      }
     };
     
     checkLoginStatus();
 
-    // Subscribe to auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsLoggedIn(!!session);
     });
@@ -51,16 +58,24 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     setAuthError(null);
     
     try {
-      console.log("Starting Google sign-in process");
-      const { url } = await initiateGoogleAuth();
+      console.log("Starting Google sign-in process", { attempt: retryAttempt + 1 });
+      const { url } = await initiateGoogleAdsConnection();
       
       // Redirect to Google auth URL
       window.location.href = url;
     } catch (error) {
       console.error("Error initiating Google Auth:", error);
       setAuthError(error instanceof Error ? error.message : "Failed to initiate Google authentication");
-      toast.error("Failed to connect to Google Ads");
-      setIsSigningIn(false);
+      
+      if (retryAttempt < 2) {
+        toast.error("Connection failed, retrying...");
+        setRetryAttempt(prev => prev + 1);
+        setTimeout(() => handleGoogleSignIn(), 1000);
+      } else {
+        toast.error("Failed to connect to Google Ads");
+        setIsSigningIn(false);
+        setRetryAttempt(0);
+      }
     }
   };
 
