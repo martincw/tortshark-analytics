@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DateRange } from "@/types/campaign";
@@ -251,6 +252,9 @@ export const listGoogleAdsAccounts = async (): Promise<GoogleAdsAccount[]> => {
     
     if (error) {
       console.error("Error listing Google Ads accounts:", error);
+      // Show more specific error message
+      const errorMessage = error.message || "Unknown error";
+      toast.error(`Failed to list Google Ads accounts: ${errorMessage}`);
       throw error;
     }
     
@@ -263,6 +267,16 @@ export const listGoogleAdsAccounts = async (): Promise<GoogleAdsAccount[]> => {
     return data.accounts;
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
+    // More specific error handling - attempt a refresh if it might be a token issue
+    if (error.message?.includes("401") || error.message?.includes("auth")) {
+      toast.error("Authentication problem with Google Ads. Attempting to refresh...");
+      const refreshed = await refreshGoogleToken();
+      if (refreshed) {
+        toast.success("Reconnected to Google Ads, please try again");
+      } else {
+        toast.error("Failed to reconnect. Please reconnect your Google Ads account in Integrations.");
+      }
+    }
     throw error;
   }
 };

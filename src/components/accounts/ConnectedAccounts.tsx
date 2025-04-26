@@ -17,13 +17,15 @@ import {
   PlusCircle,
   ExternalLink,
   Trash2,
-  Link
+  Link,
+  AlertCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { toast } from "@/hooks/use-toast";
-import { listGoogleAdsAccounts, cleanupAllAccounts } from "@/services/googleAdsService";
+import { toast } from "sonner";
+import { listGoogleAdsAccounts, cleanupAllAccounts, refreshGoogleToken } from "@/services/googleAdsService";
 import { v4 as uuidv4 } from 'uuid';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ConnectedAccountsProps {
   accountConnections: AccountConnection[];
@@ -51,6 +53,7 @@ export const ConnectedAccounts = ({
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(false);
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState<number>(0);
   
   useEffect(() => {
     const checkGoogleAuth = async () => {
@@ -95,8 +98,14 @@ export const ConnectedAccounts = ({
           }
         } catch (error) {
           console.error("Error fetching accounts:", error);
-          setAccountsError("Failed to fetch accounts: " + (error?.message || "Unknown error"));
-          toast.error("Failed to fetch Google Ads accounts");
+          const errorMessage = error?.message || "Unknown error";
+          setAccountsError(`Failed to fetch accounts: ${errorMessage}`);
+          
+          if (errorMessage.includes("401") || errorMessage.includes("auth")) {
+            toast.error("Authentication issue. Please check your Google Ads connection.");
+          } else {
+            toast.error("Failed to fetch Google Ads accounts");
+          }
         } finally {
           setIsLoadingAccounts(false);
           setHasAttemptedFetch(true);
@@ -105,16 +114,43 @@ export const ConnectedAccounts = ({
     };
     
     fetchAccounts();
-  }, [isGoogleConnected, addAccountConnection, accountConnections, hasAttemptedFetch]);
+  }, [isGoogleConnected, addAccountConnection, accountConnections, hasAttemptedFetch, retryCount]);
   
   const handleRefreshAccounts = async () => {
     setIsLoadingAccounts(true);
+    setAccountsError(null);
+    
     try {
+      // First try to refresh the token to ensure we have valid authentication
+      await refreshGoogleToken();
+      
+      // Then fetch accounts
       await fetchGoogleAdsAccounts();
       toast.success("Accounts refreshed successfully");
+      
+      // Reset error state
+      setAccountsError(null);
+      
+      // Reset retry count
+      setRetryCount(0);
     } catch (error) {
       console.error("Error refreshing accounts:", error);
-      toast.error("Failed to refresh accounts");
+      const errorMessage = error?.message || "Unknown error";
+      setAccountsError(`Failed to refresh accounts: ${errorMessage}`);
+      
+      if (errorMessage.includes("401") || errorMessage.includes("auth")) {
+        toast.error("Authentication issue. Please reconnect your Google Ads account.", {
+          action: {
+            label: "Reconnect",
+            onClick: () => navigate("/integrations")
+          }
+        });
+      } else {
+        toast.error("Failed to refresh accounts");
+        
+        // Increment retry count for potential auto-retry
+        setRetryCount(prev => prev + 1);
+      }
     } finally {
       setIsLoadingAccounts(false);
     }
@@ -136,6 +172,10 @@ export const ConnectedAccounts = ({
         setIsCleaningDummy(false);
       }
     }
+  };
+
+  const handleRetryConnection = () => {
+    navigate("/integrations");
   };
   
   return (
@@ -172,6 +212,23 @@ export const ConnectedAccounts = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {accountsError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex justify-between items-center">
+              <span>{accountsError}</span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRetryConnection}
+                className="ml-4 border-destructive/50 bg-destructive/10"
+              >
+                Fix Connection
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+      
         {isLoading || isLoadingAccounts ? (
           <div className="flex justify-center py-8">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -180,6 +237,7 @@ export const ConnectedAccounts = ({
           <EmptyAccountsState 
             handleCreateCampaign={handleCreateCampaign}
             navigate={navigate}
+            hasError={!!accountsError}
           />
         ) : (
           <AccountsList
@@ -201,15 +259,17 @@ export const ConnectedAccounts = ({
 interface EmptyAccountsStateProps {
   handleCreateCampaign: () => void;
   navigate: (path: string) => void;
+  hasError: boolean;
 }
 
 const EmptyAccountsState = ({
   handleCreateCampaign,
-  navigate
+  navigate,
+  hasError
 }: EmptyAccountsStateProps) => {
   return (
     <div className="flex flex-col items-center space-y-4 text-center text-muted-foreground py-8 border border-dashed rounded-md p-4">
-      <p>No accounts added yet</p>
+      <p>{hasError ? "Error loading accounts" : "No accounts added yet"}</p>
       <div className="flex flex-col md:flex-row gap-3 w-full max-w-xs">
         <Button 
           onClick={() => navigate("/integrations")}
@@ -217,7 +277,7 @@ const EmptyAccountsState = ({
           className="flex-1"
         >
           <ExternalLink className="mr-2 h-4 w-4" />
-          Connect Google Ads
+          {hasError ? "Fix Connection" : "Connect Google Ads"}
         </Button>
         <Button 
           onClick={handleCreateCampaign}

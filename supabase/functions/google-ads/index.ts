@@ -37,7 +37,7 @@ serve(async (req) => {
     const requestData = await req.json();
     const { action } = requestData;
 
-    // New action to get developer token
+    // Action to get developer token
     if (action === "get-developer-token") {
       if (!GOOGLE_ADS_DEVELOPER_TOKEN) {
         console.error("Google Ads Developer Token not found in environment variables");
@@ -59,12 +59,165 @@ serve(async (req) => {
       );
     }
     
-    // Handle other actions (auth, accounts, refresh, validate, etc.)
-    // These would be implemented based on your application needs
+    // Action to list Google Ads accounts
+    if (action === "accounts") {
+      console.log("Fetching Google Ads accounts for user:", user.id);
+      
+      try {
+        // Get the user's Google Ads token from the database
+        const { data: tokenData, error: tokenError } = await supabase
+          .from("google_ads_tokens")
+          .select("access_token, refresh_token, expires_at")
+          .eq("user_id", user.id)
+          .single();
+
+        if (tokenError || !tokenData) {
+          console.error("Token error:", tokenError || "No token found");
+          return new Response(
+            JSON.stringify({ error: "Google Ads authentication not set up" }),
+            { 
+              status: 401, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+
+        // Check if token is expired and refresh if needed
+        const isExpired = new Date(tokenData.expires_at) < new Date();
+        
+        if (isExpired && tokenData.refresh_token) {
+          console.log("Token expired, attempting to refresh");
+          const { data: refreshData, error: refreshError } = await supabase.functions.invoke("google-oauth", {
+            body: { action: "refresh" }
+          });
+          
+          if (refreshError || !refreshData?.success) {
+            console.error("Token refresh failed:", refreshError || refreshData?.error);
+            return new Response(
+              JSON.stringify({ error: "Failed to refresh authentication" }),
+              { 
+                status: 401, 
+                headers: { ...corsHeaders, "Content-Type": "application/json" } 
+              }
+            );
+          }
+        }
+        
+        // For demonstration purposes, return mock accounts
+        // In production, you would make an actual call to the Google Ads API
+        // This is a temporary solution until we implement the full Google Ads API client
+        const mockAccounts = [
+          {
+            id: "1234567890",
+            name: "Test Account 1",
+            status: "ENABLED",
+            customerId: "1234567890"
+          },
+          {
+            id: "9876543210",
+            name: "Test Account 2",
+            status: "ENABLED",
+            customerId: "9876543210"
+          }
+        ];
+
+        console.log(`Successfully retrieved ${mockAccounts.length} accounts`);
+        return new Response(
+          JSON.stringify({ accounts: mockAccounts }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      } catch (error) {
+        console.error("Error fetching Google Ads accounts:", error);
+        return new Response(
+          JSON.stringify({ error: `Failed to fetch accounts: ${error.message}` }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+    }
+    
+    // Handle refresh token action
+    if (action === "refresh") {
+      console.log("Manually refreshing token for user:", user.id);
+      
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.functions.invoke("google-oauth", {
+          body: { action: "refresh" }
+        });
+        
+        if (refreshError || !refreshData?.success) {
+          console.error("Token refresh failed:", refreshError || refreshData?.error);
+          return new Response(
+            JSON.stringify({ error: "Failed to refresh authentication", success: false }),
+            { 
+              status: 401, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+        return new Response(
+          JSON.stringify({ error: `Failed to refresh token: ${error.message}`, success: false }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+    }
+    
+    // Handle token validation action
+    if (action === "validate") {
+      console.log("Validating token for user:", user.id);
+      
+      try {
+        const { data: tokenData, error: tokenError } = await supabase
+          .from("google_ads_tokens")
+          .select("access_token, expires_at")
+          .eq("user_id", user.id)
+          .single();
+          
+        if (tokenError || !tokenData?.access_token) {
+          console.error("Token validation error:", tokenError || "No token found");
+          return new Response(
+            JSON.stringify({ valid: false, error: "No Google Ads token found" }),
+            { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        const isExpired = new Date(tokenData.expires_at) < new Date();
+        
+        return new Response(
+          JSON.stringify({ valid: !isExpired }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error validating token:", error);
+        return new Response(
+          JSON.stringify({ valid: false, error: `Token validation failed: ${error.message}` }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+    }
 
     // Default response for unrecognized action
     return new Response(
-      JSON.stringify({ error: "Invalid action" }),
+      JSON.stringify({ error: `Invalid action: ${action}` }),
       { 
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
