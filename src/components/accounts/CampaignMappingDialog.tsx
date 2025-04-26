@@ -23,9 +23,8 @@ import {
   TableHead, 
   TableCell 
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Link2, CheckCircle, XCircle } from "lucide-react";
+import { AlertCircle, Loader2, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchGoogleAdsCampaignsForAccount, mapGoogleAdsCampaignToTortshark } from "@/services/googleAdsConnection";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -65,14 +64,17 @@ export function CampaignMappingDialog({
   }, [isOpen, accountId, user]);
   
   const loadGoogleCampaigns = async () => {
-    if (!accountId) return;
+    if (!accountId || !account?.customerId) {
+      setFetchError("Invalid account selected");
+      return;
+    }
     
     setIsLoading(true);
     setFetchError(null);
     
     try {
-      console.log("Fetching campaigns for account:", accountId);
-      const campaigns = await fetchGoogleAdsCampaignsForAccount(accountId);
+      console.log("Fetching campaigns for account:", account.customerId);
+      const campaigns = await fetchGoogleAdsCampaignsForAccount(account.customerId);
       setGoogleCampaigns(campaigns);
       
       if (campaigns.length === 0) {
@@ -86,7 +88,7 @@ export function CampaignMappingDialog({
       setIsLoading(false);
     }
   };
-  
+
   const loadExistingMappings = async () => {
     setIsLoading(true);
     try {
@@ -115,7 +117,7 @@ export function CampaignMappingDialog({
       setIsLoading(false);
     }
   };
-  
+
   const handleCreateMapping = async () => {
     if (!selectedCampaign || !selectedGoogleCampaign) {
       toast.error("Please select both a Tortshark campaign and a Google Ads campaign");

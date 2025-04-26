@@ -135,23 +135,27 @@ export const fetchGoogleAdsAccounts = async (): Promise<any[]> => {
   }
 };
 
-export const fetchGoogleAdsCampaignsForAccount = async (accountId: string): Promise<any[]> => {
+export const fetchGoogleAdsCampaignsForAccount = async (customerId: string): Promise<any[]> => {
   try {
-    console.log(`Fetching Google Ads campaigns for account ${accountId}`);
+    console.log(`Fetching Google Ads campaigns for customer ID: ${customerId}`);
 
-    const { data, error } = await supabase.functions.invoke('google-ads-mapping', {
+    if (!customerId) {
+      throw new Error("Customer ID is required");
+    }
+
+    const { data, error } = await supabase.functions.invoke("google-ads-mapping", {
       body: { 
         action: "list-available-campaigns",
-        googleAccountId: accountId
+        googleAccountId: customerId
       }
     });
 
     if (error) {
       console.error("Error fetching Google Ads campaigns:", error);
-      throw new Error(error.message || "Failed to fetch Google Ads campaigns");
+      throw error;
     }
 
-    if (!data?.campaigns || !Array.isArray(data.campaigns)) {
+    if (!data.campaigns) {
       console.log("No campaigns returned from API");
       return [];
     }

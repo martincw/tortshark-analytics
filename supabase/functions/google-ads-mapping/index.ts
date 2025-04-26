@@ -27,7 +27,7 @@ async function getGoogleToken(userId: string) {
       throw new Error("Failed to fetch Google Ads token");
     }
     
-    if (!data || !data.access_token) {
+    if (!data?.access_token) {
       console.error("No token found for user:", userId);
       throw new Error("No Google Ads token found");
     }
@@ -47,6 +47,10 @@ async function getGoogleToken(userId: string) {
 
 async function listGoogleAdsCampaigns(accessToken: string, customerId: string) {
   console.log(`Listing campaigns for customer ID: ${customerId}`);
+  
+  if (!customerId) {
+    throw new Error("Customer ID is required");
+  }
   
   try {
     const endpoint = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
@@ -92,67 +96,6 @@ async function listGoogleAdsCampaigns(accessToken: string, customerId: string) {
     return campaigns;
   } catch (error) {
     console.error("Error listing Google campaigns:", error);
-    throw error;
-  }
-}
-
-async function createMapping(userId: string, data: any) {
-  try {
-    const { tortsharkCampaignId, googleAccountId, googleCampaignId, googleCampaignName } = data;
-    
-    // Validate all required data is present
-    if (!tortsharkCampaignId || !googleAccountId || !googleCampaignId || !googleCampaignName) {
-      throw new Error("Missing required mapping data");
-    }
-    
-    // Check if campaign belongs to user
-    const { data: campaignData, error: campaignError } = await supabase
-      .from("campaigns")
-      .select("id")
-      .eq("id", tortsharkCampaignId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    
-    if (campaignError || !campaignData) {
-      throw new Error("Campaign not found or access denied");
-    }
-    
-    // Check if mapping already exists
-    const { data: existingMapping, error: existingMappingError } = await supabase
-      .from("campaign_ad_mappings")
-      .select("id")
-      .eq("tortshark_campaign_id", tortsharkCampaignId)
-      .eq("google_account_id", googleAccountId)
-      .eq("google_campaign_id", googleCampaignId)
-      .maybeSingle();
-    
-    if (existingMappingError) {
-      console.error("Error checking existing mapping:", existingMappingError);
-    }
-    
-    if (existingMapping) {
-      console.log("Mapping already exists");
-      return { success: true, message: "Mapping already exists" };
-    }
-    
-    // Create new mapping
-    const { error: insertError } = await supabase
-      .from("campaign_ad_mappings")
-      .insert({
-        tortshark_campaign_id: tortsharkCampaignId,
-        google_account_id: googleAccountId,
-        google_campaign_id: googleCampaignId,
-        google_campaign_name: googleCampaignName,
-        is_active: true
-      });
-    
-    if (insertError) {
-      throw new Error(`Failed to create mapping: ${insertError.message}`);
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error("Error creating mapping:", error);
     throw error;
   }
 }
@@ -206,29 +149,6 @@ serve(async (req) => {
           JSON.stringify({ 
             error: error instanceof Error ? error.message : "Failed to list campaigns",
             campaigns: [] 
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      }
-    }
-    
-    if (action === "create-mapping") {
-      try {
-        const result = await createMapping(user.id, requestData);
-        
-        return new Response(
-          JSON.stringify(result),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } catch (error) {
-        console.error("Error creating mapping:", error);
-        
-        return new Response(
-          JSON.stringify({ 
-            error: error instanceof Error ? error.message : "Failed to create mapping" 
           }),
           { 
             status: 500,
