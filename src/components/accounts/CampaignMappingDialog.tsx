@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Dialog, 
@@ -31,6 +30,7 @@ import { toast } from "sonner";
 import { fetchGoogleAdsCampaignsForAccount, mapGoogleAdsCampaignToTortshark } from "@/services/googleAdsConnection";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { campaignMappingService } from "@/services/campaignMappingService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CampaignMappingDialogProps {
   isOpen: boolean;
@@ -45,6 +45,7 @@ export function CampaignMappingDialog({
   accountId,
   campaigns
 }: CampaignMappingDialogProps) {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [googleCampaigns, setGoogleCampaigns] = useState<any[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
@@ -56,11 +57,11 @@ export function CampaignMappingDialog({
   const account = accountConnections.find(acc => acc.id === accountId);
   
   useEffect(() => {
-    if (isOpen && accountId) {
+    if (isOpen && accountId && user) {
       loadGoogleCampaigns();
       loadExistingMappings();
     }
-  }, [isOpen, accountId]);
+  }, [isOpen, accountId, user]);
   
   const loadGoogleCampaigns = async () => {
     if (!accountId) return;
@@ -80,13 +81,11 @@ export function CampaignMappingDialog({
   const loadExistingMappings = async () => {
     setIsLoading(true);
     try {
-      // First, collect all mappings for every campaign
       const allMappings: any[] = [];
       
       for (const campaign of campaigns) {
         try {
           const campaignMappings = await campaignMappingService.getMappingsForCampaign(campaign.id);
-          // Add campaign name to each mapping
           campaignMappings.forEach(mapping => {
             allMappings.push({
               ...mapping,
@@ -98,10 +97,8 @@ export function CampaignMappingDialog({
         }
       }
       
-      // Filter mappings to only show those for the selected account
       const accountMappings = allMappings.filter(mapping => mapping.google_account_id === accountId);
       setMappings(accountMappings);
-      
     } catch (error) {
       console.error("Failed to fetch campaign mappings:", error);
       toast.error("Could not load campaign mappings");

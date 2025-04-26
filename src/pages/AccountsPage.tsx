@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -23,8 +22,10 @@ import {
   listGoogleAdsAccounts
 } from "@/services/googleAdsService";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AccountsPage = () => {
+  const { user } = useAuth();
   const { 
     accountConnections, 
     fetchGoogleAdsAccounts,
@@ -39,8 +40,14 @@ const AccountsPage = () => {
   const [hasInitiallyFetched, setHasInitiallyFetched] = useState(false);
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
   const [mappingAccountId, setMappingAccountId] = useState<string>("");
-  
+
   useEffect(() => {
+    // Redirect to login if not authenticated
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
     // Check if Google auth is already valid
     const checkGoogleAuth = async () => {
       const isValid = await isGoogleAuthValid();
@@ -54,7 +61,7 @@ const AccountsPage = () => {
     };
     
     checkGoogleAuth();
-  }, [hasInitiallyFetched]);
+  }, [user, hasInitiallyFetched, navigate]);
   
   const refreshAccounts = async () => {
     setIsRefreshing(true);
