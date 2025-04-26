@@ -103,6 +103,7 @@ async function listGoogleAdsCampaigns(accessToken: string, customerId: string) {
     throw new Error("Customer ID is required");
   }
   
+  // Validate developer token existence
   if (!GOOGLE_ADS_DEVELOPER_TOKEN) {
     console.error("Google Ads Developer Token is not configured");
     throw new Error("Google Ads Developer Token is missing");

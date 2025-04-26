@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -251,5 +250,25 @@ export const refreshGoogleAdsToken = async (): Promise<boolean> => {
   } catch (error) {
     console.error("Error in refreshGoogleAdsToken:", error);
     return false;
+  }
+};
+
+export const getGoogleAdsDeveloperToken = async (): Promise<string | null> => {
+  try {
+    console.log("Fetching Google Ads developer token");
+    
+    const { data, error } = await supabase.functions.invoke('google-ads', {
+      body: { action: "get-developer-token" }
+    });
+    
+    if (error || !data?.developerToken) {
+      console.error("Error fetching Google Ads developer token:", error || "No token returned");
+      return null;
+    }
+    
+    return data.developerToken;
+  } catch (error) {
+    console.error("Error in getGoogleAdsDeveloperToken:", error);
+    return null;
   }
 };
