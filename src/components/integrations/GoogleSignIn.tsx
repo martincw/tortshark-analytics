@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -104,7 +103,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         </Button>
         
         {!isLoggedIn && (
-          <Alert variant="warning">
+          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Please sign in to your account first before connecting Google Ads

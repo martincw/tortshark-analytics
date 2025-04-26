@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { DateRange } from "@/types/campaign";
 
 // Types
 interface GoogleAdsCredentials {
