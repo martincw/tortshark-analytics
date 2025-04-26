@@ -15,32 +15,34 @@ serve(async (req) => {
   }
   
   try {
-    const { action, code, state, userId } = await req.json();
-    
-    // Validate required environment variables
+    // Validate required environment variables first
     const requiredEnvVars = ['SITE_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
-    for (const envVar of requiredEnvVars) {
-      if (!Deno.env.get(envVar)) {
-        console.error(`Missing required environment variable: ${envVar}`);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Configuration error: ${envVar} is not set` 
-          }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-    }
+    const missingEnvVars = requiredEnvVars.filter(envVar => !Deno.env.get(envVar));
     
+    if (missingEnvVars.length > 0) {
+      console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Configuration error: Missing ${missingEnvVars.join(', ')}` 
+        }), 
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+
+    // Parse request body
+    const { action, code, state } = await req.json();
+    
+    // Create Supabase client
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_ANON_KEY") || "",
     );
 
-    // Validate user session
+    // Get user session and validate authentication
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error("Authentication error:", userError);
@@ -69,6 +71,7 @@ serve(async (req) => {
         authUrl.searchParams.set("scope", "https://www.googleapis.com/auth/adwords");
         authUrl.searchParams.set("access_type", "offline");
         authUrl.searchParams.set("prompt", "consent");
+        authUrl.searchParams.set("state", state || "");
         
         return new Response(
           JSON.stringify({ success: true, url: authUrl.toString() }),

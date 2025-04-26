@@ -12,11 +12,11 @@ const GoogleAdsConnection: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { user } = useAuth();
+  const { user, session } = useAuth(); // Get both user and session
 
   useEffect(() => {
     const checkConnection = async () => {
-      if (!user) return;
+      if (!session) return; // Check for session instead of just user
       
       try {
         const connected = await validateGoogleAdsConnection();
@@ -30,10 +30,10 @@ const GoogleAdsConnection: React.FC = () => {
     };
 
     checkConnection();
-  }, [user]);
+  }, [session]); // Depend on session instead of user
 
   const handleConnect = async () => {
-    if (!user) {
+    if (!session) { // Check for session instead of just user
       const errorMsg = "Please sign in first";
       setConnectionError(errorMsg);
       toast.error(errorMsg);
@@ -44,10 +44,18 @@ const GoogleAdsConnection: React.FC = () => {
     setConnectionError(null);
 
     try {
-      const { url } = await initiateGoogleAdsConnection();
+      const { url, error } = await initiateGoogleAdsConnection();
+      if (error) {
+        throw new Error(error);
+      }
       if (!url) {
         throw new Error("No authentication URL received");
       }
+      
+      // Store the current URL for redirect after auth
+      localStorage.setItem('preAuthPath', '/integrations');
+      
+      // Redirect to Google OAuth
       window.location.href = url;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to connect to Google Ads";
