@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -477,7 +476,7 @@ export const ProfitForecasting: React.FC<ProfitForecastingProps> = ({
       </Card>
 
       {/* Forecast Disclaimer */}
-      <Alert variant="outline" className="bg-muted/50">
+      <Alert variant="default" className="bg-muted/50">
         <InfoIcon className="h-4 w-4" />
         <AlertTitle>About This Forecast</AlertTitle>
         <AlertDescription className="text-sm text-muted-foreground">

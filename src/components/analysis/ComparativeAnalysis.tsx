@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { ArrowDownUp, BarChart3, LineChart, Medal, PieChart as PieChartIcon } from "lucide-react";
+import { ArrowDownUp, BarChart3, LineChart, Medal, PieChart as PieChartIcon, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface ComparativeAnalysisProps {

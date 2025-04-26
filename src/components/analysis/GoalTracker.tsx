@@ -3,8 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Campaign, GoalProgress } from "@/types/campaign";
 import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { 
-  Progress,
-  ProgressIndicator,
+  Progress
 } from "@/components/ui/progress";
 import { BadgeDelta } from "@/components/ui/badge-delta";
 import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";

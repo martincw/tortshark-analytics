@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,12 +39,10 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
   campaign,
   forecastPeriod 
 }) => {
-  // Get historical metrics for baseline
   const historicalMetrics = useMemo(() => {
     return calculateMetrics(campaign);
   }, [campaign]);
 
-  // Extract key metrics from historical data
   const baselineMetrics = useMemo(() => {
     if (!campaign.statsHistory || campaign.statsHistory.length === 0) {
       return {
@@ -58,7 +55,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
       };
     }
 
-    // Calculate averages from history
     let totalRevenue = 0;
     let totalAdSpend = 0;
     let totalLeads = 0;
@@ -87,7 +83,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     };
   }, [campaign.statsHistory]);
 
-  // State for optimization variables
   const [dailyBudget, setDailyBudget] = useState<number>(() => {
     const avgDailySpend = baselineMetrics.averageAdSpend || 100;
     return Math.round(avgDailySpend);
@@ -102,10 +97,8 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     return Math.round(baselineMetrics.averageRevenuePerCase || campaign.targets.casePayoutAmount);
   });
   
-  // Calculate optimization metrics based on inputs
   const optimizationResults = useMemo(() => {
-    // Get period multiplier based on forecast period
-    let periodMultiplier = 7; // default to week
+    let periodMultiplier = 7;
     if (forecastPeriod === "month") {
       periodMultiplier = 30;
     } else if (forecastPeriod === "quarter") {
@@ -114,33 +107,26 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     
     const periodBudget = dailyBudget * periodMultiplier;
     
-    // Calculate expected leads based on cost per lead
     const expectedLeads = baselineMetrics.costPerLead > 0 ? 
       periodBudget / baselineMetrics.costPerLead : 0;
     
-    // Calculate expected cases based on lead to case conversion
     const expectedCases = expectedLeads * baselineMetrics.leadToCase;
     
-    // Calculate expected revenue
     const expectedRevenue = expectedCases * revenuePerCase;
     
-    // Calculate profit and ROI
     const expectedProfit = expectedRevenue - periodBudget;
     const expectedROI = periodBudget > 0 ? (expectedProfit / periodBudget) * 100 : 0;
     
-    // Calculate budget needed to hit target ROI
     const targetBudgetMultiplier = targetROI > 0 ? (100 / (targetROI)) : 1;
     const budgetForTargetROI = (expectedRevenue * targetBudgetMultiplier) / (1 + targetBudgetMultiplier);
     const dailyBudgetForTargetROI = budgetForTargetROI / periodMultiplier;
     
-    // Calculate optimal budget for maximum profit while maintaining target ROI
     const optimalBudget = Math.min(
-      periodBudget * 1.5, // Cap at 150% of current budget as safety
+      periodBudget * 1.5,
       budgetForTargetROI
     );
     const optimalDailyBudget = optimalBudget / periodMultiplier;
     
-    // Calculate metrics for optimal budget
     const optimalLeads = baselineMetrics.costPerLead > 0 ? 
       optimalBudget / baselineMetrics.costPerLead : 0;
     const optimalCases = optimalLeads * baselineMetrics.leadToCase;
@@ -148,7 +134,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     const optimalProfit = optimalRevenue - optimalBudget;
     const optimalROI = optimalBudget > 0 ? (optimalProfit / optimalBudget) * 100 : 0;
     
-    // Check if current targets make sense
     const targetMonthlySpend = campaign.targets.monthlySpend;
     const budgetEfficiency = targetMonthlySpend > 0 ?
       (optimalBudget / targetMonthlySpend) * 100 : 0;
@@ -156,7 +141,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     const isBudgetTooHigh = periodBudget > optimalBudget * 1.1;
     const isBudgetTooLow = periodBudget < optimalBudget * 0.9;
     
-    // Create chart data for comparing scenarios
     const comparisonData = [
       {
         name: 'Current',
@@ -222,6 +206,19 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     return "Adjust your daily budget and target ROI to see optimization recommendations.";
   }, [optimizationResults]);
 
+  const tooltipFormatter = (value: number | string, name: string) => {
+    switch (name) {
+      case 'revenue':
+      case 'adSpend':
+      case 'profit':
+        return [formatCurrency(value as number), name];
+      case 'roi':
+        return [formatPercent(value as number), name];
+      default:
+        return [typeof value === 'string' ? value : formatNumber(value), name.toString()];
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -240,7 +237,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left column: Inputs */}
             <div className="space-y-6">
               <div>
                 <div className="flex justify-between mb-2">
@@ -327,7 +323,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
               </Card>
             </div>
             
-            {/* Right column: Projected results */}
             <div className="space-y-5">
               <div>
                 <h3 className="font-medium text-base mb-3">Projected Results</h3>
@@ -412,7 +407,6 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
             </div>
           </div>
           
-          {/* Comparison chart */}
           <div className="mt-8">
             <h3 className="font-medium text-base mb-4">Current vs. Optimal Budget Comparison</h3>
             <div className="h-72">
@@ -425,10 +419,7 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(value) => `$${value}`} />
                   <Tooltip 
-                    formatter={(value, name) => {
-                      if (name === "roi") return [formatPercent(value as number), "ROI"];
-                      return [formatCurrency(value as number), name.charAt(0).toUpperCase() + name.slice(1)];
-                    }}
+                    formatter={tooltipFormatter}
                   />
                   <Legend />
                   <Bar dataKey="budget" name="Budget" fill="#8884d8" />
