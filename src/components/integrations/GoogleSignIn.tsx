@@ -179,12 +179,11 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     setIsSigningIn(true);
     setAuthError(null);
     
-    // Set a timeout to prevent endless loading
     const timeout = setTimeout(() => {
       setIsSigningIn(false);
       setAuthError("Connection timed out. Please try again.");
       toast.error("Connection timed out");
-    }, 30000); // 30 seconds timeout
+    }, 30000);
     
     setLoadingTimeout(timeout);
     
@@ -194,7 +193,9 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       
       if (authResponse && authResponse.url) {
         console.log("Redirecting to Google Auth URL:", authResponse.url);
+        // Direct browser redirect to Google's auth page
         window.location.href = authResponse.url;
+        return; // Important: return here as we're redirecting
       } else {
         throw new Error("Failed to get Google authentication URL");
       }
@@ -214,7 +215,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       return;
     }
     
-    // Use server-side OAuth flow
     handleServerSideAuth();
   };
 

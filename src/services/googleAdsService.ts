@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
@@ -66,18 +65,18 @@ export const initiateGoogleAuth = async (): Promise<{ url: string }> => {
     
     if (error) {
       console.error("Error initiating Google Auth:", error);
-      throw error;
+      throw new Error(`Failed to initiate auth: ${error.message}`);
     }
     
     if (!data || !data.url) {
-      throw new Error("Failed to get authentication URL");
+      throw new Error("Failed to get authentication URL from server");
     }
     
     console.log("Successfully generated Google Auth URL");
     return { url: data.url };
   } catch (error) {
     console.error("Error in initiateGoogleAuth:", error);
-    throw error;
+    throw new Error(`Authentication initialization failed: ${error.message}`);
   }
 };
 

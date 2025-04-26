@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -9,10 +8,8 @@ const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 const DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN")!;
 const REDIRECT_URI = Deno.env.get("SITE_URL") + "/integrations";
 
-// Supabase client (service role) to store/retrieve tokens
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Define CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -20,14 +17,12 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   const url = new URL(req.url);
   
-  // 0. Authenticate user via Supabase JWT in Authorization header
   const authHeader = req.headers.get("Authorization")?.split(" ")[1] || "";
   const { data: udata, error: authErr } = await supabase.auth.getUser(authHeader);
   if (authErr) {
@@ -38,7 +33,6 @@ serve(async (req) => {
   }
   const user = udata.user!;
 
-  // Helper: load this user's refresh token
   async function getRefreshToken() {
     const { data, error } = await supabase
       .from("google_ads_tokens")
@@ -51,7 +45,6 @@ serve(async (req) => {
     return data.refresh_token as string;
   }
 
-  // Helper: exchange code ↔ tokens
   async function fetchToken(params: Record<string, string>) {
     try {
       console.log(`Fetching token with params: ${JSON.stringify(params)}`);
@@ -84,11 +77,9 @@ serve(async (req) => {
     const reqBody = req.method === 'POST' ? await req.json() : {};
     console.log(`Processing request: ${path}`);
     
-    // Get the action from the body
     const action = reqBody.action || '';
 
     switch (action) {
-      // ────────────── Step 1: Redirect to Google OAuth ──────────────
       case "auth": {
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
           `client_id=${CLIENT_ID}` +
@@ -98,12 +89,13 @@ serve(async (req) => {
           `&access_type=offline&prompt=consent` +
           `&state=${encodeURIComponent(JSON.stringify({ userId: user.id }))}`;
         
+        console.log("Generated auth URL:", authUrl);
+        
         return new Response(JSON.stringify({ success: true, url: authUrl }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
 
-      // ───────── Step 2: OAuth callback → save refresh_token ────────
       case "callback": {
         const { code } = reqBody;
         if (!code) {
@@ -126,7 +118,6 @@ serve(async (req) => {
         const now = new Date();
         const expiresAt = new Date(now.getTime() + (tok.expires_in || 3600) * 1000);
         
-        // Extract user info if possible (for email)
         let userEmail = null;
         if (tok.access_token) {
           try {
@@ -143,7 +134,6 @@ serve(async (req) => {
           }
         }
         
-        // Upsert into your table (user_id PK, refresh_token)
         const { error: upsertError } = await supabase
           .from("google_ads_tokens")
           .upsert(
@@ -172,7 +162,6 @@ serve(async (req) => {
         });
       }
 
-      // ───────── Step 3: List manager's child accounts ─────────────
       case "accounts": {
         const rt = await getRefreshToken();
         const { access_token } = await fetchToken({
@@ -188,7 +177,6 @@ serve(async (req) => {
         
         console.log("Fetching accessible Google Ads accounts...");
         
-        // First, get list of accessible customer IDs
         const accountsResp = await fetch(
           "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
           {
@@ -216,10 +204,8 @@ serve(async (req) => {
         
         console.log(`Found ${resourceNames.length} accessible accounts`);
         
-        // Extract customer IDs from resource names (format: 'customers/1234567890')
         const customerIds = resourceNames.map((name: string) => name.split('/')[1]);
         
-        // Now fetch details for each customer ID
         const accounts = await Promise.all(
           customerIds.map(async (customerId: string) => {
             try {
@@ -258,10 +244,8 @@ serve(async (req) => {
           })
         );
         
-        // Filter out null values (failed requests)
         const validAccounts = accounts.filter((account: any) => account !== null);
         
-        // Save accounts to database
         for (const account of validAccounts) {
           try {
             await supabase.from("account_connections").upsert({
@@ -282,15 +266,13 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
-      
-      // ───────── Get Developer Token ─────────────
+
       case "get-developer-token": {
         return new Response(JSON.stringify({ success: true, developerToken: DEVELOPER_TOKEN }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
-      
-      // ───────── Validate token ─────────────
+
       case "validate": {
         try {
           const rt = await getRefreshToken();
@@ -307,7 +289,6 @@ serve(async (req) => {
             });
           }
           
-          // Validate by calling a simple API endpoint
           const validateResp = await fetch(
             "https://www.googleapis.com/oauth2/v3/tokeninfo",
             {
@@ -329,8 +310,7 @@ serve(async (req) => {
           });
         }
       }
-      
-      // ───────── Refresh token ─────────────
+
       case "refresh": {
         try {
           const rt = await getRefreshToken();
@@ -347,7 +327,6 @@ serve(async (req) => {
           
           const expiresAt = new Date(Date.now() + (tokResponse.expires_in || 3600) * 1000);
           
-          // Update the token in the database
           const { error: updateError } = await supabase
             .from("google_ads_tokens")
             .update({
@@ -372,8 +351,7 @@ serve(async (req) => {
           });
         }
       }
-      
-      // ───────── Revoke token ─────────────
+
       case "revoke": {
         try {
           const { data, error } = await supabase
@@ -388,7 +366,6 @@ serve(async (req) => {
             });
           }
           
-          // Revoke the token with Google
           const revokeResp = await fetch(
             `https://oauth2.googleapis.com/revoke?token=${data.access_token}`,
             {
@@ -397,7 +374,6 @@ serve(async (req) => {
             }
           );
           
-          // Delete the token from our database
           await supabase
             .from("google_ads_tokens")
             .delete()
@@ -413,7 +389,7 @@ serve(async (req) => {
           });
         }
       }
-      
+
       default:
         return new Response(JSON.stringify({ success: false, error: "Invalid action" }), {
           status: 400,
@@ -422,8 +398,11 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error("Error processing request:", error);
-    
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: error.message || "Internal server error",
+      details: error.stack
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
