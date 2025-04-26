@@ -11,7 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useCampaign } from "@/contexts/CampaignContext";
 
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // Replace with your actual client ID
+// Don't use hardcoded placeholder, get from env or leave empty
+const GOOGLE_CLIENT_ID = ""; // Will be set in the Supabase edge function
 
 const IntegrationsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("google-ads");
@@ -64,16 +65,20 @@ const IntegrationsPage = () => {
   
   useEffect(() => {
     const processOAuthCallback = async () => {
+      // Check if we have code parameter in URL and haven't processed it yet
       if (window.location.search.includes('code=') && !callbackProcessed.current) {
         callbackProcessed.current = true;
         setIsProcessingOAuth(true);
         setAuthError(null);
         setNetworkError(false);
         
+        console.log("OAuth callback detected, starting processing...");
+        
         // Set a timeout to prevent endless loading
         const timeout = setTimeout(() => {
           setIsProcessingOAuth(false);
           setAuthError("OAuth processing timed out. Please try again.");
+          console.error("OAuth processing timeout triggered");
         }, 30000); // 30 seconds timeout
         
         try {
@@ -88,6 +93,7 @@ const IntegrationsPage = () => {
           console.log("State param:", urlParams.get('state'));
           console.log("Error param:", urlParams.get('error'));
           
+          // Clean URL before processing to avoid double-processing
           const cleanUrl = window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
           
@@ -98,6 +104,7 @@ const IntegrationsPage = () => {
             
             if (fetchGoogleAdsAccounts) {
               try {
+                console.log("Fetching Google Ads accounts after successful authentication");
                 const accounts = await fetchGoogleAdsAccounts();
                 console.log("Fetched Google Ads accounts:", accounts);
                 
@@ -108,11 +115,12 @@ const IntegrationsPage = () => {
                 }
               } catch (accountsError) {
                 console.error("Error fetching Google Ads accounts:", accountsError);
+                toast.error("Connected to Google but failed to fetch accounts");
               }
             }
           } else {
             setAuthError("Failed to process authentication. Please try again.");
-            console.error("OAuth callback processing failed");
+            console.error("OAuth callback processing failed without error");
           }
         } catch (error) {
           console.error("Error processing OAuth callback:", error);

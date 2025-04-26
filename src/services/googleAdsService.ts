@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
@@ -30,10 +31,15 @@ interface GoogleAdsMetricsResponse {
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     console.log("Checking Google Ads authentication validity...");
-    const { data: tokenData } = await supabase
+    const { data: tokenData, error } = await supabase
       .from('google_ads_tokens')
       .select('access_token, expires_at')
       .single();
+    
+    if (error) {
+      console.error("Error fetching Google Ads token:", error);
+      return false;
+    }
     
     if (!tokenData?.access_token) {
       console.log("No access token found");
@@ -60,16 +66,30 @@ export const initiateGoogleAuth = async (): Promise<{ url: string }> => {
   try {
     console.log("Initiating Google Auth process");
     
+    // Add a timestamp to help with debugging
+    const requestStartTime = new Date().toISOString();
+    console.log(`Auth request started at: ${requestStartTime}`);
+    
     const { data, error } = await supabase.functions.invoke('google-ads', {
-      body: { action: "auth" }
+      body: { 
+        action: "auth",
+        timestamp: requestStartTime 
+      }
     });
     
-    if (error || !data?.url) {
-      console.error("Failed to get auth URL:", error || "No URL returned");
-      throw new Error(error?.message || "Failed to get authentication URL");
+    if (error) {
+      console.error("Failed to get auth URL:", error);
+      throw new Error(`Failed to get authentication URL: ${error.message || error}`);
     }
     
-    console.log("Redirecting to Google Auth URL:", data.url);
+    if (!data?.url) {
+      console.error("No URL returned from edge function");
+      throw new Error("No authentication URL was returned from the server");
+    }
+    
+    console.log("Successfully generated Google Auth URL:", data.url);
+    
+    // Perform the actual redirect
     window.location.href = data.url;
     return { url: data.url };
   } catch (error) {
@@ -83,26 +103,34 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
     console.log("Processing OAuth callback");
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const error = urlParams.get('error');
+    
+    if (error) {
+      console.error("OAuth error returned:", error);
+      throw new Error(`Google returned an error: ${error}`);
+    }
     
     if (!code) {
       console.error("No authorization code found in URL");
       return false;
     }
     
-    const { data, error } = await supabase.functions.invoke('google-ads', {
+    console.log("OAuth code received, exchanging for token");
+    
+    const { data, error: callbackError } = await supabase.functions.invoke('google-ads', {
       body: { 
         action: "callback",
         code 
       }
     });
     
-    if (error) {
-      console.error("Error processing OAuth callback:", error);
-      throw error;
+    if (callbackError) {
+      console.error("Error processing OAuth callback:", callbackError);
+      throw callbackError;
     }
     
     if (!data || !data.success) {
-      console.error("Failed to process OAuth callback:", data?.message);
+      console.error("Failed to process OAuth callback:", data?.message || "Unknown error");
       return false;
     }
     
