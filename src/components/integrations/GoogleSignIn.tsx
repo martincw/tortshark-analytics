@@ -15,7 +15,6 @@ import {
 } from "@/services/googleAdsService";
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { useGoogleLogin } from '@react-oauth/google';
 
 interface GoogleSignInProps {
   onSuccess: (credentials: { customerId: string; developerToken: string }) => void;
@@ -35,6 +34,9 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   const { fetchGoogleAdsAccounts } = useCampaign();
   const [authError, setAuthError] = useState<string | null>(null);
   const callbackProcessed = useRef(false);
+  
+  // Add timeout state for loading state
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -55,6 +57,10 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     
     return () => {
       subscription.unsubscribe();
+      // Clear any pending timeouts when component unmounts
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
     };
   }, []);
 
@@ -66,6 +72,15 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         callbackProcessed.current = true;
         setIsSigningIn(true);
         setAuthError(null);
+        
+        // Set a timeout to prevent endless loading
+        const timeout = setTimeout(() => {
+          setIsSigningIn(false);
+          setAuthError("Connection timed out. Please try again.");
+          toast.error("Connection timed out");
+        }, 30000); // 30 seconds timeout
+        
+        setLoadingTimeout(timeout);
         
         try {
           // Clear URL parameters immediately to prevent reprocessing
@@ -104,6 +119,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
           setAuthError(error.message || "Failed to complete Google authentication");
           toast.error("Failed to complete Google authentication");
         } finally {
+          if (loadingTimeout) clearTimeout(loadingTimeout);
           setIsSigningIn(false);
         }
       }
@@ -115,13 +131,22 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
   useEffect(() => {
     const checkExistingAuth = async () => {
       setIsCheckingCredentials(true);
+      
+      // Set a timeout to prevent endless loading
+      const timeout = setTimeout(() => {
+        setIsCheckingCredentials(false);
+        console.log("Credentials check timed out");
+      }, 10000); // 10 seconds timeout
+      
+      setLoadingTimeout(timeout);
+      
       try {
         console.log("Checking if Google Auth is already valid...");
         if (await isGoogleAuthValid()) {
           console.log("Google Auth is valid, getting credentials...");
           const credentials = await getGoogleAdsCredentials();
           if (credentials) {
-            console.log("Retrieved credentials successfully:", credentials.source);
+            console.log("Retrieved credentials successfully");
             toast.success("Already signed in with Google");
             onSuccess({
               customerId: credentials.customerId,
@@ -138,6 +163,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
         console.error("Error checking existing auth:", error);
         setAuthError("Error checking your Google connection status. Please try reconnecting.");
       } finally {
+        if (loadingTimeout) clearTimeout(loadingTimeout);
         setIsCheckingCredentials(false);
       }
     };
@@ -149,54 +175,18 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
     }
   }, [onSuccess, isLoggedIn]);
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (response) => {
-      setIsSigningIn(true);
-      setAuthError(null);
-      
-      try {
-        localStorage.setItem("googleAds_access_token", response.access_token);
-        
-        const credentials = await getGoogleAdsCredentials();
-        if (credentials) {
-          toast.success("Successfully signed in with Google");
-          
-          try {
-            await fetchGoogleAdsAccounts();
-            toast.success("Google Ads accounts imported successfully");
-          } catch (importError) {
-            console.error("Error importing Google Ads accounts:", importError);
-            toast.error("Failed to import Google Ads accounts");
-          }
-          
-          onSuccess({
-            customerId: credentials.customerId,
-            developerToken: credentials.developerToken
-          });
-        } else {
-          toast.error("Failed to get Google Ads credentials");
-          setAuthError("Received access token but couldn't retrieve Google Ads account details.");
-        }
-      } catch (error) {
-        console.error("Google Sign-In error:", error);
-        setAuthError(error.message || "Failed to sign in with Google");
-        toast.error("Failed to sign in with Google");
-      } finally {
-        setIsSigningIn(false);
-      }
-    },
-    onError: (error) => {
-      console.error("Google Sign-In error:", error);
-      setAuthError("Failed to sign in with Google");
-      toast.error("Failed to sign in with Google");
-    },
-    scope: 'https://www.googleapis.com/auth/adwords',
-    flow: 'implicit'
-  });
-
   const handleServerSideAuth = async () => {
     setIsSigningIn(true);
     setAuthError(null);
+    
+    // Set a timeout to prevent endless loading
+    const timeout = setTimeout(() => {
+      setIsSigningIn(false);
+      setAuthError("Connection timed out. Please try again.");
+      toast.error("Connection timed out");
+    }, 30000); // 30 seconds timeout
+    
+    setLoadingTimeout(timeout);
     
     try {
       console.log("Initiating Google Auth flow");
@@ -213,6 +203,8 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       setAuthError(error.message || "Failed to initiate Google authentication");
       toast.error("Failed to initiate Google authentication");
       setIsSigningIn(false);
+      
+      if (loadingTimeout) clearTimeout(loadingTimeout);
     }
   };
 
@@ -222,7 +214,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({
       return;
     }
     
-    // Use server-side OAuth flow for better reliability
+    // Use server-side OAuth flow
     handleServerSideAuth();
   };
 

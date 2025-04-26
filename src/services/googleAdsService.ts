@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
@@ -6,7 +7,6 @@ interface GoogleAdsCredentials {
   customerId: string;
   developerToken: string;
   userEmail?: string;
-  source?: string;
 }
 
 interface GoogleAdsAccount {
@@ -22,9 +22,9 @@ interface GoogleAdsMetricsResponse {
   adSpend: number;
   ctr: number;
   cpc: number;
-  cpl: number; // Added the cpl property to match GoogleAdsMetrics
+  cpl: number; 
   date: string;
-  conversions?: number; // Optional for transformation
+  conversions?: number;
 }
 
 // Authentication functions
@@ -120,20 +120,7 @@ export const handleOAuthCallback = async (): Promise<boolean> => {
 
 export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | null> => {
   try {
-    // First check for demo mode
-    const isDemoMode = true; // For now, always return demo credentials
-    
-    if (isDemoMode) {
-      console.log("Using demo credentials for Google Ads");
-      return {
-        customerId: "1234567890",
-        developerToken: "demo_token",
-        userEmail: "demo@example.com",
-        source: "demo"
-      };
-    }
-    
-    // In a real implementation, we would fetch the credentials from the database
+    // Get real credentials from the database
     const { data, error } = await supabase
       .from('google_ads_tokens')
       .select('refresh_token, access_token, email')
@@ -148,12 +135,21 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
       console.error("No access token found in database");
       return null;
     }
+
+    // Get the developer token from environment variables via edge function
+    const { data: tokenData, error: tokenError } = await supabase.functions.invoke('google-ads', {
+      body: { action: "get-developer-token" }
+    });
+
+    if (tokenError || !tokenData || !tokenData.developerToken) {
+      console.error("Error getting developer token:", tokenError);
+      return null;
+    }
     
     return {
-      customerId: "1234567890", // This would come from the database in a real implementation
-      developerToken: "demo_token", // This would be stored securely
-      userEmail: data.email,
-      source: "database"
+      customerId: data.customer_id || "", // This will be set when user selects an account
+      developerToken: tokenData.developerToken,
+      userEmail: data.email
     };
   } catch (error) {
     console.error("Error in getGoogleAdsCredentials:", error);
@@ -163,11 +159,18 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
 
 export const validateGoogleToken = async (): Promise<boolean> => {
   try {
-    // In a real implementation, we would validate the token with Google
-    // For now, just return true
-    return true;
+    const { data, error } = await supabase.functions.invoke('google-ads', {
+      body: { action: "validate" }
+    });
+    
+    if (error) {
+      console.error("Error validating Google token:", error);
+      return false;
+    }
+    
+    return data?.valid || false;
   } catch (error) {
-    console.error("Error validating Google token:", error);
+    console.error("Error in validateGoogleToken:", error);
     return false;
   }
 };
@@ -195,18 +198,25 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
   try {
     console.log("Revoking Google access");
     
-    // In a real implementation, we would call Google to revoke the token
-    // and then delete it from our database
+    // Call edge function to revoke access with Google
+    const { data, error } = await supabase.functions.invoke('google-ads', {
+      body: { action: "revoke" }
+    });
+    
+    if (error) {
+      console.error("Error revoking Google access:", error);
+      throw error;
+    }
     
     // Delete the token from the database
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('google_ads_tokens')
       .delete()
       .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '');
       
-    if (error) {
-      console.error("Error revoking Google access:", error);
-      throw error;
+    if (deleteError) {
+      console.error("Error deleting token from database:", deleteError);
+      throw deleteError;
     }
     
     console.log("Successfully revoked Google access");
@@ -274,48 +284,29 @@ export const fetchGoogleAdsMetrics = async (
   try {
     console.log(`Fetching Google Ads metrics for account ${accountId} from ${dateRange.startDate} to ${dateRange.endDate}`);
     
-    // For demo purposes, return some mock metrics
-    // In a real implementation, this would call the Google Ads API
+    // Call edge function to get real metrics from Google Ads API
+    const { data, error } = await supabase.functions.invoke('google-ads-data', {
+      body: { 
+        action: "get-metrics",
+        customerId: accountId,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      }
+    });
     
-    // Generate data for each day in the date range
-    const metrics: GoogleAdsMetricsResponse[] = [];
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    
-    // Ensure dates are valid
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      console.error("Invalid date range:", dateRange);
+    if (error) {
+      console.error("Error fetching Google Ads metrics:", error);
       return [];
     }
     
-    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-      // Generate random metrics for this day
-      const impressions = Math.floor(Math.random() * 1000) + 100;
-      const clicks = Math.floor(Math.random() * 100) + 10;
-      const adSpend = Math.random() * 100 + 10;
-      const ctr = (clicks / impressions) * 100;
-      const cpc = adSpend / clicks;
-      
-      // Add cpl to match the GoogleAdsMetrics type
-      const conversions = Math.floor(Math.random() * clicks * 0.2) + 1; // Estimate conversions as ~20% of clicks
-      const cpl = adSpend / conversions;
-      
-      metrics.push({
-        impressions,
-        clicks,
-        adSpend,
-        ctr,
-        cpc,
-        cpl,
-        conversions,
-        date: date.toISOString().split('T')[0]
-      });
+    if (!data || !data.metrics || !Array.isArray(data.metrics)) {
+      console.error("Invalid metrics data returned:", data);
+      return [];
     }
     
-    console.log(`Generated metrics for ${metrics.length} days`);
-    return metrics;
+    return data.metrics;
   } catch (error) {
-    console.error("Error fetching Google Ads metrics:", error);
+    console.error("Error in fetchGoogleAdsMetrics:", error);
     return [];
   }
 };

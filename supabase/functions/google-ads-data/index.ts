@@ -18,10 +18,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
     const { data: tokens, error: tokensError } = await supabase
-      .from("user_oauth_tokens")
+      .from("google_ads_tokens")
       .select("access_token, refresh_token, expires_at")
       .eq("user_id", userId)
-      .eq("provider", "google")
       .maybeSingle();
     
     if (tokensError) {
@@ -39,7 +38,7 @@ async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string;
       const refreshedTokens = await refreshGoogleToken(tokens.refresh_token);
       
       await supabase
-        .from("user_oauth_tokens")
+        .from("google_ads_tokens")
         .update({
           access_token: refreshedTokens.access_token,
           expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),

@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -136,7 +137,6 @@ serve(async (req) => {
             if (userInfoResponse.ok) {
               const userInfo = await userInfoResponse.json();
               userEmail = userInfo.email;
-              // Save to local storage via returned data
             }
           } catch (userInfoErr) {
             console.warn("Could not fetch user email:", userInfoErr);
@@ -182,11 +182,15 @@ serve(async (req) => {
           grant_type: "refresh_token"
         });
         
+        if (!access_token) {
+          throw new Error("Failed to get access token");
+        }
+        
         console.log("Fetching accessible Google Ads accounts...");
         
         // First, get list of accessible customer IDs
         const accountsResp = await fetch(
-          "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
+          "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
           {
             headers: {
               Authorization: `Bearer ${access_token}`,
@@ -202,158 +206,93 @@ serve(async (req) => {
         }
         
         const { resourceNames } = await accountsResp.json();
-        console.log(`Found ${resourceNames?.length || 0} accessible accounts`);
         
-        if (!resourceNames || resourceNames.length === 0) {
-          return new Response(JSON.stringify({ 
-            success: true, 
-            accounts: [],
-            message: "No accessible Google Ads accounts found" 
-          }), {
+        if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
+          console.log("No accessible accounts found");
+          return new Response(JSON.stringify({ success: true, accounts: [] }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
         
-        // Extract customer IDs and fetch details for each
-        const customerIds = resourceNames.map((name: string) => name.replace('customers/', ''));
-        const accounts = [];
+        console.log(`Found ${resourceNames.length} accessible accounts`);
         
-        for (const customerId of customerIds) {
-          try {
-            const detailsResp = await fetch(
-              `https://googleads.googleapis.com/v14/customers/${customerId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${access_token}`,
-                  "developer-token": DEVELOPER_TOKEN
+        // Extract customer IDs from resource names (format: 'customers/1234567890')
+        const customerIds = resourceNames.map((name: string) => name.split('/')[1]);
+        
+        // Now fetch details for each customer ID
+        const accounts = await Promise.all(
+          customerIds.map(async (customerId: string) => {
+            try {
+              const customerResp = await fetch(
+                `https://googleads.googleapis.com/v16/customers/${customerId}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${access_token}`,
+                    "developer-token": DEVELOPER_TOKEN
+                  }
                 }
+              );
+              
+              if (!customerResp.ok) {
+                console.error(`Failed to fetch details for customer ${customerId}`);
+                return {
+                  id: customerId,
+                  customerId: customerId,
+                  name: `Account ${customerId}`,
+                  status: "UNKNOWN"
+                };
               }
-            );
-            
-            if (detailsResp.ok) {
-              const details = await detailsResp.json();
-              accounts.push({
+              
+              const customerData = await customerResp.json();
+              
+              return {
                 id: customerId,
-                name: details.customer?.descriptiveName || `Account ${customerId}`,
                 customerId: customerId,
-                status: details.customer?.status || "UNKNOWN"
-              });
-            } else {
-              console.warn(`Could not fetch details for account ${customerId}`);
-              // Still include the account with basic info
-              accounts.push({
-                id: customerId,
-                name: `Account ${customerId}`,
-                customerId: customerId,
-                status: "UNKNOWN"
-              });
+                name: customerData.customer?.descriptiveName || `Account ${customerId}`,
+                status: customerData.customer?.status || "ENABLED"
+              };
+            } catch (error) {
+              console.error(`Error fetching details for customer ${customerId}:`, error);
+              return null;
             }
-          } catch (error) {
-            console.error(`Error fetching details for account ${customerId}:`, error);
+          })
+        );
+        
+        // Filter out null values (failed requests)
+        const validAccounts = accounts.filter((account: any) => account !== null);
+        
+        // Save accounts to database
+        for (const account of validAccounts) {
+          try {
+            await supabase.from("account_connections").upsert({
+              id: account.id,
+              user_id: user.id,
+              platform: "google",
+              name: account.name,
+              customer_id: account.customerId,
+              is_connected: true,
+              last_synced: new Date().toISOString()
+            });
+          } catch (dbError) {
+            console.error("Error saving account to database:", dbError);
           }
         }
         
-        return new Response(JSON.stringify({ 
-          success: true, 
-          accounts,
-          message: `Successfully fetched ${accounts.length} accounts` 
-        }), {
+        return new Response(JSON.stringify({ success: true, accounts: validAccounts }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
-
-      // ────────── Refresh the OAuth token ─────────────────────────
-      case "refresh": {
-        try {
-          const rt = await getRefreshToken();
-          const tokenData = await fetchToken({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            refresh_token: rt,
-            grant_type: "refresh_token"
-          });
-          
-          if (!tokenData.access_token) {
-            throw new Error("Failed to refresh access token");
-          }
-          
-          const now = new Date();
-          const expiresAt = new Date(now.getTime() + (tokenData.expires_in || 3600) * 1000);
-          
-          // Update the access token in the database
-          const { error: updateError } = await supabase
-            .from("google_ads_tokens")
-            .update({
-              access_token: tokenData.access_token,
-              expires_at: expiresAt.toISOString(),
-              updated_at: now.toISOString()
-            })
-            .eq("user_id", user.id);
-            
-          if (updateError) {
-            console.error("Error updating token:", updateError);
-            throw new Error(`Failed to update token: ${updateError.message}`);
-          }
-          
-          return new Response(JSON.stringify({
-            success: true,
-            message: "Token refreshed successfully"
-          }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        } catch (refreshError) {
-          console.error("Error refreshing token:", refreshError);
-          return new Response(JSON.stringify({
-            success: false,
-            error: refreshError.message || "Failed to refresh token"
-          }), { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        }
+      
+      // ───────── Get Developer Token ─────────────
+      case "get-developer-token": {
+        return new Response(JSON.stringify({ success: true, developerToken: DEVELOPER_TOKEN }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
       
-      // ────────── Validate the OAuth token ─────────────────────────
+      // ───────── Validate token ─────────────
       case "validate": {
         try {
-          // Attempt to get the user's tokens
-          const { data: tokenData, error: tokenError } = await supabase
-            .from("google_ads_tokens")
-            .select("access_token, refresh_token, expires_at")
-            .eq("user_id", user.id)
-            .single();
-            
-          if (tokenError || !tokenData) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: "No tokens found"
-            }), { 
-              status: 404,
-              headers: { ...corsHeaders, "Content-Type": "application/json" }
-            });
-          }
-          
-          // Check if the token is expired
-          const now = new Date();
-          const expiresAt = new Date(tokenData.expires_at);
-          const isExpired = now >= expiresAt;
-          
-          if (isExpired) {
-            // Token is expired, try to refresh it
-            if (!tokenData.refresh_token) {
-              return new Response(JSON.stringify({
-                success: false,
-                error: "Token expired and no refresh token available"
-              }), { 
-                status: 401,
-                headers: { ...corsHeaders, "Content-Type": "application/json" }
-              });
-            }
-            
-            // Will auto-refresh in the getRefreshToken and fetchToken flow below
-          }
-          
-          // Try a simple API call to validate the token
           const rt = await getRefreshToken();
           const { access_token } = await fetchToken({
             client_id: CLIENT_ID,
@@ -362,205 +301,129 @@ serve(async (req) => {
             grant_type: "refresh_token"
           });
           
-          // Make a simple API call to verify the token works
-          const testResp = await fetch(
-            "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
+          if (!access_token) {
+            return new Response(JSON.stringify({ success: false, valid: false }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+          }
+          
+          // Validate by calling a simple API endpoint
+          const validateResp = await fetch(
+            "https://www.googleapis.com/oauth2/v3/tokeninfo",
             {
+              method: "GET",
               headers: {
-                Authorization: `Bearer ${access_token}`,
-                "developer-token": DEVELOPER_TOKEN
+                Authorization: `Bearer ${access_token}`
               }
             }
           );
           
-          const isValid = testResp.ok;
-          
-          return new Response(JSON.stringify({
-            success: isValid,
-            message: isValid ? "Token is valid" : "Token validation failed"
-          }), {
+          const isValid = validateResp.ok;
+          return new Response(JSON.stringify({ success: true, valid: isValid }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
-        } catch (validationError) {
-          console.error("Error validating token:", validationError);
-          return new Response(JSON.stringify({
-            success: false,
-            error: validationError.message || "Failed to validate token"
-          }), { 
-            status: 500,
+        } catch (error) {
+          console.error("Token validation error:", error);
+          return new Response(JSON.stringify({ success: false, valid: false, error: error.message }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
       }
       
-      // ────────── Revoke the OAuth token ─────────────────────────
+      // ───────── Refresh token ─────────────
+      case "refresh": {
+        try {
+          const rt = await getRefreshToken();
+          const tokResponse = await fetchToken({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            refresh_token: rt,
+            grant_type: "refresh_token"
+          });
+          
+          if (!tokResponse.access_token) {
+            throw new Error("Failed to refresh token");
+          }
+          
+          const expiresAt = new Date(Date.now() + (tokResponse.expires_in || 3600) * 1000);
+          
+          // Update the token in the database
+          const { error: updateError } = await supabase
+            .from("google_ads_tokens")
+            .update({
+              access_token: tokResponse.access_token,
+              expires_at: expiresAt.toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq("user_id", user.id);
+            
+          if (updateError) {
+            console.error("Error updating token:", updateError);
+            throw new Error(`Failed to update token: ${updateError.message}`);
+          }
+          
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        } catch (error) {
+          console.error("Token refresh error:", error);
+          return new Response(JSON.stringify({ success: false, error: error.message }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      }
+      
+      // ───────── Revoke token ─────────────
       case "revoke": {
         try {
-          // Get the refresh token
-          const { data: tokenData, error: tokenError } = await supabase
+          const { data, error } = await supabase
             .from("google_ads_tokens")
-            .select("refresh_token")
+            .select("access_token")
             .eq("user_id", user.id)
             .single();
             
-          if (tokenError || !tokenData || !tokenData.refresh_token) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: "No tokens found to revoke"
-            }), { 
-              status: 404,
+          if (error || !data || !data.access_token) {
+            return new Response(JSON.stringify({ success: true, message: "No token to revoke" }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" }
             });
           }
           
           // Revoke the token with Google
           const revokeResp = await fetch(
-            `https://oauth2.googleapis.com/revoke?token=${tokenData.refresh_token}`,
+            `https://oauth2.googleapis.com/revoke?token=${data.access_token}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/x-www-form-urlencoded" }
             }
           );
           
-          // Whether the revoke was successful or not, delete the token from our database
-          const { error: deleteError } = await supabase
+          // Delete the token from our database
+          await supabase
             .from("google_ads_tokens")
             .delete()
             .eq("user_id", user.id);
             
-          if (deleteError) {
-            console.error("Error deleting token:", deleteError);
-          }
-          
-          return new Response(JSON.stringify({
-            success: true,
-            message: "Google Ads access revoked"
-          }), {
+          return new Response(JSON.stringify({ success: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
-        } catch (revokeError) {
-          console.error("Error revoking access:", revokeError);
-          return new Response(JSON.stringify({
-            success: false,
-            error: revokeError.message || "Failed to revoke access"
-          }), { 
-            status: 500,
+        } catch (error) {
+          console.error("Token revocation error:", error);
+          return new Response(JSON.stringify({ success: false, error: error.message }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
       }
-
-      // ──────── Fetch metrics with provided date range ──────────────
-      case "metrics": {
-        const { customer_id, start_date, end_date } = reqBody;
-
-        if (!customer_id) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: "customer_id is required"
-          }), { 
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        }
-        
-        const rt = await getRefreshToken();
-        const { access_token } = await fetchToken({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          refresh_token: rt,
-          grant_type: "refresh_token"
-        });
-        
-        // Determine date condition based on provided params or default to current date
-        let dateCondition = `segments.date = CURRENT_DATE`;
-        if (start_date && end_date) {
-          dateCondition = `segments.date BETWEEN '${start_date}' AND '${end_date}'`;
-        }
-        
-        const queryBody = {
-          query: `
-            SELECT
-              segments.date,
-              campaign.id,
-              campaign.name,
-              metrics.impressions,
-              metrics.clicks,
-              metrics.cost_micros,
-              metrics.ctr
-            FROM campaign
-            WHERE ${dateCondition}
-            ORDER BY segments.date ASC
-          `
-        };
-        
-        const resp = await fetch(
-          `https://googleads.googleapis.com/v14/customers/${customer_id}/googleAds:search`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-              "developer-token": DEVELOPER_TOKEN,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(queryBody)
-          }
-        );
-        
-        if (!resp.ok) {
-          const errorText = await resp.text();
-          throw new Error(`Failed to fetch metrics: ${resp.status} ${errorText}`);
-        }
-        
-        const data = await resp.json();
-        const results = data.results || [];
-        
-        // Format the results to match the expected format in our application
-        const metrics = results.map((item: any) => ({
-          date: item.segments?.date || '',
-          campaignId: item.campaign?.id || '',
-          campaignName: item.campaign?.name || '',
-          impressions: parseInt(item.metrics?.impressions || '0', 10),
-          clicks: parseInt(item.metrics?.clicks || '0', 10),
-          adSpend: parseInt(item.metrics?.cost_micros || '0', 10) / 1000000, // Convert micros to dollars
-          ctr: parseFloat(item.metrics?.ctr || '0') * 100, // Convert to percentage
-          cpc: parseFloat(item.metrics?.cost_micros || '0') / parseInt(item.metrics?.clicks || '1', 10) / 1000000,
-          cpl: 0 // This will be calculated on the frontend
-        }));
-        
-        return new Response(JSON.stringify({ 
-          success: true, 
-          metrics 
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
+      
       default:
-        return new Response(JSON.stringify({
-          success: false,
-          error: "Invalid action",
-          availableActions: [
-            "auth", 
-            "callback", 
-            "accounts", 
-            "metrics", 
-            "refresh", 
-            "validate", 
-            "revoke"
-          ]
-        }), { 
+        return new Response(JSON.stringify({ success: false, error: "Invalid action" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     }
-
-  } catch (err) {
-    console.error("Error processing request:", err);
-    return new Response(JSON.stringify({
-      success: false,
-      error: err.message || String(err)
-    }), { 
+  } catch (error) {
+    console.error("Error processing request:", error);
+    
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

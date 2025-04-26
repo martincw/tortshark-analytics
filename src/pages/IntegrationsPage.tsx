@@ -70,9 +70,16 @@ const IntegrationsPage = () => {
         setAuthError(null);
         setNetworkError(false);
         
+        // Set a timeout to prevent endless loading
+        const timeout = setTimeout(() => {
+          setIsProcessingOAuth(false);
+          setAuthError("OAuth processing timed out. Please try again.");
+        }, 30000); // 30 seconds timeout
+        
         try {
           if (!user) {
             setAuthError("You must be logged in to connect Google Ads");
+            clearTimeout(timeout);
             return;
           }
           
@@ -130,6 +137,7 @@ const IntegrationsPage = () => {
             });
           }
         } finally {
+          clearTimeout(timeout);
           setIsProcessingOAuth(false);
         }
       }

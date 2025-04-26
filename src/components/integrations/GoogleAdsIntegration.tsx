@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Link2, Unlink, RefreshCw, Mail, ExternalLink, Trash2 } from "lucide-react";
 import { 
   initiateGoogleAuth, 
@@ -39,6 +39,13 @@ const GoogleAdsIntegration: React.FC = () => {
       
       setIsChecking(true);
       setConnectionError(null);
+      
+      // Set a timeout to prevent endless loading
+      const timeout = setTimeout(() => {
+        setIsChecking(false);
+        setConnectionError("Connection check timed out. Please try again.");
+      }, 15000); // 15 seconds timeout
+      
       try {
         const connected = await isGoogleAuthValid();
         setIsConnected(connected);
@@ -53,6 +60,7 @@ const GoogleAdsIntegration: React.FC = () => {
         console.error("Error checking Google connection:", error);
         setConnectionError(error instanceof Error ? error.message : "Unknown error checking connection");
       } finally {
+        clearTimeout(timeout);
         setIsChecking(false);
       }
     };
@@ -63,21 +71,38 @@ const GoogleAdsIntegration: React.FC = () => {
   const handleConnect = async () => {
     setIsConnecting(true);
     setConnectionError(null);
+    
+    // Set a timeout to prevent endless loading
+    const timeout = setTimeout(() => {
+      setIsConnecting(false);
+      setConnectionError("Connection timed out. Please try again.");
+      toast.error("Connection timed out");
+    }, 30000); // 30 seconds timeout
+    
     try {
       console.log("Initiating Google Auth from integration page");
       localStorage.setItem("integration_debug_ts", new Date().toISOString());
       await initiateGoogleAuth();
+      // No need to set isConnecting to false here as we're redirecting
     } catch (error) {
       console.error("Error initiating Google auth:", error);
       setConnectionError(error instanceof Error ? error.message : "Unknown error connecting to Google Ads");
       toast.error("Failed to connect to Google Ads");
       setIsConnecting(false);
+      clearTimeout(timeout);
     }
   };
 
   const handleDisconnect = async () => {
     if (window.confirm("Are you sure you want to disconnect from Google Ads?")) {
       setIsDisconnecting(true);
+      
+      // Set a timeout to prevent endless loading
+      const timeout = setTimeout(() => {
+        setIsDisconnecting(false);
+        toast.error("Disconnect operation timed out. Please try again.");
+      }, 15000); // 15 seconds timeout
+      
       try {
         console.log("Initiating Google Ads disconnect");
         const success = await revokeGoogleAccess();
@@ -93,6 +118,7 @@ const GoogleAdsIntegration: React.FC = () => {
         console.error("Error disconnecting from Google Ads:", error);
         toast.error("Failed to disconnect from Google Ads");
       } finally {
+        clearTimeout(timeout);
         setIsDisconnecting(false);
       }
     }
@@ -100,6 +126,13 @@ const GoogleAdsIntegration: React.FC = () => {
 
   const handleRefreshToken = async () => {
     setIsRefreshing(true);
+    
+    // Set a timeout to prevent endless loading
+    const timeout = setTimeout(() => {
+      setIsRefreshing(false);
+      toast.error("Token refresh operation timed out. Please try again.");
+    }, 15000); // 15 seconds timeout
+    
     try {
       const success = await refreshGoogleToken();
       if (success) {
@@ -113,12 +146,20 @@ const GoogleAdsIntegration: React.FC = () => {
       console.error("Error refreshing Google Ads token:", error);
       toast.error("Failed to refresh Google Ads token");
     } finally {
+      clearTimeout(timeout);
       setIsRefreshing(false);
     }
   };
 
   const handleValidateToken = async () => {
     setIsRefreshing(true);
+    
+    // Set a timeout to prevent endless loading
+    const timeout = setTimeout(() => {
+      setIsRefreshing(false);
+      toast.error("Token validation operation timed out. Please try again.");
+    }, 15000); // 15 seconds timeout
+    
     try {
       const isValid = await validateGoogleToken();
       
@@ -137,6 +178,7 @@ const GoogleAdsIntegration: React.FC = () => {
       console.error("Error validating Google token:", error);
       toast.error("Failed to validate Google token");
     } finally {
+      clearTimeout(timeout);
       setIsRefreshing(false);
     }
   };
@@ -144,6 +186,13 @@ const GoogleAdsIntegration: React.FC = () => {
   const handleCleanupDummyAccounts = async () => {
     if (window.confirm("Are you sure you want to remove ALL Google Ads accounts? This action cannot be undone.")) {
       setIsCleaningUp(true);
+      
+      // Set a timeout to prevent endless loading
+      const timeout = setTimeout(() => {
+        setIsCleaningUp(false);
+        toast.error("Account cleanup operation timed out. Please try again.");
+      }, 15000); // 15 seconds timeout
+      
       try {
         console.log("Initiating cleanup of all accounts");
         const success = await cleanupAllAccounts();
@@ -162,6 +211,7 @@ const GoogleAdsIntegration: React.FC = () => {
         console.error("Error cleaning up accounts:", error);
         toast.error("Failed to clean up accounts");
       } finally {
+        clearTimeout(timeout);
         setIsCleaningUp(false);
       }
     }
@@ -245,8 +295,7 @@ const GoogleAdsIntegration: React.FC = () => {
                   <AlertDescription>
                     <p className="font-medium">API Access Issue</p>
                     <p className="text-sm mt-1">
-                      We're experiencing issues connecting to the Google Ads API. Temporary demo accounts are being used instead. 
-                      This usually happens when your Google Cloud project API access is still pending approval.
+                      We're experiencing issues connecting to the Google Ads API. This usually happens when your Google Cloud project API access is still pending approval.
                     </p>
                     <p className="text-xs mt-2 text-muted-foreground">
                       Error details: {connectionError}
