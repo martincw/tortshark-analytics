@@ -1,513 +1,380 @@
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
-const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
-const DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN")!;
-const SITE_URL = Deno.env.get("SITE_URL") || "";
-const REDIRECT_URI = `${SITE_URL}/integrations`;
+// Updated API version
+const GOOGLE_ADS_API_VERSION = "v18";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
+// CORS headers for browser requests
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, origin, x-requested-with',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    console.log("Handling CORS preflight request");
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const url = new URL(req.url);
-    
-    if (!CLIENT_ID || !CLIENT_SECRET || !DEVELOPER_TOKEN) {
-      console.error("Missing required environment variables:", {
-        hasClientId: !!CLIENT_ID,
-        hasClientSecret: !!CLIENT_SECRET,
-        hasDeveloperToken: !!DEVELOPER_TOKEN,
-        siteUrl: SITE_URL
-      });
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Server configuration error: Missing required credentials"
-      }), { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
+    // Create Supabase admin client for database operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
-    if (!SITE_URL) {
-      console.error("SITE_URL environment variable is not set");
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Server configuration error: SITE_URL not set"
-      }), { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-    
-    const authHeader = req.headers.get("Authorization")?.split(" ")[1] || "";
+    // Create regular Supabase client for auth
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_ANON_KEY") || "",
+    );
+
+    // Get JWT token from request header and verify user
+    const authHeader = req.headers.get('Authorization');
+    console.log("Authorization Header:", authHeader);
+
     if (!authHeader) {
-      console.error("No authorization header provided");
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Authentication required" 
-      }), { 
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-    
-    const { data: udata, error: authErr } = await supabase.auth.getUser(authHeader);
-    if (authErr) {
-      console.error("Auth error:", authErr);
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: `Authentication error: ${authErr.message}` 
-      }), { 
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-    
-    if (!udata || !udata.user) {
-      console.error("No user found in auth response");
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Authentication failed: No user found" 
-      }), { 
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-    
-    const user = udata.user;
-    console.log(`Request from user: ${user.id}`);
-
-    async function getRefreshToken() {
-      const { data, error } = await supabase
-        .from("google_ads_tokens")
-        .select("refresh_token")
-        .eq("user_id", user.id)
-        .single();
-      if (error) {
-        console.error("Error getting refresh token:", error);
-        throw new Error(`OAuth not completed yet: ${error.message}`);
-      }
-      if (!data || !data.refresh_token) {
-        throw new Error("No refresh token found for this user");
-      }
-      return data.refresh_token as string;
+      console.error("No authorization header present");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "No authorization header",
+          details: "Authorization header is missing" 
+        }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    async function fetchToken(params: Record<string, string>) {
+    // Verify user explicitly
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      console.error("Authentication error:", userError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Authentication failed",
+          details: userError?.message || "Unable to validate user" 
+        }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Parse request body
+    const requestData = await req.json();
+    const { action } = requestData;
+    
+    // Handle various actions
+    if (action === "auth") {
       try {
-        console.log(`Fetching token with params: ${JSON.stringify(params)}`);
-        const resp = await fetch("https://oauth2.googleapis.com/token", {
+        const redirectUri = `${Deno.env.get("SITE_URL")}/integrations`;
+        console.log("Starting auth process with redirect URI:", redirectUri);
+        
+        const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+        authUrl.searchParams.set("client_id", Deno.env.get("GOOGLE_CLIENT_ID") || "");
+        authUrl.searchParams.set("redirect_uri", redirectUri);
+        authUrl.searchParams.set("response_type", "code");
+        authUrl.searchParams.set("scope", "https://www.googleapis.com/auth/adwords");
+        authUrl.searchParams.set("access_type", "offline");
+        authUrl.searchParams.set("prompt", "consent");
+        authUrl.searchParams.set("state", requestData.state || "");
+        
+        return new Response(
+          JSON.stringify({ success: true, url: authUrl.toString() }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error creating auth URL:", error);
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to create authentication URL" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Handle callback (exchange code for tokens)
+    if (action === "callback" && requestData.code) {
+      try {
+        const code = requestData.code;
+        const redirectUri = `${Deno.env.get("SITE_URL")}/integrations`;
+        console.log("Processing callback with redirect URI:", redirectUri);
+        
+        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(params)
+          body: new URLSearchParams({
+            code,
+            client_id: Deno.env.get("GOOGLE_CLIENT_ID") || "",
+            client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET") || "",
+            redirect_uri: redirectUri,
+            grant_type: "authorization_code",
+          }),
         });
-        
-        if (!resp.ok) {
-          const errorText = await resp.text();
-          console.error(`Token fetch failed: ${resp.status} ${errorText}`);
-          throw new Error(`Token fetch failed: ${resp.status} ${errorText}`);
+
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error("Token exchange failed:", errorText);
+          throw new Error(`Token exchange failed: ${errorText}`);
         }
+
+        const tokens = await tokenResponse.json();
         
-        return resp.json() as Promise<{
-          access_token?: string,
-          refresh_token?: string,
-          error?: string,
-          expires_in?: number
-        }>;
-      } catch (err) {
-        console.error("Error fetching token:", err);
-        throw err;
+        // Use admin client to store tokens
+        const { error: dbError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .upsert({
+            user_id: user.id,
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+          });
+
+        if (dbError) {
+          console.error("Database error:", dbError);
+          throw new Error(`Failed to store tokens: ${dbError.message}`);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Callback processing error:", error);
+        return new Response(
+          JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Failed to process callback" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
-    const path = url.pathname.split('/').pop() || '';
-    const reqBody = req.method === 'POST' ? await req.json() : {};
-    console.log(`Processing request: ${path}, action: ${reqBody.action}`);
-    
-    const action = reqBody.action || '';
+    // Handle token validation
+    if (action === "validate") {
+      try {
+        const { data: tokens, error: tokensError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .select("expires_at")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-    switch (action) {
-      case "auth": {
-        console.log("Generating Google OAuth URL");
-        
-        const state = JSON.stringify({ 
-          userId: user.id,
-          timestamp: reqBody.timestamp || new Date().toISOString()
-        });
-        
-        const encodedRedirectUri = encodeURIComponent(REDIRECT_URI);
-        
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-          `client_id=${encodeURIComponent(CLIENT_ID)}` +
-          `&redirect_uri=${encodedRedirectUri}` +
-          `&response_type=code` +
-          `&scope=${encodeURIComponent("https://www.googleapis.com/auth/adwords")}` +
-          `&access_type=offline` +
-          `&prompt=consent` +
-          `&state=${encodeURIComponent(state)}`;
-        
-        console.log("Generated auth URL:", authUrl);
-        console.log("Redirect URI:", REDIRECT_URI);
-        
-        return new Response(JSON.stringify({ 
-          success: true, 
-          url: authUrl,
-          redirect_uri: REDIRECT_URI
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      case "callback": {
-        const { code } = reqBody;
-        if (!code) {
-          console.error("Missing authorization code in callback");
-          throw new Error("Missing authorization code");
+        if (tokensError) {
+          console.error("Token validation error:", tokensError);
+          throw new Error(`Failed to get tokens: ${tokensError.message}`);
         }
-        
-        console.log("Exchanging code for token");
-        try {
-          const tok = await fetchToken({
-            code,
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            redirect_uri: REDIRECT_URI,
-            grant_type: "authorization_code"
-          });
-          
-          if (!tok.refresh_token) {
-            console.error("No refresh_token in response:", tok);
-            throw new Error("No refresh_token returned; ensure offline access & prompt=consent");
-          }
-          
-          const now = new Date();
-          const expiresAt = new Date(now.getTime() + (tok.expires_in || 3600) * 1000);
-          
-          let userEmail = null;
-          if (tok.access_token) {
-            try {
-              console.log("Fetching user info from access token");
-              const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                headers: { Authorization: `Bearer ${tok.access_token}` }
-              });
-              
-              if (userInfoResponse.ok) {
-                const userInfo = await userInfoResponse.json();
-                userEmail = userInfo.email;
-                console.log("Retrieved user email:", userEmail);
-              } else {
-                console.warn("Failed to get user info:", await userInfoResponse.text());
-              }
-            } catch (userInfoErr) {
-              console.warn("Could not fetch user email:", userInfoErr);
-            }
-          }
-          
-          const { error: upsertError } = await supabase
-            .from("google_ads_tokens")
-            .upsert(
-              { 
-                user_id: user.id, 
-                refresh_token: tok.refresh_token,
-                access_token: tok.access_token,
-                expires_at: expiresAt.toISOString(),
-                scope: "https://www.googleapis.com/auth/adwords",
-                email: userEmail
-              },
-              { onConflict: "user_id" }
-            );
-            
-          if (upsertError) {
-            console.error("Error saving token:", upsertError);
-            throw new Error(`Failed to save refresh token: ${upsertError.message}`);
-          }
-          
-          console.log("Successfully saved tokens and completed OAuth flow");
-          
-          return new Response(JSON.stringify({ 
-            success: true, 
-            message: "Google Ads connected! Refresh token saved.",
-            userEmail
-          }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        } catch (error) {
-          console.error("Error processing OAuth callback:", error);
-          return new Response(JSON.stringify({ 
+
+        if (!tokens) {
+          return new Response(
+            JSON.stringify({ valid: false }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const isExpired = new Date(tokens.expires_at) <= new Date();
+        return new Response(
+          JSON.stringify({ valid: !isExpired }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Validation error:", error);
+        return new Response(
+          JSON.stringify({ 
             success: false, 
-            error: `Failed to exchange code for token: ${error.message}` 
-          }), { 
+            error: error instanceof Error ? error.message : "Failed to validate tokens"
+          }),
+          { 
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        }
+          }
+        );
       }
-
-      case "accounts": {
-        const rt = await getRefreshToken();
-        const { access_token } = await fetchToken({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          refresh_token: rt,
-          grant_type: "refresh_token"
-        });
+    }
+    
+    // Handle fetching accounts
+    if (action === "accounts") {
+      try {
+        // Get refresh token from database
+        const { data: tokens, error: tokensError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .select("access_token, refresh_token, expires_at")
+          .eq("user_id", user.id)
+          .maybeSingle();
         
-        if (!access_token) {
-          throw new Error("Failed to get access token");
+        if (tokensError || !tokens) {
+          console.error("Error fetching tokens:", tokensError);
+          throw new Error("No tokens found for user");
         }
         
-        console.log("Fetching accessible Google Ads accounts...");
+        // Check if token is expired and refresh if needed
+        let accessToken = tokens.access_token;
+        if (new Date(tokens.expires_at) <= new Date() && tokens.refresh_token) {
+          console.log("Access token expired, refreshing...");
+          
+          const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              client_id: Deno.env.get("GOOGLE_CLIENT_ID") || "",
+              client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET") || "",
+              refresh_token: tokens.refresh_token,
+              grant_type: "refresh_token",
+            }),
+          });
+          
+          if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            throw new Error(`Failed to refresh token: ${errorText}`);
+          }
+          
+          const newTokens = await tokenResponse.json();
+          accessToken = newTokens.access_token;
+          
+          // Update token in database
+          await supabaseAdmin
+            .from("google_ads_tokens")
+            .update({
+              access_token: accessToken,
+              expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+            })
+            .eq("user_id", user.id);
+        }
         
-        const accountsResp = await fetch(
-          "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
+        // Fetch accounts using the Google Ads API
+        console.log("Fetching accessible Google Ads accounts...");
+        const accountsResponse = await fetch(
+          `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
           {
             headers: {
-              Authorization: `Bearer ${access_token}`,
-              "developer-token": DEVELOPER_TOKEN
-            }
+              Authorization: `Bearer ${accessToken}`,
+              "developer-token": Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "",
+            },
           }
         );
         
-        if (!accountsResp.ok) {
-          const errorText = await accountsResp.text();
-          console.error("Failed to fetch accounts:", errorText);
-          throw new Error(`Failed to fetch accounts: ${accountsResp.status} ${errorText}`);
+        if (!accountsResponse.ok) {
+          const errorText = await accountsResponse.text();
+          throw new Error(`Failed to fetch accounts: ${errorText}`);
         }
         
-        const { resourceNames } = await accountsResp.json();
+        const { resourceNames } = await accountsResponse.json();
         
         if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
-          console.log("No accessible accounts found");
-          return new Response(JSON.stringify({ success: true, accounts: [] }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
+          return new Response(
+            JSON.stringify({ success: true, accounts: [] }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
         
-        console.log(`Found ${resourceNames.length} accessible accounts`);
-        
-        const customerIds = resourceNames.map((name: string) => name.split('/')[1]);
-        
+        // Extract customer IDs and get details
+        const customerIds = resourceNames.map(name => name.split('/')[1]);
         const accounts = await Promise.all(
-          customerIds.map(async (customerId: string) => {
+          customerIds.map(async customerId => {
             try {
-              const customerResp = await fetch(
-                `https://googleads.googleapis.com/v16/customers/${customerId}`,
+              // Fetch customer details
+              const customerResponse = await fetch(
+                `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
                 {
                   headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    "developer-token": DEVELOPER_TOKEN
-                  }
+                    Authorization: `Bearer ${accessToken}`,
+                    "developer-token": Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "",
+                  },
                 }
               );
               
-              if (!customerResp.ok) {
-                console.error(`Failed to fetch details for customer ${customerId}`);
+              if (!customerResponse.ok) {
+                console.warn(`Error fetching details for customer ${customerId}`);
                 return {
                   id: customerId,
-                  customerId: customerId,
                   name: `Account ${customerId}`,
-                  status: "UNKNOWN"
+                  customerId: customerId,
+                  status: "UNKNOWN",
+                  platform: "google"
                 };
               }
               
-              const customerData = await customerResp.json();
-              
+              const customerData = await customerResponse.json();
               return {
                 id: customerId,
-                customerId: customerId,
                 name: customerData.customer?.descriptiveName || `Account ${customerId}`,
-                status: customerData.customer?.status || "ENABLED"
+                customerId: customerId,
+                status: customerData.customer?.status || "ENABLED",
+                platform: "google"
               };
             } catch (error) {
-              console.error(`Error fetching details for customer ${customerId}:`, error);
+              console.error(`Error processing account ${customerId}:`, error);
               return null;
             }
           })
         );
         
-        const validAccounts = accounts.filter((account: any) => account !== null);
+        // Filter out null values and store accounts
+        const validAccounts = accounts.filter(account => account !== null);
         
+        // Store accounts in database
         for (const account of validAccounts) {
-          try {
-            await supabase.from("account_connections").upsert({
+          await supabaseAdmin
+            .from('account_connections')
+            .upsert({
               id: account.id,
               user_id: user.id,
-              platform: "google",
               name: account.name,
+              platform: 'google',
               customer_id: account.customerId,
               is_connected: true,
               last_synced: new Date().toISOString()
             });
-          } catch (dbError) {
-            console.error("Error saving account to database:", dbError);
-          }
         }
         
-        return new Response(JSON.stringify({ success: true, accounts: validAccounts }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      case "get-developer-token": {
-        return new Response(JSON.stringify({ success: true, developerToken: DEVELOPER_TOKEN }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      case "validate": {
-        try {
-          const rt = await getRefreshToken();
-          const { access_token } = await fetchToken({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            refresh_token: rt,
-            grant_type: "refresh_token"
-          });
-          
-          if (!access_token) {
-            return new Response(JSON.stringify({ success: false, valid: false }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" }
-            });
+        return new Response(
+          JSON.stringify({ success: true, accounts: validAccounts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error in accounts action:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error instanceof Error ? error.message : "Failed to fetch Google Ads accounts"
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           }
-          
-          const validateResp = await fetch(
-            "https://www.googleapis.com/oauth2/v3/tokeninfo",
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${access_token}`
-              }
-            }
-          );
-          
-          const isValid = validateResp.ok;
-          return new Response(JSON.stringify({ success: true, valid: isValid }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        } catch (error) {
-          console.error("Token validation error:", error);
-          return new Response(JSON.stringify({ success: false, valid: false, error: error.message }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        }
+        );
       }
-
-      case "refresh": {
-        try {
-          const rt = await getRefreshToken();
-          const tokResponse = await fetchToken({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            refresh_token: rt,
-            grant_type: "refresh_token"
-          });
-          
-          if (!tokResponse.access_token) {
-            throw new Error("Failed to refresh token");
-          }
-          
-          const expiresAt = new Date(Date.now() + (tokResponse.expires_in || 3600) * 1000);
-          
-          const { error: updateError } = await supabase
-            .from("google_ads_tokens")
-            .update({
-              access_token: tokResponse.access_token,
-              expires_at: expiresAt.toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq("user_id", user.id);
-            
-          if (updateError) {
-            console.error("Error updating token:", updateError);
-            throw new Error(`Failed to update token: ${updateError.message}`);
-          }
-          
-          return new Response(JSON.stringify({ success: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        } catch (error) {
-          console.error("Token refresh error:", error);
-          return new Response(JSON.stringify({ success: false, error: error.message }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        }
-      }
-
-      case "revoke": {
-        try {
-          const { data, error } = await supabase
-            .from("google_ads_tokens")
-            .select("access_token")
-            .eq("user_id", user.id)
-            .single();
-            
-          if (error || !data || !data.access_token) {
-            return new Response(JSON.stringify({ success: true, message: "No token to revoke" }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" }
-            });
-          }
-          
-          const revokeResp = await fetch(
-            `https://oauth2.googleapis.com/revoke?token=${data.access_token}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" }
-            }
-          );
-          
-          await supabase
-            .from("google_ads_tokens")
-            .delete()
-            .eq("user_id", user.id);
-            
-          return new Response(JSON.stringify({ success: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        } catch (error) {
-          console.error("Token revocation error:", error);
-          return new Response(JSON.stringify({ success: false, error: error.message }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          });
-        }
-      }
-
-      default:
-        console.error(`Invalid action requested: ${action}`);
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: "Invalid action" 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
     }
+
+    console.error("Invalid action requested:", action);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: `Invalid action: ${action}` 
+      }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
+    );
   } catch (error) {
-    console.error("Error in edge function:", error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message || "Internal server error",
-      details: error.stack
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    console.error("Unexpected error in edge function:", error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "Unexpected server error",
+        details: error instanceof Error ? error.message : "Unknown error" 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
+    );
   }
 });

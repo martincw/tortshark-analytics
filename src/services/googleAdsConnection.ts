@@ -63,7 +63,6 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
       body: { 
         action: "callback",
         code,
-        user_id: session.user.id
       }
     });
 
@@ -77,6 +76,9 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
       throw new Error(data?.error || "Failed to process authentication");
     }
 
+    // After successful OAuth, trigger account fetch
+    await fetchGoogleAdsAccounts();
+    
     await validateGoogleAdsConnection();
     return true;
   } catch (error) {
@@ -105,5 +107,33 @@ export const validateGoogleAdsConnection = async (): Promise<boolean> => {
   } catch (error) {
     console.error("Error validating Google Ads connection:", error);
     return false;
+  }
+};
+
+export const fetchGoogleAdsAccounts = async (): Promise<any[]> => {
+  try {
+    console.log("Fetching Google Ads accounts");
+
+    const { data, error } = await supabase.functions.invoke('google-ads', {
+      body: { action: "accounts" }
+    });
+
+    if (error) {
+      console.error("Error fetching Google Ads accounts:", error);
+      toast.error("Failed to fetch Google Ads accounts");
+      return [];
+    }
+
+    if (!data?.accounts) {
+      console.log("No accounts returned from API");
+      return [];
+    }
+
+    console.log(`Successfully fetched ${data.accounts.length} Google Ads accounts`);
+    return data.accounts;
+  } catch (error) {
+    console.error("Error in fetchGoogleAdsAccounts:", error);
+    toast.error("Failed to fetch Google Ads accounts");
+    return [];
   }
 };

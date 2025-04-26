@@ -6,6 +6,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
+// Updated API version
+const GOOGLE_ADS_API_VERSION = "v18";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -16,10 +19,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function getGoogleToken(userId: string) {
   const { data: tokens, error } = await supabase
-    .from("user_oauth_tokens")
+    .from("google_ads_tokens")
     .select("access_token")
     .eq("user_id", userId)
-    .eq("provider", "google")
     .single();
 
   if (error || !tokens?.access_token) {
@@ -32,7 +34,7 @@ async function getGoogleToken(userId: string) {
 async function fetchCampaignsForAccount(accessToken: string, customerId: string) {
   try {
     const response = await fetch(
-      `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`,
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:search`,
       {
         method: "POST",
         headers: {

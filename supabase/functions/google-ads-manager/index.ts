@@ -8,6 +8,9 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
+// Updated API version from v16 to v18
+const GOOGLE_ADS_API_VERSION = "v18";
+
 // CORS headers for browser requests
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,10 +62,9 @@ async function getAccessToken(refreshToken: string): Promise<string> {
 async function getTokens(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
     const { data: tokens, error } = await supabase
-      .from("user_oauth_tokens")
+      .from("google_ads_tokens")
       .select("access_token, refresh_token, expires_at")
       .eq("user_id", userId)
-      .eq("provider", "google")
       .maybeSingle();
     
     if (error) {
@@ -81,7 +83,7 @@ async function getTokens(userId: string): Promise<{ accessToken: string; refresh
       
       // Update stored token
       await supabase
-        .from("user_oauth_tokens")
+        .from("google_ads_tokens")
         .update({
           access_token: newTokens,
           expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
@@ -106,15 +108,15 @@ async function getTokens(userId: string): Promise<{ accessToken: string; refresh
 }
 
 /**
- * List Google Ads accounts using v16 API
+ * List Google Ads accounts using updated API version
  */
 async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
   try {
-    console.log("Listing Google Ads accounts using API version v16");
+    console.log(`Listing Google Ads accounts using API version ${GOOGLE_ADS_API_VERSION}`);
     
-    // Try Google Ads API with v16
+    // Try Google Ads API with updated version
     const listCustomersResponse = await fetch(
-      "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
       {
         method: "GET",
         headers: {
@@ -147,7 +149,7 @@ async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
       customerIds.map(async (customerId) => {
         try {
           const customerResponse = await fetch(
-            `https://googleads.googleapis.com/v16/customers/${customerId}`,
+            `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
             {
               method: "GET",
               headers: {
@@ -324,7 +326,7 @@ serve(async (req) => {
     // Handle listing accounts with direct access token
     if (action === "list-accounts" && accessToken) {
       try {
-        // Use v16 (most stable currently)
+        // Use updated version
         const accounts = await listGoogleAdsAccounts(accessToken);
           
         // Store accounts in database
@@ -354,7 +356,7 @@ serve(async (req) => {
       try {
         const accessToken = await getAccessToken(refreshToken);
         
-        // Use v16
+        // Use updated version
         const accounts = await listGoogleAdsAccounts(accessToken);
           
         // Store accounts in database
