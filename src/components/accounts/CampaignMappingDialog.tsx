@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Dialog, 
@@ -24,7 +25,7 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Link2 } from "lucide-react";
+import { AlertCircle, Loader2, Link2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { fetchGoogleAdsCampaignsForAccount, mapGoogleAdsCampaignToTortshark } from "@/services/googleAdsConnection";
 import { useCampaign } from "@/contexts/CampaignContext";
