@@ -25,7 +25,7 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Link2, XCircle } from "lucide-react";
+import { AlertCircle, Loader2, Link2, XCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { fetchGoogleAdsCampaignsForAccount, mapGoogleAdsCampaignToTortshark } from "@/services/googleAdsConnection";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -53,6 +53,7 @@ export function CampaignMappingDialog({
   const [mappings, setMappings] = useState<any[]>([]);
   const [isCreatingMapping, setIsCreatingMapping] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { accountConnections } = useCampaign();
   
   const account = accountConnections.find(acc => acc.customerId === accountId);
@@ -83,8 +84,20 @@ export function CampaignMappingDialog({
       }
     } catch (error) {
       console.error("Failed to fetch Google Ads campaigns:", error);
-      setFetchError(`Could not load Google Ads campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      toast.error("Could not load Google Ads campaigns");
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Unknown error';
+      
+      // More descriptive error messages
+      let userFriendlyError = "Could not load Google Ads campaigns.";
+      if (errorMessage.includes("token")) {
+        userFriendlyError = "Authentication issue: Google Ads token is invalid or expired. Try reconnecting your Google Ads account.";
+      } else if (errorMessage.includes("Developer Token")) {
+        userFriendlyError = "Configuration issue: Google Ads Developer Token is not configured properly.";
+      }
+      
+      setFetchError(`${userFriendlyError} Technical details: ${errorMessage}`);
+      toast.error(userFriendlyError);
     } finally {
       setIsLoading(false);
     }
@@ -149,7 +162,8 @@ export function CampaignMappingDialog({
       }
     } catch (error) {
       console.error("Error creating mapping:", error);
-      toast.error("Failed to create campaign mapping");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to create campaign mapping: ${errorMessage}`);
     } finally {
       setIsCreatingMapping(false);
     }
@@ -171,11 +185,36 @@ export function CampaignMappingDialog({
     }
   };
 
+  const handleRefreshCampaigns = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadGoogleCampaigns();
+      toast.success("Google Ads campaigns refreshed");
+    } catch (error) {
+      console.error("Error refreshing campaigns:", error);
+      toast.error("Failed to refresh campaigns");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Map Campaigns for {account?.name || "Google Ads Account"}</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Map Campaigns for {account?.name || "Google Ads Account"}</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-auto" 
+              onClick={handleRefreshCampaigns}
+              disabled={isRefreshing || isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "Refreshing..." : "Refresh Campaigns"}
+            </Button>
+          </DialogTitle>
           <DialogDescription>
             Connect your Google Ads campaigns to your Tortshark campaigns to track performance and manage budgets
           </DialogDescription>
@@ -277,11 +316,21 @@ export function CampaignMappingDialog({
               )}
             </div>
             
-            {googleCampaigns.length === 0 && (
+            {fetchError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {fetchError || "No Google Ads campaigns found for this account. Make sure you have campaigns created in Google Ads."}
+                <AlertDescription className="space-y-2">
+                  <p className="font-medium">Error loading Google Ads campaigns</p>
+                  <p className="text-sm">{fetchError}</p>
+                  <div className="text-xs bg-destructive/10 p-2 rounded mt-2">
+                    <p className="font-medium">Troubleshooting steps:</p>
+                    <ol className="list-decimal list-inside mt-1">
+                      <li>Verify your Google Ads account connection is active</li>
+                      <li>Check if you have campaigns in this Google Ads account</li>
+                      <li>Try refreshing the campaigns using the refresh button</li>
+                      <li>Try reconnecting your Google Ads account from the Integrations page</li>
+                    </ol>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}

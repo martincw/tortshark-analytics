@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -143,6 +144,16 @@ export const fetchGoogleAdsCampaignsForAccount = async (customerId: string): Pro
       throw new Error("Customer ID is required");
     }
 
+    // Check for developer token existence first
+    const { data: developerTokenData, error: developerTokenError } = await supabase.functions.invoke('google-ads', {
+      body: { action: "get-developer-token" }
+    });
+
+    if (developerTokenError || !developerTokenData?.developerToken) {
+      console.error("Developer token check failed:", developerTokenError || "No developer token found");
+      throw new Error("Google Ads Developer Token is not configured. Please ensure it's set up in your environment.");
+    }
+
     const { data, error } = await supabase.functions.invoke("google-ads-mapping", {
       body: { 
         action: "list-available-campaigns",
@@ -155,6 +166,11 @@ export const fetchGoogleAdsCampaignsForAccount = async (customerId: string): Pro
       throw error;
     }
 
+    if (data.error) {
+      console.error("API returned an error:", data.error);
+      throw new Error(data.error);
+    }
+
     if (!data.campaigns) {
       console.log("No campaigns returned from API");
       return [];
@@ -164,6 +180,14 @@ export const fetchGoogleAdsCampaignsForAccount = async (customerId: string): Pro
     return data.campaigns;
   } catch (error) {
     console.error("Error in fetchGoogleAdsCampaignsForAccount:", error);
+    // More specific error handling
+    if (error instanceof Error) {
+      if (error.message.includes("token")) {
+        throw new Error("Authentication issue: Failed to get Google Ads token. Please reconnect your account.");
+      } else if (error.message.includes("Developer Token")) {
+        throw new Error("Configuration issue: Google Ads Developer Token is missing or invalid.");
+      }
+    }
     throw error;
   }
 };
@@ -193,11 +217,39 @@ export const mapGoogleAdsCampaignToTortshark = async (
       return false;
     }
 
+    if (data?.error) {
+      console.error("API returned an error:", data.error);
+      toast.error(`Failed to create mapping: ${data.error}`);
+      return false;
+    }
+
     toast.success("Campaign mapping created successfully");
     return true;
   } catch (error) {
     console.error("Error in mapGoogleAdsCampaignToTortshark:", error);
-    toast.error("Failed to create campaign mapping");
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    toast.error(`Failed to create campaign mapping: ${errorMessage}`);
+    return false;
+  }
+};
+
+export const refreshGoogleAdsToken = async (): Promise<boolean> => {
+  try {
+    console.log("Manually refreshing Google Ads token");
+    
+    const { data, error } = await supabase.functions.invoke('google-ads', {
+      body: { action: "refresh" }
+    });
+    
+    if (error || !data?.success) {
+      console.error("Error refreshing Google Ads token:", error || data?.error);
+      return false;
+    }
+    
+    console.log("Token refreshed successfully");
+    return true;
+  } catch (error) {
+    console.error("Error in refreshGoogleAdsToken:", error);
     return false;
   }
 };
