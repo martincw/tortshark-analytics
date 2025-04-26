@@ -22,22 +22,16 @@ serve(async (req) => {
 
     // Get JWT token from request header and verify user
     const authHeader = req.headers.get('Authorization');
+    console.log("Authorization Header:", authHeader); // Detailed logging
+
     if (!authHeader) {
       console.error("No authorization header present");
       return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      console.error("Authentication error:", userError);
-      return new Response(
-        JSON.stringify({ success: false, error: "Authentication failed" }),
+        JSON.stringify({ 
+          success: false, 
+          error: "No authorization header",
+          details: "Authorization header is missing" 
+        }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -57,6 +51,23 @@ serve(async (req) => {
           status: 500, 
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
+      );
+    }
+
+    // Verify user explicitly
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      console.error("Authentication error:", userError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Authentication failed",
+          details: userError?.message || "Unable to validate user" 
+        }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -210,14 +221,15 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in edge function:", error);
+    console.error("Unexpected error in edge function:", error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : "Unknown error" 
+        error: "Unexpected server error",
+        details: error instanceof Error ? error.message : "Unknown error" 
       }),
       { 
-        status: 500,
+        status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );

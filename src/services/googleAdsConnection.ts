@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -10,7 +9,7 @@ export const initiateGoogleAdsConnection = async () => {
       return { error: "No active session" };
     }
 
-    console.log("Starting Google Ads connection process");
+    console.log("Starting Google Ads connection process"); // Added logging
     
     const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { 
@@ -28,18 +27,22 @@ export const initiateGoogleAdsConnection = async () => {
 
     if (error) {
       console.error("Failed to initiate OAuth:", error);
+      toast.error(error.message || "Failed to start Google Ads connection");
       return { error: error.message || "Failed to start Google Ads connection" };
     }
 
     if (!data?.url) {
       console.error("No URL returned from edge function");
+      toast.error("No authentication URL returned");
       return { error: "No authentication URL returned" };
     }
 
     return { url: data.url };
   } catch (error) {
     console.error("Error in initiateGoogleAdsConnection:", error);
-    return { error: error instanceof Error ? error.message : "An unexpected error occurred" };
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    toast.error(errorMessage);
+    return { error: errorMessage };
   }
 };
 
