@@ -16,8 +16,12 @@ const GoogleAdsConnection: React.FC = () => {
   useEffect(() => {
     const checkConnection = async () => {
       if (user) {
-        const connected = await validateGoogleAdsConnection();
-        setIsConnected(connected);
+        try {
+          const connected = await validateGoogleAdsConnection();
+          setIsConnected(connected);
+        } catch (error) {
+          console.error("Error checking connection:", error);
+        }
       }
     };
 
