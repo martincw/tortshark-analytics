@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -14,15 +15,27 @@ serve(async (req) => {
   }
   
   try {
-    // Create Supabase client
-    const supabase = createClient(
+    // Create Supabase admin client for database operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    // Create regular Supabase client for auth
+    const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_ANON_KEY") || "",
     );
 
     // Get JWT token from request header and verify user
     const authHeader = req.headers.get('Authorization');
-    console.log("Authorization Header:", authHeader); // Detailed logging
+    console.log("Authorization Header:", authHeader);
 
     if (!authHeader) {
       console.error("No authorization header present");
@@ -36,26 +49,8 @@ serve(async (req) => {
       );
     }
 
-    // Validate required environment variables
-    const requiredEnvVars = ['SITE_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
-    const missingEnvVars = requiredEnvVars.filter(envVar => !Deno.env.get(envVar));
-    
-    if (missingEnvVars.length > 0) {
-      console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Configuration error: Missing ${missingEnvVars.join(', ')}` 
-        }), 
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
     // Verify user explicitly
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
 
@@ -128,8 +123,8 @@ serve(async (req) => {
 
         const tokens = await tokenResponse.json();
         
-        // Store tokens in database
-        const { error: dbError } = await supabase
+        // Use admin client to store tokens
+        const { error: dbError } = await supabaseAdmin
           .from("google_ads_tokens")
           .upsert({
             user_id: user.id,
@@ -159,7 +154,7 @@ serve(async (req) => {
     // Handle validation
     if (action === "validate") {
       try {
-        const { data: tokens, error: tokensError } = await supabase
+        const { data: tokens, error: tokensError } = await supabaseAdmin
           .from("google_ads_tokens")
           .select("expires_at")
           .eq("user_id", user.id)
