@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { initiateGoogleAdsConnection, validateGoogleAdsConnection } from "@/services/googleAdsConnection";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const GoogleAdsConnection: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -15,13 +16,16 @@ const GoogleAdsConnection: React.FC = () => {
 
   useEffect(() => {
     const checkConnection = async () => {
-      if (user) {
-        try {
-          const connected = await validateGoogleAdsConnection();
-          setIsConnected(connected);
-        } catch (error) {
-          console.error("Error checking connection:", error);
-        }
+      if (!user) return;
+      
+      try {
+        const connected = await validateGoogleAdsConnection();
+        setIsConnected(connected);
+      } catch (error) {
+        console.error("Error checking connection:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error checking connection";
+        setConnectionError(errorMessage);
+        toast.error(errorMessage);
       }
     };
 
@@ -30,7 +34,9 @@ const GoogleAdsConnection: React.FC = () => {
 
   const handleConnect = async () => {
     if (!user) {
-      setConnectionError("Please sign in first");
+      const errorMsg = "Please sign in first";
+      setConnectionError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
@@ -39,9 +45,15 @@ const GoogleAdsConnection: React.FC = () => {
 
     try {
       const { url } = await initiateGoogleAdsConnection();
+      if (!url) {
+        throw new Error("No authentication URL received");
+      }
       window.location.href = url;
     } catch (error) {
-      setConnectionError(error instanceof Error ? error.message : "Connection failed");
+      const errorMessage = error instanceof Error ? error.message : "Failed to connect to Google Ads";
+      setConnectionError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
       setIsConnecting(false);
     }
   };
