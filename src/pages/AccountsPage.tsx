@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { AccountConnection } from "@/types/campaign";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { Button } from "@/components/ui/button";
@@ -16,11 +15,6 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { 
-  getGoogleAdsCredentials, 
-  isGoogleAuthValid, 
-  listGoogleAdsAccounts
-} from "@/services/googleAdsService";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -37,31 +31,27 @@ const AccountsPage = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasInitiallyFetched, setHasInitiallyFetched] = useState(false);
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
   const [mappingAccountId, setMappingAccountId] = useState<string>("");
 
   useEffect(() => {
-    // Redirect to login if not authenticated
     if (!user) {
       navigate("/auth");
       return;
     }
 
-    // Check if Google auth is already valid
     const checkGoogleAuth = async () => {
+      const { isGoogleAuthValid } = await import("@/services/googleAdsService");
       const isValid = await isGoogleAuthValid();
       setIsGoogleConnected(isValid);
       
-      // If connected and we haven't fetched accounts yet, do it once
-      if (isValid && !hasInitiallyFetched) {
+      if (isValid && accountConnections.length === 0) {
         refreshAccounts();
-        setHasInitiallyFetched(true);
       }
     };
     
     checkGoogleAuth();
-  }, [user, hasInitiallyFetched, navigate]);
+  }, [user, navigate, accountConnections.length]);
   
   const refreshAccounts = async () => {
     setIsRefreshing(true);
@@ -94,7 +84,12 @@ const AccountsPage = () => {
   };
   
   const handleOpenMappingDialog = (accountId: string) => {
-    setMappingAccountId(accountId);
+    const account = accountConnections.find(acc => acc.id === accountId);
+    if (!account?.customerId) {
+      toast.error("Invalid account selected");
+      return;
+    }
+    setMappingAccountId(account.customerId);
     setIsMappingDialogOpen(true);
   };
 

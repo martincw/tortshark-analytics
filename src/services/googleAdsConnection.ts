@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -35,7 +34,6 @@ export const initiateGoogleAdsConnection = async () => {
       return { error: "No authentication URL returned" };
     }
 
-    // Store the current URL for redirect after auth
     localStorage.setItem('preAuthPath', '/integrations');
     
     return { url: data.url };
@@ -76,7 +74,6 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
       throw new Error(data?.error || "Failed to process authentication");
     }
 
-    // After successful OAuth, trigger account fetch
     await fetchGoogleAdsAccounts();
     
     await validateGoogleAdsConnection();
@@ -142,20 +139,16 @@ export const fetchGoogleAdsCampaignsForAccount = async (accountId: string): Prom
   try {
     console.log(`Fetching Google Ads campaigns for account ${accountId}`);
 
-    // Use the customer_id value instead of the id if it's an account_connections record
-    // This handles the difference between our internal IDs and Google's customer IDs
     const { data, error } = await supabase.functions.invoke('google-ads-mapping', {
       body: { 
         action: "list-available-campaigns",
-        googleAccountId: accountId,
-        useCustomerId: true  // Signal to the edge function that we might need to use customer_id
+        googleAccountId: accountId
       }
     });
 
     if (error) {
       console.error("Error fetching Google Ads campaigns:", error);
-      toast.error("Failed to fetch Google Ads campaigns");
-      return [];
+      throw new Error(error.message || "Failed to fetch Google Ads campaigns");
     }
 
     if (!data?.campaigns || !Array.isArray(data.campaigns)) {
@@ -167,8 +160,7 @@ export const fetchGoogleAdsCampaignsForAccount = async (accountId: string): Prom
     return data.campaigns;
   } catch (error) {
     console.error("Error in fetchGoogleAdsCampaignsForAccount:", error);
-    toast.error("Failed to fetch Google Ads campaigns");
-    return [];
+    throw error;
   }
 };
 

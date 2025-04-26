@@ -5,17 +5,16 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
-// CORS headers
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
-// Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function getGoogleToken(userId: string) {
+  console.log("Getting Google token for user:", userId);
+  
   try {
     const { data, error } = await supabase
       .from("google_ads_tokens")
@@ -23,17 +22,22 @@ async function getGoogleToken(userId: string) {
       .eq("user_id", userId)
       .maybeSingle();
     
-    if (error || !data || !data.access_token) {
-      console.error("Error getting Google token:", error);
+    if (error) {
+      console.error("Database error getting token:", error);
+      throw new Error("Failed to fetch Google Ads token");
+    }
+    
+    if (!data || !data.access_token) {
+      console.error("No token found for user:", userId);
       throw new Error("No Google Ads token found");
     }
     
-    // Check if token is expired and refresh if needed
-    if (new Date(data.expires_at) < new Date() && data.refresh_token) {
-      // Refresh token logic would go here
+    if (new Date(data.expires_at) < new Date()) {
       console.log("Token is expired, should refresh");
+      // Token refresh logic would go here
     }
     
+    console.log("Successfully retrieved Google token");
     return data.access_token;
   } catch (error) {
     console.error("Error in getGoogleToken:", error);
@@ -41,44 +45,11 @@ async function getGoogleToken(userId: string) {
   }
 }
 
-async function getActualCustomerId(userId: string, accountId: string): Promise<string> {
+async function listGoogleAdsCampaigns(accessToken: string, customerId: string) {
+  console.log(`Listing campaigns for customer ID: ${customerId}`);
+  
   try {
-    // Check if this is already a valid customer ID (numeric string)
-    if (/^\d+$/.test(accountId)) {
-      return accountId;
-    }
-    
-    // Otherwise, look up the customer_id from account_connections
-    const { data, error } = await supabase
-      .from("account_connections")
-      .select("customer_id")
-      .eq("id", accountId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    
-    if (error) {
-      console.error("Error getting customer ID:", error);
-      throw new Error("Error fetching account data");
-    }
-    
-    if (!data || !data.customer_id) {
-      throw new Error(`No customer ID found for account ${accountId}`);
-    }
-    
-    return data.customer_id;
-  } catch (error) {
-    console.error("Error in getActualCustomerId:", error);
-    throw error;
-  }
-}
-
-async function listGoogleCampaigns(accessToken: string, customerId: string) {
-  try {
-    console.log(`Listing Google Ads campaigns for customer ID: ${customerId}`);
-    
-    const apiVersion = "v16"; // Use appropriate version
-    const endpoint = `https://googleads.googleapis.com/${apiVersion}/customers/${customerId}/googleAds:search`;
-    
+    const endpoint = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
     const query = `
       SELECT
         campaign.id,
@@ -111,11 +82,14 @@ async function listGoogleCampaigns(accessToken: string, customerId: string) {
       return [];
     }
     
-    return data.results.map((result: any) => ({
+    const campaigns = data.results.map((result: any) => ({
       id: result.campaign.id,
       name: result.campaign.name,
       status: result.campaign.status
     }));
+    
+    console.log(`Successfully fetched ${campaigns.length} campaigns`);
+    return campaigns;
   } catch (error) {
     console.error("Error listing Google campaigns:", error);
     throw error;
@@ -185,61 +159,42 @@ async function createMapping(userId: string, data: any) {
 
 // Main serve function
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
   
   try {
-    // Get bearer token from authorization header
-    const authHeader = req.headers.get("Authorization") || "";
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Missing authorization header");
+    }
+    
     const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (userError || !user) {
+      console.error("Auth error:", userError);
+      throw new Error("Invalid authorization token");
     }
     
-    // Get user ID from token
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    console.log("Processing request for user:", user.id);
     
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid authorization token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    const userId = user.id;
-    
-    // Get request data
     const requestData = await req.json();
     const { action } = requestData;
     
-    // List available Google campaigns for account
     if (action === "list-available-campaigns") {
       try {
         const { googleAccountId } = requestData;
         
         if (!googleAccountId) {
-          return new Response(
-            JSON.stringify({ error: "Account ID is required" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          throw new Error("Account ID is required");
         }
         
         // Get access token from database
-        const accessToken = await getGoogleToken(userId);
-        
-        // Get the actual customer ID (which might be different from the account ID)
-        const customerId = await getActualCustomerId(userId, googleAccountId);
-        
-        console.log(`Using customer ID: ${customerId} for account ID: ${googleAccountId}`);
+        const accessToken = await getGoogleToken(user.id);
         
         // List campaigns
-        const campaigns = await listGoogleCampaigns(accessToken, customerId);
+        const campaigns = await listGoogleAdsCampaigns(accessToken, googleAccountId);
         
         return new Response(
           JSON.stringify({ campaigns }),
@@ -247,11 +202,10 @@ serve(async (req) => {
         );
       } catch (error) {
         console.error("Error listing available campaigns:", error);
-        
         return new Response(
           JSON.stringify({ 
             error: error instanceof Error ? error.message : "Failed to list campaigns",
-            campaigns: []
+            campaigns: [] 
           }),
           { 
             status: 500,
@@ -261,10 +215,9 @@ serve(async (req) => {
       }
     }
     
-    // Create mapping between Tortshark campaign and Google Ads campaign
     if (action === "create-mapping") {
       try {
-        const result = await createMapping(userId, requestData);
+        const result = await createMapping(user.id, requestData);
         
         return new Response(
           JSON.stringify(result),
@@ -288,11 +241,13 @@ serve(async (req) => {
     // If action is not recognized
     return new Response(
       JSON.stringify({ error: "Invalid action" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { 
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   } catch (error) {
     console.error("Unhandled error:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Internal server error" 

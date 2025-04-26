@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Dialog, 
@@ -56,7 +55,7 @@ export function CampaignMappingDialog({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { accountConnections } = useCampaign();
   
-  const account = accountConnections.find(acc => acc.id === accountId);
+  const account = accountConnections.find(acc => acc.customerId === accountId);
   
   useEffect(() => {
     if (isOpen && accountId && user) {
@@ -72,6 +71,7 @@ export function CampaignMappingDialog({
     setFetchError(null);
     
     try {
+      console.log("Fetching campaigns for account:", accountId);
       const campaigns = await fetchGoogleAdsCampaignsForAccount(accountId);
       setGoogleCampaigns(campaigns);
       
