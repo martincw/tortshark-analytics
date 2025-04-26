@@ -6,6 +6,7 @@ import { DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
+import { cn } from "@/lib/utils";
 
 interface FinancialStats {
   revenue: number;
@@ -82,28 +83,58 @@ const DashboardFinancialStats: React.FC = () => {
           <div className="py-8 text-center text-muted-foreground">Loading stats...</div>
         ) : stats ? (
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-accent/10 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+            <div 
+              className={cn(
+                "p-4 rounded-lg shadow-sm",
+                "bg-gradient-to-br from-sky-50 to-sky-100",
+                "hover:shadow-md transition-shadow duration-300"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1 text-sky-700 text-sm">
                 <Wallet className="h-4 w-4" />
                 Revenue
               </div>
-              <div className="text-xl font-bold">{formatCurrency(stats.revenue)}</div>
+              <div className="text-2xl font-bold text-sky-900">
+                {formatCurrency(stats.revenue)}
+              </div>
             </div>
             
-            <div className="bg-accent/10 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+            <div 
+              className={cn(
+                "p-4 rounded-lg shadow-sm",
+                "bg-gradient-to-br from-rose-50 to-rose-100",
+                "hover:shadow-md transition-shadow duration-300"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1 text-rose-700 text-sm">
                 <DollarSign className="h-4 w-4" />
                 Cost
               </div>
-              <div className="text-xl font-bold">{formatCurrency(stats.cost)}</div>
+              <div className="text-2xl font-bold text-rose-900">
+                {formatCurrency(stats.cost)}
+              </div>
             </div>
             
-            <div className="bg-accent/10 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+            <div 
+              className={cn(
+                "p-4 rounded-lg shadow-sm",
+                stats.profit >= 0 
+                  ? "bg-gradient-to-br from-emerald-50 to-emerald-100" 
+                  : "bg-gradient-to-br from-red-50 to-red-100",
+                "hover:shadow-md transition-shadow duration-300"
+              )}
+            >
+              <div className={cn(
+                "flex items-center gap-2 mb-1 text-sm",
+                stats.profit >= 0 ? "text-emerald-700" : "text-red-700"
+              )}>
                 <TrendingUp className="h-4 w-4" />
                 Profit
               </div>
-              <div className={`text-xl font-bold ${stats.profit >= 0 ? 'text-success-DEFAULT' : 'text-error-DEFAULT'}`}>
+              <div className={cn(
+                "text-2xl font-bold",
+                stats.profit >= 0 ? "text-emerald-900" : "text-red-900"
+              )}>
                 {formatCurrency(stats.profit)}
               </div>
             </div>
