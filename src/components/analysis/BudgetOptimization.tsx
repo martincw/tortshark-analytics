@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -219,6 +220,16 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
     }
   };
 
+  // Function to format the XAxis ticks properly
+  const formatXAxisTick = (value: string | number) => {
+    // If value is a string, capitalize it. Otherwise, convert to string first
+    if (typeof value === 'string') {
+      return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+    }
+    // If it's a number or something else, just convert to string
+    return String(value);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -416,10 +427,10 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" labelFormatter={(value) => {
-                    const stringValue = String(value);
-                    return `${stringValue.charAt(0).toUpperCase()}${stringValue.slice(1)}`;
-                  }} />
+                  <XAxis 
+                    dataKey="name" 
+                    tickFormatter={formatXAxisTick} 
+                  />
                   <YAxis tickFormatter={(value) => `$${value}`} />
                   <Tooltip 
                     formatter={tooltipFormatter}
