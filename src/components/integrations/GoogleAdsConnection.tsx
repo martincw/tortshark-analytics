@@ -4,19 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { initiateGoogleAdsConnection, validateGoogleAdsConnection } from "@/services/googleAdsConnection";
+import { initiateGoogleAdsConnection, processOAuthCallback, validateGoogleAdsConnection } from "@/services/googleAdsConnection";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 
 const GoogleAdsConnection: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { user, session } = useAuth(); // Get both user and session
+  const { session } = useAuth();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const checkConnection = async () => {
-      if (!session) return; // Check for session instead of just user
+      if (!session) return;
       
       try {
         const connected = await validateGoogleAdsConnection();
@@ -30,10 +32,38 @@ const GoogleAdsConnection: React.FC = () => {
     };
 
     checkConnection();
-  }, [session]); // Depend on session instead of user
+  }, [session]);
+
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const code = searchParams.get('code');
+      if (!code) return;
+
+      setIsConnecting(true);
+      setConnectionError(null);
+
+      try {
+        const success = await processOAuthCallback(code);
+        if (success) {
+          setIsConnected(true);
+          toast.success("Successfully connected to Google Ads");
+        } else {
+          throw new Error("Failed to complete connection");
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to complete Google Ads connection";
+        setConnectionError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setIsConnecting(false);
+      }
+    };
+
+    handleOAuthCallback();
+  }, [searchParams]);
 
   const handleConnect = async () => {
-    if (!session) { // Check for session instead of just user
+    if (!session) {
       const errorMsg = "Please sign in first";
       setConnectionError(errorMsg);
       toast.error(errorMsg);

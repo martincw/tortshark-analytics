@@ -96,14 +96,8 @@ serve(async (req) => {
       } catch (error) {
         console.error("Error creating auth URL:", error);
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Failed to create authentication URL" 
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
+          JSON.stringify({ success: false, error: "Failed to create authentication URL" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
@@ -156,14 +150,8 @@ serve(async (req) => {
       } catch (error) {
         console.error("Callback processing error:", error);
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: error instanceof Error ? error.message : "Failed to process callback" 
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
+          JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Failed to process callback" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -9,7 +10,7 @@ export const initiateGoogleAdsConnection = async () => {
       return { error: "No active session" };
     }
 
-    console.log("Starting Google Ads connection process"); // Added logging
+    console.log("Starting Google Ads connection process");
     
     const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { 
