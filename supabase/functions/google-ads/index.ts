@@ -21,61 +21,62 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const url = new URL(req.url);
-  
-  const authHeader = req.headers.get("Authorization")?.split(" ")[1] || "";
-  const { data: udata, error: authErr } = await supabase.auth.getUser(authHeader);
-  if (authErr) {
-    return new Response(JSON.stringify({ success: false, error: authErr.message }), { 
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
-  }
-  const user = udata.user!;
-
-  async function getRefreshToken() {
-    const { data, error } = await supabase
-      .from("google_ads_tokens")
-      .select("refresh_token")
-      .eq("user_id", user.id)
-      .single();
-    if (error || !data || !data.refresh_token) {
-      throw new Error("OAuth not completed yet");
-    }
-    return data.refresh_token as string;
-  }
-
-  async function fetchToken(params: Record<string, string>) {
-    try {
-      console.log(`Fetching token with params: ${JSON.stringify(params)}`);
-      const resp = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(params)
-      });
-      
-      if (!resp.ok) {
-        const errorText = await resp.text();
-        console.error(`Token fetch failed: ${resp.status} ${errorText}`);
-        throw new Error(`Token fetch failed: ${resp.status} ${errorText}`);
-      }
-      
-      return resp.json() as Promise<{
-        access_token?: string,
-        refresh_token?: string,
-        error?: string,
-        expires_in?: number
-      }>;
-    } catch (err) {
-      console.error("Error fetching token:", err);
-      throw err;
-    }
-  }
-
   try {
+    const url = new URL(req.url);
+    
+    const authHeader = req.headers.get("Authorization")?.split(" ")[1] || "";
+    const { data: udata, error: authErr } = await supabase.auth.getUser(authHeader);
+    if (authErr) {
+      console.error("Auth error:", authErr);
+      return new Response(JSON.stringify({ success: false, error: authErr.message }), { 
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    const user = udata.user!;
+
+    async function getRefreshToken() {
+      const { data, error } = await supabase
+        .from("google_ads_tokens")
+        .select("refresh_token")
+        .eq("user_id", user.id)
+        .single();
+      if (error || !data || !data.refresh_token) {
+        throw new Error("OAuth not completed yet");
+      }
+      return data.refresh_token as string;
+    }
+
+    async function fetchToken(params: Record<string, string>) {
+      try {
+        console.log(`Fetching token with params: ${JSON.stringify(params)}`);
+        const resp = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(params)
+        });
+        
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          console.error(`Token fetch failed: ${resp.status} ${errorText}`);
+          throw new Error(`Token fetch failed: ${resp.status} ${errorText}`);
+        }
+        
+        return resp.json() as Promise<{
+          access_token?: string,
+          refresh_token?: string,
+          error?: string,
+          expires_in?: number
+        }>;
+      } catch (err) {
+        console.error("Error fetching token:", err);
+        throw err;
+      }
+    }
+
     const path = url.pathname.split('/').pop() || '';
     const reqBody = req.method === 'POST' ? await req.json() : {};
-    console.log(`Processing request: ${path}`);
+    console.log(`Processing request: ${path}, action: ${reqBody.action}`);
     
     const action = reqBody.action || '';
 
@@ -397,7 +398,7 @@ serve(async (req) => {
         });
     }
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error("Error in edge function:", error);
     return new Response(JSON.stringify({ 
       success: false, 
       error: error.message || "Internal server error",
