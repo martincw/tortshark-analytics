@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,13 +20,13 @@ const GoogleAdsConnection: React.FC = () => {
       if (!session) return;
       
       try {
+        console.log("Checking Google Ads connection status...");
         const connected = await validateGoogleAdsConnection();
         setIsConnected(connected);
       } catch (error) {
         console.error("Error checking connection:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error checking connection";
         setConnectionError(errorMessage);
-        toast.error(errorMessage);
       }
     };
 
@@ -43,6 +42,7 @@ const GoogleAdsConnection: React.FC = () => {
       setConnectionError(null);
 
       try {
+        console.log("Processing OAuth callback with code");
         const success = await processOAuthCallback(code);
         if (success) {
           setIsConnected(true);
@@ -74,24 +74,22 @@ const GoogleAdsConnection: React.FC = () => {
     setConnectionError(null);
 
     try {
+      console.log("Initiating Google Ads connection");
       const { url, error } = await initiateGoogleAdsConnection();
+      
       if (error) {
         throw new Error(error);
       }
+
       if (!url) {
         throw new Error("No authentication URL received");
       }
       
-      // Store the current URL for redirect after auth
-      localStorage.setItem('preAuthPath', '/integrations');
-      
-      // Redirect to Google OAuth
       window.location.href = url;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to connect to Google Ads";
       setConnectionError(errorMessage);
       toast.error(errorMessage);
-    } finally {
       setIsConnecting(false);
     }
   };

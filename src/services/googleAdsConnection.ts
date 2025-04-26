@@ -20,9 +20,6 @@ export const initiateGoogleAdsConnection = async () => {
           redirectPath: '/integrations',
           timestamp: new Date().toISOString()
         })
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
       }
     });
 
@@ -38,6 +35,9 @@ export const initiateGoogleAdsConnection = async () => {
       return { error: "No authentication URL returned" };
     }
 
+    // Store the current URL for redirect after auth
+    localStorage.setItem('preAuthPath', '/integrations');
+    
     return { url: data.url };
   } catch (error) {
     console.error("Error in initiateGoogleAdsConnection:", error);
@@ -49,52 +49,55 @@ export const initiateGoogleAdsConnection = async () => {
 
 export const processOAuthCallback = async (code: string): Promise<boolean> => {
   try {
+    console.log("Starting OAuth callback processing");
+
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    if (!session) {
       toast.error("Session expired. Please sign in again.");
       return false;
     }
+
+    console.log("Processing callback with session");
 
     const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { 
         action: "callback",
         code,
-        userId: session.user.id
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
+        user_id: session.user.id
       }
     });
 
-    if (error || !data?.success) {
-      console.error("OAuth callback failed:", error || data?.error);
-      toast.error("Failed to complete Google Ads connection");
-      return false;
+    if (error) {
+      console.error("OAuth callback failed:", error);
+      throw new Error(error.message);
+    }
+    
+    if (!data?.success) {
+      console.error("Callback processing failed:", data?.error || "Unknown error");
+      throw new Error(data?.error || "Failed to process authentication");
     }
 
-    toast.success("Successfully connected to Google Ads");
+    await validateGoogleAdsConnection();
     return true;
   } catch (error) {
     console.error("Error in processOAuthCallback:", error);
-    toast.error("An unexpected error occurred");
-    return false;
+    throw error;
   }
 };
 
 export const validateGoogleAdsConnection = async (): Promise<boolean> => {
   try {
+    console.log("Validating Google Ads connection");
+    
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return false;
+    if (!session) return false;
 
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "validate" },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
-      }
+      body: { action: "validate" }
     });
 
     if (error || !data?.valid) {
-      console.error("Connection validation failed:", error);
+      console.error("Connection validation failed:", error || data?.error);
       return false;
     }
 
