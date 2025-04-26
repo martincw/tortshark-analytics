@@ -20,8 +20,7 @@ import {
 import { 
   getGoogleAdsCredentials, 
   isGoogleAuthValid, 
-  listGoogleAdsAccounts, 
-  fetchGoogleAdsCampaignsForAccount 
+  listGoogleAdsAccounts
 } from "@/services/googleAdsService";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 

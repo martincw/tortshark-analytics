@@ -269,7 +269,7 @@ export function CampaignMappingDialog({
             </div>
             
             {googleCampaigns.length === 0 && (
-              <Alert variant="warning">
+              <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   No Google Ads campaigns found for this account. Make sure you have campaigns created in Google Ads.
