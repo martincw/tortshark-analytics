@@ -137,3 +137,68 @@ export const fetchGoogleAdsAccounts = async (): Promise<any[]> => {
     return [];
   }
 };
+
+export const fetchGoogleAdsCampaignsForAccount = async (accountId: string): Promise<any[]> => {
+  try {
+    console.log(`Fetching Google Ads campaigns for account ${accountId}`);
+
+    const { data, error } = await supabase.functions.invoke('google-ads-mapping', {
+      body: { 
+        action: "list-available-campaigns",
+        googleAccountId: accountId
+      }
+    });
+
+    if (error) {
+      console.error("Error fetching Google Ads campaigns:", error);
+      toast.error("Failed to fetch Google Ads campaigns");
+      return [];
+    }
+
+    if (!data?.campaigns || !Array.isArray(data.campaigns)) {
+      console.log("No campaigns returned from API");
+      return [];
+    }
+
+    console.log(`Successfully fetched ${data.campaigns.length} Google Ads campaigns`);
+    return data.campaigns;
+  } catch (error) {
+    console.error("Error in fetchGoogleAdsCampaignsForAccount:", error);
+    toast.error("Failed to fetch Google Ads campaigns");
+    return [];
+  }
+};
+
+export const mapGoogleAdsCampaignToTortshark = async (
+  tortsharkCampaignId: string, 
+  googleAccountId: string, 
+  googleCampaignId: string,
+  googleCampaignName: string
+): Promise<boolean> => {
+  try {
+    console.log(`Mapping campaign ${googleCampaignId} to Tortshark campaign ${tortsharkCampaignId}`);
+
+    const { data, error } = await supabase.functions.invoke('google-ads-mapping', {
+      body: { 
+        action: "create-mapping",
+        tortsharkCampaignId,
+        googleAccountId,
+        googleCampaignId,
+        googleCampaignName
+      }
+    });
+
+    if (error) {
+      console.error("Error creating campaign mapping:", error);
+      toast.error("Failed to create campaign mapping");
+      return false;
+    }
+
+    toast.success("Campaign mapping created successfully");
+    return true;
+  } catch (error) {
+    console.error("Error in mapGoogleAdsCampaignToTortshark:", error);
+    toast.error("Failed to create campaign mapping");
+    return false;
+  }
+};

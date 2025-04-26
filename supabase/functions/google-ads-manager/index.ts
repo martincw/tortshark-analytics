@@ -144,46 +144,10 @@ async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
     // Extract customer IDs from resource names (format: 'customers/1234567890')
     const customerIds = resourceNames.map((name) => name.split('/')[1]);
     
-    // Get details for each customer ID
+    // Get details for each customer ID with retry mechanism
     const accounts = await Promise.all(
       customerIds.map(async (customerId) => {
-        try {
-          const customerResponse = await fetch(
-            `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
-              },
-            }
-          );
-          
-          if (!customerResponse.ok) {
-            console.error(`Failed to fetch details for customer ${customerId}`);
-            return {
-              id: customerId,
-              customerId: customerId,
-              name: `Account ${customerId}`,
-              status: "UNKNOWN"
-            };
-          }
-          
-          const customerData = await customerResponse.json();
-          
-          return {
-            id: customerId,
-            customerId: customerId,
-            name: customerData.customer?.descriptiveName || `Account ${customerId}`,
-            currency: customerData.customer?.currencyCode || "USD",
-            timeZone: customerData.customer?.timeZone || "America/New_York",
-            status: customerData.customer?.status || "ENABLED",
-            createdAt: new Date().toISOString()
-          };
-        } catch (error) {
-          console.error(`Error fetching details for customer ${customerId}:`, error);
-          return null;
-        }
+        return await getCustomerDetails(customerId, accessToken);
       })
     );
     
@@ -192,6 +156,68 @@ async function listGoogleAdsAccounts(accessToken: string): Promise<any[]> {
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
     throw error;
+  }
+}
+
+/**
+ * Get customer details with retry mechanism
+ */
+async function getCustomerDetails(customerId: string, accessToken: string, retryCount = 0): Promise<any> {
+  try {
+    const customerResponse = await fetch(
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+        },
+      }
+    );
+    
+    if (!customerResponse.ok) {
+      console.error(`Failed to fetch details for customer ${customerId}: ${customerResponse.status}`);
+      
+      if (retryCount < 2 && (customerResponse.status === 429 || customerResponse.status >= 500)) {
+        // Exponential backoff for retries
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`Retrying customer ${customerId} after ${delay}ms (attempt ${retryCount + 1})`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return getCustomerDetails(customerId, accessToken, retryCount + 1);
+      }
+      
+      // If we've exhausted retries or it's a non-retriable error, return basic info
+      console.warn(`Using basic info for customer ${customerId} after failed API call`);
+      return {
+        id: customerId,
+        customerId: customerId,
+        name: `Account ${customerId}`,
+        status: "UNKNOWN"
+      };
+    }
+    
+    const customerData = await customerResponse.json();
+    
+    return {
+      id: customerId,
+      customerId: customerId,
+      name: customerData.customer?.descriptiveName || `Account ${customerId}`,
+      currency: customerData.customer?.currencyCode || "USD",
+      timeZone: customerData.customer?.timeZone || "America/New_York",
+      status: customerData.customer?.status || "ENABLED",
+      createdAt: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error(`Error fetching details for customer ${customerId}:`, error);
+    
+    // Return basic info on error after retries
+    return {
+      id: customerId,
+      customerId: customerId, 
+      name: `Account ${customerId}`,
+      status: "UNKNOWN"
+    };
   }
 }
 

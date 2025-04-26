@@ -16,7 +16,8 @@ import {
   RefreshCw, 
   PlusCircle,
   ExternalLink,
-  Trash2
+  Trash2,
+  Link
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -30,6 +31,8 @@ interface ConnectedAccountsProps {
   handleCreateCampaign: () => void;
   selectedAccountId?: string;
   onSelectAccount?: (accountId: string) => void;
+  onMapCampaigns?: (accountId: string) => void;
+  campaigns?: any[];
 }
 
 export const ConnectedAccounts = ({
@@ -38,6 +41,8 @@ export const ConnectedAccounts = ({
   handleCreateCampaign,
   selectedAccountId,
   onSelectAccount,
+  onMapCampaigns,
+  campaigns = []
 }: ConnectedAccountsProps) => {
   const navigate = useNavigate();
   const { fetchGoogleAdsAccounts, addAccountConnection } = useCampaign();
@@ -183,7 +188,9 @@ export const ConnectedAccounts = ({
             handleCreateCampaign={handleCreateCampaign}
             selectedAccountId={selectedAccountId}
             onSelectAccount={onSelectAccount}
+            onMapCampaigns={onMapCampaigns}
             navigate={navigate}
+            campaigns={campaigns}
           />
         )}
       </CardContent>
@@ -231,7 +238,9 @@ interface AccountsListProps {
   handleCreateCampaign: () => void;
   selectedAccountId?: string;
   onSelectAccount?: (accountId: string) => void;
+  onMapCampaigns?: (accountId: string) => void;
   navigate: (path: string) => void;
+  campaigns: any[];
 }
 
 const AccountsList = ({
@@ -240,7 +249,9 @@ const AccountsList = ({
   handleCreateCampaign,
   selectedAccountId,
   onSelectAccount,
-  navigate
+  onMapCampaigns,
+  navigate,
+  campaigns
 }: AccountsListProps) => {
   return (
     <>
@@ -286,6 +297,20 @@ const AccountsList = ({
                   }}
                 >
                   Connect
+                </Button>
+              )}
+              {account.isConnected && onMapCampaigns && campaigns.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMapCampaigns(account.id);
+                  }}
+                >
+                  <Link className="mr-2 h-4 w-4" />
+                  Map Campaigns
                 </Button>
               )}
             </div>

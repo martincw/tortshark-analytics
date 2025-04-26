@@ -17,12 +17,19 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { getGoogleAdsCredentials, isGoogleAuthValid, listGoogleAdsAccounts } from "@/services/googleAdsService";
+import { 
+  getGoogleAdsCredentials, 
+  isGoogleAuthValid, 
+  listGoogleAdsAccounts, 
+  fetchGoogleAdsCampaignsForAccount 
+} from "@/services/googleAdsService";
+import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 
 const AccountsPage = () => {
   const { 
     accountConnections, 
     fetchGoogleAdsAccounts,
+    campaigns,
     isLoading 
   } = useCampaign();
   
@@ -31,6 +38,8 @@ const AccountsPage = () => {
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasInitiallyFetched, setHasInitiallyFetched] = useState(false);
+  const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+  const [mappingAccountId, setMappingAccountId] = useState<string>("");
   
   useEffect(() => {
     // Check if Google auth is already valid
@@ -77,6 +86,11 @@ const AccountsPage = () => {
       description: `Account selected: ${accountName}`,
     });
   };
+  
+  const handleOpenMappingDialog = (accountId: string) => {
+    setMappingAccountId(accountId);
+    setIsMappingDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -84,7 +98,7 @@ const AccountsPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Google Ads Accounts</h1>
           <p className="text-muted-foreground mt-1">
-            Select accounts to create campaigns
+            Select accounts to create campaigns or map to existing ones
           </p>
         </div>
         
@@ -98,7 +112,6 @@ const AccountsPage = () => {
         </Button>
       </div>
       
-      {/* Added AccountsOverview component here */}
       <AccountsOverview />
       
       {!isGoogleConnected && (
@@ -129,7 +142,7 @@ const AccountsPage = () => {
           {isGoogleConnected ? (
             accountConnections.length > 0 ? (
               <p className="text-sm text-muted-foreground">
-                Select an account to create a campaign with it
+                Select an account to create a campaign with it, or map it to an existing campaign
               </p>
             ) : (
               <div className="bg-muted/30 p-4 rounded-md text-center">
@@ -169,6 +182,8 @@ const AccountsPage = () => {
         handleCreateCampaign={handleCreateCampaign}
         selectedAccountId={selectedAccountId || undefined}
         onSelectAccount={handleSelectAccount}
+        onMapCampaigns={handleOpenMappingDialog}
+        campaigns={campaigns}
       />
 
       {selectedAccountId && accountConnections.length > 0 && (
@@ -182,6 +197,13 @@ const AccountsPage = () => {
           </Button>
         </div>
       )}
+      
+      <CampaignMappingDialog 
+        isOpen={isMappingDialogOpen} 
+        onClose={() => setIsMappingDialogOpen(false)}
+        accountId={mappingAccountId}
+        campaigns={campaigns}
+      />
     </div>
   );
 };
