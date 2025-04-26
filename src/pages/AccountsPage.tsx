@@ -77,10 +77,7 @@ const AccountsPage = () => {
   const handleSelectAccount = (accountId: string) => {
     setSelectedAccountId(accountId);
     const accountName = accountConnections.find(acc => acc.id === accountId)?.name;
-    toast({
-      title: "Account Selected",
-      description: `Account selected: ${accountName}`,
-    });
+    toast.success(`Account selected: ${accountName}`);
   };
   
   const handleOpenMappingDialog = (accountId: string) => {
