@@ -416,7 +416,10 @@ export const BudgetOptimization: React.FC<BudgetOptimizationProps> = ({
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis dataKey="name" labelFormatter={(value) => {
+                    const stringValue = String(value);
+                    return `${stringValue.charAt(0).toUpperCase()}${stringValue.slice(1)}`;
+                  }} />
                   <YAxis tickFormatter={(value) => `$${value}`} />
                   <Tooltip 
                     formatter={tooltipFormatter}

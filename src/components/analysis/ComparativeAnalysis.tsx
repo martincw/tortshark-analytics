@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Campaign } from "@/types/campaign";
@@ -38,12 +37,10 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
   const [comparisonType, setComparisonType] = useState<string>("campaigns");
   const [timeFrame, setTimeFrame] = useState<string>("month");
   
-  // Calculate comparison dates based on selected timeframe
   const comparisonDateRanges = useMemo(() => {
     const today = new Date();
     
     if (timeFrame === "week") {
-      // Current week vs previous week
       const currentStart = format(subDays(today, 7), 'yyyy-MM-dd');
       const currentEnd = format(today, 'yyyy-MM-dd');
       const previousStart = format(subDays(today, 14), 'yyyy-MM-dd');
@@ -56,7 +53,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
         previousLabel: "Previous 7 Days"
       };
     } else if (timeFrame === "month") {
-      // Current month vs previous month
       const currentMonthStart = format(startOfMonth(today), 'yyyy-MM-dd');
       const currentMonthEnd = format(today, 'yyyy-MM-dd');
       
@@ -71,7 +67,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
         previousLabel: "Last Month"
       };
     } else {
-      // Current quarter vs previous quarter (approximated as 3 months)
       const currentStart = format(subMonths(today, 3), 'yyyy-MM-dd');
       const currentEnd = format(today, 'yyyy-MM-dd');
       const previousStart = format(subMonths(today, 6), 'yyyy-MM-dd');
@@ -86,10 +81,8 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
     }
   }, [timeFrame]);
   
-  // Calculate metrics for comparison
   const comparisonData = useMemo(() => {
     if (comparisonType === "campaigns") {
-      // Compare current campaign with other campaigns
       const campaignsData = allCampaigns.map(camp => {
         const metrics = calculateMetrics(camp);
         return {
@@ -112,11 +105,9 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
         data: campaignsData
       };
     } else {
-      // Compare current time period with previous time period
       const currentMetrics = calculateMetrics(campaign, comparisonDateRanges.current);
       const previousMetrics = calculateMetrics(campaign, comparisonDateRanges.previous);
       
-      // Calculate percentage changes
       const revenueChange = previousMetrics.revenue && previousMetrics.revenue > 0 
         ? ((currentMetrics.revenue || 0) - previousMetrics.revenue) / previousMetrics.revenue * 100
         : 0;
@@ -169,7 +160,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
     }
   }, [comparisonType, campaign, allCampaigns, comparisonDateRanges]);
   
-  // Get platform distribution data for all campaigns
   const platformData = useMemo(() => {
     const platformCounts = allCampaigns.reduce((acc, camp) => {
       acc[camp.platform] = (acc[camp.platform] || 0) + 1;
@@ -179,16 +169,14 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
     return Object.entries(platformCounts).map(([name, value]) => ({ name, value }));
   }, [allCampaigns]);
   
-  // Get performance ranking data
   const performanceRanking = useMemo(() => {
     if (!comparisonData || comparisonData.type !== "campaigns") {
       return { roi: 0, profit: 0, cpa: 0, leads: 0 };
     }
     
-    // Sort campaigns by different metrics and find the position of current campaign
     const roiSorted = [...comparisonData.data].sort((a, b) => b.roi - a.roi);
     const profitSorted = [...comparisonData.data].sort((a, b) => b.profit - a.profit);
-    const cpaSorted = [...comparisonData.data].sort((a, b) => a.cpa - b.cpa); // Lower is better
+    const cpaSorted = [...comparisonData.data].sort((a, b) => a.cpa - b.cpa);
     const leadsSorted = [...comparisonData.data].sort((a, b) => b.leads - a.leads);
     
     const roiRank = roiSorted.findIndex(c => c.isCurrentCampaign) + 1;
@@ -199,26 +187,23 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
     return { roi: roiRank, profit: profitRank, cpa: cpaRank, leads: leadsRank };
   }, [comparisonData]);
   
-  // Radar chart data for performance comparison
   const radarData = useMemo(() => {
     if (!comparisonData || comparisonData.type !== "campaigns") {
       return [];
     }
     
-    // Find the max values for each metric to normalize values between 0-100
     const maxROI = Math.max(...comparisonData.data.map(c => c.roi));
     const maxProfit = Math.max(...comparisonData.data.map(c => c.profit));
     const minCPA = Math.min(...comparisonData.data.filter(c => c.cpa > 0).map(c => c.cpa));
     const maxLeads = Math.max(...comparisonData.data.map(c => c.leads));
     const maxCases = Math.max(...comparisonData.data.map(c => c.cases));
     
-    // Create normalized data
     return comparisonData.data.map(camp => {
       return {
         name: camp.name,
         ROI: maxROI > 0 ? (camp.roi / maxROI) * 100 : 0,
         Profit: maxProfit > 0 ? (camp.profit / maxProfit) * 100 : 0,
-        "Cost Per Case": minCPA > 0 ? (minCPA / camp.cpa) * 100 : 0, // Invert so lower is better
+        "Cost Per Case": minCPA > 0 ? (minCPA / camp.cpa) * 100 : 0,
         Leads: maxLeads > 0 ? (camp.leads / maxLeads) * 100 : 0,
         Cases: maxCases > 0 ? (camp.cases / maxCases) * 100 : 0,
         isCurrentCampaign: camp.isCurrentCampaign
@@ -245,7 +230,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
   const getChangeBadge = (change: number, inverse: boolean = false) => {
     let type = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
     
-    // For metrics where lower is better (like CPA), invert the meaning
     if (inverse) {
       type = type === "positive" ? "negative" : type === "negative" ? "positive" : "neutral";
     }
@@ -266,7 +250,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
 
   return (
     <div className="space-y-6">
-      {/* Comparison controls */}
       <Card>
         <CardHeader>
           <CardTitle>Comparative Analysis</CardTitle>
@@ -312,10 +295,8 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
         </CardContent>
       </Card>
       
-      {/* Campaign comparison charts and tables */}
       {comparisonType === "campaigns" && comparisonData && (
         <>
-          {/* Performance ranking card */}
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -364,7 +345,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
           </Card>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Revenue and profit comparison */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -414,7 +394,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
               </CardContent>
             </Card>
             
-            {/* ROI comparison */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -458,7 +437,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Performance radar chart */}
             <Card>
               <CardHeader>
                 <CardTitle>Performance Radar</CardTitle>
@@ -501,7 +479,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
               </CardContent>
             </Card>
             
-            {/* Platform distribution */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -544,7 +521,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
             </Card>
           </div>
           
-          {/* Comparative metrics table */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -601,7 +577,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
         </>
       )}
       
-      {/* Time period comparison */}
       {comparisonType === "time" && comparisonData && comparisonData.type === "time" && (
         <>
           <Card>
@@ -677,7 +652,7 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
                 <div className="p-4 bg-accent/10 rounded-lg">
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-muted-foreground">Ad Spend</div>
-                    {getChangeBadge(comparisonData.changes.adSpend, true)} {/* Inverse because lower is better */}
+                    {getChangeBadge(comparisonData.changes.adSpend, true)}
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="flex justify-between items-center text-sm">
@@ -728,7 +703,7 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
                 <div className="p-4 bg-accent/10 rounded-lg">
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-muted-foreground">Cost Per Lead</div>
-                    {getChangeBadge(comparisonData.changes.costPerLead, true)} {/* Inverse because lower is better */}
+                    {getChangeBadge(comparisonData.changes.costPerLead, true)}
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="flex justify-between items-center text-sm">
@@ -745,7 +720,7 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
                 <div className="p-4 bg-accent/10 rounded-lg">
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-muted-foreground">Cost Per Acquisition</div>
-                    {getChangeBadge(comparisonData.changes.cpa, true)} {/* Inverse because lower is better */}
+                    {getChangeBadge(comparisonData.changes.cpa, true)}
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="flex justify-between items-center text-sm">
@@ -760,7 +735,6 @@ export const ComparativeAnalysis: React.FC<ComparativeAnalysisProps> = ({ campai
                 </div>
               </div>
               
-              {/* Time period comparison chart */}
               <div className="mt-6">
                 <Tabs defaultValue="revenue" className="w-full">
                   <TabsList>
