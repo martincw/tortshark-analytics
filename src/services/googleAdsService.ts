@@ -147,7 +147,7 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
     }
     
     return {
-      customerId: data.customer_id || "", // This will be set when user selects an account
+      customerId: "", // Initially empty, will be set when user selects an account
       developerToken: tokenData.developerToken,
       userEmail: data.email
     };
