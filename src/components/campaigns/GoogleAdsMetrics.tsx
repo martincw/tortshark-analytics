@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
@@ -47,7 +48,8 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
         );
         
         console.log(`GoogleAdsMetrics: Received ${sortedMetrics.length} data points`);
-        setMetrics(sortedMetrics);
+        // No need for transformation - our fetchGoogleAdsMetrics now returns data with the correct type
+        setMetrics(sortedMetrics as GoogleAdsMetricsType[]);
       } else {
         setError("Failed to load Google Ads metrics");
       }

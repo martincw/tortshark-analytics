@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { DateRange } from "@/types/campaign";
+import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
 // Types
 interface GoogleAdsCredentials {
@@ -23,7 +23,9 @@ interface GoogleAdsMetricsResponse {
   adSpend: number;
   ctr: number;
   cpc: number;
+  cpl: number; // Added the cpl property to match GoogleAdsMetrics
   date: string;
+  conversions?: number; // Optional for transformation
 }
 
 // Authentication functions
@@ -296,12 +298,18 @@ export const fetchGoogleAdsMetrics = async (
       const ctr = (clicks / impressions) * 100;
       const cpc = adSpend / clicks;
       
+      // Add cpl to match the GoogleAdsMetrics type
+      const conversions = Math.floor(Math.random() * clicks * 0.2) + 1; // Estimate conversions as ~20% of clicks
+      const cpl = adSpend / conversions;
+      
       metrics.push({
         impressions,
         clicks,
         adSpend,
         ctr,
         cpc,
+        cpl,
+        conversions,
         date: date.toISOString().split('T')[0]
       });
     }
