@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -15,7 +14,35 @@ serve(async (req) => {
   }
   
   try {
-    // Validate required environment variables first
+    // Create Supabase client
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_ANON_KEY") || "",
+    );
+
+    // Get JWT token from request header and verify user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("No authorization header present");
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      console.error("Authentication error:", userError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Authentication failed" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate required environment variables
     const requiredEnvVars = ['SITE_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
     const missingEnvVars = requiredEnvVars.filter(envVar => !Deno.env.get(envVar));
     
@@ -36,28 +63,6 @@ serve(async (req) => {
     // Parse request body
     const { action, code, state } = await req.json();
     
-    // Create Supabase client
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_ANON_KEY") || "",
-    );
-
-    // Get user session and validate authentication
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error("Authentication error:", userError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Authentication required" 
-        }), 
-        { 
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
     // Handle auth initiation
     if (action === "auth") {
       try {

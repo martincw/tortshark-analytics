@@ -1,11 +1,11 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const initiateGoogleAdsConnection = async () => {
   try {
-    // Get current session to ensure we have auth token
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!session?.access_token) {
       toast.error("Please sign in to connect Google Ads");
       return { error: "No active session" };
     }
@@ -20,6 +20,9 @@ export const initiateGoogleAdsConnection = async () => {
           redirectPath: '/integrations',
           timestamp: new Date().toISOString()
         })
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
       }
     });
 
@@ -43,7 +46,7 @@ export const initiateGoogleAdsConnection = async () => {
 export const processOAuthCallback = async (code: string): Promise<boolean> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!session?.access_token) {
       toast.error("Session expired. Please sign in again.");
       return false;
     }
@@ -53,6 +56,9 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
         action: "callback",
         code,
         userId: session.user.id
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
       }
     });
 
@@ -74,10 +80,13 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
 export const validateGoogleAdsConnection = async (): Promise<boolean> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return false;
+    if (!session?.access_token) return false;
 
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "validate" }
+      body: { action: "validate" },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
+      }
     });
 
     if (error || !data?.valid) {
