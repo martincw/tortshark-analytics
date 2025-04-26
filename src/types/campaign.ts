@@ -1,4 +1,3 @@
-
 export interface Campaign {
   id: string;
   name: string;
@@ -102,4 +101,56 @@ export interface CaseAttribution {
   price_per_case: number;
   date: string;
   created_at?: string;
+}
+
+export interface ForecastingModel {
+  name: string;
+  label: string;
+  description: string;
+}
+
+export interface ForecastingPeriod {
+  value: string;
+  label: string;
+}
+
+export interface ForecastedMetrics {
+  date: string;
+  revenue: number;
+  adSpend: number;
+  profit: number;
+  leads: number;
+  cases: number;
+  roi: number;
+}
+
+export interface WhatIfScenario {
+  name: string;
+  adSpendChange: number; // percentage
+  conversionRateChange: number; // percentage
+  revenuePerCaseChange: number; // percentage
+  results: ForecastedMetrics[];
+}
+
+export interface TrendData {
+  date: string;
+  value: number;
+  baseline?: number;
+}
+
+export interface ProjectionParams {
+  adSpendGrowth: number;
+  conversionRateGrowth: number;
+  revenuePerCaseGrowth: number;
+}
+
+export interface GoalProgress {
+  metric: string;
+  current: number;
+  target: number;
+  percentComplete: number;
+  daysRemaining: number;
+  projectedValue: number;
+  willReachTarget: boolean;
+  gapToTarget: number;
 }
