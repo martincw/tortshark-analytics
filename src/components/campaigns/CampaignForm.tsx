@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +12,7 @@ import {
 import { useCampaignForm } from "@/hooks/useCampaignForm";
 import CampaignDetailsSection from "./CampaignDetailsSection";
 import CampaignTargetsSection from "./CampaignTargetsSection";
-import CampaignMappingSection from "./CampaignMappingSection";
+import { CampaignMappingSection } from "./CampaignMappingSection";
 import { toast } from "sonner";
 
 interface CampaignFormProps {
@@ -95,7 +96,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
           />
 
           <CampaignMappingSection
-            campaignId={id}
+            campaignId={id || ''}
             availableAccounts={availableAccounts}
           />
         </CardContent>
