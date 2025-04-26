@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,7 +6,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 const DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN")!;
-const MANAGER_CUSTOMER_ID = Deno.env.get("GOOGLE_ADS_MANAGER_CUSTOMER_ID") || "";
 const REDIRECT_URI = Deno.env.get("SITE_URL") + "/integrations";
 
 // Supabase client (service role) to store/retrieve tokens
@@ -176,10 +174,6 @@ serve(async (req) => {
 
       // ───────── Step 3: List manager's child accounts ─────────────
       case "accounts": {
-        if (!MANAGER_CUSTOMER_ID) {
-          throw new Error("GOOGLE_ADS_MANAGER_CUSTOMER_ID environment variable not set");
-        }
-        
         const rt = await getRefreshToken();
         const { access_token } = await fetchToken({
           client_id: CLIENT_ID,
@@ -188,18 +182,11 @@ serve(async (req) => {
           grant_type: "refresh_token"
         });
         
-        // Query via REST
-        const q = encodeURIComponent(`
-          SELECT
-            client.client_customer,
-            client.descriptive_name,
-            client.manager,
-            client.level
-          FROM customer_client AS client
-        `);
+        console.log("Fetching accessible Google Ads accounts...");
         
-        const resp = await fetch(
-          `https://googleads.googleapis.com/v14/customers/${MANAGER_CUSTOMER_ID}/googleAds:search?query=${q}`,
+        // First, get list of accessible customer IDs
+        const accountsResp = await fetch(
+          "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
           {
             headers: {
               Authorization: `Bearer ${access_token}`,
@@ -208,22 +195,69 @@ serve(async (req) => {
           }
         );
         
-        if (!resp.ok) {
-          const errorText = await resp.text();
-          throw new Error(`Failed to fetch accounts: ${resp.status} ${errorText}`);
+        if (!accountsResp.ok) {
+          const errorText = await accountsResp.text();
+          console.error("Failed to fetch accounts:", errorText);
+          throw new Error(`Failed to fetch accounts: ${accountsResp.status} ${errorText}`);
         }
         
-        const data = await resp.json();
-        const results = data.results || [];
+        const { resourceNames } = await accountsResp.json();
+        console.log(`Found ${resourceNames?.length || 0} accessible accounts`);
         
-        const accounts = results.map((r: any) => ({
-          id: r.client_customer.replace("customers/", ""),
-          name: r.descriptive_name,
-          manager: r.manager,
-          level: r.level
-        }));
+        if (!resourceNames || resourceNames.length === 0) {
+          return new Response(JSON.stringify({ 
+            success: true, 
+            accounts: [],
+            message: "No accessible Google Ads accounts found" 
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
         
-        return new Response(JSON.stringify({ success: true, accounts }), {
+        // Extract customer IDs and fetch details for each
+        const customerIds = resourceNames.map((name: string) => name.replace('customers/', ''));
+        const accounts = [];
+        
+        for (const customerId of customerIds) {
+          try {
+            const detailsResp = await fetch(
+              `https://googleads.googleapis.com/v14/customers/${customerId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${access_token}`,
+                  "developer-token": DEVELOPER_TOKEN
+                }
+              }
+            );
+            
+            if (detailsResp.ok) {
+              const details = await detailsResp.json();
+              accounts.push({
+                id: customerId,
+                name: details.customer?.descriptiveName || `Account ${customerId}`,
+                customerId: customerId,
+                status: details.customer?.status || "UNKNOWN"
+              });
+            } else {
+              console.warn(`Could not fetch details for account ${customerId}`);
+              // Still include the account with basic info
+              accounts.push({
+                id: customerId,
+                name: `Account ${customerId}`,
+                customerId: customerId,
+                status: "UNKNOWN"
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching details for account ${customerId}:`, error);
+          }
+        }
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          accounts,
+          message: `Successfully fetched ${accounts.length} accounts` 
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange, GoogleAdsMetrics } from "@/types/campaign";
 
@@ -223,27 +222,26 @@ export const listGoogleAdsAccounts = async (): Promise<GoogleAdsAccount[]> => {
   try {
     console.log("Listing Google Ads accounts");
     
-    // For demo purposes, return some mock accounts
-    // In a real implementation, this would call the Google Ads API
+    // Call the edge function to list accounts
+    const { data, error } = await supabase.functions.invoke('google-ads', {
+      body: { action: "accounts" }
+    });
     
-    // Generate between 1 and 5 random accounts
-    const accountCount = Math.floor(Math.random() * 5) + 1;
-    const accounts = [];
-    
-    for (let i = 0; i < accountCount; i++) {
-      accounts.push({
-        id: `acc-${i+1}-${Date.now()}`,
-        name: `Demo Account ${i+1}`,
-        customerId: `${1000000000 + i}`,
-        status: "ENABLED"
-      });
+    if (error) {
+      console.error("Error listing Google Ads accounts:", error);
+      throw error;
     }
     
-    console.log(`Generated ${accounts.length} demo accounts`);
-    return accounts;
+    if (!data || !data.accounts) {
+      console.warn("No accounts data returned");
+      return [];
+    }
+    
+    console.log(`Retrieved ${data.accounts.length} Google Ads accounts`);
+    return data.accounts;
   } catch (error) {
     console.error("Error listing Google Ads accounts:", error);
-    return [];
+    throw error;
   }
 };
 
