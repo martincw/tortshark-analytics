@@ -9,34 +9,33 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
   
   try {
     const { action, code, state, userId } = await req.json();
-    const requestId = Math.random().toString(36).substring(7);
-    console.log(`Processing request (${requestId}):`, { action });
-
-    // Get user from auth header
-    const authHeader = req.headers.get("Authorization")?.split(" ")[1];
-    if (!authHeader) {
-      throw new Error("Missing authorization header");
-    }
-
+    
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_ANON_KEY") || "",
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader);
+    // Validate user session
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      throw new Error("Invalid authorization");
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Authentication required" 
+      }), { 
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
     // Handle auth initiation
     if (action === "auth") {
-      console.log("Generating OAuth URL");
       const redirectUri = `${Deno.env.get("SITE_URL")}/integrations`;
       
       const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -47,10 +46,6 @@ serve(async (req) => {
       authUrl.searchParams.set("access_type", "offline");
       authUrl.searchParams.set("prompt", "consent");
       
-      if (state) {
-        authUrl.searchParams.set("state", state);
-      }
-
       return new Response(
         JSON.stringify({ success: true, url: authUrl.toString() }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -59,8 +54,6 @@ serve(async (req) => {
 
     // Handle callback
     if (action === "callback" && code) {
-      console.log("Processing callback");
-      
       const redirectUri = `${Deno.env.get("SITE_URL")}/integrations`;
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -89,7 +82,6 @@ serve(async (req) => {
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
           expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-          scope: tokens.scope
         });
 
       if (dbError) {
@@ -106,7 +98,7 @@ serve(async (req) => {
     if (action === "validate") {
       const { data: tokens, error: tokensError } = await supabase
         .from("google_ads_tokens")
-        .select("access_token, expires_at")
+        .select("expires_at")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -116,7 +108,7 @@ serve(async (req) => {
 
       if (!tokens) {
         return new Response(
-          JSON.stringify({ valid: false, error: "No tokens found" }),
+          JSON.stringify({ valid: false }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

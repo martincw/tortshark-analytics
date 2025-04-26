@@ -378,7 +378,6 @@ export type Database = {
           expires_at: string
           id: string
           refresh_token: string | null
-          scope: string | null
           updated_at: string | null
           user_id: string
         }
@@ -389,7 +388,6 @@ export type Database = {
           expires_at: string
           id?: string
           refresh_token?: string | null
-          scope?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -400,7 +398,6 @@ export type Database = {
           expires_at?: string
           id?: string
           refresh_token?: string | null
-          scope?: string | null
           updated_at?: string | null
           user_id?: string
         }
