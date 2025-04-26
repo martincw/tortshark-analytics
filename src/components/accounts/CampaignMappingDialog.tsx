@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Dialog, 
@@ -52,6 +53,7 @@ export function CampaignMappingDialog({
   const [selectedGoogleCampaign, setSelectedGoogleCampaign] = useState<string>("");
   const [mappings, setMappings] = useState<any[]>([]);
   const [isCreatingMapping, setIsCreatingMapping] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const { accountConnections } = useCampaign();
   
   const account = accountConnections.find(acc => acc.id === accountId);
@@ -67,11 +69,18 @@ export function CampaignMappingDialog({
     if (!accountId) return;
     
     setIsLoading(true);
+    setFetchError(null);
+    
     try {
       const campaigns = await fetchGoogleAdsCampaignsForAccount(accountId);
       setGoogleCampaigns(campaigns);
+      
+      if (campaigns.length === 0) {
+        setFetchError("No campaigns found for this account. This could be due to an API limitation or no campaigns exist in this account.");
+      }
     } catch (error) {
       console.error("Failed to fetch Google Ads campaigns:", error);
+      setFetchError(`Could not load Google Ads campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast.error("Could not load Google Ads campaigns");
     } finally {
       setIsLoading(false);
@@ -269,7 +278,7 @@ export function CampaignMappingDialog({
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  No Google Ads campaigns found for this account. Make sure you have campaigns created in Google Ads.
+                  {fetchError || "No Google Ads campaigns found for this account. Make sure you have campaigns created in Google Ads."}
                 </AlertDescription>
               </Alert>
             )}

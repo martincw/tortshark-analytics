@@ -142,10 +142,13 @@ export const fetchGoogleAdsCampaignsForAccount = async (accountId: string): Prom
   try {
     console.log(`Fetching Google Ads campaigns for account ${accountId}`);
 
+    // Use the customer_id value instead of the id if it's an account_connections record
+    // This handles the difference between our internal IDs and Google's customer IDs
     const { data, error } = await supabase.functions.invoke('google-ads-mapping', {
       body: { 
         action: "list-available-campaigns",
-        googleAccountId: accountId
+        googleAccountId: accountId,
+        useCustomerId: true  // Signal to the edge function that we might need to use customer_id
       }
     });
 

@@ -78,7 +78,7 @@ export const ConnectedAccounts = ({
               if (!existingIds.includes(account.id)) {
                 addAccountConnection({
                   id: account.id || uuidv4(),
-                  name: account.name,
+                  name: account.name || `Account ${account.id}`,
                   platform: "google",
                   customerId: account.id,
                   isConnected: true,
@@ -267,7 +267,7 @@ const AccountsList = ({
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="font-medium">{account.name}</span>
+                <span className="font-medium">{account.name || `Account ${account.customerId || account.id}`}</span>
                 <Badge variant="default">{account.platform}</Badge>
                 {account.isConnected ? (
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Connected</Badge>
