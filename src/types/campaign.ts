@@ -5,3 +5,125 @@ export interface CaseBuyer {
   url?: string;  // Make url optional to maintain backwards compatibility
   created_at?: string;
 }
+
+export interface GoogleAdsMetrics {
+  impressions: number;
+  clicks: number;
+  adSpend: number;
+  ctr: number;
+  cpc: number;
+  cpl: number;
+  date: string;
+}
+
+export interface AccountConnection {
+  id: string;
+  name: string;
+  platform: string;
+  customerId?: string;
+  isConnected: boolean;
+  lastSynced?: string;
+  credentials?: Record<string, any>;
+}
+
+export interface DateRange {
+  startDate: string;
+  endDate: string;
+}
+
+export interface CampaignMetrics {
+  leads: number;
+  cases: number;
+  retainers: number;
+  revenue: number;
+  adSpend: number;
+  profit: number;
+  roi: number;
+  cpa: number;
+  cpl: number;
+}
+
+export interface CampaignStat {
+  date: string;
+  leads: number;
+  cases: number;
+  retainers: number;
+  adSpend?: number;
+  revenue?: number;
+}
+
+export interface CampaignTargets {
+  monthlyRetainers: number;
+  casePayoutAmount: number;
+  targetProfit: number;
+  targetROAS: number;
+  monthlyIncome: number;
+  monthlySpend: number;
+}
+
+export interface CampaignManualStats {
+  leads: number;
+  cases: number;
+  retainers: number;
+  revenue: number;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  accountId: string;
+  platform: string;
+  buyers?: CaseBuyer[];  // Array of buyers for this campaign
+  targets: CampaignTargets;
+  stats: {
+    date: string;
+    adSpend: number;
+  };
+  manualStats: CampaignManualStats;
+  statsHistory: CampaignStat[];
+}
+
+export interface TrendData {
+  date: string;
+  rawDate?: string;
+  revenue: number;
+  adSpend: number;
+  profit: number;
+  roi: number;
+  leads: number;
+  cases: number;
+  conversionRate: number;
+  costPerLead: number;
+  costPerCase: number;
+}
+
+export interface GoalProgress {
+  target: number;
+  current: number;
+  percentage: number;
+  remaining: number;
+  daysRemaining: number;
+  dailyGoal: number;
+  isOnTrack: boolean;
+}
+
+export interface ProjectionParams {
+  targetProfit: number;
+  growthRate: number;
+  conversionRate: number;
+  costPerLead: number;
+  revenuePerCase: number;
+}
+
+export interface ForecastedMetrics {
+  revenue: number;
+  adSpend: number;
+  profit: number;
+  roi: number;
+  leads: number;
+  cases: number;
+  conversionRate: number;
+}
+
+export type ForecastingModel = 'linear' | 'exponential' | 'average' | 'seasonality';
+export type ForecastingPeriod = '7days' | '30days' | '90days' | '180days' | '1year';
