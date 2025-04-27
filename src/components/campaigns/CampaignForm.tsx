@@ -13,7 +13,6 @@ import { useCampaignForm } from "@/hooks/useCampaignForm";
 import CampaignDetailsSection from "./CampaignDetailsSection";
 import CampaignTargetsSection from "./CampaignTargetsSection";
 import { CampaignMappingSection } from "./CampaignMappingSection";
-import { BuyerStackSection } from "./BuyerStackSection";
 import { toast } from "sonner";
 
 interface CampaignFormProps {
@@ -95,8 +94,6 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
             targetMonthlyIncome={targetMonthlyIncome}
             targetMonthlySpend={targetMonthlySpend}
           />
-          
-          {id && <BuyerStackSection campaignId={id} />}
 
           <CampaignMappingSection
             campaignId={id || ''}
@@ -111,7 +108,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onCancel }) => {
           >
             Cancel
           </Button>
-          <Button type="submit">{id ? 'Update' : 'Create'} Campaign</Button>
+          <Button type="submit">Create Campaign</Button>
         </CardFooter>
       </form>
     </Card>

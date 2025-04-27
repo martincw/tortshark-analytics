@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CaseBuyer } from "@/types/campaign";
 import { toast } from "sonner";
 
-export const useBuyers = () => {
+export const useCaseBuyers = () => {
   const [buyers, setBuyers] = useState<CaseBuyer[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -26,8 +26,9 @@ export const useBuyers = () => {
     }
   };
 
-  const addBuyer = async (name: string, url: string) => {
+  const addBuyer = async (name: string) => {
     try {
+      // Get the current user ID from Supabase auth
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -39,7 +40,6 @@ export const useBuyers = () => {
         .from('case_buyers')
         .insert([{ 
           name, 
-          url,
           user_id: user.id 
         }])
         .select()
@@ -56,25 +56,9 @@ export const useBuyers = () => {
     }
   };
 
-  const deleteBuyer = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('case_buyers')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setBuyers(buyers.filter(buyer => buyer.id !== id));
-      toast.success('Buyer deleted successfully');
-    } catch (error) {
-      console.error('Error deleting buyer:', error);
-      toast.error('Failed to delete buyer');
-    }
-  };
-
   useEffect(() => {
     fetchBuyers();
   }, []);
 
-  return { buyers, loading, addBuyer, deleteBuyer, fetchBuyers };
+  return { buyers, loading, addBuyer, fetchBuyers };
 };

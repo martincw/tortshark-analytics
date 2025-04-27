@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { BuyerStackDisplay } from "@/components/buyers/BuyerStackDisplay";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -257,16 +257,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 <span className="font-medium">{formatCurrency(metrics.profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
               <CustomProgressBar value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
-            </div>
-          </div>
-          
-          <div className="border-t pt-2 mt-2">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-medium">Buyer Stack</span>
-              </div>
-              <BuyerStackDisplay campaignId={campaign.id} limit={3} />
             </div>
           </div>
         </CardContent>
