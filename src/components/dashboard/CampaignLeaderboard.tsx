@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, Medal, Ribbon, Trophy } from "lucide-react";
@@ -36,7 +35,16 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       .slice(0, 5);
       
     const byEarningsPerLead = [...campaignsWithMetrics]
-      .sort((a, b) => b.metrics.earningsPerLead - a.metrics.earningsPerLead)
+      .sort((a, b) => {
+        // Calculate Earnings Per Lead (Revenue per Lead)
+        const earningsPerLeadA = b.manualStats.leads > 0 
+          ? b.manualStats.revenue / b.manualStats.leads 
+          : 0;
+        const earningsPerLeadB = a.manualStats.leads > 0 
+          ? a.manualStats.revenue / a.manualStats.leads 
+          : 0;
+        return earningsPerLeadA - earningsPerLeadB;
+      })
       .slice(0, 5);
       
     const byProfitPerLead = [...campaignsWithMetrics]
@@ -129,29 +137,36 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leaderboardData.byEarningsPerLead.map((campaign, index) => (
-                  <TableRow 
-                    key={campaign.id}
-                    className={getRowClassName(index)}
-                  >
-                    <TableCell className="font-medium flex items-center gap-1">
-                      {getRankIcon(index)}
-                      {index + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div>{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Leads: {formatNumber(campaign.metrics.leads)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div>{formatCurrency(campaign.metrics.earningsPerLead)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        CPL: {formatCurrency(campaign.metrics.costPerLead)}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {leaderboardData.byEarningsPerLead.map((campaign, index) => {
+                  // Calculate Earnings Per Lead (Revenue per Lead)
+                  const earningsPerLead = campaign.manualStats.leads > 0 
+                    ? campaign.manualStats.revenue / campaign.manualStats.leads 
+                    : 0;
+
+                  return (
+                    <TableRow 
+                      key={campaign.id}
+                      className={getRowClassName(index)}
+                    >
+                      <TableCell className="font-medium flex items-center gap-1">
+                        {getRankIcon(index)}
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div>{campaign.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Leads: {formatNumber(campaign.manualStats.leads)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>{formatCurrency(earningsPerLead)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Revenue: {formatCurrency(campaign.manualStats.revenue)}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
