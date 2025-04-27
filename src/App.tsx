@@ -21,6 +21,7 @@ import BulkStatsPage from "./pages/BulkStatsPage";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import BuyersPage from "./pages/BuyersPage";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/buyers" element={<BuyersPage />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

@@ -92,6 +92,48 @@ export type Database = {
           },
         ]
       }
+      campaign_buyer_stack: {
+        Row: {
+          buyer_id: string
+          campaign_id: string
+          created_at: string | null
+          id: string
+          stack_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id: string
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          stack_order?: number
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          stack_order?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_buyer_stack_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "case_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_buyer_stack_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_manual_stats: {
         Row: {
           campaign_id: string
@@ -352,6 +394,7 @@ export type Database = {
           id: string
           name: string
           updated_at: string | null
+          url: string | null
           user_id: string
         }
         Insert: {
@@ -359,6 +402,7 @@ export type Database = {
           id?: string
           name: string
           updated_at?: string | null
+          url?: string | null
           user_id: string
         }
         Update: {
@@ -366,6 +410,7 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string | null
+          url?: string | null
           user_id?: string
         }
         Relationships: []

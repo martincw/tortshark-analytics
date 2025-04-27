@@ -38,6 +38,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/accounts", label: "Accounts" },
+  { href: "/buyers", label: "Buyers" },
   { href: "/tools", label: "Tools", icon: <Wrench className="h-4 w-4 mr-2" /> },
   { href: "https://app.relayfi.com/login", label: "Banking", icon: <WalletCards className="h-4 w-4 mr-2" />, external: true },
 ];
