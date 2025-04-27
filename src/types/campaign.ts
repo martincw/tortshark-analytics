@@ -41,6 +41,10 @@ export interface CampaignMetrics {
   roi: number;
   cpa: number;
   cpl: number;
+  costPerLead: number;  // Added missing property
+  earningsPerLead: number;  // Added missing property
+  weekOverWeekChange: number;  // Added missing property
+  previousWeekProfit: number;  // Added missing property
 }
 
 export interface CampaignStat {
@@ -66,18 +70,23 @@ export interface CampaignManualStats {
   cases: number;
   retainers: number;
   revenue: number;
+  date?: string;  // Added missing property
 }
 
 export interface Campaign {
   id: string;
   name: string;
   accountId: string;
+  accountName: string;  // Added missing property
   platform: string;
   buyers?: CaseBuyer[];  // Array of buyers for this campaign
   targets: CampaignTargets;
   stats: {
     date: string;
     adSpend: number;
+    impressions?: number;  // Added missing property
+    clicks?: number;  // Added missing property
+    cpc?: number;  // Added missing property
   };
   manualStats: CampaignManualStats;
   statsHistory: CampaignStat[];
@@ -98,13 +107,18 @@ export interface TrendData {
 }
 
 export interface GoalProgress {
+  metric: string;  // Added missing property
   target: number;
   current: number;
   percentage: number;
+  percentComplete: number;  // Added missing property
   remaining: number;
   daysRemaining: number;
   dailyGoal: number;
   isOnTrack: boolean;
+  willReachTarget: boolean;  // Added missing property
+  projectedValue: number;  // Added missing property
+  gapToTarget: number;  // Added missing property
 }
 
 export interface ProjectionParams {
@@ -113,9 +127,13 @@ export interface ProjectionParams {
   conversionRate: number;
   costPerLead: number;
   revenuePerCase: number;
+  adSpendGrowth: number;  // Added missing property
+  conversionRateGrowth: number;  // Added missing property
+  revenuePerCaseGrowth: number;  // Added missing property
 }
 
 export interface ForecastedMetrics {
+  date?: string;  // Added missing property as optional
   revenue: number;
   adSpend: number;
   profit: number;
