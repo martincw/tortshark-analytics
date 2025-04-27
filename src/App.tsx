@@ -16,7 +16,6 @@ import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
-import ToolsPage from "./pages/ToolsPage";
 import BulkStatsPage from "./pages/BulkStatsPage";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
@@ -56,14 +55,12 @@ const App = () => (
                 </ProtectedRoute>
               }>
                 <Route path="/" element={<Index />} />
-                <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/campaign/:id" element={<CampaignDetail />} />
                 <Route path="/add-campaign" element={<AddCampaignPage />} />
                 <Route path="/bulk-stats" element={<BulkStatsPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts" element={<AccountsPage />} />
                 <Route path="/integrations" element={<IntegrationsPage />} />
-                <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/buyers" element={<BuyersPage />} />
                 <Route path="*" element={<NotFound />} />

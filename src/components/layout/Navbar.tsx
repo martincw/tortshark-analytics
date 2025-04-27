@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -36,14 +35,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/", label: "Overview" },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
-  { href: "/campaigns", label: "Campaigns" },
   { href: "/accounts", label: "Accounts" },
   { href: "/buyers", label: "Buyers" },
-  { href: "/tools", label: "Tools", icon: <Wrench className="h-4 w-4 mr-2" /> },
   { href: "https://app.relayfi.com/login", label: "Banking", icon: <WalletCards className="h-4 w-4 mr-2" />, external: true },
 ];
 
-// Direct logo URL
 const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
 
 export const Navbar: React.FC = () => {
@@ -111,7 +107,6 @@ export const Navbar: React.FC = () => {
                   )
                 ))}
                 
-                {/* Additional menu items */}
                 <Link 
                   to="/bulk-stats" 
                   className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
