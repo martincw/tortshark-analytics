@@ -8,12 +8,18 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   // Get filtered stats based on date range
   const periodStats = getPeriodStats(campaign, dateRange);
   
+  // Get previous week's stats
+  const previousWeekStats = getPreviousWeekStats(campaign, dateRange);
+  
   console.log('Period stats:', periodStats);
+  console.log('Previous week stats:', previousWeekStats);
   
   // Calculate metrics using period stats
   const costPerLead = periodStats.leads > 0 ? periodStats.adSpend / periodStats.leads : 0;
   const cpa = periodStats.cases > 0 ? periodStats.adSpend / periodStats.cases : 0;
   const profit = periodStats.revenue - periodStats.adSpend;
+  const previousWeekProfit = previousWeekStats.revenue - previousWeekStats.adSpend;
+  const weekOverWeekChange = profit - previousWeekProfit;
   const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
   const earningsPerLead = periodStats.leads > 0 ? profit / periodStats.leads : 0;
 
@@ -26,7 +32,9 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     cpa,
     profit,
     roi,
-    earningsPerLead
+    earningsPerLead,
+    previousWeekProfit,
+    weekOverWeekChange
   };
 
   console.log('Final calculated metrics:', metrics);
@@ -77,6 +85,25 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   
   console.log('Period stats calculation result:', periodStats);
   return periodStats;
+};
+
+export const getPreviousWeekStats = (campaign: Campaign, dateRange?: DateRange) => {
+  if (!dateRange || !dateRange.startDate || !dateRange.endDate) {
+    return { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
+  }
+
+  const previousWeekStart = new Date(dateRange.startDate);
+  previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+  
+  const previousWeekEnd = new Date(dateRange.endDate);
+  previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
+
+  const previousDateRange = {
+    startDate: previousWeekStart.toISOString().split('T')[0],
+    endDate: previousWeekEnd.toISOString().split('T')[0]
+  };
+
+  return getPeriodStats(campaign, previousDateRange);
 };
 
 export const formatCurrency = (value: number): string => {

@@ -53,7 +53,6 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       .sort((a, b) => (b.metrics.profit / (b.metrics.leads || 1)) - (a.metrics.profit / (a.metrics.leads || 1)))
       .slice(0, 5);
       
-    // Update cheapest CPL to filter out $0 ad spend
     const byCheapestCPL = [...campaignsWithMetrics]
       .filter(campaign => campaign.metrics.adSpend > 0)
       .sort((a, b) => a.metrics.costPerLead - b.metrics.costPerLead)
@@ -64,7 +63,7 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       .slice(0, 5);
       
     const byBiggestChange = [...campaignsWithMetrics]
-      .sort((a, b) => Math.abs(b.metrics.roi) - Math.abs(a.metrics.roi))
+      .sort((a, b) => Math.abs(b.metrics.weekOverWeekChange) - Math.abs(a.metrics.weekOverWeekChange))
       .slice(0, 5);
     
     return {
@@ -316,6 +315,7 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
           <div>
             <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted-foreground" /> Biggest Change
+              <span className="text-xs text-muted-foreground">(vs last week)</span>
             </h3>
             <Table>
               <TableHeader>
@@ -338,25 +338,25 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     <TableCell>
                       <div>{campaign.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {campaign.metrics.roi >= 0 ? (
+                        {campaign.metrics.weekOverWeekChange >= 0 ? (
                           <span className="flex items-center gap-1 text-success-DEFAULT">
                             <ChevronUp className="h-3 w-3" />
-                            Increase
+                            Increase vs last week
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-error-DEFAULT">
                             <ChevronDown className="h-3 w-3" />
-                            Decrease
+                            Decrease vs last week
                           </span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className={campaign.metrics.roi >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
-                        {Math.abs(campaign.metrics.roi).toFixed(1)}%
+                      <div className={campaign.metrics.weekOverWeekChange >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                        {formatCurrency(Math.abs(campaign.metrics.weekOverWeekChange))}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Profit: {formatCurrency(campaign.metrics.profit)}
+                        Last Week: {formatCurrency(campaign.metrics.previousWeekProfit)}
                       </div>
                     </TableCell>
                   </TableRow>
