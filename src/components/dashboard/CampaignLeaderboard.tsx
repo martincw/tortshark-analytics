@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, Medal, Ribbon, Trophy } from "lucide-react";
@@ -37,12 +36,12 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       
     const byEarningsPerLead = [...campaignsWithMetrics]
       .sort((a, b) => {
-        // Calculate Earnings Per Lead (Revenue per Lead)
-        const earningsPerLeadA = a.manualStats.leads > 0 
-          ? a.manualStats.revenue / a.manualStats.leads 
+        // Calculate Earnings Per Lead using metrics (revenue per lead)
+        const earningsPerLeadA = a.metrics.leads > 0 
+          ? a.metrics.revenue / a.metrics.leads 
           : 0;
-        const earningsPerLeadB = b.manualStats.leads > 0 
-          ? b.manualStats.revenue / b.manualStats.leads 
+        const earningsPerLeadB = b.metrics.leads > 0 
+          ? b.metrics.revenue / b.metrics.leads 
           : 0;
         return earningsPerLeadB - earningsPerLeadA; // Descending order
       })
@@ -139,9 +138,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
               </TableHeader>
               <TableBody>
                 {leaderboardData.byEarningsPerLead.map((campaign, index) => {
-                  // Calculate Earnings Per Lead (Revenue per Lead)
-                  const earningsPerLead = campaign.manualStats.leads > 0 
-                    ? campaign.manualStats.revenue / campaign.manualStats.leads 
+                  // Calculate Earnings Per Lead using metrics
+                  const earningsPerLead = campaign.metrics.leads > 0 
+                    ? campaign.metrics.revenue / campaign.metrics.leads 
                     : 0;
 
                   return (
@@ -156,13 +155,13 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       <TableCell>
                         <div>{campaign.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          Leads: {formatNumber(campaign.manualStats.leads)}
+                          Leads: {formatNumber(campaign.metrics.leads)}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div>{formatCurrency(earningsPerLead)}</div>
                         <div className="text-xs text-muted-foreground">
-                          Revenue: {formatCurrency(campaign.manualStats.revenue)}
+                          Revenue: {formatCurrency(campaign.metrics.revenue)}
                         </div>
                       </TableCell>
                     </TableRow>
