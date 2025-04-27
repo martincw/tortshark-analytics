@@ -94,6 +94,11 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     }
   };
 
+  const calculatePercentageChange = (current: number, previous: number) => {
+    if (previous === 0) return 0;
+    return ((current - previous) / Math.abs(previous)) * 100;
+  };
+
   if (!leaderboardData.byProfit.length) {
     return null;
   }
@@ -326,41 +331,48 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leaderboardData.byBiggestChange.map((campaign, index) => (
-                  <TableRow 
-                    key={campaign.id}
-                    className={getRowClassName(index)}
-                  >
-                    <TableCell className="font-medium flex items-center gap-1">
-                      {getRankIcon(index)}
-                      {index + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div>{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {campaign.metrics.weekOverWeekChange >= 0 ? (
-                          <span className="flex items-center gap-1 text-success-DEFAULT">
-                            <ChevronUp className="h-3 w-3" />
-                            Increase vs last week
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-error-DEFAULT">
-                            <ChevronDown className="h-3 w-3" />
-                            Decrease vs last week
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className={campaign.metrics.weekOverWeekChange >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
-                        {formatCurrency(Math.abs(campaign.metrics.weekOverWeekChange))}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Last Week: {formatCurrency(campaign.metrics.previousWeekProfit)}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {leaderboardData.byBiggestChange.map((campaign, index) => {
+                  const percentageChange = calculatePercentageChange(
+                    campaign.metrics.profit,
+                    campaign.metrics.previousWeekProfit
+                  );
+
+                  return (
+                    <TableRow 
+                      key={campaign.id}
+                      className={getRowClassName(index)}
+                    >
+                      <TableCell className="font-medium flex items-center gap-1">
+                        {getRankIcon(index)}
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div>{campaign.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {percentageChange >= 0 ? (
+                            <span className="flex items-center gap-1 text-success-DEFAULT">
+                              <ChevronUp className="h-3 w-3" />
+                              +{Math.abs(percentageChange).toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-error-DEFAULT">
+                              <ChevronDown className="h-3 w-3" />
+                              -{Math.abs(percentageChange).toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="text-success-DEFAULT">
+                          {formatCurrency(campaign.metrics.profit)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Last Week: {formatCurrency(campaign.metrics.previousWeekProfit)}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
