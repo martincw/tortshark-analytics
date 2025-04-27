@@ -10,20 +10,24 @@ interface BuyerCardProps {
 }
 
 export const BuyerCard = ({ buyer, onDelete }: BuyerCardProps) => {
+  const hasValidUrl = buyer.url && buyer.url !== "#" && buyer.url !== "";
+  
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-xl font-bold">{buyer.name}</CardTitle>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            asChild
-          >
-            <a href={buyer.url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          </Button>
+          {hasValidUrl && (
+            <Button
+              variant="outline"
+              size="icon"
+              asChild
+            >
+              <a href={buyer.url} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -34,7 +38,11 @@ export const BuyerCard = ({ buyer, onDelete }: BuyerCardProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground truncate">{buyer.url}</p>
+        {hasValidUrl ? (
+          <p className="text-sm text-muted-foreground truncate">{buyer.url}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No URL provided</p>
+        )}
       </CardContent>
     </Card>
   );
