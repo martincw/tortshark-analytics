@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Award, Medal, Ribbon, Trophy } from "lucide-react";
+import { Award, ChevronDown, ChevronUp, CircleDollarSign, Medal, Ribbon, TrendingUp, Trophy, Users } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { calculateMetrics, formatCurrency, formatNumber } from "@/utils/campaignUtils";
@@ -18,7 +18,10 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       return {
         byProfit: [],
         byEarningsPerLead: [],
-        byProfitPerLead: []
+        byProfitPerLead: [],
+        byCheapestCPL: [],
+        byMostLeads: [],
+        byBiggestChange: []
       };
     }
     
@@ -49,11 +52,26 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     const byProfitPerLead = [...campaignsWithMetrics]
       .sort((a, b) => (b.metrics.profit / (b.metrics.leads || 1)) - (a.metrics.profit / (a.metrics.leads || 1)))
       .slice(0, 5);
+      
+    const byCheapestCPL = [...campaignsWithMetrics]
+      .sort((a, b) => a.metrics.costPerLead - b.metrics.costPerLead)
+      .slice(0, 5);
+      
+    const byMostLeads = [...campaignsWithMetrics]
+      .sort((a, b) => b.metrics.leads - a.metrics.leads)
+      .slice(0, 5);
+      
+    const byBiggestChange = [...campaignsWithMetrics]
+      .sort((a, b) => Math.abs(b.metrics.roi) - Math.abs(a.metrics.roi))
+      .slice(0, 5);
     
     return {
       byProfit,
       byEarningsPerLead,
-      byProfitPerLead
+      byProfitPerLead,
+      byCheapestCPL,
+      byMostLeads,
+      byBiggestChange
     };
   }, [filteredCampaigns, dateRange]);
   
@@ -88,7 +106,7 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div>
             <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
               <span className="text-muted-foreground">$</span> Highest Profit
@@ -203,6 +221,138 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       <div>{formatCurrency(campaign.metrics.profit / (campaign.metrics.leads || 1))}</div>
                       <div className="text-xs text-muted-foreground">
                         CPL: {formatCurrency(campaign.metrics.costPerLead)}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div>
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <CircleDollarSign className="h-4 w-4 text-muted-foreground" /> Cheapest CPL
+            </h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40px]">#</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboardData.byCheapestCPL.map((campaign, index) => (
+                  <TableRow 
+                    key={campaign.id}
+                    className={getRowClassName(index)}
+                  >
+                    <TableCell className="font-medium flex items-center gap-1">
+                      {getRankIcon(index)}
+                      {index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div>{campaign.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Leads: {formatNumber(campaign.metrics.leads)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div>{formatCurrency(campaign.metrics.costPerLead)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Ad Spend: {formatCurrency(campaign.metrics.adSpend)}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" /> Most Leads
+            </h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40px]">#</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboardData.byMostLeads.map((campaign, index) => (
+                  <TableRow 
+                    key={campaign.id}
+                    className={getRowClassName(index)}
+                  >
+                    <TableCell className="font-medium flex items-center gap-1">
+                      {getRankIcon(index)}
+                      {index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div>{campaign.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        CPL: {formatCurrency(campaign.metrics.costPerLead)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div>{formatNumber(campaign.metrics.leads)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Revenue: {formatCurrency(campaign.metrics.revenue)}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" /> Biggest Change
+            </h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40px]">#</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboardData.byBiggestChange.map((campaign, index) => (
+                  <TableRow 
+                    key={campaign.id}
+                    className={getRowClassName(index)}
+                  >
+                    <TableCell className="font-medium flex items-center gap-1">
+                      {getRankIcon(index)}
+                      {index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div>{campaign.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {campaign.metrics.roi >= 0 ? (
+                          <span className="flex items-center gap-1 text-success-DEFAULT">
+                            <ChevronUp className="h-3 w-3" />
+                            Increase
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-error-DEFAULT">
+                            <ChevronDown className="h-3 w-3" />
+                            Decrease
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div>{Math.abs(campaign.metrics.roi).toFixed(1)}%</div>
+                      <div className="text-xs text-muted-foreground">
+                        Profit: {formatCurrency(campaign.metrics.profit)}
                       </div>
                     </TableCell>
                   </TableRow>
