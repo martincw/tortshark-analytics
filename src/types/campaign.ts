@@ -56,6 +56,8 @@ export interface CampaignMetrics {
   profit: number;
   roi: number; // Return on investment percentage
   earningsPerLead: number; // Added earningsPerLead metric
+  weekOverWeekChange: number; // Added week over week change metric
+  previousWeekProfit: number; // Added previous week profit metric
 }
 
 export interface DateRange {
