@@ -1,4 +1,3 @@
-
 export interface CaseBuyer {
   id: string;
   name: string;
@@ -79,14 +78,14 @@ export interface Campaign {
   accountId: string;
   accountName: string;  // Added missing property
   platform: string;
-  buyers?: CaseBuyer[];  // Array of buyers for this campaign
+  buyers?: CaseBuyer[];
   targets: CampaignTargets;
   stats: {
     date: string;
     adSpend: number;
-    impressions?: number;  // Added missing property
-    clicks?: number;  // Added missing property
-    cpc?: number;  // Added missing property
+    impressions?: number;
+    clicks?: number;
+    cpc?: number;
   };
   manualStats: CampaignManualStats;
   statsHistory: CampaignStat[];
@@ -133,7 +132,7 @@ export interface ProjectionParams {
 }
 
 export interface ForecastedMetrics {
-  date?: string;  // Added missing property as optional
+  date?: string;  // Added missing property
   revenue: number;
   adSpend: number;
   profit: number;

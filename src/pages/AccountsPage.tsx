@@ -1,20 +1,12 @@
+
 import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
-import { AccountsOverview } from "@/components/dashboard/AccountsOverview";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, InfoIcon, RefreshCw } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -66,28 +58,21 @@ const AccountsPage = () => {
     }
   };
 
+  const handleSelectAccount = (accountId: string) => {
+    setSelectedAccountId(accountId);
+  };
+  
+  const handleOpenMappingDialog = (accountId: string) => {
+    setMappingAccountId(accountId);
+    setIsMappingDialogOpen(true);
+  };
+
   const handleCreateCampaign = () => {
     if (selectedAccountId) {
       navigate(`/add-campaign?accountId=${selectedAccountId}`);
     } else {
-      navigate("/add-campaign");
+      toast.error("Please select an account first");
     }
-  };
-
-  const handleSelectAccount = (accountId: string) => {
-    setSelectedAccountId(accountId);
-    const accountName = accountConnections.find(acc => acc.id === accountId)?.name;
-    toast.success(`Account selected: ${accountName}`);
-  };
-  
-  const handleOpenMappingDialog = (accountId: string) => {
-    const account = accountConnections.find(acc => acc.id === accountId);
-    if (!account?.customerId) {
-      toast.error("Invalid account selected");
-      return;
-    }
-    setMappingAccountId(account.customerId);
-    setIsMappingDialogOpen(true);
   };
 
   return (
@@ -96,7 +81,7 @@ const AccountsPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Google Ads Accounts</h1>
           <p className="text-muted-foreground mt-1">
-            Select accounts to create campaigns or map to existing ones
+            Select an account to create campaigns and track performance
           </p>
         </div>
         
@@ -110,13 +95,11 @@ const AccountsPage = () => {
         </Button>
       </div>
       
-      <AccountsOverview />
-      
       {!isGoogleConnected && (
         <Alert className="mb-4 bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-500" />
           <AlertDescription className="text-amber-800 flex justify-between items-center">
-            <span>You need to connect to Google Ads before managing accounts</span>
+            <span>Connect your Google Ads account to start importing campaigns</span>
             <Button 
               variant="outline" 
               size="sm" 
@@ -129,67 +112,21 @@ const AccountsPage = () => {
         </Alert>
       )}
       
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Imported Google Ads Accounts</CardTitle>
-          <CardDescription>
-            Accounts are automatically imported after connecting to Google Ads
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isGoogleConnected ? (
-            accountConnections.length > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Select an account to create a campaign with it, or map it to an existing campaign
-              </p>
-            ) : (
-              <div className="bg-muted/30 p-4 rounded-md text-center">
-                <p className="text-muted-foreground mb-2">No accounts found</p>
-                <p className="text-sm text-muted-foreground">
-                  Accounts are automatically imported after connecting to Google Ads.
-                  Try refreshing if you don't see your accounts.
-                </p>
-              </div>
-            )
-          ) : (
-            <div className="text-sm text-muted-foreground mt-2 flex items-start gap-2">
-              <InfoIcon className="h-4 w-4 mt-0.5 text-amber-500" />
-              <span>
-                You need to connect to Google Ads first. Go to the Integrations page to complete authentication.
-              </span>
-            </div>
-          )}
-        </CardContent>
-        {isGoogleConnected && (
-          <CardFooter className="border-t pt-4">
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => navigate("/integrations")}
-            >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Manage Google Ads Connection
-            </Button>
-          </CardFooter>
-        )}
-      </Card>
-      
       <ConnectedAccounts
         accountConnections={accountConnections}
         isLoading={isLoading || isRefreshing}
-        handleCreateCampaign={handleCreateCampaign}
-        selectedAccountId={selectedAccountId || undefined}
+        selectedAccountId={selectedAccountId}
         onSelectAccount={handleSelectAccount}
         onMapCampaigns={handleOpenMappingDialog}
         campaigns={campaigns}
       />
 
-      {selectedAccountId && accountConnections.length > 0 && (
-        <div className="flex justify-center">
+      {isGoogleConnected && accountConnections.length > 0 && (
+        <div className="flex justify-center pt-4">
           <Button 
-            onClick={handleCreateCampaign} 
+            onClick={handleCreateCampaign}
             size="lg"
-            className="mt-4"
+            disabled={!selectedAccountId}
           >
             Create Campaign with Selected Account
           </Button>
