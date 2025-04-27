@@ -161,7 +161,7 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       <TableCell className="text-right">
                         <div>{formatCurrency(earningsPerLead)}</div>
                         <div className="text-xs text-muted-foreground">
-                          Revenue: {formatCurrency(campaign.metrics.revenue)}
+                          CPL: {formatCurrency(campaign.metrics.costPerLead)}
                         </div>
                       </TableCell>
                     </TableRow>
