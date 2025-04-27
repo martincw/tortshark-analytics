@@ -53,7 +53,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       .sort((a, b) => (b.metrics.profit / (b.metrics.leads || 1)) - (a.metrics.profit / (a.metrics.leads || 1)))
       .slice(0, 5);
       
+    // Update cheapest CPL to filter out $0 ad spend
     const byCheapestCPL = [...campaignsWithMetrics]
+      .filter(campaign => campaign.metrics.adSpend > 0)
       .sort((a, b) => a.metrics.costPerLead - b.metrics.costPerLead)
       .slice(0, 5);
       
@@ -256,13 +258,13 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     <TableCell>
                       <div>{campaign.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        Leads: {formatNumber(campaign.metrics.leads)}
+                        Ad Spend: {formatCurrency(campaign.metrics.adSpend)}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div>{formatCurrency(campaign.metrics.costPerLead)}</div>
                       <div className="text-xs text-muted-foreground">
-                        Ad Spend: {formatCurrency(campaign.metrics.adSpend)}
+                        Leads: {formatNumber(campaign.metrics.leads)}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -350,7 +352,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div>{Math.abs(campaign.metrics.roi).toFixed(1)}%</div>
+                      <div className={campaign.metrics.roi >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                        {Math.abs(campaign.metrics.roi).toFixed(1)}%
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Profit: {formatCurrency(campaign.metrics.profit)}
                       </div>
