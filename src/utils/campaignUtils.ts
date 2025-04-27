@@ -1,3 +1,4 @@
+
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 import { addDays, subDays } from "date-fns";
@@ -18,19 +19,23 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   // Calculate metrics using period stats
   const costPerLead = periodStats.leads > 0 ? periodStats.adSpend / periodStats.leads : 0;
   const cpa = periodStats.cases > 0 ? periodStats.adSpend / periodStats.cases : 0;
+  const cpl = costPerLead; // Alias for cpl field
   const profit = periodStats.revenue - periodStats.adSpend;
   const previousWeekProfit = previousWeekStats.revenue - previousWeekStats.adSpend;
   const weekOverWeekChange = profit - previousWeekProfit;
   const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
   const earningsPerLead = periodStats.leads > 0 ? profit / periodStats.leads : 0;
+  const retainers = periodStats.cases; // Set retainers equal to cases for now
 
-  const metrics = {
+  const metrics: CampaignMetrics = {
     revenue: periodStats.revenue,
     leads: periodStats.leads,
     cases: periodStats.cases,
+    retainers: retainers,
     adSpend: periodStats.adSpend,
     costPerLead,
     cpa,
+    cpl,
     profit,
     roi,
     earningsPerLead,

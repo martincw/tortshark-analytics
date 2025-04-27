@@ -16,9 +16,9 @@ import { ComparativeAnalysis } from "@/components/analysis/ComparativeAnalysis";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ForecastingModel, ForecastingPeriod, ProjectionParams } from "@/types/campaign";
+import { ForecastingModel, ForecastingPeriod, ProjectionParams, ForecastModelOption, ForecastPeriodOption } from "@/types/campaign";
 
-const forecastingModels: ForecastingModel[] = [
+const forecastingModels: ForecastModelOption[] = [
   {
     name: "linear",
     label: "Linear",
@@ -36,7 +36,7 @@ const forecastingModels: ForecastingModel[] = [
   }
 ];
 
-const forecastingPeriods: ForecastingPeriod[] = [
+const forecastingPeriods: ForecastPeriodOption[] = [
   { value: "week", label: "End of Week" },
   { value: "month", label: "End of Month" },
   { value: "quarter", label: "End of Quarter" }
@@ -48,6 +48,11 @@ const AnalysisPage = () => {
   const [forecastModel, setForecastModel] = useState<string>("weighted");
   const [forecastPeriod, setForecastPeriod] = useState<string>("month");
   const [projectionParams, setProjectionParams] = useState<ProjectionParams>({
+    targetProfit: 10000,
+    growthRate: 0,
+    conversionRate: 0.1,
+    costPerLead: 100,
+    revenuePerCase: 1000,
     adSpendGrowth: 0,
     conversionRateGrowth: 0,
     revenuePerCaseGrowth: 0

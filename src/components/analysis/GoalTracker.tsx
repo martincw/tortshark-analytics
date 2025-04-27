@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Campaign, GoalProgress } from "@/types/campaign";
@@ -64,14 +65,20 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({ campaign }) => {
     // Calculate daily revenue rate
     const dailyRevenueRate = daysInfo.daysElapsed > 0 ? currentRevenue / daysInfo.daysElapsed : currentRevenue;
     const projectedMonthRevenue = dailyRevenueRate * daysInfo.totalDaysInMonth;
+    const revenueRemaining = targetRevenue - currentRevenue;
+    const revenueDailyGoal = daysInfo.daysRemaining > 0 ? revenueRemaining / daysInfo.daysRemaining : 0;
     
     goals.push({
       metric: 'Revenue',
       current: currentRevenue,
       target: targetRevenue,
+      percentage: revenuePercentComplete,
       percentComplete: revenuePercentComplete,
+      remaining: revenueRemaining,
       daysRemaining: daysInfo.daysRemaining,
+      dailyGoal: revenueDailyGoal,
       projectedValue: projectedMonthRevenue,
+      isOnTrack: revenuePercentComplete >= daysInfo.percentOfMonthElapsed,
       willReachTarget: projectedMonthRevenue >= targetRevenue,
       gapToTarget: targetRevenue - currentRevenue
     });
@@ -84,14 +91,20 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({ campaign }) => {
     // Calculate daily profit rate
     const dailyProfitRate = daysInfo.daysElapsed > 0 ? currentProfit / daysInfo.daysElapsed : currentProfit;
     const projectedMonthProfit = dailyProfitRate * daysInfo.totalDaysInMonth;
+    const profitRemaining = targetProfit - currentProfit;
+    const profitDailyGoal = daysInfo.daysRemaining > 0 ? profitRemaining / daysInfo.daysRemaining : 0;
     
     goals.push({
       metric: 'Profit',
       current: currentProfit,
       target: targetProfit,
+      percentage: profitPercentComplete,
       percentComplete: profitPercentComplete,
+      remaining: profitRemaining,
       daysRemaining: daysInfo.daysRemaining,
+      dailyGoal: profitDailyGoal,
       projectedValue: projectedMonthProfit,
+      isOnTrack: profitPercentComplete >= daysInfo.percentOfMonthElapsed,
       willReachTarget: projectedMonthProfit >= targetProfit,
       gapToTarget: targetProfit - currentProfit
     });
@@ -104,14 +117,20 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({ campaign }) => {
     // Calculate daily ad spend rate
     const dailyAdSpendRate = daysInfo.daysElapsed > 0 ? currentAdSpend / daysInfo.daysElapsed : currentAdSpend;
     const projectedMonthAdSpend = dailyAdSpendRate * daysInfo.totalDaysInMonth;
+    const adSpendRemaining = targetAdSpend - currentAdSpend;
+    const adSpendDailyGoal = daysInfo.daysRemaining > 0 ? adSpendRemaining / daysInfo.daysRemaining : 0;
     
     goals.push({
       metric: 'Ad Spend',
       current: currentAdSpend,
       target: targetAdSpend,
+      percentage: adSpendPercentComplete,
       percentComplete: adSpendPercentComplete,
+      remaining: adSpendRemaining,
       daysRemaining: daysInfo.daysRemaining,
+      dailyGoal: adSpendDailyGoal,
       projectedValue: projectedMonthAdSpend,
+      isOnTrack: adSpendPercentComplete <= daysInfo.percentOfMonthElapsed,
       willReachTarget: projectedMonthAdSpend <= targetAdSpend, // For ad spend, we want to stay under target
       gapToTarget: targetAdSpend - currentAdSpend
     });
@@ -125,14 +144,20 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({ campaign }) => {
     // Calculate daily case rate
     const dailyCaseRate = daysInfo.daysElapsed > 0 ? currentCases / daysInfo.daysElapsed : currentCases;
     const projectedMonthCases = dailyCaseRate * daysInfo.totalDaysInMonth;
+    const casesRemaining = targetCases - currentCases;
+    const casesDailyGoal = daysInfo.daysRemaining > 0 ? casesRemaining / daysInfo.daysRemaining : 0;
     
     goals.push({
       metric: 'Cases',
       current: currentCases,
       target: targetCases,
+      percentage: casesPercentComplete,
       percentComplete: casesPercentComplete,
+      remaining: casesRemaining,
       daysRemaining: daysInfo.daysRemaining,
+      dailyGoal: casesDailyGoal,
       projectedValue: projectedMonthCases,
+      isOnTrack: casesPercentComplete >= daysInfo.percentOfMonthElapsed,
       willReachTarget: projectedMonthCases >= targetCases,
       gapToTarget: targetCases - currentCases
     });
@@ -145,14 +170,20 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({ campaign }) => {
     // Calculate daily retainer rate
     const dailyRetainerRate = daysInfo.daysElapsed > 0 ? currentRetainers / daysInfo.daysElapsed : currentRetainers;
     const projectedMonthRetainers = dailyRetainerRate * daysInfo.totalDaysInMonth;
+    const retainersRemaining = targetRetainers - currentRetainers;
+    const retainersDailyGoal = daysInfo.daysRemaining > 0 ? retainersRemaining / daysInfo.daysRemaining : 0;
     
     goals.push({
       metric: 'Retainers',
       current: currentRetainers,
       target: targetRetainers,
+      percentage: retainersPercentComplete,
       percentComplete: retainersPercentComplete,
+      remaining: retainersRemaining,
       daysRemaining: daysInfo.daysRemaining,
+      dailyGoal: retainersDailyGoal,
       projectedValue: projectedMonthRetainers,
+      isOnTrack: retainersPercentComplete >= daysInfo.percentOfMonthElapsed,
       willReachTarget: projectedMonthRetainers >= targetRetainers,
       gapToTarget: targetRetainers - currentRetainers
     });

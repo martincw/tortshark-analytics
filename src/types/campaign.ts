@@ -1,3 +1,4 @@
+
 export interface CaseBuyer {
   id: string;
   name: string;
@@ -40,19 +41,21 @@ export interface CampaignMetrics {
   roi: number;
   cpa: number;
   cpl: number;
-  costPerLead: number;  // Added missing property
-  earningsPerLead: number;  // Added missing property
-  weekOverWeekChange: number;  // Added missing property
-  previousWeekProfit: number;  // Added missing property
+  costPerLead: number;
+  earningsPerLead: number;
+  weekOverWeekChange: number;
+  previousWeekProfit: number;
 }
 
 export interface CampaignStat {
+  id?: string;  // Add id property to match usage in code
   date: string;
   leads: number;
   cases: number;
   retainers: number;
   adSpend?: number;
   revenue?: number;
+  createdAt?: string;  // Add createdAt to match usage in code
 }
 
 export interface CampaignTargets {
@@ -69,14 +72,14 @@ export interface CampaignManualStats {
   cases: number;
   retainers: number;
   revenue: number;
-  date?: string;  // Added missing property
+  date?: string;
 }
 
 export interface Campaign {
   id: string;
   name: string;
   accountId: string;
-  accountName: string;  // Added missing property
+  accountName: string;
   platform: string;
   buyers?: CaseBuyer[];
   targets: CampaignTargets;
@@ -106,18 +109,18 @@ export interface TrendData {
 }
 
 export interface GoalProgress {
-  metric: string;  // Added missing property
+  metric: string;
   target: number;
   current: number;
   percentage: number;
-  percentComplete: number;  // Added missing property
+  percentComplete: number;
   remaining: number;
   daysRemaining: number;
   dailyGoal: number;
   isOnTrack: boolean;
-  willReachTarget: boolean;  // Added missing property
-  projectedValue: number;  // Added missing property
-  gapToTarget: number;  // Added missing property
+  willReachTarget: boolean;
+  projectedValue: number;
+  gapToTarget: number;
 }
 
 export interface ProjectionParams {
@@ -126,13 +129,13 @@ export interface ProjectionParams {
   conversionRate: number;
   costPerLead: number;
   revenuePerCase: number;
-  adSpendGrowth: number;  // Added missing property
-  conversionRateGrowth: number;  // Added missing property
-  revenuePerCaseGrowth: number;  // Added missing property
+  adSpendGrowth: number;
+  conversionRateGrowth: number;
+  revenuePerCaseGrowth: number;
 }
 
 export interface ForecastedMetrics {
-  date?: string;  // Added missing property
+  date?: string;
   revenue: number;
   adSpend: number;
   profit: number;
@@ -142,5 +145,17 @@ export interface ForecastedMetrics {
   conversionRate: number;
 }
 
-export type ForecastingModel = 'linear' | 'exponential' | 'average' | 'seasonality';
-export type ForecastingPeriod = '7days' | '30days' | '90days' | '180days' | '1year';
+// Define interfaces for model and period with properties matching the usage in AnalysisPage
+export interface ForecastModelOption {
+  name: string;
+  label: string;
+  description: string;
+}
+
+export interface ForecastPeriodOption {
+  value: string;
+  label: string;
+}
+
+export type ForecastingModel = "linear" | "exponential" | "average" | "seasonality";
+export type ForecastingPeriod = "7days" | "30days" | "90days" | "180days" | "1year";

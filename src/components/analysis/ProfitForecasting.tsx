@@ -110,15 +110,17 @@ export const ProfitForecasting: React.FC<ProfitForecastingProps> = ({
       const dailyRevenue = dailyCases * revenuePerCase * revenueMultiplier;
       const dailyProfit = dailyRevenue - dailyAdSpend;
       const dailyROI = dailyAdSpend > 0 ? (dailyProfit / dailyAdSpend) * 100 : 0;
+      const dailyConversionRate = dailyLeads > 0 ? (dailyCases / dailyLeads) * 100 : 0;
       
       forecast.push({
         date: format(forecastDate, "MMM dd"),
         revenue: dailyRevenue,
         adSpend: dailyAdSpend,
         profit: dailyProfit,
+        roi: dailyROI,
         leads: dailyLeads,
         cases: dailyCases,
-        roi: dailyROI
+        conversionRate: dailyConversionRate
       });
     }
     
@@ -451,6 +453,7 @@ export const ProfitForecasting: React.FC<ProfitForecastingProps> = ({
                   <TableHead>ROI</TableHead>
                   <TableHead>Leads</TableHead>
                   <TableHead>Cases</TableHead>
+                  <TableHead>Conversion Rate</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -467,6 +470,7 @@ export const ProfitForecasting: React.FC<ProfitForecastingProps> = ({
                     </TableCell>
                     <TableCell>{formatNumber(day.leads)}</TableCell>
                     <TableCell>{formatNumber(day.cases)}</TableCell>
+                    <TableCell>{formatPercent(day.conversionRate)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
