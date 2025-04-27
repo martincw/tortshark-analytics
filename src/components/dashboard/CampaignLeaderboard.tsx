@@ -36,14 +36,13 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       
     const byEarningsPerLead = [...campaignsWithMetrics]
       .sort((a, b) => {
-        // Calculate Earnings Per Lead using metrics (revenue per lead)
         const earningsPerLeadA = a.metrics.leads > 0 
           ? a.metrics.revenue / a.metrics.leads 
           : 0;
         const earningsPerLeadB = b.metrics.leads > 0 
           ? b.metrics.revenue / b.metrics.leads 
           : 0;
-        return earningsPerLeadB - earningsPerLeadA; // Descending order
+        return earningsPerLeadB - earningsPerLeadA;
       })
       .slice(0, 5);
       
@@ -114,7 +113,9 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
                     </TableCell>
                     <TableCell>
                       <div>{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">Manual Entry</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatCurrency(campaign.metrics.revenue)}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(campaign.metrics.profit)}</TableCell>
                   </TableRow>
@@ -138,7 +139,6 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
               </TableHeader>
               <TableBody>
                 {leaderboardData.byEarningsPerLead.map((campaign, index) => {
-                  // Calculate Earnings Per Lead using metrics
                   const earningsPerLead = campaign.metrics.leads > 0 
                     ? campaign.metrics.revenue / campaign.metrics.leads 
                     : 0;
