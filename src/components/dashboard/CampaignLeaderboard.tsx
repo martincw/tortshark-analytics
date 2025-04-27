@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, Medal, Ribbon, Trophy } from "lucide-react";
@@ -37,13 +38,13 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
     const byEarningsPerLead = [...campaignsWithMetrics]
       .sort((a, b) => {
         // Calculate Earnings Per Lead (Revenue per Lead)
-        const earningsPerLeadA = b.manualStats.leads > 0 
-          ? b.manualStats.revenue / b.manualStats.leads 
-          : 0;
-        const earningsPerLeadB = a.manualStats.leads > 0 
+        const earningsPerLeadA = a.manualStats.leads > 0 
           ? a.manualStats.revenue / a.manualStats.leads 
           : 0;
-        return earningsPerLeadA - earningsPerLeadB;
+        const earningsPerLeadB = b.manualStats.leads > 0 
+          ? b.manualStats.revenue / b.manualStats.leads 
+          : 0;
+        return earningsPerLeadB - earningsPerLeadA; // Descending order
       })
       .slice(0, 5);
       
