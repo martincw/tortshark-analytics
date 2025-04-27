@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,7 +17,6 @@ import AccountsPage from "./pages/AccountsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ToolsPage from "./pages/ToolsPage";
-import AnalysisPage from "./pages/AnalysisPage";
 import BulkStatsPage from "./pages/BulkStatsPage";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
@@ -60,7 +58,6 @@ const App = () => (
                 <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/campaign/:id" element={<CampaignDetail />} />
                 <Route path="/add-campaign" element={<AddCampaignPage />} />
-                <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/bulk-stats" element={<BulkStatsPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts" element={<AccountsPage />} />
