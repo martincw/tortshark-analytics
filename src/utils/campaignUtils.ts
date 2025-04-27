@@ -1,5 +1,6 @@
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
+import { addDays, subDays } from "date-fns";
 
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
   console.log('Calculating metrics for campaign:', campaign.id);
@@ -8,7 +9,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   // Get filtered stats based on date range
   const periodStats = getPeriodStats(campaign, dateRange);
   
-  // Get previous week's stats
+  // Get previous week's stats using trailing 7 days
   const previousWeekStats = getPreviousWeekStats(campaign, dateRange);
   
   console.log('Period stats:', periodStats);
@@ -92,15 +93,22 @@ export const getPreviousWeekStats = (campaign: Campaign, dateRange?: DateRange) 
     return { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
   }
 
-  const previousWeekStart = new Date(dateRange.startDate);
-  previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+  // Convert current date range end to Date object
+  const currentEnd = new Date(dateRange.endDate);
   
-  const previousWeekEnd = new Date(dateRange.endDate);
-  previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
+  // Calculate the start of the trailing 7 days period
+  const trailingStart = subDays(currentEnd, 6); // This gives us exactly 7 days including the end date
+  
+  // Calculate the previous 7 days period
+  const previousEnd = subDays(trailingStart, 1); // Day before the trailing period starts
+  const previousStart = subDays(previousEnd, 6); // 7 days before that
+  
+  console.log('Calculating previous week stats using ranges:');
+  console.log('Previous period:', previousStart.toISOString(), 'to', previousEnd.toISOString());
 
   const previousDateRange = {
-    startDate: previousWeekStart.toISOString().split('T')[0],
-    endDate: previousWeekEnd.toISOString().split('T')[0]
+    startDate: previousStart.toISOString().split('T')[0],
+    endDate: previousEnd.toISOString().split('T')[0]
   };
 
   return getPeriodStats(campaign, previousDateRange);
