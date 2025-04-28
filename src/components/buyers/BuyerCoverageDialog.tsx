@@ -57,7 +57,14 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     setLoading(true);
     try {
       const coverageData = await getBuyerTortCoverage(buyerId);
-      setCoverages(coverageData);
+      const formattedCoverages: BuyerTortCoverage[] = coverageData.map(item => ({
+        id: item.id,
+        buyer_id: buyerId, // Use the buyerId prop
+        campaign_id: item.campaigns?.id || '',
+        payout_amount: item.payout_amount,
+        campaigns: item.campaigns
+      }));
+      setCoverages(formattedCoverages);
     } catch (error) {
       console.error("Error fetching buyer tort coverage:", error);
     } finally {

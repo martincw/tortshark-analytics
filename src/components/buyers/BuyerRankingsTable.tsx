@@ -25,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Campaign } from "@/types/campaign";
 import { formatCurrency } from "@/utils/campaignUtils";
 
 interface BuyerRanking {
@@ -37,10 +36,15 @@ interface BuyerRanking {
   campaign_name: string;
 }
 
+interface SimpleCampaign {
+  id: string;
+  name: string;
+}
+
 export function BuyerRankingsTable() {
   const [rankings, setRankings] = useState<BuyerRanking[]>([]);
   const [loading, setLoading] = useState(false);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<SimpleCampaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
 
   useEffect(() => {

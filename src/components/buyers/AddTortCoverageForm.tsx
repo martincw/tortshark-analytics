@@ -28,7 +28,7 @@ export function AddTortCoverageForm({
   existingCoverages 
 }: AddTortCoverageFormProps) {
   const { addBuyerTortCoverage } = useBuyers();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<{ id: string; name: string; }[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const [loading, setLoading] = useState(false);

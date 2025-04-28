@@ -36,7 +36,15 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     setLoading(true);
     try {
       const stack = await getCampaignBuyerStack(campaign.id);
-      setStackItems(stack);
+      const formattedStack: BuyerStackItem[] = stack.map(item => ({
+        id: item.id,
+        campaign_id: campaign.id,
+        buyer_id: item.buyers?.id || '',
+        stack_order: item.stack_order,
+        payout_amount: item.payout_amount,
+        buyers: item.buyers as CaseBuyer
+      }));
+      setStackItems(formattedStack);
     } catch (error) {
       console.error("Error loading buyer stack:", error);
     } finally {
