@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GoogleAdsMetrics from "./GoogleAdsMetrics";
 import { WeeklyPerformanceChart } from "./WeeklyPerformanceChart";
-import { calculateMetrics, formatCurrency, formatNumber } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 
 interface CampaignPerformanceSectionProps {

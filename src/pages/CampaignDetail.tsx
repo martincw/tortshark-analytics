@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -483,6 +482,7 @@ const CampaignDetail = () => {
     return "error";
   };
   
+  // Fixed calculation for profit per case
   const profitPerCase = campaign.manualStats.cases > 0 
     ? metrics.profit / campaign.manualStats.cases 
     : 0;
@@ -730,10 +730,8 @@ const CampaignDetail = () => {
           <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
             <Wallet className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Earnings Per Lead</span>
-            <span className={`text-xl font-semibold ${campaign.manualStats.leads > 0 && campaign.manualStats.revenue / campaign.manualStats.leads > metrics.costPerLead ? "text-success-DEFAULT" : ""}`}>
-              {campaign.manualStats.leads > 0 
-                ? formatCurrency(campaign.manualStats.revenue / campaign.manualStats.leads) 
-                : "$0.00"}
+            <span className={`text-xl font-semibold ${metrics.earningsPerLead > 0 ? "text-success-DEFAULT" : ""}`}>
+              {formatCurrency(metrics.earningsPerLead)}
             </span>
           </div>
           
@@ -741,9 +739,7 @@ const CampaignDetail = () => {
             <Target className="h-5 w-5 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Conversion Rate</span>
             <span className="text-xl font-semibold">
-              {campaign.manualStats.leads > 0 
-                ? `${((campaign.manualStats.cases / campaign.manualStats.leads) * 100).toFixed(1)}%` 
-                : "0%"}
+              {metrics.leads > 0 ? `${((metrics.cases / metrics.leads) * 100).toFixed(1)}%` : "0%"}
             </span>
           </div>
         </div>
@@ -784,82 +780,90 @@ const CampaignDetail = () => {
         />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-md border-accent/30 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Performance Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Ad Spend</span>
-                <span className="text-xl font-semibold">{formatCurrency(campaign.stats.adSpend)}</span>
+      {/* Dedicated Manual Stats Card - replaces the redundant performance summary */}
+      <Card className="shadow-md border-accent/30 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-primary" />
+            Manual Campaign Stats
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Leads</span>
+                {isEditing && <Edit className="h-3.5 w-3.5 text-muted-foreground" />}
               </div>
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Revenue</span>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  value={leadCount}
+                  onChange={(e) => setLeadCount(e.target.value)}
+                  className="h-9 text-lg font-semibold"
+                />
+              ) : (
                 <span className="text-xl font-semibold">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={revenue}
-                      onChange={(e) => setRevenue(e.target.value)}
-                      className="h-8 w-full"
-                    />
-                  ) : (
-                    formatCurrency(campaign.manualStats.revenue)
-                  )}
+                  {formatNumber(campaign.manualStats.leads)}
                 </span>
-              </div>
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Leads</span>
-                <span className="text-xl font-semibold">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={leadCount}
-                      onChange={(e) => setLeadCount(e.target.value)}
-                      className="h-8 w-full"
-                    />
-                  ) : (
-                    formatNumber(campaign.manualStats.leads)
-                  )}
-                </span>
-              </div>
-              <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-                <span className="text-sm text-muted-foreground block mb-1">Cases</span>
-                <span className="text-xl font-semibold">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={caseCount}
-                      onChange={(e) => setCaseCount(e.target.value)}
-                      className="h-8 w-full"
-                    />
-                  ) : (
-                    formatNumber(campaign.manualStats.cases)
-                  )}
-                </span>
-              </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Stats History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Campaign stats history content would go here */}
-            <div className="text-center text-muted-foreground">
-              Stats history will be displayed here
+            
+            <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Cases</span>
+                {isEditing && <Edit className="h-3.5 w-3.5 text-muted-foreground" />}
+              </div>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  value={caseCount}
+                  onChange={(e) => setCaseCount(e.target.value)}
+                  className="h-9 text-lg font-semibold"
+                />
+              ) : (
+                <span className="text-xl font-semibold">
+                  {formatNumber(campaign.manualStats.cases)}
+                </span>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
+            
+            <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Revenue</span>
+                {isEditing && <Edit className="h-3.5 w-3.5 text-muted-foreground" />}
+              </div>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  value={revenue}
+                  onChange={(e) => setRevenue(e.target.value)}
+                  className="h-9 text-lg font-semibold"
+                />
+              ) : (
+                <span className="text-xl font-semibold">
+                  {formatCurrency(campaign.manualStats.revenue)}
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {/* Only show in edit mode */}
+          {isEditing && (
+            <div className="mt-4 flex justify-end">
+              <Button 
+                size="sm" 
+                onClick={handleSave}
+                className="bg-primary/90 hover:bg-primary"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
       {/* Daily Stats Dialog */}
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
         <DialogContent>
