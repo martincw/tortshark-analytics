@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -840,3 +841,244 @@ const CampaignDetail = () => {
                     formatNumber(campaign.manualStats.cases)
                   )}
                 </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Campaign Stats History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Campaign stats history content would go here */}
+            <div className="text-center text-muted-foreground">
+              Stats history will be displayed here
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Daily Stats Dialog */}
+      <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Daily Stats</DialogTitle>
+            <DialogDescription>
+              Add leads, cases and revenue for a specific date.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="date" className="text-right">Date</Label>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={onCalendarSelect}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="leads" className="text-right">Leads</Label>
+              <Input
+                id="leads"
+                type="number"
+                value={dailyStats.leads}
+                onChange={(e) => setDailyStats({...dailyStats, leads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="cases" className="text-right">Cases</Label>
+              <Input
+                id="cases"
+                type="number"
+                value={dailyStats.cases}
+                onChange={(e) => setDailyStats({...dailyStats, cases: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="revenue" className="text-right">Revenue</Label>
+              <Input
+                id="revenue"
+                type="number"
+                value={dailyStats.revenue}
+                onChange={(e) => setDailyStats({...dailyStats, revenue: e.target.value})}
+                className="col-span-3"
+                placeholder="e.g. 5000"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="adSpend" className="text-right">Ad Spend</Label>
+              <Input
+                id="adSpend"
+                type="number"
+                value={dailyStats.adSpend}
+                onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
+                className="col-span-3"
+                placeholder="e.g. 1000"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="submit" onClick={handleSaveDailyStats}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Entry Dialog */}
+      <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Stats Entry</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-date" className="text-right">Date</Label>
+              <Popover open={editCalendarOpen} onOpenChange={setEditCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="edit-date"
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !editDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={editDate}
+                    onSelect={onEditCalendarSelect}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-leads" className="text-right">Leads</Label>
+              <Input
+                id="edit-leads"
+                type="number"
+                value={editEntryData.leads}
+                onChange={(e) => setEditEntryData({...editEntryData, leads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-cases" className="text-right">Cases</Label>
+              <Input
+                id="edit-cases"
+                type="number"
+                value={editEntryData.cases}
+                onChange={(e) => setEditEntryData({...editEntryData, cases: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-revenue" className="text-right">Revenue</Label>
+              <Input
+                id="edit-revenue"
+                type="number"
+                value={editEntryData.revenue}
+                onChange={(e) => setEditEntryData({...editEntryData, revenue: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-adSpend" className="text-right">Ad Spend</Label>
+              <Input
+                id="edit-adSpend"
+                type="number"
+                value={editEntryData.adSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="flex justify-between">
+            <Button 
+              variant="destructive" 
+              onClick={() => handleDeleteEntryConfirm(editingEntryId as string)}
+              type="button"
+            >
+              Delete Entry
+            </Button>
+            <div className="space-x-2">
+              <Button variant="outline" onClick={handleCancelEditEntry} type="button">
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEditedEntry} type="button">
+                Save Changes
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Entry Dialog */}
+      <AlertDialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirmMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingEntry}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={isDeletingBulk ? confirmBulkDelete : confirmDeleteEntry}
+              disabled={isDeletingEntry}
+            >
+              {isDeletingEntry ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default CampaignDetail;
