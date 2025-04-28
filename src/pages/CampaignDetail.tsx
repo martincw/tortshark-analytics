@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,31 @@ const CampaignDetail = () => {
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   
+  // Early return if campaign data is still loading
+  // This prevents trying to access properties of an undefined object
+  if (campaigns.length > 0 && id && !campaign) {
+    console.log("Campaign not found for ID:", id);
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
+        <Button onClick={() => navigate("/campaigns")} variant="default">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Campaigns
+        </Button>
+      </div>
+    );
+  }
+  
+  // If campaigns haven't been loaded yet, show a loading state
+  if (campaigns.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <h2 className="text-xl font-semibold">Loading campaign data...</h2>
+      </div>
+    );
+  }
+  
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
@@ -166,25 +192,35 @@ const CampaignDetail = () => {
     }
   }, [campaign]);
   
-  if (!campaign) {
-    console.log("Campaign not found for ID:", id);
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
-        <Button onClick={() => navigate("/campaigns")} variant="default">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Campaigns
-        </Button>
-      </div>
-    );
-  }
-  
+  // Ensure campaign exists before calculating metrics
   const metrics = useMemo(() => {
+    if (!campaign) {
+      return {
+        leads: 0,
+        cases: 0,
+        retainers: 0,
+        revenue: 0,
+        adSpend: 0,
+        profit: 0,
+        roi: 0,
+        cpa: 0,
+        cpl: 0,
+        costPerLead: 0,
+        earningsPerLead: 0,
+        weekOverWeekChange: 0,
+        previousWeekProfit: 0,
+      };
+    }
     console.log('CampaignDetail - Calculating metrics with date range:', dateRange);
     return calculateMetrics(campaign, dateRange);
   }, [campaign, dateRange]);
 
   console.log('CampaignDetail - Calculated metrics:', metrics);
+
+  // The rest of the component needs access to campaign, so we ensure it exists
+  if (!campaign) {
+    return null;
+  }
 
   const getRoiClass = () => {
     if (metrics.roi > 200) return "text-success-DEFAULT";

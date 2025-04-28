@@ -48,7 +48,7 @@ export interface CampaignMetrics {
 }
 
 export interface CampaignStat {
-  id?: string;  // Add id property to match usage in code
+  id: string;  // Changed from optional to required based on usage
   date: string;
   leads: number;
   cases: number;
@@ -145,7 +145,6 @@ export interface ForecastedMetrics {
   conversionRate: number;
 }
 
-// Define interfaces for model and period with properties matching the usage in AnalysisPage
 export interface ForecastModelOption {
   name: string;
   label: string;
@@ -157,5 +156,5 @@ export interface ForecastPeriodOption {
   label: string;
 }
 
-export type ForecastingModel = "linear" | "exponential" | "average" | "seasonality";
-export type ForecastingPeriod = "7days" | "30days" | "90days" | "180days" | "1year";
+export type ForecastingModel = "linear" | "exponential" | "average" | "seasonality" | ForecastModelOption;
+export type ForecastingPeriod = "7days" | "30days" | "90days" | "180days" | "1year" | ForecastPeriodOption;
