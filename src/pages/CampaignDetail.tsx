@@ -1,42 +1,18 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getRoasClass } from "@/utils/campaignUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BadgeStat } from "@/components/ui/badge-stat";
-import { StatCard } from "@/components/ui/stat-card";
-import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import {
   ArrowLeft,
   Edit,
   Trash2,
   DollarSign,
-  Users,
-  FileCheck,
-  TrendingUp,
-  BarChart3,
-  CreditCard,
-  Percent,
   Save,
   X,
   CalendarDays,
-  Target,
-  PlusCircle,
-  Calendar,
-  MoreHorizontal,
   Check,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  FileText,
-  Wallet,
-  TrendingDown,
-  LineChart,
-  BarChart,
-  CircleDollarSign,
-  AlertTriangle,
   Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -72,19 +48,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import GoogleAdsMetrics from "@/components/campaigns/GoogleAdsMetrics";
-import { DatePicker } from "@/components/ui/date-picker";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
-import { CaseAttributionForm } from "@/components/campaigns/CaseAttributionForm";
-import { formatDateForStorage, formatDisplayDate, parseStoredDate, formatSafeDate } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, formatDisplayDate } from "@/lib/utils/ManualDateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
+import CampaignFinancialOverview from "@/components/campaigns/CampaignFinancialOverview";
+import CampaignDailyAverages from "@/components/campaigns/CampaignDailyAverages";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -210,7 +179,6 @@ const CampaignDetail = () => {
   }
 
   // Early return if campaign data is still loading
-  // This prevents trying to access properties of an undefined object
   if (id && !campaign) {
     console.log("Campaign not found for ID:", id);
     return (
@@ -228,12 +196,6 @@ const CampaignDetail = () => {
   if (!campaign) {
     return null;
   }
-
-  const getRoiClass = () => {
-    if (metrics.roi > 200) return "text-success-DEFAULT";
-    if (metrics.roi > 0) return "text-secondary"; 
-    return "text-error-DEFAULT";
-  };
   
   const handleSave = () => {
     updateCampaign(campaign.id, {
@@ -463,31 +425,6 @@ const CampaignDetail = () => {
     }
   };
 
-  const roasProgress = Math.min(Math.round((metrics.roas / campaign.targets.targetROAS) * 100), 100);
-  const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
-  const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
-  
-  const getRoasVariant = () => {
-    if (roasProgress >= 100) return "success";
-    if (roasProgress >= 70) return "warning";
-    return "error";
-  };
-  
-  const getCasesVariant = () => {
-    if (casesProgress >= 100) return "success";
-    if (casesProgress >= 70) return "warning";
-    return "error";
-  };
-  
-  const getProfitVariant = () => {
-    if (profitProgress >= 100) return "success";
-    if (profitProgress >= 70) return "warning";
-    return "error";
-  };
-  
-  // Revenue per case calculation
-  const revenuePerCase = metrics.revenuePerCase || 0;
-
   const handleEditTitle = () => {
     setEditedTitle(campaign.name);
     setIsEditingTitle(true);
@@ -542,6 +479,7 @@ const CampaignDetail = () => {
 
   return (
     <div className="space-y-8">
+      {/* Header section with campaign name and action buttons */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <Button
@@ -610,13 +548,6 @@ const CampaignDetail = () => {
                 <CalendarDays className="mr-2 h-4 w-4" />
                 Add Stats
               </Button>
-              <Button
-                onClick={() => setIsEditing(true)}
-                variant="outline"
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Stats
-              </Button>
               <Button onClick={handleDelete} variant="destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -626,256 +557,14 @@ const CampaignDetail = () => {
         </div>
       </div>
       
+      {/* Campaign Performance Chart Section */}
       <CampaignPerformanceSection campaign={campaign} />
       
-      <div className="bg-gradient-to-br from-card/90 to-accent/10 rounded-xl p-6 shadow-md border">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
-            <div className="flex items-center gap-2 mb-3">
-              <DollarSign className="h-6 w-6 text-primary opacity-80" />
-              <h3 className="text-lg font-semibold">Financial Overview</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-sm text-muted-foreground block">Revenue</span>
-                <span className="text-2xl font-bold">{formatCurrency(metrics.revenue)}</span>
-              </div>
-              <div>
-                <span className="text-sm text-muted-foreground block">Ad Spend</span>
-                <span className="text-2xl font-bold">{formatCurrency(metrics.adSpend)}</span>
-              </div>
-            </div>
-            <div className="pt-4 mt-4 border-t">
-              <div className="flex justify-between mb-2">
-                <span className="font-medium">Profit</span>
-                <span className={`font-bold ${getRoiClass()}`}>{formatCurrency(metrics.profit)}</span>
-              </div>
-              <CustomProgressBar
-                value={profitProgress}
-                variant={getProfitVariant()}
-                size="md"
-                showValue
-                valuePosition="right"
-              />
-            </div>
-          </div>
-          
-          <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="h-6 w-6 text-primary opacity-80" />
-              <h3 className="text-lg font-semibold">Case Acquisition</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-sm text-muted-foreground block">Leads</span>
-                <span className="text-2xl font-bold">{formatNumber(metrics.leads)}</span>
-              </div>
-              <div>
-                <span className="text-sm text-muted-foreground block">Cases</span>
-                <span className="text-2xl font-bold">{formatNumber(metrics.cases)}</span>
-              </div>
-            </div>
-            <div className="pt-4 mt-4 border-t">
-              <div className="flex justify-between mb-2">
-                <span className="font-medium">Target Cases</span>
-                <span className="font-bold">{campaign.manualStats.cases} of {campaign.targets.monthlyRetainers}</span>
-              </div>
-              <CustomProgressBar
-                value={casesProgress}
-                variant={getCasesVariant()}
-                size="md"
-                showValue
-                valuePosition="right"
-              />
-            </div>
-          </div>
-          
-          <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="h-6 w-6 text-primary opacity-80" />
-              <h3 className="text-lg font-semibold">ROAS Performance</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-sm text-muted-foreground block">ROAS</span>
-                <span className={`text-2xl font-bold ${getRoasClass(metrics.roas)}`}>{metrics.roas.toFixed(1)}%</span>
-              </div>
-              <div>
-                <span className="text-sm text-muted-foreground block">Revenue Per Case</span>
-                <span className={`text-2xl font-bold ${revenuePerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
-                  {formatCurrency(revenuePerCase)}
-                </span>
-              </div>
-            </div>
-            <div className="pt-4 mt-4 border-t">
-              <div className="flex justify-between mb-2">
-                <span className="font-medium">Target ROAS</span>
-                <span className="font-bold">{metrics.roas.toFixed(1)}% of {campaign.targets.targetROAS}%</span>
-              </div>
-              <CustomProgressBar
-                value={roasProgress}
-                variant={getRoasVariant()}
-                size="md"
-                showValue
-                valuePosition="right"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 pt-4 border-t">
-          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
-            <Clock className="h-5 w-5 text-muted-foreground mb-2" />
-            <span className="text-sm text-muted-foreground">Cost Per Lead</span>
-            <span className={`text-xl font-semibold ${metrics.costPerLead > 50 ? "text-warning-DEFAULT" : ""}`}>
-              {formatCurrency(metrics.costPerLead)}
-            </span>
-          </div>
-          
-          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
-            <FileText className="h-5 w-5 text-muted-foreground mb-2" />
-            <span className="text-sm text-muted-foreground">Cost Per Case</span>
-            <span className={`text-xl font-semibold ${metrics.cpa < campaign.targets.casePayoutAmount ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
-              {formatCurrency(metrics.cpa)}
-            </span>
-          </div>
-          
-          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
-            <Wallet className="h-5 w-5 text-muted-foreground mb-2" />
-            <span className="text-sm text-muted-foreground">Revenue Per Lead</span>
-            <span className={`text-xl font-semibold ${metrics.earningsPerLead > 0 ? "text-success-DEFAULT" : ""}`}>
-              {formatCurrency(metrics.earningsPerLead)}
-            </span>
-          </div>
-          
-          <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
-            <Target className="h-5 w-5 text-muted-foreground mb-2" />
-            <span className="text-sm text-muted-foreground">Conversion Rate</span>
-            <span className="text-xl font-semibold">
-              {metrics.leads > 0 ? `${((metrics.cases / metrics.leads) * 100).toFixed(1)}%` : "0%"}
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* Financial Overview Section (New) */}
+      <CampaignFinancialOverview campaign={campaign} />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          title="Return on Ad Spend"
-          value={`${metrics.roas.toFixed(1)}%`}
-          icon={<Percent className="h-5 w-5" />}
-          trend={metrics.roas > 0 ? "up" : "down"}
-          trendValue={metrics.roas > 300 ? "Excellent" : metrics.roas > 200 ? "Good" : metrics.roas > 0 ? "Positive" : "Needs Attention"}
-          className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
-          isHighlighted={true}
-          valueClassName={getRoasClass(metrics.roas)}
-        />
-        
-        <StatCard
-          title="Campaign Profit"
-          value={formatCurrency(metrics.profit)}
-          icon={<CreditCard className="h-5 w-5" />}
-          trend={metrics.profit > 0 ? "up" : "down"}
-          trendValue={metrics.profit > 5000 ? "High Performer" : metrics.profit > 0 ? "Profitable" : "Loss"}
-          className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
-          isHighlighted={true}
-          valueClassName={getRoiClass()}
-        />
-        
-        <StatCard
-          title="Revenue Per Case"
-          value={formatCurrency(revenuePerCase)}
-          icon={<CircleDollarSign className="h-5 w-5" />}
-          trend={revenuePerCase > campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
-          trendValue={revenuePerCase > campaign.targets.casePayoutAmount ? "Excellent" : "Average"}
-          className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
-          isHighlighted={true}
-          valueClassName={revenuePerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
-        />
-      </div>
-      
-      {/* Dedicated Manual Stats Card */}
-      <Card className="shadow-md border-accent/30 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <FileCheck className="h-5 w-5 text-primary" />
-            Manual Campaign Stats
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-muted-foreground">Leads</span>
-                {isEditing && <Edit className="h-3.5 w-3.5 text-muted-foreground" />}
-              </div>
-              {isEditing ? (
-                <Input
-                  type="number"
-                  value={leadCount}
-                  onChange={(e) => setLeadCount(e.target.value)}
-                  className="h-9 text-lg font-semibold"
-                />
-              ) : (
-                <span className="text-xl font-semibold">
-                  {formatNumber(campaign.manualStats.leads)}
-                </span>
-              )}
-            </div>
-            
-            <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-muted-foreground">Cases</span>
-                {isEditing && <Edit className="h-3.5 w-3.5 text-muted-foreground" />}
-              </div>
-              {isEditing ? (
-                <Input
-                  type="number"
-                  value={caseCount}
-                  onChange={(e) => setCaseCount(e.target.value)}
-                  className="h-9 text-lg font-semibold"
-                />
-              ) : (
-                <span className="text-xl font-semibold">
-                  {formatNumber(campaign.manualStats.cases)}
-                </span>
-              )}
-            </div>
-            
-            <div className="bg-accent/10 rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-muted-foreground">Revenue</span>
-                {isEditing && <Edit className="h-3.5 w-3.5 text-muted-foreground" />}
-              </div>
-              {isEditing ? (
-                <Input
-                  type="number"
-                  value={revenue}
-                  onChange={(e) => setRevenue(e.target.value)}
-                  className="h-9 text-lg font-semibold"
-                />
-              ) : (
-                <span className="text-xl font-semibold">
-                  {formatCurrency(campaign.manualStats.revenue)}
-                </span>
-              )}
-            </div>
-          </div>
-          
-          {/* Only show in edit mode */}
-          {isEditing && (
-            <div className="mt-4 flex justify-end">
-              <Button 
-                size="sm" 
-                onClick={handleSave}
-                className="bg-primary/90 hover:bg-primary"
-              >
-                <Save className="h-4 w-4 mr-1" />
-                Save Changes
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Daily Performance Averages Section (New) */}
+      <CampaignDailyAverages campaign={campaign} />
 
       {/* Manual Stats History Table */}
       <Card className="shadow-md border-accent/30 overflow-hidden">
@@ -1013,6 +702,7 @@ const CampaignDetail = () => {
               </Popover>
             </div>
 
+            
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="leads" className="text-right">Leads</Label>
               <Input
@@ -1068,6 +758,7 @@ const CampaignDetail = () => {
 
       {/* Edit Entry Dialog */}
       <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+        
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Stats Entry</DialogTitle>
