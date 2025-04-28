@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -100,9 +99,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const formattedDate = format(new Date(campaign.stats.date), "MMM d, yyyy");
 
   const getProfitabilityClass = () => {
-    if (metrics.roi > 200) return "text-success-DEFAULT font-bold";
-    if (metrics.roi > 0) return "text-secondary font-bold";
-    return "text-error-DEFAULT font-bold";
+    if (metrics.roi > 300) return "text-success-DEFAULT";
+    if (metrics.roi > 200) return "text-secondary"; 
+    return "text-error-DEFAULT";
   };
 
   const tortType = campaign.name;
@@ -165,11 +164,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <CardContent className="pb-0">
           <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">ROI</span>
+              <span className="text-xs font-medium text-muted-foreground">ROAS</span>
               <div className="flex items-center gap-1.5 mt-1">
                 <Percent className="h-4 w-4 text-secondary" />
                 <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                  {metrics.roi.toFixed(0)}%
+                  {((campaign.manualStats.revenue / campaign.stats.adSpend) * 100).toFixed(0)}%
                 </span>
               </div>
             </div>

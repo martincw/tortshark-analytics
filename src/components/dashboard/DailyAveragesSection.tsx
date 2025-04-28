@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, DollarSign, TrendingUp } from "lucide-react";
@@ -76,17 +75,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const dailyCases = totalCases / effectiveDays;
     const dailyRevenue = totalRevenue / effectiveDays;
     const dailyProfit = dailyRevenue - dailyAdSpend;
-    const roi = dailyAdSpend > 0 ? ((dailyRevenue - dailyAdSpend) / dailyAdSpend) * 100 : 0;
-    
-    console.log('Calculated daily averages:', {
-      dailyAdSpend,
-      dailyLeads,
-      dailyCases,
-      dailyRevenue,
-      dailyProfit,
-      roi,
-      effectiveDays
-    });
+    const roas = dailyAdSpend > 0 ? (dailyRevenue / dailyAdSpend) * 100 : 0;
     
     return {
       adSpend: dailyAdSpend,
@@ -94,7 +83,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       cases: dailyCases,
       revenue: dailyRevenue,
       profit: dailyProfit,
-      roi,
+      roas,
       daysInRange: effectiveDays
     };
   }, [filteredCampaigns, dateRange]);
@@ -159,13 +148,13 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className={`p-4 rounded-lg border ${averages.roi >= 100 ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : averages.roi >= 0 ? 'bg-accent/10 border-accent/20' : 'bg-error-DEFAULT/10 border-error-DEFAULT/20'}`}>
+          <div className={`p-4 rounded-lg border ${averages.roas >= 300 ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : averages.roas >= 200 ? 'bg-accent/10 border-accent/20' : 'bg-error-DEFAULT/10 border-error-DEFAULT/20'}`}>
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <TrendingUp className="h-4 w-4" />
-              Daily ROI
+              Daily ROAS
             </div>
-            <div className={`text-xl font-bold ${averages.roi >= 200 ? 'text-success-DEFAULT' : averages.roi >= 100 ? 'text-secondary' : averages.roi >= 0 ? '' : 'text-error-DEFAULT'}`}>
-              {averages.roi.toFixed(1)}%
+            <div className={`text-xl font-bold ${averages.roas >= 300 ? 'text-success-DEFAULT' : averages.roas >= 200 ? 'text-secondary' : averages.roas >= 0 ? '' : 'text-error-DEFAULT'}`}>
+              {averages.roas.toFixed(1)}%
             </div>
           </div>
         </div>
