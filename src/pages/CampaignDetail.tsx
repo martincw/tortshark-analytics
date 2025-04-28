@@ -71,7 +71,6 @@ const CampaignDetail = () => {
     setDateRange 
   } = useCampaign();
   
-  // Hook to set selected campaign ID - should always run
   useEffect(() => {
     if (id) {
       setSelectedCampaignId(id);
@@ -118,7 +117,6 @@ const CampaignDetail = () => {
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
-  // Always call this hook, but with a guard inside
   useEffect(() => {
     console.log("Campaign state changed");
     if (campaign) {
@@ -126,7 +124,6 @@ const CampaignDetail = () => {
     }
   }, [campaign]);
   
-  // Form state update hook - runs unconditionally
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
@@ -141,7 +138,6 @@ const CampaignDetail = () => {
     }
   }, [campaign]);
   
-  // Ensure campaign exists before calculating metrics
   const metrics = useMemo(() => {
     if (!campaign) {
       return {
@@ -166,9 +162,6 @@ const CampaignDetail = () => {
     return calculateMetrics(campaign, dateRange);
   }, [campaign, dateRange]);
 
-  console.log('CampaignDetail - Calculated metrics:', metrics);
-
-  // Early return if campaigns haven't been loaded yet, show a loading state
   if (campaigns.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-96">
@@ -178,7 +171,6 @@ const CampaignDetail = () => {
     );
   }
 
-  // Early return if campaign data is still loading
   if (id && !campaign) {
     console.log("Campaign not found for ID:", id);
     return (
@@ -192,7 +184,6 @@ const CampaignDetail = () => {
     );
   }
 
-  // The rest of the component needs access to campaign, so we ensure it exists
   if (!campaign) {
     return null;
   }
@@ -284,7 +275,6 @@ const CampaignDetail = () => {
   const handleEditEntry = (entry: any) => {
     console.log("Editing entry:", entry);
     
-    // Reset states first to avoid UI issues
     setEditEntryDialogOpen(false);
     setEditingEntryId(null);
     
@@ -297,30 +287,25 @@ const CampaignDetail = () => {
         adSpend: (entry.adSpend || 0).toString()
       });
       
-      // Convert the date string to a Date object in a safe way
       let entryDate: Date;
       
       console.log("Entry date from database:", entry.date);
       
       if (typeof entry.date === 'string') {
-        // Split the date string to get components (handle ISO format or yyyy-MM-dd)
         const parts = entry.date.split('T')[0].split('-');
         if (parts.length === 3) {
-          // Create a UTC date at noon
           entryDate = new Date(Date.UTC(
-            parseInt(parts[0], 10),  // year
-            parseInt(parts[1], 10) - 1,  // month (0-based)
-            parseInt(parts[2], 10),  // day
-            12, 0, 0, 0  // noon UTC
+            parseInt(parts[0], 10),
+            parseInt(parts[1], 10) - 1,
+            parseInt(parts[2], 10),
+            12, 0, 0, 0
           ));
-          console.log("Constructed UTC date from parts:", entryDate);
         } else {
           console.warn("Could not parse date parts:", parts);
           entryDate = new Date();
           entryDate.setHours(12, 0, 0, 0);
         }
       } else {
-        // If it's already a Date object
         entryDate = new Date(entry.date);
         entryDate.setHours(12, 0, 0, 0);
       }
@@ -331,7 +316,6 @@ const CampaignDetail = () => {
         entryDate.setHours(12, 0, 0, 0);
       }
       
-      console.log("Final date object to use for editing:", entryDate);
       setEditDate(entryDate);
       setEditEntryDialogOpen(true);
     }, 100);
@@ -465,7 +449,6 @@ const CampaignDetail = () => {
     setDeleteEntryDialogOpen(true);
   };
 
-  // Format date for display
   const formatDateForDisplay = (dateString: string) => {
     try {
       if (!dateString) return "N/A";
@@ -479,7 +462,6 @@ const CampaignDetail = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header section with campaign name and action buttons */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <Button
@@ -557,16 +539,12 @@ const CampaignDetail = () => {
         </div>
       </div>
       
-      {/* Campaign Performance Chart Section */}
       <CampaignPerformanceSection campaign={campaign} />
       
-      {/* Financial Overview Section (New) */}
       <CampaignFinancialOverview campaign={campaign} />
       
-      {/* Daily Performance Averages Section (New) */}
       <CampaignDailyAverages campaign={campaign} />
 
-      {/* Manual Stats History Table */}
       <Card className="shadow-md border-accent/30 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
           <CardTitle className="text-lg font-medium flex items-center justify-between">
@@ -664,7 +642,6 @@ const CampaignDetail = () => {
         </CardContent>
       </Card>
       
-      {/* Daily Stats Dialog */}
       <Dialog open={isDailyStatsDialogOpen} onOpenChange={setIsDailyStatsDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -756,7 +733,6 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Entry Dialog */}
       <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
         
         <DialogContent>
@@ -857,7 +833,6 @@ const CampaignDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Entry Dialog */}
       <AlertDialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

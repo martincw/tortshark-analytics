@@ -23,9 +23,6 @@ const CampaignFinancialOverview: React.FC<CampaignFinancialOverviewProps> = ({ c
         profit: 0
       };
     }
-
-    console.log('Calculating financial data for campaign:', campaign.name);
-    console.log('Using date range:', dateRange);
     
     // Calculate totals for the selected date range
     let totalRevenue = 0;
@@ -39,12 +36,6 @@ const CampaignFinancialOverview: React.FC<CampaignFinancialOverviewProps> = ({ c
     });
     
     const profit = totalRevenue - totalCost;
-    
-    console.log('Financial data calculated:', {
-      revenue: totalRevenue,
-      cost: totalCost,
-      profit
-    });
     
     return {
       revenue: totalRevenue,

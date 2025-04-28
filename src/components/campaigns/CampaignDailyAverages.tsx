@@ -28,9 +28,6 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
       };
     }
     
-    console.log(`Calculating daily averages for campaign: ${campaign.name}`);
-    console.log(`Date range: ${dateRange.startDate} to ${dateRange.endDate}`);
-    
     // Calculate total metrics within date range
     let totalAdSpend = 0;
     let totalLeads = 0;
@@ -42,13 +39,6 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
     
     campaign.statsHistory.forEach(entry => {
       if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        console.log(`Including daily averages for date ${entry.date}:`, {
-          adSpend: entry.adSpend || 0,
-          leads: entry.leads || 0,
-          cases: entry.cases || 0,
-          revenue: entry.revenue || 0
-        });
-        
         totalAdSpend += entry.adSpend || 0;
         totalLeads += entry.leads || 0;
         totalCases += entry.cases || 0;
@@ -61,9 +51,6 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
     const startDate = parseISO(dateRange.startDate);
     const endDate = parseISO(dateRange.endDate);
     const daysInRange = differenceInDays(endDate, startDate) + 1;
-    
-    console.log(`Days in selected range: ${daysInRange}`);
-    console.log(`Days with entries: ${daysWithEntries.size}`);
     
     // Use days with entries for average calculation if available
     const effectiveDays = daysWithEntries.size > 0 ? daysWithEntries.size : daysInRange;

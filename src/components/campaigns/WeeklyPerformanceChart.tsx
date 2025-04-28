@@ -154,7 +154,6 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
     return [weeklyData];
   }, [campaign.statsHistory, campaign.targets, dateRange]);
 
-  // Add the missing chartConfig object
   const chartConfig = {
     leads: {
       label: "Leads",
