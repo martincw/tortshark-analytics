@@ -113,13 +113,6 @@ const CampaignDetail = () => {
   
   const campaign = campaigns.find((c) => c.id === id);
   
-  // Always call this hook, but with a guard inside
-  useEffect(() => {
-    if (campaign) {
-      console.log("Found campaign:", campaign);
-    }
-  }, [campaign]);
-  
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingManualStats, setIsAddingManualStats] = useState(false);
   const [leadCount, setLeadCount] = useState("0");
@@ -155,33 +148,16 @@ const CampaignDetail = () => {
   const [isDeletingEntry, setIsDeletingEntry] = useState(false);
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
-  
-  // Early return if campaigns haven't been loaded yet, show a loading state
-  if (campaigns.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <h2 className="text-xl font-semibold">Loading campaign data...</h2>
-      </div>
-    );
-  }
 
-  // Early return if campaign data is still loading
-  // This prevents trying to access properties of an undefined object
-  if (id && !campaign) {
-    console.log("Campaign not found for ID:", id);
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
-        <Button onClick={() => navigate("/campaigns")} variant="default">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Campaigns
-        </Button>
-      </div>
-    );
-  }
+  // Always call this hook, but with a guard inside
+  useEffect(() => {
+    console.log("Campaign state changed");
+    if (campaign) {
+      console.log("Found campaign:", campaign);
+    }
+  }, [campaign]);
   
-  // Move this effect into a useEffect that runs conditionally only after we're sure campaign exists
+  // Form state update hook - runs unconditionally
   useEffect(() => {
     if (campaign) {
       setLeadCount(campaign.manualStats.leads.toString());
@@ -220,6 +196,31 @@ const CampaignDetail = () => {
   }, [campaign, dateRange]);
 
   console.log('CampaignDetail - Calculated metrics:', metrics);
+
+  // Early return if campaigns haven't been loaded yet, show a loading state
+  if (campaigns.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <h2 className="text-xl font-semibold">Loading campaign data...</h2>
+      </div>
+    );
+  }
+
+  // Early return if campaign data is still loading
+  // This prevents trying to access properties of an undefined object
+  if (id && !campaign) {
+    console.log("Campaign not found for ID:", id);
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
+        <Button onClick={() => navigate("/campaigns")} variant="default">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Campaigns
+        </Button>
+      </div>
+    );
+  }
 
   // The rest of the component needs access to campaign, so we ensure it exists
   if (!campaign) {
