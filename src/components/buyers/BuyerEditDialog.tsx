@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Building, Globe, Mail, User, PencilLine } from "lucide-react";
 
 interface BuyerEditDialogProps {
   buyer: CaseBuyer;
@@ -68,89 +69,108 @@ export function BuyerEditDialog({ buyer, isOpen, onClose }: BuyerEditDialogProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Edit Buyer</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <PencilLine className="h-5 w-5 text-primary" />
+            Edit {buyer.name}
+          </DialogTitle>
           <DialogDescription>
-            Update the details for {buyer.name}
+            Update the buyer details and information
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-name">Company Name *</Label>
-            <Input
-              id="edit-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter company name"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="edit-name" className="flex items-center gap-2">
+                <Building className="h-3.5 w-3.5 text-primary" />
+                Company Name *
+              </Label>
+              <Input
+                id="edit-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter company name"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-url" className="flex items-center gap-2">
+                <Globe className="h-3.5 w-3.5 text-primary" />
+                Website URL
+              </Label>
+              <Input
+                id="edit-url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-platform" className="flex items-center gap-2">
+                Platform
+              </Label>
+              <Input
+                id="edit-platform"
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                placeholder="Email, SMS, Telegram, etc."
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-contact-name" className="flex items-center gap-2">
+                <User className="h-3.5 w-3.5 text-primary" />
+                Contact Name
+              </Label>
+              <Input
+                id="edit-contact-name"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="John Smith"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-email" className="flex items-center gap-2">
+                <Mail className="h-3.5 w-3.5 text-primary" />
+                Email
+              </Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="contact@example.com"
+              />
+            </div>
+            
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="edit-payout-terms">Payout Terms</Label>
+              <Input
+                id="edit-payout-terms"
+                value={payoutTerms}
+                onChange={(e) => setPayoutTerms(e.target.value)}
+                placeholder="Net 30, etc."
+              />
+            </div>
+            
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Textarea
+                id="edit-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Budget information and other notes"
+                className="min-h-[120px]"
+              />
+            </div>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="edit-url">Website URL</Label>
-            <Input
-              id="edit-url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-contact-name">Contact Name</Label>
-            <Input
-              id="edit-contact-name"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              placeholder="John Smith"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-email">Email</Label>
-            <Input
-              id="edit-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="contact@example.com"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-platform">Platform</Label>
-            <Input
-              id="edit-platform"
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              placeholder="Email, SMS, Telegram, etc."
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-payout-terms">Payout Terms</Label>
-            <Input
-              id="edit-payout-terms"
-              value={payoutTerms}
-              onChange={(e) => setPayoutTerms(e.target.value)}
-              placeholder="Net 30, etc."
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-notes">Notes</Label>
-            <Textarea
-              id="edit-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Budget information and other notes"
-              className="min-h-[100px]"
-            />
-          </div>
-          
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <Button 
               type="button" 
               variant="outline" 

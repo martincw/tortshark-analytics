@@ -18,18 +18,10 @@ import {
   SheetHeader, 
   SheetTitle 
 } from "@/components/ui/sheet";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { BuyerCard } from "@/components/buyers/BuyerCard";
 import { useBuyers } from "@/hooks/useBuyers";
-import { Search, Plus, Filter } from "lucide-react";
+import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown } from "lucide-react";
 import { BuyerCoverageDialog } from "@/components/buyers/BuyerCoverageDialog";
 import { BuyerRankingsTable } from "@/components/buyers/BuyerRankingsTable";
 import { BuyerFilterMenu } from "@/components/buyers/BuyerFilterMenu";
@@ -40,6 +32,7 @@ export default function BuyersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedBuyer, setSelectedBuyer] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Form state
   const [name, setName] = useState("");
@@ -58,6 +51,19 @@ export default function BuyersPage() {
     }
     return true;
   });
+
+  // Sort buyers
+  const sortedBuyers = [...filteredBuyers].sort((a, b) => {
+    if (sortOrder === "asc") {
+      return a.name.localeCompare(b.name);
+    } else {
+      return b.name.localeCompare(a.name);
+    }
+  });
+
+  const toggleSortOrder = () => {
+    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +112,18 @@ export default function BuyersPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10"
+          onClick={toggleSortOrder}
+        >
+          {sortOrder === "asc" ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </Button>
         <BuyerFilterMenu />
       </div>
 
@@ -126,9 +144,10 @@ export default function BuyersPage() {
             <div className="flex justify-center py-8">
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
-          ) : filteredBuyers.length === 0 ? (
+          ) : sortedBuyers.length === 0 ? (
             <Card className="bg-muted/50">
               <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                <Shield className="h-12 w-12 text-muted-foreground/50 mb-3" />
                 <p className="mb-4 text-muted-foreground">
                   {searchQuery ? "No buyers match your search" : "No buyers added yet"}
                 </p>
@@ -140,7 +159,7 @@ export default function BuyersPage() {
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredBuyers.map((buyer) => (
+              {sortedBuyers.map((buyer) => (
                 <BuyerCard
                   key={buyer.id}
                   buyer={buyer}

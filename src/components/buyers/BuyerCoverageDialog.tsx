@@ -16,11 +16,17 @@ import {
   CardTitle,
   CardContent
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
 import { 
   CircleDollarSign, 
   Trash2,
-  Plus
+  Plus,
+  BadgeDollarSign,
+  Shield,
+  DollarSign,
+  PencilLine
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/campaign";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
@@ -33,11 +39,14 @@ interface BuyerCoverageDialogProps {
 }
 
 export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageDialogProps) {
-  const { buyers, getBuyerTortCoverage, removeBuyerTortCoverage } = useBuyers();
+  const { buyers, getBuyerTortCoverage, removeBuyerTortCoverage, updateBuyerTortCoverage } = useBuyers();
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("coverages");
+  const [editingCoverageId, setEditingCoverageId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState<string>("");
 
   useEffect(() => {
     if (isOpen && buyerId) {
@@ -86,92 +95,230 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     setShowAddForm(false);
   };
 
+  const startEditCoverage = (coverageId: string, amount: number) => {
+    setEditingCoverageId(coverageId);
+    setEditAmount(amount.toString());
+  };
+
+  const handleUpdateCoverage = async (coverageId: string) => {
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    
+    await updateBuyerTortCoverage(coverageId, amount);
+    setEditingCoverageId(null);
+    await fetchBuyerData();
+  };
+
+  // Calculate coverage statistics
+  const totalPayoutAmount = coverages.reduce((sum, coverage) => sum + coverage.payout_amount, 0);
+  const averagePayoutAmount = coverages.length > 0 ? totalPayoutAmount / coverages.length : 0;
+  const highestPayout = coverages.length > 0 ? 
+    Math.max(...coverages.map(coverage => coverage.payout_amount)) : 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Tort Coverage for {buyer?.name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Tort Coverage for {buyer?.name}
+          </DialogTitle>
           <DialogDescription>
             Manage which torts (campaigns) this buyer purchases and their payout amounts
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-            </div>
-          ) : (
-            <>
-              {!showAddForm && (
-                <div className="mb-4">
-                  <Button onClick={() => setShowAddForm(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Tort Coverage
-                  </Button>
-                </div>
-              )}
+        <Tabs defaultValue="coverages" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="coverages">Tort Coverages</TabsTrigger>
+            <TabsTrigger value="stats">Coverage Stats</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="coverages" className="space-y-4 py-4">
+            {!showAddForm && (
+              <div className="mb-4">
+                <Button onClick={() => setShowAddForm(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Tort Coverage
+                </Button>
+              </div>
+            )}
 
-              {showAddForm && (
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Add New Coverage</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <AddTortCoverageForm 
-                      buyerId={buyerId} 
-                      onSuccess={handleAddCoverage}
-                      onCancel={() => setShowAddForm(false)}
-                      existingCoverages={coverages}
-                    />
-                  </CardContent>
-                </Card>
-              )}
+            {showAddForm && (
+              <Card className="mb-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Add New Coverage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AddTortCoverageForm 
+                    buyerId={buyerId} 
+                    onSuccess={handleAddCoverage}
+                    onCancel={() => setShowAddForm(false)}
+                    existingCoverages={coverages}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-              {coverages.length === 0 && !showAddForm ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No tort coverages added yet.</p>
-                  <p className="mt-1 text-sm">
-                    Add a tort coverage to specify which cases this buyer purchases.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {coverages.map((coverage) => (
-                    <Card key={coverage.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="text-base font-medium">
-                            {coverage.campaigns?.name || "Unknown Campaign"}
-                          </CardTitle>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              </div>
+            ) : coverages.length === 0 && !showAddForm ? (
+              <div className="text-center py-8 bg-muted/30 rounded-md">
+                <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="font-medium">No tort coverages added yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add a tort coverage to specify which cases this buyer purchases.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => setShowAddForm(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Your First Coverage
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {coverages.map((coverage) => (
+                  <Card key={coverage.id} className="overflow-hidden">
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex-1">
+                        <h3 className="font-medium">
+                          {coverage.campaigns?.name || "Unknown Campaign"}
+                        </h3>
+                        
+                        {editingCoverageId === coverage.id ? (
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="relative">
+                              <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                              <input
+                                type="number"
+                                className="pl-7 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editAmount}
+                                onChange={(e) => setEditAmount(e.target.value)}
+                                min="0"
+                                step="0.01"
+                              />
+                            </div>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleUpdateCoverage(coverage.id)}
+                            >
+                              Save
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => setEditingCoverageId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center mt-1.5">
+                            <BadgeDollarSign className="h-4 w-4 text-green-600 mr-1" />
+                            <span className="font-semibold">
+                              {formatCurrency(coverage.payout_amount)}
+                            </span>
+                            <Badge variant="outline" className="ml-2">
+                              per case
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {editingCoverageId !== coverage.id && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleRemoveCoverage(coverage.id)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => startEditCoverage(coverage.id, coverage.payout_amount)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <PencilLine className="h-4 w-4" />
                           </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveCoverage(coverage.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="stats" className="py-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatCard
+                  title="Total Torts Covered"
+                  value={coverages.length}
+                  icon={<Shield className="h-4 w-4" />}
+                  description="Number of campaigns covered"
+                />
+                
+                <StatCard
+                  title="Average Payout"
+                  value={formatCurrency(averagePayoutAmount)}
+                  icon={<DollarSign className="h-4 w-4" />}
+                  description="Per case average"
+                />
+                
+                <StatCard
+                  title="Highest Payout"
+                  value={formatCurrency(highestPayout)}
+                  icon={<BadgeDollarSign className="h-4 w-4" />}
+                  description="Maximum per case"
+                  isHighlighted={true}
+                />
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Payout Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {coverages.length > 0 ? (
+                    <div className="space-y-3">
+                      {coverages.map((coverage) => (
+                        <div 
+                          key={coverage.id}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-sm">{coverage.campaigns?.name || "Unknown"}</span>
+                          <div className="flex items-center">
+                            <div 
+                              className="h-2 bg-primary rounded-full mr-3"
+                              style={{ 
+                                width: `${Math.max((coverage.payout_amount / highestPayout) * 100, 15)}px` 
+                              }}
+                            />
+                            <span className="font-medium text-sm">
+                              {formatCurrency(coverage.payout_amount)}
+                            </span>
+                          </div>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-2">
-                          <CircleDollarSign className="h-5 w-5 text-green-600" />
-                          <span className="font-semibold">
-                            {formatCurrency(coverage.payout_amount)}
-                          </span>
-                          <Badge variant="outline" className="ml-auto">
-                            per case
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center py-6 text-muted-foreground">
+                      No tort coverage data available
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
