@@ -1,3 +1,4 @@
+
 export interface CaseBuyer {
   id: string;
   name: string;
@@ -43,6 +44,7 @@ export interface CampaignMetrics {
   cpl: number;
   costPerLead: number;
   earningsPerLead: number;
+  revenuePerCase: number;
   weekOverWeekChange: number;
   previousWeekProfit: number;
 }

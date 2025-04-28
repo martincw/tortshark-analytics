@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
+import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getRoasClass } from "@/utils/campaignUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { StatCard } from "@/components/ui/stat-card";
@@ -182,10 +183,12 @@ const CampaignDetail = () => {
         adSpend: 0,
         profit: 0,
         roi: 0,
+        roas: 0,
         cpa: 0,
         cpl: 0,
         costPerLead: 0,
         earningsPerLead: 0,
+        revenuePerCase: 0,
         weekOverWeekChange: 0,
         previousWeekProfit: 0,
       };
@@ -460,13 +463,13 @@ const CampaignDetail = () => {
     }
   };
 
-  const roiProgress = Math.min(Math.round((metrics.roi / campaign.targets.targetROAS) * 100), 100);
+  const roasProgress = Math.min(Math.round((metrics.roas / campaign.targets.targetROAS) * 100), 100);
   const casesProgress = Math.min(Math.round((campaign.manualStats.cases / campaign.targets.monthlyRetainers) * 100), 100);
   const profitProgress = Math.min(Math.round((metrics.profit / campaign.targets.targetProfit) * 100), 100);
   
-  const getRoiVariant = () => {
-    if (roiProgress >= 100) return "success";
-    if (roiProgress >= 70) return "warning";
+  const getRoasVariant = () => {
+    if (roasProgress >= 100) return "success";
+    if (roasProgress >= 70) return "warning";
     return "error";
   };
   
@@ -482,10 +485,8 @@ const CampaignDetail = () => {
     return "error";
   };
   
-  // Fixed calculation for profit per case
-  const profitPerCase = campaign.manualStats.cases > 0 
-    ? metrics.profit / campaign.manualStats.cases 
-    : 0;
+  // Revenue per case calculation
+  const revenuePerCase = metrics.revenuePerCase || 0;
 
   const handleEditTitle = () => {
     setEditedTitle(campaign.name);
@@ -525,6 +526,18 @@ const CampaignDetail = () => {
     setDeleteConfirmMessage(`Are you sure you want to delete ${selectedEntries.length} selected entries? This action cannot be undone.`);
     setIsDeletingBulk(true);
     setDeleteEntryDialogOpen(true);
+  };
+
+  // Format date for display
+  const formatDateForDisplay = (dateString: string) => {
+    try {
+      if (!dateString) return "N/A";
+      const date = new Date(dateString);
+      return isValid(date) ? format(date, "MMM dd, yyyy") : dateString;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateString;
+    }
   };
 
   return (
@@ -680,28 +693,28 @@ const CampaignDetail = () => {
           <div className="space-y-2 bg-background/50 p-5 rounded-lg shadow-sm border border-accent/20">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-6 w-6 text-primary opacity-80" />
-              <h3 className="text-lg font-semibold">ROI Performance</h3>
+              <h3 className="text-lg font-semibold">ROAS Performance</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-sm text-muted-foreground block">ROI</span>
-                <span className={`text-2xl font-bold ${getRoiClass()}`}>{metrics.roi.toFixed(1)}%</span>
+                <span className="text-sm text-muted-foreground block">ROAS</span>
+                <span className={`text-2xl font-bold ${getRoasClass(metrics.roas)}`}>{metrics.roas.toFixed(1)}%</span>
               </div>
               <div>
-                <span className="text-sm text-muted-foreground block">Profit Per Case</span>
-                <span className={`text-2xl font-bold ${profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
-                  {formatCurrency(profitPerCase)}
+                <span className="text-sm text-muted-foreground block">Revenue Per Case</span>
+                <span className={`text-2xl font-bold ${revenuePerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+                  {formatCurrency(revenuePerCase)}
                 </span>
               </div>
             </div>
             <div className="pt-4 mt-4 border-t">
               <div className="flex justify-between mb-2">
-                <span className="font-medium">Target ROI</span>
-                <span className="font-bold">{metrics.roi.toFixed(1)}% of {campaign.targets.targetROAS}%</span>
+                <span className="font-medium">Target ROAS</span>
+                <span className="font-bold">{metrics.roas.toFixed(1)}% of {campaign.targets.targetROAS}%</span>
               </div>
               <CustomProgressBar
-                value={roiProgress}
-                variant={getRoiVariant()}
+                value={roasProgress}
+                variant={getRoasVariant()}
                 size="md"
                 showValue
                 valuePosition="right"
@@ -729,7 +742,7 @@ const CampaignDetail = () => {
           
           <div className="flex flex-col items-center bg-background/60 p-4 rounded-lg border border-accent/10">
             <Wallet className="h-5 w-5 text-muted-foreground mb-2" />
-            <span className="text-sm text-muted-foreground">Earnings Per Lead</span>
+            <span className="text-sm text-muted-foreground">Revenue Per Lead</span>
             <span className={`text-xl font-semibold ${metrics.earningsPerLead > 0 ? "text-success-DEFAULT" : ""}`}>
               {formatCurrency(metrics.earningsPerLead)}
             </span>
@@ -747,14 +760,14 @@ const CampaignDetail = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
-          title="Return on Investment"
-          value={`${metrics.roi.toFixed(1)}%`}
+          title="Return on Ad Spend"
+          value={`${metrics.roas.toFixed(1)}%`}
           icon={<Percent className="h-5 w-5" />}
-          trend={metrics.roi > 0 ? "up" : "down"}
-          trendValue={metrics.roi > 200 ? "Excellent" : metrics.roi > 100 ? "Good" : metrics.roi > 0 ? "Positive" : "Needs Attention"}
+          trend={metrics.roas > 0 ? "up" : "down"}
+          trendValue={metrics.roas > 300 ? "Excellent" : metrics.roas > 200 ? "Good" : metrics.roas > 0 ? "Positive" : "Needs Attention"}
           className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
           isHighlighted={true}
-          valueClassName={getRoiClass()}
+          valueClassName={getRoasClass(metrics.roas)}
         />
         
         <StatCard
@@ -769,18 +782,18 @@ const CampaignDetail = () => {
         />
         
         <StatCard
-          title="Profit Per Case"
-          value={formatCurrency(profitPerCase)}
+          title="Revenue Per Case"
+          value={formatCurrency(revenuePerCase)}
           icon={<CircleDollarSign className="h-5 w-5" />}
-          trend={profitPerCase > campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
-          trendValue={profitPerCase > campaign.targets.casePayoutAmount ? "Excellent" : "Average"}
+          trend={revenuePerCase > campaign.targets.casePayoutAmount / 2 ? "up" : "down"}
+          trendValue={revenuePerCase > campaign.targets.casePayoutAmount ? "Excellent" : "Average"}
           className="shadow-md border-2 border-accent/20 bg-gradient-to-br from-background to-accent/5"
           isHighlighted={true}
-          valueClassName={profitPerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
+          valueClassName={revenuePerCase > 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}
         />
       </div>
       
-      {/* Dedicated Manual Stats Card - replaces the redundant performance summary */}
+      {/* Dedicated Manual Stats Card */}
       <Card className="shadow-md border-accent/30 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -861,6 +874,104 @@ const CampaignDetail = () => {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Manual Stats History Table */}
+      <Card className="shadow-md border-accent/30 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
+          <CardTitle className="text-lg font-medium flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Manual Stats History
+            </div>
+            {selectedEntries.length > 0 && (
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                onClick={handleBulkDelete}
+                className="text-xs"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Delete Selected ({selectedEntries.length})
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={selectedEntries.length > 0 && selectedEntries.length === campaign.statsHistory.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedEntries(campaign.statsHistory.map(entry => entry.id));
+                      } else {
+                        setSelectedEntries([]);
+                      }
+                    }}
+                  />
+                </TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Leads</TableHead>
+                <TableHead>Cases</TableHead>
+                <TableHead>Revenue</TableHead>
+                <TableHead>Ad Spend</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {campaign.statsHistory.length > 0 ? (
+                campaign.statsHistory
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEntries.includes(entry.id)}
+                          onCheckedChange={() => handleEntrySelect(entry.id)}
+                        />
+                      </TableCell>
+                      <TableCell>{formatDateForDisplay(entry.date)}</TableCell>
+                      <TableCell>{entry.leads}</TableCell>
+                      <TableCell>{entry.cases}</TableCell>
+                      <TableCell>{formatCurrency(entry.revenue || 0)}</TableCell>
+                      <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditEntry(entry)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteEntryConfirm(entry.id)}
+                            className="h-8 w-8 p-0 text-error-DEFAULT"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                    No manual stats entries found. Add some using the "Add Stats" button.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
       
