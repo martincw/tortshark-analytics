@@ -26,7 +26,15 @@ export const useBuyers = () => {
     }
   };
 
-  const addBuyer = async (name: string, url: string) => {
+  const addBuyer = async (
+    name: string, 
+    url: string = '', 
+    contact_name: string = '', 
+    email: string = '',
+    platform: string = '',
+    notes: string = '',
+    payout_terms: string = ''
+  ) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -40,6 +48,11 @@ export const useBuyers = () => {
         .insert([{ 
           name, 
           url,
+          contact_name,
+          email,
+          platform,
+          notes,
+          payout_terms,
           user_id: user.id 
         }])
         .select()
@@ -52,6 +65,33 @@ export const useBuyers = () => {
     } catch (error) {
       console.error('Error adding buyer:', error);
       toast.error('Failed to add buyer');
+      return null;
+    }
+  };
+
+  const updateBuyer = async (
+    id: string,
+    updates: Partial<CaseBuyer>
+  ) => {
+    try {
+      const { data, error } = await supabase
+        .from('case_buyers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setBuyers(buyers.map(buyer => 
+        buyer.id === id ? { ...buyer, ...data } : buyer
+      ));
+      
+      toast.success('Buyer updated successfully');
+      return data;
+    } catch (error) {
+      console.error('Error updating buyer:', error);
+      toast.error('Failed to update buyer');
       return null;
     }
   };
@@ -72,9 +112,199 @@ export const useBuyers = () => {
     }
   };
 
+  // Get tort coverage for a specific buyer
+  const getBuyerTortCoverage = async (buyerId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_tort_coverage')
+        .select(`
+          id,
+          payout_amount,
+          campaigns:campaign_id (
+            id,
+            name
+          )
+        `)
+        .eq('buyer_id', buyerId);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching buyer tort coverage:', error);
+      toast.error('Failed to fetch buyer tort coverage');
+      return [];
+    }
+  };
+
+  // Add tort coverage for a buyer
+  const addBuyerTortCoverage = async (buyerId: string, campaignId: string, payoutAmount: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_tort_coverage')
+        .insert([{
+          buyer_id: buyerId,
+          campaign_id: campaignId,
+          payout_amount: payoutAmount
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Tort coverage added successfully');
+      return data;
+    } catch (error) {
+      console.error('Error adding tort coverage:', error);
+      toast.error('Failed to add tort coverage');
+      return null;
+    }
+  };
+
+  // Remove tort coverage for a buyer
+  const removeBuyerTortCoverage = async (coverageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('buyer_tort_coverage')
+        .delete()
+        .eq('id', coverageId);
+
+      if (error) throw error;
+      toast.success('Tort coverage removed successfully');
+      return true;
+    } catch (error) {
+      console.error('Error removing tort coverage:', error);
+      toast.error('Failed to remove tort coverage');
+      return false;
+    }
+  };
+
+  // Update payout amount for a tort coverage
+  const updateBuyerTortCoverage = async (coverageId: string, payoutAmount: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_tort_coverage')
+        .update({ payout_amount: payoutAmount })
+        .eq('id', coverageId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Tort coverage updated successfully');
+      return data;
+    } catch (error) {
+      console.error('Error updating tort coverage:', error);
+      toast.error('Failed to update tort coverage');
+      return null;
+    }
+  };
+
+  // Get campaign buyer stack
+  const getCampaignBuyerStack = async (campaignId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('campaign_buyer_stack')
+        .select(`
+          id,
+          stack_order,
+          payout_amount,
+          buyers:buyer_id (
+            id,
+            name,
+            url
+          )
+        `)
+        .eq('campaign_id', campaignId)
+        .order('stack_order');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching campaign buyer stack:', error);
+      toast.error('Failed to fetch campaign buyer stack');
+      return [];
+    }
+  };
+
+  // Update campaign buyer stack order
+  const updateBuyerStackOrder = async (stackItems: { id: string, stack_order: number }[]) => {
+    try {
+      // Use Promise.all to perform all updates in parallel
+      const updates = stackItems.map(item => 
+        supabase
+          .from('campaign_buyer_stack')
+          .update({ stack_order: item.stack_order })
+          .eq('id', item.id)
+      );
+      
+      await Promise.all(updates);
+      toast.success('Buyer stack updated successfully');
+      return true;
+    } catch (error) {
+      console.error('Error updating buyer stack:', error);
+      toast.error('Failed to update buyer stack');
+      return false;
+    }
+  };
+
+  // Add buyer to campaign stack
+  const addBuyerToStack = async (campaignId: string, buyerId: string, payoutAmount: number, stackOrder: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('campaign_buyer_stack')
+        .insert([{
+          campaign_id: campaignId,
+          buyer_id: buyerId,
+          payout_amount: payoutAmount,
+          stack_order: stackOrder
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Buyer added to stack successfully');
+      return data;
+    } catch (error) {
+      console.error('Error adding buyer to stack:', error);
+      toast.error('Failed to add buyer to stack');
+      return null;
+    }
+  };
+
+  // Remove buyer from stack
+  const removeBuyerFromStack = async (stackItemId: string) => {
+    try {
+      const { error } = await supabase
+        .from('campaign_buyer_stack')
+        .delete()
+        .eq('id', stackItemId);
+
+      if (error) throw error;
+      toast.success('Buyer removed from stack successfully');
+      return true;
+    } catch (error) {
+      console.error('Error removing buyer from stack:', error);
+      toast.error('Failed to remove buyer from stack');
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchBuyers();
   }, []);
 
-  return { buyers, loading, addBuyer, deleteBuyer, fetchBuyers };
+  return { 
+    buyers, 
+    loading, 
+    addBuyer, 
+    updateBuyer, 
+    deleteBuyer,
+    getBuyerTortCoverage,
+    addBuyerTortCoverage,
+    removeBuyerTortCoverage,
+    updateBuyerTortCoverage,
+    getCampaignBuyerStack,
+    updateBuyerStackOrder,
+    addBuyerToStack,
+    removeBuyerFromStack,
+    fetchBuyers
+  };
 };

@@ -48,6 +48,48 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_tort_coverage: {
+        Row: {
+          buyer_id: string
+          campaign_id: string
+          created_at: string | null
+          id: string
+          payout_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id: string
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          payout_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          payout_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_tort_coverage_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "case_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_tort_coverage_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_ad_mappings: {
         Row: {
           created_at: string | null
@@ -98,6 +140,7 @@ export type Database = {
           campaign_id: string
           created_at: string | null
           id: string
+          payout_amount: number
           stack_order: number
           updated_at: string | null
         }
@@ -106,6 +149,7 @@ export type Database = {
           campaign_id: string
           created_at?: string | null
           id?: string
+          payout_amount?: number
           stack_order?: number
           updated_at?: string | null
         }
@@ -114,6 +158,7 @@ export type Database = {
           campaign_id?: string
           created_at?: string | null
           id?: string
+          payout_amount?: number
           stack_order?: number
           updated_at?: string | null
         }
@@ -390,25 +435,40 @@ export type Database = {
       }
       case_buyers: {
         Row: {
+          contact_name: string | null
           created_at: string | null
+          email: string | null
           id: string
           name: string
+          notes: string | null
+          payout_terms: string | null
+          platform: string | null
           updated_at: string | null
           url: string | null
           user_id: string
         }
         Insert: {
+          contact_name?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string
           name: string
+          notes?: string | null
+          payout_terms?: string | null
+          platform?: string | null
           updated_at?: string | null
           url?: string | null
           user_id: string
         }
         Update: {
+          contact_name?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string
           name?: string
+          notes?: string | null
+          payout_terms?: string | null
+          platform?: string | null
           updated_at?: string | null
           url?: string | null
           user_id?: string

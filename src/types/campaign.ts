@@ -1,8 +1,12 @@
-
 export interface CaseBuyer {
   id: string;
   name: string;
-  url?: string;  // Make url optional to maintain backwards compatibility
+  url?: string;
+  contact_name?: string;
+  email?: string;
+  platform?: string;
+  notes?: string;
+  payout_terms?: string;
   created_at?: string;
 }
 
@@ -94,6 +98,26 @@ export interface Campaign {
   };
   manualStats: CampaignManualStats;
   statsHistory: CampaignStat[];
+}
+
+export interface BuyerTortCoverage {
+  id: string;
+  buyer_id: string;
+  campaign_id: string;
+  payout_amount: number;
+  campaigns?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface BuyerStackItem {
+  id: string;
+  campaign_id: string;
+  buyer_id: string;
+  stack_order: number;
+  payout_amount: number;
+  buyers?: CaseBuyer;
 }
 
 export interface TrendData {
