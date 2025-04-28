@@ -1,7 +1,8 @@
+
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
-import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO } from 'date-fns';
+import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO, subWeeks } from 'date-fns';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -62,12 +63,14 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
-    const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 });
-    const endOfCurrentWeek = today;
+    // Get the previous week
+    const lastWeekDate = subWeeks(today, 1);
+    const startOfLastWeek = startOfWeek(lastWeekDate, { weekStartsOn: 1 }); // Monday
+    const endOfLastWeek = endOfWeek(lastWeekDate, { weekStartsOn: 1 }); // Sunday
 
     return {
-      startDate: format(startOfCurrentWeek, 'yyyy-MM-dd'),
-      endDate: format(endOfCurrentWeek, 'yyyy-MM-dd'),
+      startDate: format(startOfLastWeek, 'yyyy-MM-dd'),
+      endDate: format(endOfLastWeek, 'yyyy-MM-dd'),
     };
   });
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);

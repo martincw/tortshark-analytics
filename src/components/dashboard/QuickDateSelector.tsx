@@ -1,7 +1,8 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Calendar, Clock, History } from "lucide-react";
-import { format, startOfWeek, endOfWeek, subDays, subWeeks } from "date-fns";
+import { format, startOfWeek, endOfWeek, subDays, subWeeks, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
 
 export interface DateRange {
@@ -76,6 +77,11 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         start = getStartOfMonth(today);
         end = now;
         break;
+      case 'LastMonth':
+        const lastMonth = subMonths(today, 1);
+        start = startOfMonth(lastMonth);
+        end = endOfMonth(lastMonth);
+        break;
       case 'Last30Days':
         start = new Date(today);
         start.setDate(today.getDate() - 29);
@@ -115,6 +121,8 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
       toastMessage = `Date range updated to This Week (${format(start, 'MMM dd')} - ${format(end, 'MMM dd')})`;
     } else if (option === 'LastWeek') {
       toastMessage = `Date range updated to Last Week (${format(start, 'MMM dd')} - ${format(end, 'MMM dd')})`;
+    } else if (option === 'LastMonth') {
+      toastMessage = `Date range updated to Last Month (${format(start, 'MMM dd')} - ${format(end, 'MMM dd')})`;
     } else {
       toastMessage = `Date range updated to ${format(start, 'MMM dd')} - ${format(end, 'MMM dd')}`;
     }
@@ -159,6 +167,14 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         return (
           format(startDate, "yyyy-MM-dd") === format(lastWeekStart, "yyyy-MM-dd") &&
           format(endDate, "yyyy-MM-dd") === format(lastWeekEnd, "yyyy-MM-dd")
+        );
+      case 'LastMonth':
+        const lastMonth = subMonths(today, 1);
+        const lastMonthStart = startOfMonth(lastMonth);
+        const lastMonthEnd = endOfMonth(lastMonth);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(lastMonthStart, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(lastMonthEnd, "yyyy-MM-dd")
         );
       case 'ThisMonth':
         return (
@@ -230,6 +246,15 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         >
           <Calendar className="mr-2 h-4 w-4" />
           This Month
+        </Button>
+        <Button 
+          variant={isSelected('LastMonth') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('LastMonth')}
+          className="w-full justify-start"
+        >
+          <Calendar className="mr-2 h-4 w-4" />
+          Last Month
         </Button>
         <Button 
           variant={isSelected('Last7Days') ? "default" : "outline"} 
