@@ -1,4 +1,3 @@
-
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 import { addDays, subDays } from "date-fns";
@@ -24,6 +23,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   const previousWeekProfit = previousWeekStats.revenue - previousWeekStats.adSpend;
   const weekOverWeekChange = profit - previousWeekProfit;
   const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
+  const roas = periodStats.adSpend > 0 ? (periodStats.revenue / periodStats.adSpend) * 100 : 0;
   const earningsPerLead = periodStats.leads > 0 ? profit / periodStats.leads : 0;
   const retainers = periodStats.cases; // Set retainers equal to cases for now
 
@@ -38,6 +38,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     cpl,
     profit,
     roi,
+    roas,
     earningsPerLead,
     previousWeekProfit,
     weekOverWeekChange
@@ -175,4 +176,12 @@ export const getPerformanceBgClass = (roi: number): string => {
   if (roi > 100) return "bg-secondary/15";
   if (roi > 0) return "bg-secondary/10";
   return "bg-error-muted";
+};
+
+export const getRoasClass = (roas: number | undefined): string => {
+  if (!roas) return "";
+  if (roas > 300) return "text-success-DEFAULT font-bold";
+  if (roas > 200) return "text-secondary font-bold";
+  if (roas > 0) return "text-secondary";
+  return "text-error-DEFAULT";
 };

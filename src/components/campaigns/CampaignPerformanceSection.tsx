@@ -43,19 +43,19 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-sm text-muted-foreground">Leads</span>
-                  <div className="text-2xl font-semibold">{formatNumber(metrics.leads)}</div>
+                  <div className="text-2xl font-semibold">{formatNumber(metrics.leads || 0)}</div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Cases</span>
-                  <div className="text-2xl font-semibold">{formatNumber(metrics.cases)}</div>
+                  <div className="text-2xl font-semibold">{formatNumber(metrics.cases || 0)}</div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Revenue</span>
-                  <div className="text-2xl font-semibold">{formatCurrency(metrics.revenue)}</div>
+                  <div className="text-2xl font-semibold">{formatCurrency(metrics.revenue || 0)}</div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Ad Spend</span>
-                  <div className="text-2xl font-semibold">{formatCurrency(metrics.adSpend)}</div>
+                  <div className="text-2xl font-semibold">{formatCurrency(metrics.adSpend || 0)}</div>
                 </div>
               </div>
             </CardContent>

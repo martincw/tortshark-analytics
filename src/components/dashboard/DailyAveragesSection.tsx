@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, DollarSign, TrendingUp } from "lucide-react";
@@ -22,7 +23,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         cases: 0,
         revenue: 0,
         profit: 0,
-        roi: 0,
+        roas: 0,
         daysInRange: 1
       };
     }
@@ -154,7 +155,7 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
               Daily ROAS
             </div>
             <div className={`text-xl font-bold ${averages.roas >= 300 ? 'text-success-DEFAULT' : averages.roas >= 200 ? 'text-secondary' : averages.roas >= 0 ? '' : 'text-error-DEFAULT'}`}>
-              {averages.roas.toFixed(1)}%
+              {(averages.roas || 0).toFixed(1)}%
             </div>
           </div>
         </div>
