@@ -93,12 +93,6 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
     window.open(fullUrl, '_blank');
   };
 
-  const averagePayout = tortCoverage.length > 0
-    ? tortCoverage.reduce((sum, item) => sum + (item.payout_amount || 0), 0) / tortCoverage.length
-    : 0;
-
-  const totalPotentialValue = tortCoverage.reduce((sum, item) => sum + (item.payout_amount || 0), 0);
-
   return (
     <Card 
       className={`overflow-hidden transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-primary/50' : ''}`} 
@@ -128,6 +122,7 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
                 <DropdownMenuItem onClick={(e) => {
                   e.stopPropagation();
                   onViewCoverage();
+                  fetchTortCoverage(); // Refresh coverage data when viewing
                 }}>
                   Manage Coverage
                 </DropdownMenuItem>
@@ -197,26 +192,12 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       onViewCoverage();
+                      fetchTortCoverage(); // Refresh coverage data when viewing more
                     }}
                   >
                     View {tortCoverage.length - 3} more
                   </Button>
                 )}
-                
-                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t">
-                  <div className="text-center p-2 bg-muted/30 rounded-md">
-                    <div className="text-xs text-muted-foreground">Avg. Payout</div>
-                    <div className="font-semibold">
-                      {formatCurrency(averagePayout)}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-muted/30 rounded-md">
-                    <div className="text-xs text-muted-foreground">Total Value</div>
-                    <div className="font-semibold">
-                      {formatCurrency(totalPotentialValue)}
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="text-center p-3 border border-dashed rounded-md">
@@ -246,6 +227,7 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
           onClick={(e) => {
             e.stopPropagation();
             onViewCoverage();
+            fetchTortCoverage(); // Refresh coverage data when managing
           }}
         >
           Manage Coverage

@@ -31,6 +31,7 @@ import {
 import { BuyerTortCoverage, CaseBuyer } from "@/types/campaign";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
 import { formatCurrency } from "@/utils/campaignUtils";
+import { toast } from "sonner";
 
 interface BuyerCoverageDialogProps {
   buyerId: string;
@@ -48,14 +49,15 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
   const [editingCoverageId, setEditingCoverageId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<string>("");
 
+  // Fetch data when the dialog opens or buyerId changes
   useEffect(() => {
     if (isOpen && buyerId) {
       fetchBuyerData();
     }
   }, [buyerId, isOpen]);
 
+  // Find the buyer from the buyers list
   useEffect(() => {
-    // Find the buyer from the buyers list
     const currentBuyer = buyers.find(b => b.id === buyerId);
     if (currentBuyer) {
       setBuyer(currentBuyer);
@@ -68,7 +70,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
       const coverageData = await getBuyerTortCoverage(buyerId);
       const formattedCoverages: BuyerTortCoverage[] = coverageData.map(item => ({
         id: item.id,
-        buyer_id: buyerId, // Use the buyerId prop
+        buyer_id: buyerId,
         campaign_id: item.campaigns?.id || '',
         payout_amount: item.payout_amount,
         campaigns: item.campaigns
@@ -76,6 +78,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
       setCoverages(formattedCoverages);
     } catch (error) {
       console.error("Error fetching buyer tort coverage:", error);
+      toast.error("Failed to load tort coverage data");
     } finally {
       setLoading(false);
     }
@@ -83,9 +86,15 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
 
   const handleRemoveCoverage = async (coverageId: string) => {
     if (confirm("Are you sure you want to remove this tort coverage?")) {
-      const success = await removeBuyerTortCoverage(coverageId);
-      if (success) {
-        setCoverages(coverages.filter(c => c.id !== coverageId));
+      try {
+        const success = await removeBuyerTortCoverage(coverageId);
+        if (success) {
+          setCoverages(coverages.filter(c => c.id !== coverageId));
+          toast.success("Coverage removed successfully");
+        }
+      } catch (error) {
+        console.error("Error removing coverage:", error);
+        toast.error("Failed to remove coverage");
       }
     }
   };
@@ -93,6 +102,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
   const handleAddCoverage = async () => {
     await fetchBuyerData();
     setShowAddForm(false);
+    toast.success("Coverage added successfully");
   };
 
   const startEditCoverage = (coverageId: string, amount: number) => {
@@ -102,11 +112,20 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
 
   const handleUpdateCoverage = async (coverageId: string) => {
     const amount = parseFloat(editAmount);
-    if (isNaN(amount) || amount <= 0) return;
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
     
-    await updateBuyerTortCoverage(coverageId, amount);
-    setEditingCoverageId(null);
-    await fetchBuyerData();
+    try {
+      await updateBuyerTortCoverage(coverageId, amount);
+      setEditingCoverageId(null);
+      toast.success("Coverage amount updated");
+      await fetchBuyerData();
+    } catch (error) {
+      console.error("Error updating coverage:", error);
+      toast.error("Failed to update coverage");
+    }
   };
 
   // Calculate coverage statistics
@@ -115,8 +134,15 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
   const highestPayout = coverages.length > 0 ? 
     Math.max(...coverages.map(coverage => coverage.payout_amount)) : 0;
 
+  const handleDialogClose = () => {
+    // Reset state when dialog closes
+    setShowAddForm(false);
+    setEditingCoverageId(null);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -321,7 +347,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={handleDialogClose}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -34,6 +34,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
   const [stackItems, setStackItems] = useState<BuyerStackItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (campaign.id) {
@@ -62,6 +63,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
   };
 
   const handleDragEnd = async (result: DropResult) => {
+    setIsDragging(false);
     const { destination, source } = result;
 
     // Dropped outside the list
@@ -102,7 +104,13 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     } catch (error) {
       console.error("Error updating stack order:", error);
       toast.error("Failed to update stack order");
+      // Revert to the original order if there's an error
+      loadBuyerStack();
     }
+  };
+
+  const handleDragStart = () => {
+    setIsDragging(true);
   };
 
   const handleRemoveFromStack = async (itemId: string) => {
@@ -159,7 +167,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
             <p className="text-sm mt-1">Add buyers to create a waterfall for this campaign</p>
           </div>
         ) : (
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
             <Droppable droppableId="buyer-stack">
               {(provided) => (
                 <div
@@ -169,11 +177,13 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                 >
                   {stackItems.map((item, index) => (
                     <Draggable key={item.id} draggableId={item.id} index={index}>
-                      {(provided) => (
+                      {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className="border rounded-md p-3 bg-white flex flex-col gap-2"
+                          className={`border rounded-md p-3 bg-white flex flex-col gap-2 ${
+                            snapshot.isDragging ? "shadow-lg" : ""
+                          }`}
                         >
                           {/* Buyer Header */}
                           <div className="flex items-center justify-between">
@@ -195,7 +205,10 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleRemoveFromStack(item.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveFromStack(item.id);
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -222,7 +235,10 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                                 variant="outline" 
                                 size="sm"
                                 className="text-xs"
-                                onClick={() => openWebsite(item.buyers?.url)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openWebsite(item.buyers?.url);
+                                }}
                               >
                                 <Globe className="h-3 w-3 mr-1" />
                                 Website

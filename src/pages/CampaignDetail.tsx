@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   CalendarDays,
   Check,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -36,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { format, parseISO, isValid } from "date-fns";
+import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
@@ -71,6 +73,11 @@ const CampaignDetail = () => {
     dateRange, 
     setDateRange 
   } = useCampaign();
+  
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   
   useEffect(() => {
     if (id) {
@@ -117,6 +124,10 @@ const CampaignDetail = () => {
   const [isDeletingEntry, setIsDeletingEntry] = useState(false);
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  
+  // State to control how many manual stats entries to show
+  const [showAllStats, setShowAllStats] = useState(false);
+  const STATS_PER_PAGE = 10;
 
   useEffect(() => {
     console.log("Campaign state changed");
@@ -162,6 +173,19 @@ const CampaignDetail = () => {
     console.log('CampaignDetail - Calculating metrics with date range:', dateRange);
     return calculateMetrics(campaign, dateRange);
   }, [campaign, dateRange]);
+
+  // Sort stats history by date, newest first
+  const sortedStatsHistory = useMemo(() => {
+    if (!campaign) return [];
+    return [...campaign.statsHistory].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [campaign]);
+  
+  // Stats to display based on show all toggle
+  const displayedStats = useMemo(() => {
+    return showAllStats ? sortedStatsHistory : sortedStatsHistory.slice(0, STATS_PER_PAGE);
+  }, [sortedStatsHistory, showAllStats]);
 
   if (campaigns.length === 0) {
     return (
@@ -462,6 +486,11 @@ const CampaignDetail = () => {
       return dateString;
     }
   };
+  
+  // Toggle show all stats
+  const toggleShowAllStats = () => {
+    setShowAllStats(!showAllStats);
+  };
 
   return (
     <div className="space-y-8">
@@ -542,13 +571,14 @@ const CampaignDetail = () => {
         </div>
       </div>
       
-      <CampaignPerformanceSection campaign={campaign} />
-      
+      {/* Reordered sections as requested */}
       <CampaignFinancialOverview campaign={campaign} />
+      
+      <CampaignDailyAverages campaign={campaign} />
       
       <BuyerStackSection campaign={campaign} />
       
-      <CampaignDailyAverages campaign={campaign} />
+      <CampaignPerformanceSection campaign={campaign} />
 
       <Card className="shadow-md border-accent/30 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
@@ -576,10 +606,10 @@ const CampaignDetail = () => {
               <TableRow>
                 <TableHead className="w-10">
                   <Checkbox
-                    checked={selectedEntries.length > 0 && selectedEntries.length === campaign.statsHistory.length}
+                    checked={selectedEntries.length > 0 && selectedEntries.length === displayedStats.length}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setSelectedEntries(campaign.statsHistory.map(entry => entry.id));
+                        setSelectedEntries(displayedStats.map(entry => entry.id));
                       } else {
                         setSelectedEntries([]);
                       }
@@ -596,45 +626,43 @@ const CampaignDetail = () => {
             </TableHeader>
             <TableBody>
               {campaign.statsHistory.length > 0 ? (
-                campaign.statsHistory
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedEntries.includes(entry.id)}
-                          onCheckedChange={() => handleEntrySelect(entry.id)}
-                        />
-                      </TableCell>
-                      <TableCell>{formatDateForDisplay(entry.date)}</TableCell>
-                      <TableCell>{entry.leads}</TableCell>
-                      <TableCell>{entry.cases}</TableCell>
-                      <TableCell>{formatCurrency(entry.revenue || 0)}</TableCell>
-                      <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditEntry(entry)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteEntryConfirm(entry.id)}
-                            className="h-8 w-8 p-0 text-error-DEFAULT"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                displayedStats.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedEntries.includes(entry.id)}
+                        onCheckedChange={() => handleEntrySelect(entry.id)}
+                      />
+                    </TableCell>
+                    <TableCell>{formatDateForDisplay(entry.date)}</TableCell>
+                    <TableCell>{entry.leads}</TableCell>
+                    <TableCell>{entry.cases}</TableCell>
+                    <TableCell>{formatCurrency(entry.revenue || 0)}</TableCell>
+                    <TableCell>{formatCurrency(entry.adSpend || 0)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditEntry(entry)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteEntryConfirm(entry.id)}
+                          className="h-8 w-8 p-0 text-error-DEFAULT"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
@@ -644,6 +672,20 @@ const CampaignDetail = () => {
               )}
             </TableBody>
           </Table>
+          
+          {/* Show More button */}
+          {campaign.statsHistory.length > STATS_PER_PAGE && (
+            <div className="flex justify-center p-4">
+              <Button 
+                variant="outline" 
+                onClick={toggleShowAllStats}
+                className="text-sm flex items-center gap-1"
+              >
+                {showAllStats ? "Show Less" : `Show All (${campaign.statsHistory.length})`}
+                {!showAllStats && <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
       
