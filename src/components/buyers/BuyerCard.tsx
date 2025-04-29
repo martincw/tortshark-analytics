@@ -61,7 +61,17 @@ export function BuyerCard({ buyer, onViewCoverage }: BuyerCardProps) {
     setIsLoadingCoverage(true);
     try {
       const coverageData = await getBuyerTortCoverage(buyer.id);
-      setCoverages(coverageData);
+      
+      // Transform the data to match the BuyerTortCoverage interface
+      const formattedCoverages: BuyerTortCoverage[] = coverageData.map(item => ({
+        id: item.id,
+        buyer_id: buyer.id,  // Use the current buyer's ID
+        campaign_id: item.campaigns?.id || '',
+        payout_amount: item.payout_amount,
+        campaigns: item.campaigns
+      }));
+      
+      setCoverages(formattedCoverages);
     } catch (error) {
       console.error("Error fetching buyer coverage:", error);
     } finally {
