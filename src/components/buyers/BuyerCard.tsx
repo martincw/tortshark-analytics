@@ -59,7 +59,17 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
         .eq("buyer_id", buyer.id);
 
       if (error) throw error;
-      setTortCoverage(data || []);
+      
+      // Map the returned data to match our BuyerTortCoverage interface
+      const formattedCoverage: BuyerTortCoverage[] = (data || []).map(item => ({
+        id: item.id,
+        buyer_id: buyer.id,
+        campaign_id: item.campaigns?.id || '',
+        payout_amount: item.payout_amount,
+        campaigns: item.campaigns
+      }));
+      
+      setTortCoverage(formattedCoverage);
     } catch (error) {
       console.error("Error fetching tort coverage:", error);
     } finally {
