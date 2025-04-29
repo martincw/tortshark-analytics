@@ -91,12 +91,18 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     setStackItems(updatedItems);
 
     // Persist the changes
-    await updateBuyerStackOrder(
-      updatedItems.map(item => ({
-        id: item.id,
-        stack_order: item.stack_order
-      }))
-    );
+    try {
+      await updateBuyerStackOrder(
+        updatedItems.map(item => ({
+          id: item.id,
+          stack_order: item.stack_order
+        }))
+      );
+      toast.success("Stack order updated successfully");
+    } catch (error) {
+      console.error("Error updating stack order:", error);
+      toast.error("Failed to update stack order");
+    }
   };
 
   const handleRemoveFromStack = async (itemId: string) => {
@@ -172,7 +178,10 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                           {/* Buyer Header */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <div {...provided.dragHandleProps} className="cursor-grab">
+                              <div 
+                                {...provided.dragHandleProps} 
+                                className="cursor-grab p-1 rounded-md hover:bg-gray-100"
+                              >
                                 <GripVertical className="h-5 w-5 text-muted-foreground" />
                               </div>
                               <div>
@@ -193,7 +202,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                           </div>
                           
                           {/* Buyer Details */}
-                          <div className="flex items-center justify-between px-8">
+                          <div className="flex items-center justify-between px-4">
                             <div className="flex flex-col text-sm">
                               <div className="flex items-center gap-1 text-muted-foreground mb-1">
                                 <BadgeDollarSign className="h-3.5 w-3.5" />

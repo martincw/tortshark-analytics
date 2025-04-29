@@ -19,12 +19,24 @@ import {
   SheetTitle 
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BuyerCard } from "@/components/buyers/BuyerCard";
 import { useBuyers } from "@/hooks/useBuyers";
 import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown } from "lucide-react";
 import { BuyerCoverageDialog } from "@/components/buyers/BuyerCoverageDialog";
 import { BuyerRankingsTable } from "@/components/buyers/BuyerRankingsTable";
 import { BuyerFilterMenu } from "@/components/buyers/BuyerFilterMenu";
+import { BuyerDetailDialog } from "@/components/buyers/BuyerDetailDialog";
+
+const PLATFORM_OPTIONS = [
+  { value: "email", label: "Email" },
+  { value: "sms", label: "SMS" },
+  { value: "phone", label: "Phone" },
+  { value: "telegram", label: "Telegram" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "signal", label: "Signal" },
+  { value: "other", label: "Other" }
+];
 
 export default function BuyersPage() {
   const { buyers, loading, addBuyer } = useBuyers();
@@ -32,6 +44,7 @@ export default function BuyersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedBuyer, setSelectedBuyer] = useState<string | null>(null);
+  const [selectedBuyerDetail, setSelectedBuyerDetail] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Form state
@@ -164,6 +177,7 @@ export default function BuyersPage() {
                   key={buyer.id}
                   buyer={buyer}
                   onViewCoverage={() => setSelectedBuyer(buyer.id)}
+                  onClick={() => setSelectedBuyerDetail(buyer.id)}
                 />
               ))}
             </div>
@@ -245,12 +259,19 @@ export default function BuyersPage() {
             
             <div className="space-y-2">
               <Label htmlFor="platform">Platform</Label>
-              <Input
-                id="platform"
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                placeholder="Email, SMS, Telegram, etc."
-              />
+              <Select value={platform} onValueChange={setPlatform}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORM_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">How cases are delivered to this buyer</p>
             </div>
             
             <div className="space-y-2">
@@ -297,6 +318,15 @@ export default function BuyersPage() {
           buyerId={selectedBuyer} 
           isOpen={!!selectedBuyer}
           onClose={() => setSelectedBuyer(null)}
+        />
+      )}
+      
+      {/* Buyer Detail Dialog */}
+      {selectedBuyerDetail && (
+        <BuyerDetailDialog 
+          buyerId={selectedBuyerDetail} 
+          isOpen={!!selectedBuyerDetail}
+          onClose={() => setSelectedBuyerDetail(null)}
         />
       )}
     </div>

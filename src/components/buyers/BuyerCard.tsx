@@ -1,15 +1,15 @@
 
 import { useState, useEffect } from "react";
-import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
 import { 
   Card, 
-  CardContent, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Globe, Mail, MoreHorizontal, ChevronDown, ChevronUp, BadgeDollarSign, ExternalLink } from "lucide-react";
+import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
+import { formatCurrency } from "@/utils/campaignUtils";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -18,304 +18,229 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Building, 
-  Globe, 
-  Mail, 
-  User, 
-  Trash2, 
-  PencilLine, 
-  ListChecks, 
-  ExternalLink,
-  ChevronRight,
-  Shield,
-  DollarSign,
-  BadgeDollarSign,
-  Info
-} from "lucide-react";
-import { useBuyers } from "@/hooks/useBuyers";
 import { toast } from "sonner";
-import { BuyerEditDialog } from "./BuyerEditDialog";
-import { StatCard } from "@/components/ui/stat-card";
-import { BadgeDelta } from "@/components/ui/badge-delta";
-import { formatCurrency } from "@/utils/campaignUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BuyerCardProps {
   buyer: CaseBuyer;
   onViewCoverage: () => void;
+  onClick?: () => void;
 }
 
-export function BuyerCard({ buyer, onViewCoverage }: BuyerCardProps) {
-  const { deleteBuyer, getBuyerTortCoverage } = useBuyers();
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
-  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
-  const [expandedView, setExpandedView] = useState(false);
-  
+export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [tortCoverage, setTortCoverage] = useState<BuyerTortCoverage[]>([]);
+  const [loadingCoverage, setLoadingCoverage] = useState(false);
+
   useEffect(() => {
-    // Load coverage data when component mounts
-    fetchCoverageData();
+    if (expanded) {
+      fetchTortCoverage();
+    }
+  }, [expanded, buyer.id]);
+
+  useEffect(() => {
+    // Always fetch tort coverage on initial load
+    fetchTortCoverage();
   }, [buyer.id]);
 
-  const fetchCoverageData = async () => {
-    setIsLoadingCoverage(true);
+  const fetchTortCoverage = async () => {
+    setLoadingCoverage(true);
     try {
-      const coverageData = await getBuyerTortCoverage(buyer.id);
-      
-      // Transform the data to match the BuyerTortCoverage interface
-      const formattedCoverages: BuyerTortCoverage[] = coverageData.map(item => ({
-        id: item.id,
-        buyer_id: buyer.id,  // Use the current buyer's ID
-        campaign_id: item.campaigns?.id || '',
-        payout_amount: item.payout_amount,
-        campaigns: item.campaigns
-      }));
-      
-      setCoverages(formattedCoverages);
+      const { data, error } = await supabase
+        .from("buyer_tort_coverage")
+        .select(`
+          id, 
+          payout_amount,
+          campaigns:campaign_id (
+            id, 
+            name
+          )
+        `)
+        .eq("buyer_id", buyer.id);
+
+      if (error) throw error;
+      setTortCoverage(data || []);
     } catch (error) {
-      console.error("Error fetching buyer coverage:", error);
+      console.error("Error fetching tort coverage:", error);
     } finally {
-      setIsLoadingCoverage(false);
+      setLoadingCoverage(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete ${buyer.name}?`)) {
-      await deleteBuyer(buyer.id);
-    }
-  };
-
-  const openWebsite = () => {
+  const openWebsite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
     if (!buyer.url) {
       toast.error("No website URL available");
       return;
     }
-
-    let url = buyer.url;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    
+    let fullUrl = buyer.url;
+    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+      fullUrl = 'https://' + fullUrl;
     }
-    window.open(url, '_blank');
+    
+    window.open(fullUrl, '_blank');
   };
 
-  // Calculate coverage statistics
-  const totalPayoutAmount = coverages.reduce((sum, coverage) => sum + coverage.payout_amount, 0);
-  const averagePayoutAmount = coverages.length > 0 ? totalPayoutAmount / coverages.length : 0;
-  const highestPayout = coverages.length > 0 ? 
-    Math.max(...coverages.map(coverage => coverage.payout_amount)) : 0;
+  const averagePayout = tortCoverage.length > 0
+    ? tortCoverage.reduce((sum, item) => sum + (item.payout_amount || 0), 0) / tortCoverage.length
+    : 0;
+
+  const totalPotentialValue = tortCoverage.reduce((sum, item) => sum + (item.payout_amount || 0), 0);
 
   return (
-    <Card className={`overflow-hidden transition-all hover:shadow-md ${expandedView ? 'col-span-2' : ''}`}>
-      <CardHeader className="pb-2 relative">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col">
-            <CardTitle className="text-lg font-semibold truncate">
-              {buyer.name}
-            </CardTitle>
-            {buyer.platform && (
-              <div className="flex mt-1">
-                <Badge variant="outline" className="text-xs">
-                  {buyer.platform}
-                </Badge>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setExpandedView(!expandedView)}
-            >
-              <Info className="h-4 w-4" />
-              <span className="sr-only">{expandedView ? 'Collapse' : 'Expand'}</span>
-            </Button>
+    <Card 
+      className={`overflow-hidden transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-primary/50' : ''}`} 
+      onClick={onClick}
+    >
+      <CardContent className="p-0">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-accent/10 to-background p-4 border-b">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold truncate max-w-[200px]">{buyer.name}</h3>
+              {buyer.platform && (
+                <span className="text-xs text-muted-foreground">
+                  Platform: {buyer.platform}
+                </span>
+              )}
+            </div>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
-                    <path d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                  </svg>
-                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                  <PencilLine className="mr-2 h-4 w-4" />
-                  Edit Buyer
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  onViewCoverage();
+                }}>
+                  Manage Coverage
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onViewCoverage}>
-                  <ListChecks className="mr-2 h-4 w-4" />
-                  Manage Tort Coverage
-                </DropdownMenuItem>
-                {buyer.url && (
-                  <DropdownMenuItem onClick={openWebsite}>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Visit Website
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="text-destructive focus:text-destructive"
-                  onClick={handleDelete}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Buyer
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  if (onClick) onClick();
+                }}>
+                  View Details
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="pb-3">
-        <div className="space-y-4">
-          {/* Website Link - Added to front of card */}
-          {buyer.url && (
-            <div className="flex items-center justify-between">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="w-full text-xs flex items-center gap-1" 
-                onClick={openWebsite}
-              >
-                <Globe className="h-3.5 w-3.5" />
-                Visit Website
-                <ExternalLink className="h-3 w-3 ml-auto" />
-              </Button>
-            </div>
-          )}
-
-          {/* Contact Information */}
-          <div className="space-y-2">
-            <ul className="space-y-2 text-sm">
-              {buyer.contact_name && (
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <User className="h-3.5 w-3.5" />
-                  <span className="truncate">{buyer.contact_name}</span>
-                </li>
-              )}
-              {buyer.email && (
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-3.5 w-3.5" />
-                  <span className="truncate">{buyer.email}</span>
-                </li>
-              )}
-              {buyer.payout_terms && (
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <Building className="h-3.5 w-3.5" />
-                  <span>{buyer.payout_terms}</span>
-                </li>
-              )}
-            </ul>
-          </div>
-
-          {/* Coverage Stats - Show on front card now */}
-          {!isLoadingCoverage && (
-            <div className="space-y-2">
+        {/* Main Section */}
+        <div className="p-4">
+          {/* Contact Info */}
+          <div className="space-y-2 mb-4">
+            {buyer.url && (
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5 text-primary" />
-                  Tort Coverage
-                </h4>
-                <Badge variant="outline" className="text-xs font-normal">
-                  {coverages.length} tort{coverages.length !== 1 ? 's' : ''}
-                </Badge>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Globe className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="truncate max-w-[150px]">{buyer.url}</span>
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={openWebsite}>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
               </div>
-              
-              {coverages.length > 0 ? (
-                <div className="space-y-1.5 mt-2">
-                  {coverages.slice(0, 5).map((coverage) => (
-                    <div 
-                      key={coverage.id}
-                      className="flex items-center justify-between p-1.5 bg-muted/30 rounded text-xs"
-                    >
-                      <span className="truncate max-w-[150px]">
-                        {coverage.campaigns?.name || "Unknown Campaign"}
-                      </span>
-                      <div className="flex items-center">
-                        <BadgeDollarSign className="h-3 w-3 text-primary mr-1" />
-                        <span className="font-semibold">
-                          {formatCurrency(coverage.payout_amount)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {coverages.length > 5 && (
-                    <div className="text-xs text-center text-muted-foreground">
-                      + {coverages.length - 5} more torts
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">
-                  No tort coverage added yet
-                </p>
-              )}
+            )}
+            
+            {buyer.email && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                <span className="truncate max-w-[200px]">{buyer.email}</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Tort Coverage Summary */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">Tort Coverage</h4>
+              <Badge variant="secondary">{tortCoverage.length} torts</Badge>
             </div>
-          )}
-
-          {/* Additional expanded view content */}
-          {expandedView && (
-            <div className="space-y-3 pt-2 border-t">
-              {/* Notes Section */}
-              {buyer.notes && (
-                <div className="space-y-1">
-                  <h4 className="text-sm font-medium">Notes</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">{buyer.notes}</p>
-                </div>
-              )}
-              
-              {/* Payout highlight */}
-              {highestPayout > 0 && (
-                <div className="flex items-center justify-between p-2 bg-primary/10 rounded-md">
-                  <span className="text-sm font-medium">Highest Payout</span>
-                  <div className="flex items-center">
-                    <BadgeDollarSign className="h-4 w-4 text-primary mr-1" />
-                    <span className="font-semibold">{formatCurrency(highestPayout)}</span>
+            
+            {loadingCoverage ? (
+              <div className="flex justify-center py-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+              </div>
+            ) : tortCoverage.length > 0 ? (
+              <div className="space-y-2">
+                {tortCoverage.slice(0, 3).map((coverage) => (
+                  <div key={coverage.id} className="flex items-center justify-between text-sm border-b pb-2">
+                    <span className="truncate max-w-[180px]">{coverage.campaigns?.name}</span>
+                    <div className="flex items-center">
+                      <BadgeDollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                      <span>{formatCurrency(coverage.payout_amount)}</span>
+                    </div>
+                  </div>
+                ))}
+                
+                {tortCoverage.length > 3 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full text-xs h-7 mt-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewCoverage();
+                    }}
+                  >
+                    View {tortCoverage.length - 3} more
+                  </Button>
+                )}
+                
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t">
+                  <div className="text-center p-2 bg-muted/30 rounded-md">
+                    <div className="text-xs text-muted-foreground">Avg. Payout</div>
+                    <div className="font-semibold">
+                      {formatCurrency(averagePayout)}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-muted/30 rounded-md">
+                    <div className="text-xs text-muted-foreground">Total Value</div>
+                    <div className="font-semibold">
+                      {formatCurrency(totalPotentialValue)}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="text-center p-3 border border-dashed rounded-md">
+                <p className="text-sm text-muted-foreground">No tort coverage</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewCoverage();
+                  }}
+                >
+                  Add Coverage
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
       
-      <CardFooter className="pt-0 flex justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs"
-          onClick={onViewCoverage}
+      <CardFooter className="border-t p-2 bg-muted/20 flex justify-end">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-xs h-7" 
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewCoverage();
+          }}
         >
-          <Shield className="mr-1 h-3 w-3" />
-          Coverage
-        </Button>
-        
-        <Button
-          variant="default"
-          size="sm"
-          className="text-xs"
-          onClick={() => setShowEditDialog(true)}
-        >
-          <PencilLine className="mr-1 h-3 w-3" />
-          Edit
+          Manage Coverage
         </Button>
       </CardFooter>
-
-      {showEditDialog && (
-        <BuyerEditDialog 
-          buyer={buyer} 
-          isOpen={showEditDialog}
-          onClose={() => {
-            setShowEditDialog(false);
-            // Refresh coverage data when edit dialog closes
-            fetchCoverageData();
-          }}
-        />
-      )}
     </Card>
   );
 }

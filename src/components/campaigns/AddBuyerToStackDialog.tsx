@@ -9,8 +9,6 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { 
   Select,
   SelectContent,
@@ -106,7 +104,7 @@ export function AddBuyerToStackDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedBuyer || parseFloat(payoutAmount) <= 0) {
+    if (!selectedBuyer) {
       return;
     }
     
@@ -115,10 +113,14 @@ export function AddBuyerToStackDialog({
     // Get the next available stack_order
     const nextOrder = currentStackIds.length;
     
+    const selectedBuyerData = buyers.find(b => b.id === selectedBuyer);
+    if (!selectedBuyerData) return;
+    
+    // Use the payout amount from the buyer's tort coverage
     await addBuyerToStack(
       campaignId,
       selectedBuyer,
-      parseFloat(payoutAmount),
+      selectedBuyerData.payout_amount,
       nextOrder
     );
     
@@ -138,7 +140,11 @@ export function AddBuyerToStackDialog({
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="buyer">Select Buyer</Label>
+            <p className="text-sm mb-4">
+              Buyers must have tort coverage for this campaign before they can be added to the stack. 
+              The payout amount is automatically set based on the coverage.
+            </p>
+            
             <Select 
               value={selectedBuyer} 
               onValueChange={setSelectedBuyer}
@@ -150,7 +156,7 @@ export function AddBuyerToStackDialog({
               <SelectContent>
                 {buyers.map((buyer) => (
                   <SelectItem key={buyer.id} value={buyer.id}>
-                    {buyer.name}
+                    {buyer.name} - {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(buyer.payout_amount)}
                   </SelectItem>
                 ))}
                 {buyers.length === 0 && (
@@ -160,24 +166,12 @@ export function AddBuyerToStackDialog({
                 )}
               </SelectContent>
             </Select>
+            
             {buyers.length === 0 && !loadingBuyers && (
               <p className="text-sm text-muted-foreground mt-1">
                 No eligible buyers available. Buyers must have tort coverage for this campaign before they can be added to the stack.
               </p>
             )}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="payout">Payout Amount per Case ($)</Label>
-            <Input
-              id="payout"
-              type="number"
-              min="0"
-              step="0.01"
-              value={payoutAmount}
-              onChange={(e) => setPayoutAmount(e.target.value)}
-              placeholder="0.00"
-            />
           </div>
           
           <DialogFooter className="pt-4">
@@ -191,7 +185,7 @@ export function AddBuyerToStackDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !selectedBuyer || buyers.length === 0 || parseFloat(payoutAmount) <= 0}
+              disabled={loading || !selectedBuyer || buyers.length === 0}
             >
               {loading ? "Adding..." : "Add to Stack"}
             </Button>
