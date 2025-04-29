@@ -54,6 +54,7 @@ import { formatDateForStorage, formatDisplayDate } from "@/lib/utils/ManualDateU
 import { Checkbox } from "@/components/ui/checkbox";
 import CampaignFinancialOverview from "@/components/campaigns/CampaignFinancialOverview";
 import CampaignDailyAverages from "@/components/campaigns/CampaignDailyAverages";
+import { BuyerStackSection } from "@/components/campaigns/BuyerStackSection";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -544,6 +545,8 @@ const CampaignDetail = () => {
       <CampaignPerformanceSection campaign={campaign} />
       
       <CampaignFinancialOverview campaign={campaign} />
+      
+      <BuyerStackSection campaign={campaign} />
       
       <CampaignDailyAverages campaign={campaign} />
 

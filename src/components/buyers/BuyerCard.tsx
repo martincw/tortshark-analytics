@@ -172,6 +172,22 @@ export function BuyerCard({ buyer, onViewCoverage }: BuyerCardProps) {
 
       <CardContent className="pb-3">
         <div className="space-y-4">
+          {/* Website Link - Added to front of card */}
+          {buyer.url && (
+            <div className="flex items-center justify-between">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full text-xs flex items-center gap-1" 
+                onClick={openWebsite}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                Visit Website
+                <ExternalLink className="h-3 w-3 ml-auto" />
+              </Button>
+            </div>
+          )}
+
           {/* Contact Information */}
           <div className="space-y-2">
             <ul className="space-y-2 text-sm">
@@ -187,12 +203,6 @@ export function BuyerCard({ buyer, onViewCoverage }: BuyerCardProps) {
                   <span className="truncate">{buyer.email}</span>
                 </li>
               )}
-              {buyer.url && (
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span className="truncate">{buyer.url}</span>
-                </li>
-              )}
               {buyer.payout_terms && (
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <Building className="h-3.5 w-3.5" />
@@ -202,13 +212,13 @@ export function BuyerCard({ buyer, onViewCoverage }: BuyerCardProps) {
             </ul>
           </div>
 
-          {/* Coverage Stats */}
+          {/* Coverage Stats - Show on front card now */}
           {!isLoadingCoverage && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5 text-primary" />
-                  Coverage Summary
+                  Tort Coverage
                 </h4>
                 <Badge variant="outline" className="text-xs font-normal">
                   {coverages.length} tort{coverages.length !== 1 ? 's' : ''}
@@ -216,56 +226,33 @@ export function BuyerCard({ buyer, onViewCoverage }: BuyerCardProps) {
               </div>
               
               {coverages.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">Avg. Payout</span>
-                    <span className="font-semibold text-sm">
-                      {formatCurrency(averagePayoutAmount)}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">Total Value</span>
-                    <span className="font-semibold text-sm">
-                      {formatCurrency(totalPayoutAmount)}
-                    </span>
-                  </div>
+                <div className="space-y-1.5 mt-2">
+                  {coverages.slice(0, 5).map((coverage) => (
+                    <div 
+                      key={coverage.id}
+                      className="flex items-center justify-between p-1.5 bg-muted/30 rounded text-xs"
+                    >
+                      <span className="truncate max-w-[150px]">
+                        {coverage.campaigns?.name || "Unknown Campaign"}
+                      </span>
+                      <div className="flex items-center">
+                        <BadgeDollarSign className="h-3 w-3 text-primary mr-1" />
+                        <span className="font-semibold">
+                          {formatCurrency(coverage.payout_amount)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {coverages.length > 5 && (
+                    <div className="text-xs text-center text-muted-foreground">
+                      + {coverages.length - 5} more torts
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic">
                   No tort coverage added yet
                 </p>
-              )}
-              
-              {/* Coverage Preview (in expanded view) */}
-              {expandedView && coverages.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  <h5 className="text-xs font-medium text-muted-foreground">
-                    Tort Coverage Details
-                  </h5>
-                  <div className="grid gap-1">
-                    {coverages.slice(0, 3).map((coverage) => (
-                      <div 
-                        key={coverage.id}
-                        className="flex items-center justify-between p-1.5 bg-muted/30 rounded text-xs"
-                      >
-                        <span className="truncate max-w-[150px]">
-                          {coverage.campaigns?.name || "Unknown Campaign"}
-                        </span>
-                        <div className="flex items-center">
-                          <BadgeDollarSign className="h-3 w-3 text-primary mr-1" />
-                          <span className="font-semibold">
-                            {formatCurrency(coverage.payout_amount)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    {coverages.length > 3 && (
-                      <div className="text-xs text-center text-muted-foreground">
-                        + {coverages.length - 3} more torts
-                      </div>
-                    )}
-                  </div>
-                </div>
               )}
             </div>
           )}

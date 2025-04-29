@@ -13,8 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBuyers } from "@/hooks/useBuyers";
 import { formatCurrency } from "@/utils/campaignUtils";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { 
+  GripVertical, 
+  Plus, 
+  Trash2, 
+  ExternalLink, 
+  Mail, 
+  Globe,
+  BadgeDollarSign
+} from "lucide-react";
 import { AddBuyerToStackDialog } from "./AddBuyerToStackDialog";
+import { toast } from "sonner";
 
 interface BuyerStackSectionProps {
   campaign: Campaign;
@@ -104,6 +113,19 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     setShowAddDialog(false);
   };
 
+  const openWebsite = (url: string | undefined) => {
+    if (!url) {
+      toast.error("No website URL available");
+      return;
+    }
+
+    let fullUrl = url;
+    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+      fullUrl = 'https://' + fullUrl;
+    }
+    window.open(fullUrl, '_blank');
+  };
+
   return (
     <Card className="shadow-md">
       <CardHeader className="pb-3">
@@ -145,23 +167,21 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className="border rounded-md p-3 bg-white flex items-center justify-between"
+                          className="border rounded-md p-3 bg-white flex flex-col gap-2"
                         >
-                          <div className="flex items-center space-x-3">
-                            <div {...provided.dragHandleProps} className="cursor-grab">
-                              <GripVertical className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                            <div>
-                              <div className="font-medium">
-                                {item.buyers?.name || "Unknown Buyer"}
+                          {/* Buyer Header */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div {...provided.dragHandleProps} className="cursor-grab">
+                                <GripVertical className="h-5 w-5 text-muted-foreground" />
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {formatCurrency(item.payout_amount)} per case
+                              <div>
+                                <div className="font-medium flex items-center gap-2">
+                                  {item.buyers?.name || "Unknown Buyer"}
+                                  <Badge className="ml-2">{`Priority ${index + 1}`}</Badge>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge>{`Priority ${index + 1}`}</Badge>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -170,6 +190,36 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
+                          </div>
+                          
+                          {/* Buyer Details */}
+                          <div className="flex items-center justify-between px-8">
+                            <div className="flex flex-col text-sm">
+                              <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                                <BadgeDollarSign className="h-3.5 w-3.5" />
+                                <span>{formatCurrency(item.payout_amount)} per case</span>
+                              </div>
+                              
+                              {item.buyers?.email && (
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Mail className="h-3 w-3" />
+                                  <span>{item.buyers.email}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {item.buyers?.url && (
+                              <Button
+                                variant="outline" 
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => openWebsite(item.buyers?.url)}
+                              >
+                                <Globe className="h-3 w-3 mr-1" />
+                                Website
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )}
