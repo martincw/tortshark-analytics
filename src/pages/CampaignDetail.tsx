@@ -452,10 +452,12 @@ const CampaignDetail = () => {
   const formatDateForDisplay = (dateString: string) => {
     try {
       if (!dateString) return "N/A";
-      const date = new Date(dateString);
-      return isValid(date) ? format(date, "MMM dd, yyyy") : dateString;
+      
+      // Use our utility function to correctly parse the stored date
+      // This ensures we handle the date consistently without timezone shifts
+      return formatDisplayDate(dateString);
     } catch (error) {
-      console.error("Error formatting date:", error);
+      console.error("Error formatting date:", error, "Original date string:", dateString);
       return dateString;
     }
   };
