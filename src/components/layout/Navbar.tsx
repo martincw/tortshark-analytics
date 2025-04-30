@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,9 +21,21 @@ import {
   CalendarIcon,
   DatabaseIcon,
   LinkIcon,
-  WalletCards
+  WalletCards,
+  ExternalLink,
+  ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
+import { useBuyers } from "@/hooks/useBuyers";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavItem {
   href: string;
@@ -30,14 +43,16 @@ interface NavItem {
   icon?: React.ReactNode;
   priority?: boolean;
   external?: boolean;
+  dropdown?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: "/", label: "Overview" },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/accounts", label: "Accounts" },
-  { href: "/buyers", label: "Buyers" },
+  { href: "/buyers", label: "Buyers", dropdown: true },
   { href: "https://app.relayfi.com/login", label: "Banking", icon: <WalletCards className="h-4 w-4 mr-2" />, external: true },
+  { href: "https://app.leadprosper.io/dashboard", label: "LeadProsper", icon: <ExternalLink className="h-4 w-4 mr-2" />, external: true },
 ];
 
 const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
@@ -46,6 +61,11 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { signOut } = useAuth();
   const [logoError, setLogoError] = useState(false);
+  const { buyers, loading, fetchBuyers } = useBuyers();
+  
+  useEffect(() => {
+    fetchBuyers();
+  }, [fetchBuyers]);
   
   const handleLogout = async () => {
     await signOut();
@@ -58,6 +78,54 @@ export const Navbar: React.FC = () => {
   };
 
   const isActive = (href: string) => location.pathname === href;
+
+  const BuyerDropdown = () => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div className="flex items-center cursor-pointer">
+            Buyers <ChevronDown className="h-3 w-3 ml-1" />
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56 bg-popover">
+          <DropdownMenuLabel>Buyer Websites</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
+            {loading ? (
+              <DropdownMenuItem disabled>Loading buyers...</DropdownMenuItem>
+            ) : buyers.length === 0 ? (
+              <DropdownMenuItem disabled>No buyers available</DropdownMenuItem>
+            ) : (
+              buyers.map((buyer) => (
+                buyer.url ? (
+                  <DropdownMenuItem key={buyer.id} asChild>
+                    <a 
+                      href={buyer.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center"
+                    >
+                      {buyer.name}
+                      <ExternalLink className="h-3 w-3 ml-2" />
+                    </a>
+                  </DropdownMenuItem>
+                ) : null
+              )).filter(Boolean) // Filter out null items (buyers without URLs)
+            )}
+            {buyers.length > 0 && buyers.every(buyer => !buyer.url) && (
+              <DropdownMenuItem disabled>No buyer websites available</DropdownMenuItem>
+            )}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/buyers" className="w-full">
+              Manage Buyers
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   return (
     <div className="border-b bg-background sticky top-0 z-50">
@@ -92,6 +160,29 @@ export const Navbar: React.FC = () => {
                       {item.label}
                       {item.priority && <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 rounded-full">New</span>}
                     </a>
+                  ) : item.dropdown ? (
+                    <div key={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
+                      <Link to={item.href} className="font-medium">
+                        {item.label}
+                      </Link>
+                      <div className="mt-2 pl-4 space-y-1">
+                        {!loading && buyers.filter(buyer => buyer.url).map((buyer) => (
+                          <a 
+                            key={buyer.id}
+                            href={buyer.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm flex items-center py-1 hover:text-primary"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            {buyer.name}
+                          </a>
+                        ))}
+                        {(!loading && buyers.filter(buyer => buyer.url).length === 0) && (
+                          <span className="text-xs text-muted-foreground">No buyer websites available</span>
+                        )}
+                      </div>
+                    </div>
                   ) : (
                     <Link 
                       key={item.href} 
@@ -180,6 +271,10 @@ export const Navbar: React.FC = () => {
                 {item.icon}
                 {item.label}
               </a>
+            ) : item.dropdown ? (
+              <div key={item.href} className="text-sm transition-colors hover:text-primary flex items-center relative">
+                <BuyerDropdown />
+              </div>
             ) : (
               <Link 
                 key={item.href} 
