@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
@@ -63,14 +62,13 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
-    // Get the previous week
-    const lastWeekDate = subWeeks(today, 1);
-    const startOfLastWeek = startOfWeek(lastWeekDate, { weekStartsOn: 1 }); // Monday
-    const endOfLastWeek = endOfWeek(lastWeekDate, { weekStartsOn: 1 }); // Sunday
+    // Get the current week (Monday to Sunday)
+    const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 }); // 1 is Monday
+    const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
 
     return {
-      startDate: format(startOfLastWeek, 'yyyy-MM-dd'),
-      endDate: format(endOfLastWeek, 'yyyy-MM-dd'),
+      startDate: format(startOfCurrentWeek, 'yyyy-MM-dd'),
+      endDate: format(endOfCurrentWeek, 'yyyy-MM-dd'),
     };
   });
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);

@@ -15,6 +15,7 @@ import {
   Check,
   Loader2,
   ChevronDown,
+  AlertCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -51,7 +52,7 @@ import {
 } from "@/components/ui/table";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { CampaignPerformanceSection } from "@/components/campaigns/CampaignPerformanceSection";
-import { formatDateForStorage, formatDisplayDate } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, formatDisplayDate, isSameUTCDay, standardizeDateString } from "@/lib/utils/ManualDateUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import CampaignFinancialOverview from "@/components/campaigns/CampaignFinancialOverview";
 import CampaignDailyAverages from "@/components/campaigns/CampaignDailyAverages";
@@ -123,6 +124,10 @@ const CampaignDetail = () => {
   const [isDeletingEntry, setIsDeletingEntry] = useState(false);
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("");
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  
+  // For duplicate entry alerts
+  const [duplicateEntryId, setDuplicateEntryId] = useState<string | null>(null);
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   
   // State to control how many manual stats entries to show
   const [showAllStats, setShowAllStats] = useState(false);
@@ -250,6 +255,21 @@ const CampaignDetail = () => {
     }
   };
   
+  const checkForDuplicateEntry = (date: Date) => {
+    if (!campaign) return null;
+    
+    const formattedDate = formatDateForStorage(date);
+    const standardizedDate = standardizeDateString(formattedDate);
+    
+    // Find any entry with the same date
+    const duplicateEntry = campaign.statsHistory.find(entry => {
+      const entryDateStandardized = standardizeDateString(entry.date);
+      return entryDateStandardized === standardizedDate;
+    });
+    
+    return duplicateEntry || null;
+  };
+  
   const handleSaveDailyStats = () => {
     const newLeads = parseInt(dailyStats.leads) || 0;
     const newCases = parseInt(dailyStats.cases) || 0;
@@ -258,6 +278,15 @@ const CampaignDetail = () => {
     
     if (newLeads === 0 && newCases === 0 && newRevenue === 0 && newAdSpend === 0) {
       toast.error("Please enter at least one value greater than 0");
+      return;
+    }
+    
+    // Check for duplicate entry
+    const duplicateEntry = checkForDuplicateEntry(selectedDate);
+    if (duplicateEntry) {
+      // Show duplicate alert and set the duplicate entry ID
+      setDuplicateEntryId(duplicateEntry.id);
+      setShowDuplicateAlert(true);
       return;
     }
     
@@ -343,6 +372,23 @@ const CampaignDetail = () => {
       setEditDate(entryDate);
       setEditEntryDialogOpen(true);
     }, 100);
+  };
+  
+  const handleEditDuplicateEntry = () => {
+    if (!duplicateEntryId || !campaign) return;
+    
+    // Find the duplicate entry in the campaign stats history
+    const entry = campaign.statsHistory.find(e => e.id === duplicateEntryId);
+    if (!entry) return;
+    
+    setShowDuplicateAlert(false);
+    setIsDailyStatsDialogOpen(false);
+    
+    // Reset duplicate entry data
+    setDuplicateEntryId(null);
+    
+    // Open the edit dialog for that entry
+    handleEditEntry(entry);
   };
   
   const handleSaveEditedEntry = () => {
@@ -877,6 +923,24 @@ const CampaignDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Add Alert Dialog for duplicate entries */}
+      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicate Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              An entry for this date already exists. Would you like to edit the existing entry instead?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditDuplicateEntry}>
+              Edit Existing Entry
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <AlertDialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
         <AlertDialogContent>
