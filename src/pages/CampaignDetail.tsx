@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -694,7 +693,7 @@ const CampaignDetail = () => {
           <DialogHeader>
             <DialogTitle>Add Daily Stats</DialogTitle>
             <DialogDescription>
-              Add leads, cases and revenue for a specific date.
+              Add ad spend, leads, cases and revenue for a specific date.
             </DialogDescription>
           </DialogHeader>
 
@@ -726,6 +725,17 @@ const CampaignDetail = () => {
               </Popover>
             </div>
 
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="adSpend" className="text-right">Ad Spend</Label>
+              <Input
+                id="adSpend"
+                type="number"
+                value={dailyStats.adSpend}
+                onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
+                className="col-span-3"
+                placeholder="e.g. 1000"
+              />
+            </div>
             
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="leads" className="text-right">Leads</Label>
@@ -758,18 +768,6 @@ const CampaignDetail = () => {
                 onChange={(e) => setDailyStats({...dailyStats, revenue: e.target.value})}
                 className="col-span-3"
                 placeholder="e.g. 5000"
-              />
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="adSpend" className="text-right">Ad Spend</Label>
-              <Input
-                id="adSpend"
-                type="number"
-                value={dailyStats.adSpend}
-                onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
-                className="col-span-3"
-                placeholder="e.g. 1000"
               />
             </div>
           </div>
@@ -816,6 +814,17 @@ const CampaignDetail = () => {
             </div>
             
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-adSpend" className="text-right">Ad Spend</Label>
+              <Input
+                id="edit-adSpend"
+                type="number"
+                value={editEntryData.adSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-leads" className="text-right">Leads</Label>
               <Input
                 id="edit-leads"
@@ -844,17 +853,6 @@ const CampaignDetail = () => {
                 type="number"
                 value={editEntryData.revenue}
                 onChange={(e) => setEditEntryData({...editEntryData, revenue: e.target.value})}
-                className="col-span-3"
-              />
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-adSpend" className="text-right">Ad Spend</Label>
-              <Input
-                id="edit-adSpend"
-                type="number"
-                value={editEntryData.adSpend}
-                onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
                 className="col-span-3"
               />
             </div>
