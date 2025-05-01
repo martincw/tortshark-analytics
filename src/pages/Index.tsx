@@ -35,13 +35,10 @@ const Index = () => {
       {/* Campaign Leaderboard - Full Width */}
       <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
       
-      {/* Campaign Details Section - Prominent visual separation */}
-      <div className="mt-10 mb-4">
-        <h2 className="text-3xl font-bold tracking-tight mb-2">Campaign Details</h2>
-        <Separator className="my-3 border-primary/20" />
-        <p className="text-muted-foreground mb-4">
-          Detailed performance metrics for each of your active campaigns
-        </p>
+      {/* Section Break - Clear visual separator */}
+      <div className="mt-8 mb-2">
+        <h2 className="text-2xl font-bold tracking-tight mb-2">Campaign Details</h2>
+        <Separator className="my-2" />
       </div>
       
       {/* Campaign Grid - Pass filteredCampaigns */}

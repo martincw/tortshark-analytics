@@ -3,14 +3,11 @@ export interface CaseBuyer {
   id: string;
   name: string;
   url?: string;
-  url_secondary?: string; // Added secondary landing page URL
   contact_name?: string;
   email?: string;
   platform?: string;
   notes?: string;
   payout_terms?: string;
-  did_inbound?: string; // Added separate field for inbound DID
-  did_transfer?: string; // Added separate field for transfer DID
   created_at?: string;
 }
 
@@ -110,8 +107,6 @@ export interface BuyerTortCoverage {
   campaign_id: string;
   payout_amount: number;
   did?: string;
-  did_inbound?: string; // Added separate field for inbound DID
-  did_transfer?: string; // Added separate field for transfer DID
   campaign_key?: string;
   notes?: string;
   spec_sheet_url?: string;

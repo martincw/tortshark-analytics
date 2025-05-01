@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CaseBuyer } from "@/types/campaign";
@@ -32,10 +33,7 @@ export const useBuyers = () => {
     email: string = '',
     platform: string = '',
     notes: string = '',
-    payout_terms: string = '',
-    url_secondary: string = '',
-    did_inbound: string = '',
-    did_transfer: string = ''
+    payout_terms: string = ''
   ) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -50,14 +48,11 @@ export const useBuyers = () => {
         .insert([{ 
           name, 
           url,
-          url_secondary,
           contact_name,
           email,
           platform,
           notes,
           payout_terms,
-          did_inbound,
-          did_transfer,
           user_id: user.id 
         }])
         .select()
@@ -152,8 +147,6 @@ export const useBuyers = () => {
     campaignId: string, 
     payoutAmount: number,
     did: string = '',
-    did_inbound: string = '',
-    did_transfer: string = '',
     campaignKey: string = '',
     notes: string = '',
     specSheetUrl: string = ''
@@ -166,8 +159,6 @@ export const useBuyers = () => {
           campaign_id: campaignId,
           payout_amount: payoutAmount,
           did,
-          did_inbound,
-          did_transfer,
           campaign_key: campaignKey,
           notes,
           spec_sheet_url: specSheetUrl
@@ -209,8 +200,6 @@ export const useBuyers = () => {
     payoutAmount: number,
     updates: {
       did?: string;
-      did_inbound?: string;
-      did_transfer?: string;
       campaign_key?: string;
       notes?: string;
       spec_sheet_url?: string;
@@ -336,15 +325,15 @@ export const useBuyers = () => {
     loading, 
     addBuyer, 
     updateBuyer, 
-    deleteBuyer: (id: string) => {}, // Keep as a placeholder
+    deleteBuyer,
     getBuyerTortCoverage,
     addBuyerTortCoverage,
-    removeBuyerTortCoverage: (coverageId: string) => Promise.resolve(true), // Keep as a placeholder
+    removeBuyerTortCoverage,
     updateBuyerTortCoverage,
-    getCampaignBuyerStack: (campaignId: string) => Promise.resolve([]), // Keep as a placeholder
-    updateBuyerStackOrder: (items: { id: string, stack_order: number }[]) => Promise.resolve(true), // Keep as a placeholder
-    addBuyerToStack: (campaignId: string, buyerId: string, payoutAmount: number, stackOrder: number) => Promise.resolve(null), // Keep as a placeholder
-    removeBuyerFromStack: (stackItemId: string) => Promise.resolve(false), // Keep as a placeholder
+    getCampaignBuyerStack,
+    updateBuyerStackOrder,
+    addBuyerToStack,
+    removeBuyerFromStack,
     fetchBuyers
   };
 };

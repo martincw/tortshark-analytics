@@ -77,15 +77,15 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
     }
   };
 
-  const openWebsite = (e: React.MouseEvent, url?: string) => {
+  const openWebsite = (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    if (!url) {
+    if (!buyer.url) {
       toast.error("No website URL available");
       return;
     }
     
-    let fullUrl = url;
+    let fullUrl = buyer.url;
     if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
       fullUrl = 'https://' + fullUrl;
     }
@@ -141,37 +141,13 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
         <div className="p-4">
           {/* Contact Info */}
           <div className="space-y-2 mb-4">
-            {/* Primary URL */}
             {buyer.url && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Globe className="h-3.5 w-3.5 mr-1.5" />
                   <span className="truncate max-w-[150px]">{buyer.url}</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 px-2" 
-                  onClick={(e) => openWebsite(e, buyer.url)}
-                >
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </div>
-            )}
-            
-            {/* Secondary URL */}
-            {buyer.url_secondary && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5 mr-1.5" />
-                  <span className="truncate max-w-[150px]">{buyer.url_secondary}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 px-2" 
-                  onClick={(e) => openWebsite(e, buyer.url_secondary)}
-                >
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={openWebsite}>
                   <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
               </div>

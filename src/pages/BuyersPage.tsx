@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BuyerCard } from "@/components/buyers/BuyerCard";
 import { useBuyers } from "@/hooks/useBuyers";
-import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown, X, Globe, Phone } from "lucide-react";
+import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown } from "lucide-react";
 import { BuyerCoverageDialog } from "@/components/buyers/BuyerCoverageDialog";
 import { BuyerRankingsTable } from "@/components/buyers/BuyerRankingsTable";
 import { BuyerFilterMenu } from "@/components/buyers/BuyerFilterMenu";
@@ -49,15 +50,11 @@ export default function BuyersPage() {
   // Form state
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [urlSecondary, setUrlSecondary] = useState("");
-  const [showSecondaryUrl, setShowSecondaryUrl] = useState(false);
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [platform, setPlatform] = useState("");
   const [notes, setNotes] = useState("");
   const [payoutTerms, setPayoutTerms] = useState("");
-  const [didInbound, setDidInbound] = useState("");
-  const [didTransfer, setDidTransfer] = useState("");
 
   const filteredBuyers = buyers.filter((buyer) => {
     if (searchQuery) {
@@ -81,30 +78,12 @@ export default function BuyersPage() {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
-  const toggleSecondaryUrl = () => {
-    setShowSecondaryUrl(!showSecondaryUrl);
-    if (!showSecondaryUrl) {
-      setUrlSecondary("");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
       return;
     }
-    await addBuyer(
-      name, 
-      url, 
-      contactName, 
-      email, 
-      platform, 
-      notes, 
-      payoutTerms,
-      showSecondaryUrl ? urlSecondary : "",
-      didInbound,
-      didTransfer
-    );
+    await addBuyer(name, url, contactName, email, platform, notes, payoutTerms);
     resetForm();
     setIsAddBuyerOpen(false);
   };
@@ -112,15 +91,11 @@ export default function BuyersPage() {
   const resetForm = () => {
     setName("");
     setUrl("");
-    setUrlSecondary("");
-    setShowSecondaryUrl(false);
     setContactName("");
     setEmail("");
     setPlatform("");
     setNotes("");
     setPayoutTerms("");
-    setDidInbound("");
-    setDidTransfer("");
   };
 
   return (
@@ -252,47 +227,13 @@ export default function BuyersPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="url" className="flex items-center gap-2">
-                <Globe className="h-3.5 w-3.5 text-primary" />
-                Landing Page URL
-              </Label>
+              <Label htmlFor="url">Website URL</Label>
               <Input
                 id="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
               />
-            </div>
-            
-            {/* Secondary URL with toggle */}
-            <div className="space-y-2 relative">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="url-secondary" className="flex items-center gap-2">
-                  <Globe className="h-3.5 w-3.5 text-primary" />
-                  Landing Page URL #2
-                </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2"
-                  onClick={toggleSecondaryUrl}
-                >
-                  {showSecondaryUrl ? (
-                    <X className="h-4 w-4" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              {showSecondaryUrl && (
-                <Input
-                  id="url-secondary"
-                  value={urlSecondary}
-                  onChange={(e) => setUrlSecondary(e.target.value)}
-                  placeholder="https://example2.com"
-                />
-              )}
             </div>
             
             <div className="space-y-2">
@@ -331,34 +272,6 @@ export default function BuyersPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">How cases are delivered to this buyer</p>
-            </div>
-            
-            {/* DID Inbound */}
-            <div className="space-y-2">
-              <Label htmlFor="did-inbound" className="flex items-center gap-2">
-                <Phone className="h-3.5 w-3.5 text-primary" />
-                DID (Inbound)
-              </Label>
-              <Input
-                id="did-inbound"
-                value={didInbound}
-                onChange={(e) => setDidInbound(e.target.value)}
-                placeholder="(123) 456-7890"
-              />
-            </div>
-
-            {/* DID Transfer */}
-            <div className="space-y-2">
-              <Label htmlFor="did-transfer" className="flex items-center gap-2">
-                <Phone className="h-3.5 w-3.5 text-primary" />
-                DID (Transfer)
-              </Label>
-              <Input
-                id="did-transfer"
-                value={didTransfer}
-                onChange={(e) => setDidTransfer(e.target.value)}
-                placeholder="(123) 456-7890"
-              />
             </div>
             
             <div className="space-y-2">
