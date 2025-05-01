@@ -72,17 +72,26 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     setLoading(true);
     try {
       const coverageData = await getBuyerTortCoverage(buyerId);
+      console.log('Raw coverage data:', coverageData);
+      
+      // Map the data to ensure it matches our expected format
       const formattedCoverages: BuyerTortCoverage[] = coverageData.map(item => ({
         id: item.id,
-        buyer_id: buyerId,
-        campaign_id: item.campaigns?.id || '',
+        buyer_id: item.buyer_id,
+        campaign_id: item.campaign_id,
         payout_amount: item.payout_amount,
-        did: item.did,
-        campaign_key: item.campaign_key,
-        notes: item.notes,
-        spec_sheet_url: item.spec_sheet_url,
-        campaigns: item.campaigns
+        did: item.did || '',
+        campaign_key: item.campaign_key || '',
+        notes: item.notes || '',
+        spec_sheet_url: item.spec_sheet_url || '',
+        // Handle nested campaigns object structure
+        campaigns: item.campaigns ? {
+          id: item.campaigns.id,
+          name: item.campaigns.name
+        } : undefined
       }));
+      
+      console.log('Formatted coverages:', formattedCoverages);
       setCoverages(formattedCoverages);
     } catch (error) {
       console.error("Error fetching buyer tort coverage:", error);

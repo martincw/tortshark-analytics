@@ -115,15 +115,11 @@ export const useBuyers = () => {
   // Get tort coverage for a specific buyer
   const getBuyerTortCoverage = async (buyerId: string) => {
     try {
+      // Fixed query to properly join the campaigns table
       const { data, error } = await supabase
         .from('buyer_tort_coverage')
         .select(`
-          id,
-          payout_amount,
-          did,
-          campaign_key,
-          notes,
-          spec_sheet_url,
+          *,
           campaigns:campaign_id (
             id,
             name
@@ -131,7 +127,12 @@ export const useBuyers = () => {
         `)
         .eq('buyer_id', buyerId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error in getBuyerTortCoverage:', error);
+        throw error;
+      }
+      
+      console.log('Tort coverage data:', data);
       return data || [];
     } catch (error) {
       console.error('Error fetching buyer tort coverage:', error);
