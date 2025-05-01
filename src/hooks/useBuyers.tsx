@@ -120,6 +120,10 @@ export const useBuyers = () => {
         .select(`
           id,
           payout_amount,
+          did,
+          campaign_key,
+          notes,
+          spec_sheet_url,
           campaigns:campaign_id (
             id,
             name
@@ -137,14 +141,26 @@ export const useBuyers = () => {
   };
 
   // Add tort coverage for a buyer
-  const addBuyerTortCoverage = async (buyerId: string, campaignId: string, payoutAmount: number) => {
+  const addBuyerTortCoverage = async (
+    buyerId: string, 
+    campaignId: string, 
+    payoutAmount: number,
+    did: string = '',
+    campaignKey: string = '',
+    notes: string = '',
+    specSheetUrl: string = ''
+  ) => {
     try {
       const { data, error } = await supabase
         .from('buyer_tort_coverage')
         .insert([{
           buyer_id: buyerId,
           campaign_id: campaignId,
-          payout_amount: payoutAmount
+          payout_amount: payoutAmount,
+          did,
+          campaign_key: campaignKey,
+          notes,
+          spec_sheet_url: specSheetUrl
         }])
         .select()
         .single();
@@ -178,11 +194,23 @@ export const useBuyers = () => {
   };
 
   // Update payout amount for a tort coverage
-  const updateBuyerTortCoverage = async (coverageId: string, payoutAmount: number) => {
+  const updateBuyerTortCoverage = async (
+    coverageId: string, 
+    payoutAmount: number,
+    updates: {
+      did?: string;
+      campaign_key?: string;
+      notes?: string;
+      spec_sheet_url?: string;
+    } = {}
+  ) => {
     try {
       const { data, error } = await supabase
         .from('buyer_tort_coverage')
-        .update({ payout_amount: payoutAmount })
+        .update({ 
+          payout_amount: payoutAmount,
+          ...updates
+        })
         .eq('id', coverageId)
         .select()
         .single();

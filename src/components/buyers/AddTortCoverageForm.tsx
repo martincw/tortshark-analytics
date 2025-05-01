@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Select,
   SelectContent,
@@ -31,6 +32,11 @@ export function AddTortCoverageForm({
   const [campaigns, setCampaigns] = useState<{ id: string; name: string; }[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
+  const [did, setDid] = useState<string>("");
+  const [campaignId, setCampaignId] = useState<string>("");
+  const [campaignKey, setCampaignKey] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [specSheetUrl, setSpecSheetUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
 
@@ -72,7 +78,15 @@ export function AddTortCoverageForm({
     setLoading(true);
     
     const payoutAmount = parseFloat(amount);
-    await addBuyerTortCoverage(buyerId, selectedCampaign, payoutAmount);
+    await addBuyerTortCoverage(
+      buyerId, 
+      selectedCampaign, 
+      payoutAmount,
+      did,
+      campaignKey,
+      notes,
+      specSheetUrl
+    );
     
     setLoading(false);
     onSuccess();
@@ -120,6 +134,61 @@ export function AddTortCoverageForm({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="did">DID (Direct Inward Dialing)</Label>
+        <Input
+          id="did"
+          type="text"
+          value={did}
+          onChange={(e) => setDid(e.target.value)}
+          placeholder="18005551234"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="campaignId">Campaign ID</Label>
+        <Input
+          id="campaignId"
+          type="text"
+          value={campaignId}
+          onChange={(e) => setCampaignId(e.target.value)}
+          placeholder="Enter campaign ID"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="campaignKey">Campaign Key</Label>
+        <Input
+          id="campaignKey"
+          type="text"
+          value={campaignKey}
+          onChange={(e) => setCampaignKey(e.target.value)}
+          placeholder="Enter campaign key"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="specSheetUrl">Spec Sheet URL</Label>
+        <Input
+          id="specSheetUrl"
+          type="url"
+          value={specSheetUrl}
+          onChange={(e) => setSpecSheetUrl(e.target.value)}
+          placeholder="https://docs.google.com/spreadsheets/..."
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">Notes</Label>
+        <Textarea
+          id="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Enter any additional notes about this tort"
+          className="min-h-[80px]"
         />
       </div>
       

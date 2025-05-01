@@ -26,12 +26,16 @@ import {
   BadgeDollarSign,
   Shield,
   DollarSign,
-  PencilLine
+  PencilLine,
+  Phone,
+  Key,
+  FileText
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/campaign";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 
 interface BuyerCoverageDialogProps {
   buyerId: string;
@@ -73,6 +77,10 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
         buyer_id: buyerId,
         campaign_id: item.campaigns?.id || '',
         payout_amount: item.payout_amount,
+        did: item.did,
+        campaign_key: item.campaign_key,
+        notes: item.notes,
+        spec_sheet_url: item.spec_sheet_url,
         campaigns: item.campaigns
       }));
       setCoverages(formattedCoverages);
@@ -139,6 +147,12 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     setShowAddForm(false);
     setEditingCoverageId(null);
     onClose();
+  };
+
+  const openSpecSheet = (url?: string) => {
+    if (url) {
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -210,70 +224,116 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
               <div className="space-y-3">
                 {coverages.map((coverage) => (
                   <Card key={coverage.id} className="overflow-hidden">
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex-1">
-                        <h3 className="font-medium">
-                          {coverage.campaigns?.name || "Unknown Campaign"}
-                        </h3>
-                        
-                        {editingCoverageId === coverage.id ? (
-                          <div className="flex items-center gap-2 mt-2">
-                            <div className="relative">
-                              <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                              <input
-                                type="number"
-                                className="pl-7 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                value={editAmount}
-                                onChange={(e) => setEditAmount(e.target.value)}
-                                min="0"
-                                step="0.01"
-                              />
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium">
+                            {coverage.campaigns?.name || "Unknown Campaign"}
+                          </h3>
+                          
+                          {editingCoverageId === coverage.id ? (
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                                <input
+                                  type="number"
+                                  className="pl-7 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                  value={editAmount}
+                                  onChange={(e) => setEditAmount(e.target.value)}
+                                  min="0"
+                                  step="0.01"
+                                />
+                              </div>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleUpdateCoverage(coverage.id)}
+                              >
+                                Save
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => setEditingCoverageId(null)}
+                              >
+                                Cancel
+                              </Button>
                             </div>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleUpdateCoverage(coverage.id)}
+                          ) : (
+                            <div className="flex items-center mt-1.5">
+                              <BadgeDollarSign className="h-4 w-4 text-green-600 mr-1" />
+                              <span className="font-semibold">
+                                {formatCurrency(coverage.payout_amount)}
+                              </span>
+                              <Badge variant="outline" className="ml-2">
+                                per case
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {editingCoverageId !== coverage.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={() => startEditCoverage(coverage.id, coverage.payout_amount)}
                             >
-                              Save
+                              <PencilLine className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              onClick={() => setEditingCoverageId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center mt-1.5">
-                            <BadgeDollarSign className="h-4 w-4 text-green-600 mr-1" />
-                            <span className="font-semibold">
-                              {formatCurrency(coverage.payout_amount)}
-                            </span>
-                            <Badge variant="outline" className="ml-2">
-                              per case
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {editingCoverageId !== coverage.id && (
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => startEditCoverage(coverage.id, coverage.payout_amount)}
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveCoverage(coverage.id)}
                           >
-                            <PencilLine className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
+                        </div>
+                      </div>
+
+                      {/* Display additional fields */}
+                      <div className="mt-4 space-y-3 text-sm">
+                        {(coverage.did || coverage.campaign_key || coverage.spec_sheet_url || coverage.notes) && (
+                          <Separator className="my-3" />
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleRemoveCoverage(coverage.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        
+                        {coverage.did && (
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">DID:</span>
+                            <span>{coverage.did}</span>
+                          </div>
+                        )}
+                        
+                        {coverage.campaign_key && (
+                          <div className="flex items-center">
+                            <Key className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">Campaign Key:</span>
+                            <span>{coverage.campaign_key}</span>
+                          </div>
+                        )}
+                        
+                        {coverage.spec_sheet_url && (
+                          <div className="flex items-center">
+                            <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">Spec Sheet:</span>
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-primary"
+                              onClick={() => openSpecSheet(coverage.spec_sheet_url)}
+                            >
+                              View Spec Sheet
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {coverage.notes && (
+                          <div className="flex">
+                            <span className="font-medium mr-2 mt-0.5">Notes:</span>
+                            <p className="text-muted-foreground">{coverage.notes}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>

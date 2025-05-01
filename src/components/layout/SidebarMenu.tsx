@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Table, LinkIcon } from "lucide-react";
+import { ExternalLink, Table, LinkIcon, FileText } from "lucide-react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
 
@@ -86,6 +86,15 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) 
         <LinkIcon className="h-4 w-4 mr-2" />
         Integrations
       </Link>
+      <a 
+        href="https://tortshark-invoicing.lovable.app" 
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-4 py-2 rounded-md hover:bg-secondary flex items-center"
+      >
+        <FileText className="h-4 w-4 mr-2" />
+        Invoicing
+      </a>
     </div>
   );
 };

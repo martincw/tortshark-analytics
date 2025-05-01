@@ -106,6 +106,10 @@ export interface BuyerTortCoverage {
   buyer_id: string;
   campaign_id: string;
   payout_amount: number;
+  did?: string;
+  campaign_key?: string;
+  notes?: string;
+  spec_sheet_url?: string;
   campaigns?: {
     id: string;
     name: string;
