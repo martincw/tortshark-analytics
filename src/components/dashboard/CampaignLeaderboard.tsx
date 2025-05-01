@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, ChevronDown, ChevronUp, CircleDollarSign, Medal, Ribbon, TrendingUp, Trophy, Users } from "lucide-react";
@@ -33,36 +34,42 @@ export function CampaignLeaderboard({ filteredCampaigns }: CampaignLeaderboardPr
       };
     });
     
-    const byProfit = [...campaignsWithMetrics]
+    // Filter out campaigns with $0 or negative profit before sorting
+    const profitableCampaigns = campaignsWithMetrics.filter(c => c.metrics.profit > 0);
+    
+    const byProfit = [...profitableCampaigns]
       .sort((a, b) => b.metrics.profit - a.metrics.profit)
       .slice(0, 5);
       
-    const byEarningsPerLead = [...campaignsWithMetrics]
+    // For earnings per lead, only include campaigns with positive earnings
+    const byEarningsPerLead = [...profitableCampaigns]
+      .filter(c => c.metrics.leads > 0)
       .sort((a, b) => {
-        const earningsPerLeadA = a.metrics.leads > 0 
-          ? a.metrics.revenue / a.metrics.leads 
-          : 0;
-        const earningsPerLeadB = b.metrics.leads > 0 
-          ? b.metrics.revenue / b.metrics.leads 
-          : 0;
+        const earningsPerLeadA = a.metrics.revenue / a.metrics.leads;
+        const earningsPerLeadB = b.metrics.revenue / b.metrics.leads;
         return earningsPerLeadB - earningsPerLeadA;
       })
       .slice(0, 5);
       
-    const byProfitPerLead = [...campaignsWithMetrics]
-      .sort((a, b) => (b.metrics.profit / (b.metrics.leads || 1)) - (a.metrics.profit / (a.metrics.leads || 1)))
+    // Filter for profit per lead to only include campaigns with positive profit
+    const byProfitPerLead = [...profitableCampaigns]
+      .filter(c => c.metrics.leads > 0)
+      .sort((a, b) => (b.metrics.profit / b.metrics.leads) - (a.metrics.profit / a.metrics.leads))
       .slice(0, 5);
       
+    // For cheapest CPL, filter to only those with ad spend and leads
     const byCheapestCPL = [...campaignsWithMetrics]
-      .filter(campaign => campaign.metrics.adSpend > 0)
+      .filter(campaign => campaign.metrics.adSpend > 0 && campaign.metrics.leads > 0)
       .sort((a, b) => a.metrics.costPerLead - b.metrics.costPerLead)
       .slice(0, 5);
       
     const byMostLeads = [...campaignsWithMetrics]
+      .filter(c => c.metrics.leads > 0)
       .sort((a, b) => b.metrics.leads - a.metrics.leads)
       .slice(0, 5);
       
-    const byBiggestChange = [...campaignsWithMetrics]
+    // For biggest change, filter to include only non-zero profit campaigns
+    const byBiggestChange = [...profitableCampaigns]
       .sort((a, b) => Math.abs(b.metrics.weekOverWeekChange) - Math.abs(a.metrics.weekOverWeekChange))
       .slice(0, 5);
     

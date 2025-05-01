@@ -24,10 +24,10 @@ import { NavItems } from "./NavItems";
 import { NavItem } from "@/types/navigation";
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Overview" },
+  { href: "/", label: "Campaigns" },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/accounts", label: "Accounts" },
-  { href: "/buyers", label: "Buyers", dropdown: true },
+  { href: "/buyers", label: "Buyers" },
   { href: "https://app.relayfi.com/login", label: "Banking", icon: <WalletCards className="h-4 w-4 mr-2" />, external: true },
   { href: "https://app.leadprosper.io/dashboard", label: "LeadProsper", icon: <ExternalLink className="h-4 w-4 mr-2" />, external: true },
 ];
