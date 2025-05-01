@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ExternalLink, Table, LinkIcon, FileText } from "lucide-react";
+import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
 
 interface SidebarMenuProps {
@@ -10,6 +11,8 @@ interface SidebarMenuProps {
 }
 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) => {
+  const { buyers, loading } = useBuyers();
+
   return (
     <div className="grid gap-4 py-4">
       {navItems.map((item) => (
@@ -27,6 +30,29 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) 
             {item.label}
             {item.priority && <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 rounded-full">New</span>}
           </a>
+        ) : item.dropdown ? (
+          <div key={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
+            <Link to={item.href} className="font-medium">
+              {item.label}
+            </Link>
+            <div className="mt-2 pl-4 space-y-1">
+              {!loading && buyers.filter(buyer => buyer.url).map((buyer) => (
+                <a 
+                  key={buyer.id}
+                  href={buyer.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm flex items-center py-1 hover:text-primary"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  {buyer.name}
+                </a>
+              ))}
+              {(!loading && buyers.filter(buyer => buyer.url).length === 0) && (
+                <span className="text-xs text-muted-foreground">No buyer websites available</span>
+              )}
+            </div>
+          </div>
         ) : (
           <Link 
             key={item.href} 

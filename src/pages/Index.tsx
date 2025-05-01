@@ -6,7 +6,6 @@ import DashboardFinancialStats from "@/components/dashboard/DashboardFinancialSt
 import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
 import { useEffect } from "react";
-import { Separator } from "@/components/ui/separator";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns } = useCampaign();
@@ -34,12 +33,6 @@ const Index = () => {
 
       {/* Campaign Leaderboard - Full Width */}
       <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
-      
-      {/* Section Break - Clear visual separator */}
-      <div className="mt-8 mb-2">
-        <h2 className="text-2xl font-bold tracking-tight mb-2">Campaign Details</h2>
-        <Separator className="my-2" />
-      </div>
       
       {/* Campaign Grid - Pass filteredCampaigns */}
       <CampaignGrid filteredCampaigns={filteredCampaigns} />

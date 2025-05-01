@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { NavItem } from "@/types/navigation";
+import { BuyerDropdown } from "./BuyerDropdown";
 
 interface NavItemsProps {
   items: NavItem[];
@@ -30,6 +31,13 @@ export const NavItems: React.FC<NavItemsProps> = ({ items, isActive, priority })
             {item.icon}
             {item.label}
           </a>
+        ) : item.dropdown ? (
+          <div 
+            key={item.href} 
+            className="text-sm transition-colors hover:text-primary flex items-center relative"
+          >
+            <BuyerDropdown />
+          </div>
         ) : (
           <Link 
             key={item.href} 

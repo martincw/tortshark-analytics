@@ -7,4 +7,5 @@ export interface NavItem {
   icon?: ReactNode;
   priority?: boolean;
   external?: boolean;
+  dropdown?: boolean;
 }
