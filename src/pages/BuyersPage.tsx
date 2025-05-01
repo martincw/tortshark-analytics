@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BuyerCard } from "@/components/buyers/BuyerCard";
 import { useBuyers } from "@/hooks/useBuyers";
 import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown } from "lucide-react";
-import { BuyerCoverageDialog } from "@/components/buyers/BuyerCoverageDialog";
 import { BuyerRankingsTable } from "@/components/buyers/BuyerRankingsTable";
 import { BuyerFilterMenu } from "@/components/buyers/BuyerFilterMenu";
 import { BuyerDetailDialog } from "@/components/buyers/BuyerDetailDialog";
@@ -43,18 +42,21 @@ export default function BuyersPage() {
   const [isAddBuyerOpen, setIsAddBuyerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedBuyer, setSelectedBuyer] = useState<string | null>(null);
-  const [selectedBuyerDetail, setSelectedBuyerDetail] = useState<string | null>(null);
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Form state
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [url2, setUrl2] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [platform, setPlatform] = useState("");
   const [notes, setNotes] = useState("");
   const [payoutTerms, setPayoutTerms] = useState("");
+  const [inboundDid, setInboundDid] = useState("");
+  const [transferDid, setTransferDid] = useState("");
+  const [showSecondaryUrl, setShowSecondaryUrl] = useState(false);
 
   const filteredBuyers = buyers.filter((buyer) => {
     if (searchQuery) {
@@ -83,19 +85,43 @@ export default function BuyersPage() {
     if (!name) {
       return;
     }
-    await addBuyer(name, url, contactName, email, platform, notes, payoutTerms);
-    resetForm();
-    setIsAddBuyerOpen(false);
+    
+    try {
+      await addBuyer(
+        name, 
+        url, 
+        contactName, 
+        email, 
+        platform, 
+        notes, 
+        payoutTerms,
+        inboundDid,
+        transferDid,
+        url2
+      );
+      resetForm();
+      setIsAddBuyerOpen(false);
+    } catch (error) {
+      console.error("Error adding buyer:", error);
+    }
   };
 
   const resetForm = () => {
     setName("");
     setUrl("");
+    setUrl2("");
     setContactName("");
     setEmail("");
     setPlatform("");
     setNotes("");
     setPayoutTerms("");
+    setInboundDid("");
+    setTransferDid("");
+    setShowSecondaryUrl(false);
+  };
+
+  const openBuyerDetail = (buyerId: string) => {
+    setSelectedBuyerId(buyerId);
   };
 
   return (
@@ -176,8 +202,7 @@ export default function BuyersPage() {
                 <BuyerCard
                   key={buyer.id}
                   buyer={buyer}
-                  onViewCoverage={() => setSelectedBuyer(buyer.id)}
-                  onClick={() => setSelectedBuyerDetail(buyer.id)}
+                  onViewDetail={openBuyerDetail}
                 />
               ))}
             </div>
@@ -236,6 +261,28 @@ export default function BuyersPage() {
               />
             </div>
             
+            {showSecondaryUrl ? (
+              <div className="space-y-2">
+                <Label htmlFor="url2">Secondary URL</Label>
+                <Input
+                  id="url2"
+                  value={url2}
+                  onChange={(e) => setUrl2(e.target.value)}
+                  placeholder="https://example.com/landing"
+                />
+              </div>
+            ) : (
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowSecondaryUrl(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Secondary URL
+              </Button>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="contact-name">Contact Name</Label>
               <Input
@@ -272,6 +319,28 @@ export default function BuyersPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">How cases are delivered to this buyer</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="inbound-did">Inbound DID</Label>
+                <Input
+                  id="inbound-did"
+                  value={inboundDid}
+                  onChange={(e) => setInboundDid(e.target.value)}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="transfer-did">Transfer DID</Label>
+                <Input
+                  id="transfer-did"
+                  value={transferDid}
+                  onChange={(e) => setTransferDid(e.target.value)}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -311,22 +380,13 @@ export default function BuyersPage() {
           </form>
         </SheetContent>
       </Sheet>
-
-      {/* Buyer Coverage Dialog */}
-      {selectedBuyer && (
-        <BuyerCoverageDialog 
-          buyerId={selectedBuyer} 
-          isOpen={!!selectedBuyer}
-          onClose={() => setSelectedBuyer(null)}
-        />
-      )}
       
       {/* Buyer Detail Dialog */}
-      {selectedBuyerDetail && (
+      {selectedBuyerId && (
         <BuyerDetailDialog 
-          buyerId={selectedBuyerDetail} 
-          isOpen={!!selectedBuyerDetail}
-          onClose={() => setSelectedBuyerDetail(null)}
+          buyerId={selectedBuyerId} 
+          isOpen={!!selectedBuyerId}
+          onClose={() => setSelectedBuyerId(null)}
         />
       )}
     </div>

@@ -3,19 +3,21 @@ import { useState, useEffect } from "react";
 import { 
   Card, 
   CardContent,
-  CardFooter
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Mail, MoreHorizontal, ChevronDown, ChevronUp, BadgeDollarSign, ExternalLink } from "lucide-react";
+import { 
+  Globe, Mail, MoreHorizontal, 
+  BadgeDollarSign, ExternalLink, 
+  Building2, MessageSquare, Phone, 
+  AlertCircle
+} from "lucide-react";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -23,20 +25,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface BuyerCardProps {
   buyer: CaseBuyer;
-  onViewCoverage: () => void;
+  onViewDetail: (id: string) => void;
   onClick?: () => void;
 }
 
-export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
-  const [expanded, setExpanded] = useState(false);
+export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
   const [tortCoverage, setTortCoverage] = useState<BuyerTortCoverage[]>([]);
   const [loadingCoverage, setLoadingCoverage] = useState(false);
-
-  useEffect(() => {
-    if (expanded) {
-      fetchTortCoverage();
-    }
-  }, [expanded, buyer.id]);
 
   useEffect(() => {
     // Always fetch tort coverage on initial load
@@ -60,7 +55,6 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
 
       if (error) throw error;
       
-      // Map the returned data to match our BuyerTortCoverage interface
       const formattedCoverage: BuyerTortCoverage[] = (data || []).map(item => ({
         id: item.id,
         buyer_id: buyer.id,
@@ -93,68 +87,74 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
     window.open(fullUrl, '_blank');
   };
 
+  // Get icon based on buyer platform or type
+  const getBuyerIcon = () => {
+    const platform = buyer.platform?.toLowerCase();
+    
+    if (platform === 'email') return <MessageSquare className="h-4 w-4 mr-1" />;
+    if (platform === 'phone' || platform === 'sms') return <Phone className="h-4 w-4 mr-1" />;
+    if (!buyer.url && !platform) return <AlertCircle className="h-4 w-4 mr-1" />;
+    
+    return <Building2 className="h-4 w-4 mr-1" />;
+  };
+
   return (
     <Card 
-      className={`overflow-hidden transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-primary/50' : ''}`} 
-      onClick={onClick}
+      className="overflow-hidden transition-all duration-200 cursor-pointer hover:border-primary/50" 
+      onClick={() => onViewDetail(buyer.id)}
     >
       <CardContent className="p-0">
-        {/* Header Section */}
-        <div className="bg-gradient-to-r from-accent/10 to-background p-4 border-b">
+        {/* Header Section with solid blue background */}
+        <div className="bg-[#0EA5E9] p-4 border-b">
           <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-semibold truncate max-w-[200px]">{buyer.name}</h3>
-              {buyer.platform && (
-                <span className="text-xs text-muted-foreground">
-                  Platform: {buyer.platform}
-                </span>
-              )}
+            <div className="flex items-center">
+              {getBuyerIcon()}
+              <h3 className="font-semibold truncate max-w-[200px] text-white">{buyer.name}</h3>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-blue-600">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={(e) => {
                   e.stopPropagation();
-                  onViewCoverage();
-                  fetchTortCoverage(); // Refresh coverage data when viewing
+                  onViewDetail(buyer.id);
                 }}>
-                  Manage Coverage
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  if (onClick) onClick();
-                }}>
-                  View Details
+                  Edit Details
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          {buyer.platform && (
+            <span className="text-xs text-white/80 mt-1 flex items-center">
+              Platform: {buyer.platform}
+            </span>
+          )}
         </div>
 
         {/* Main Section */}
         <div className="p-4">
-          {/* Contact Info */}
+          {/* Contact Info - Only show website as button */}
           <div className="space-y-2 mb-4">
             {buyer.url && (
               <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5 mr-1.5" />
-                  <span className="truncate max-w-[150px]">{buyer.url}</span>
-                </div>
-                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={openWebsite}>
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-full flex items-center justify-center gap-1 text-xs"
+                  onClick={openWebsite}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Visit Website
+                  <ExternalLink className="h-3 w-3 ml-1" />
                 </Button>
               </div>
             )}
             
             {buyer.email && (
-              <div className="flex items-center text-sm text-muted-foreground">
+              <div className="flex items-center text-sm text-muted-foreground mt-2">
                 <Mail className="h-3.5 w-3.5 mr-1.5" />
                 <span className="truncate max-w-[200px]">{buyer.email}</span>
               </div>
@@ -185,54 +185,19 @@ export function BuyerCard({ buyer, onViewCoverage, onClick }: BuyerCardProps) {
                 ))}
                 
                 {tortCoverage.length > 3 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="w-full text-xs h-7 mt-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewCoverage();
-                      fetchTortCoverage(); // Refresh coverage data when viewing more
-                    }}
-                  >
-                    View {tortCoverage.length - 3} more
-                  </Button>
+                  <div className="text-center text-xs text-primary mt-2">
+                    +{tortCoverage.length - 3} more coverages
+                  </div>
                 )}
               </div>
             ) : (
               <div className="text-center p-3 border border-dashed rounded-md">
                 <p className="text-sm text-muted-foreground">No tort coverage</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-2" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewCoverage();
-                  }}
-                >
-                  Add Coverage
-                </Button>
               </div>
             )}
           </div>
         </div>
       </CardContent>
-      
-      <CardFooter className="border-t p-2 bg-muted/20 flex justify-end">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-xs h-7" 
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewCoverage();
-            fetchTortCoverage(); // Refresh coverage data when managing
-          }}
-        >
-          Manage Coverage
-        </Button>
-      </CardFooter>
     </Card>
   );
 }

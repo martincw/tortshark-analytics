@@ -1,14 +1,18 @@
-
 export interface CaseBuyer {
   id: string;
   name: string;
   url?: string;
+  url2?: string;
   contact_name?: string;
   email?: string;
   platform?: string;
   notes?: string;
   payout_terms?: string;
+  inbound_did?: string;
+  transfer_did?: string;
   created_at?: string;
+  updated_at?: string;
+  user_id?: string;
 }
 
 export interface GoogleAdsMetrics {

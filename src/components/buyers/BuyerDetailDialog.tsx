@@ -5,10 +5,8 @@ import { useBuyers } from "@/hooks/useBuyers";
 import { 
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,10 +15,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Building, Globe, Mail, User, Phone, BadgeDollarSign, FileEdit, Calendar, Check, X } from "lucide-react";
+import { 
+  Building, Globe, Mail, User, Phone, 
+  BadgeDollarSign, FileEdit, Calendar, 
+  Check, X, Plus, Trash2, LinkIcon, 
+  ExternalLink, Shield
+} from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AddTortCoverageForm } from "./AddTortCoverageForm";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 const PLATFORM_OPTIONS = [
   { value: "email", label: "Email" },
@@ -39,21 +45,27 @@ interface BuyerDetailDialogProps {
 }
 
 export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialogProps) {
-  const { getBuyerTortCoverage, updateBuyer } = useBuyers();
+  const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage } = useBuyers();
   const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
-  const [tortCoverage, setTortCoverage] = useState<any[]>([]);
+  const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details");
   const [editMode, setEditMode] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingCoverageId, setEditingCoverageId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState<string>("");
   
   // Edit form state
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [url2, setUrl2] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [platform, setPlatform] = useState("");
   const [notes, setNotes] = useState("");
   const [payoutTerms, setPayoutTerms] = useState("");
+  const [inboundDid, setInboundDid] = useState("");
+  const [transferDid, setTransferDid] = useState("");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,15 +92,18 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       // Reset form state with buyer data
       setName(buyerData.name || "");
       setUrl(buyerData.url || "");
+      setUrl2(buyerData.url2 || "");
       setContactName(buyerData.contact_name || "");
       setEmail(buyerData.email || "");
       setPlatform(buyerData.platform || "");
       setNotes(buyerData.notes || "");
       setPayoutTerms(buyerData.payout_terms || "");
+      setInboundDid(buyerData.inbound_did || "");
+      setTransferDid(buyerData.transfer_did || "");
       
       // Fetch tort coverage
       const coverage = await getBuyerTortCoverage(buyerId);
-      setTortCoverage(coverage);
+      setCoverages(coverage);
       
     } catch (error) {
       console.error("Error loading buyer data:", error);
@@ -109,11 +124,14 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       await updateBuyer(buyerId, {
         name,
         url,
+        url2,
         contact_name: contactName,
         email,
         platform,
         notes,
-        payout_terms: payoutTerms
+        payout_terms: payoutTerms,
+        inbound_did: inboundDid,
+        transfer_did: transferDid
       });
       
       setEditMode(false);
@@ -125,13 +143,13 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
     }
   };
 
-  const openWebsite = () => {
-    if (!buyer?.url) {
+  const openWebsite = (urlToOpen?: string) => {
+    if (!urlToOpen) {
       toast.error("No website URL available");
       return;
     }
 
-    let fullUrl = buyer.url;
+    let fullUrl = urlToOpen;
     if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
       fullUrl = 'https://' + fullUrl;
     }
@@ -141,6 +159,50 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const handleRemoveCoverage = async (coverageId: string) => {
+    if (confirm("Are you sure you want to remove this tort coverage?")) {
+      try {
+        const success = await removeBuyerTortCoverage(coverageId);
+        if (success) {
+          setCoverages(coverages.filter(c => c.id !== coverageId));
+          toast.success("Coverage removed successfully");
+        }
+      } catch (error) {
+        console.error("Error removing coverage:", error);
+        toast.error("Failed to remove coverage");
+      }
+    }
+  };
+
+  const startEditCoverage = (coverageId: string, amount: number) => {
+    setEditingCoverageId(coverageId);
+    setEditAmount(amount.toString());
+  };
+
+  const handleUpdateCoverage = async (coverageId: string) => {
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    
+    try {
+      await updateBuyerTortCoverage(coverageId, amount);
+      setEditingCoverageId(null);
+      toast.success("Coverage amount updated");
+      loadBuyerData();
+    } catch (error) {
+      console.error("Error updating coverage:", error);
+      toast.error("Failed to update coverage");
+    }
+  };
+
+  const handleAddCoverage = async () => {
+    await loadBuyerData();
+    setShowAddForm(false);
+    toast.success("Coverage added successfully");
   };
 
   if (loading) {
@@ -165,9 +227,9 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
           <div className="py-6 text-center">
             <p>The requested buyer could not be found.</p>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end">
             <Button onClick={onClose}>Close</Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -184,26 +246,23 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
         onClose();
       }
     }}>
-      <DialogContent className="sm:max-w-[650px]">
+      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl">{buyer.name}</DialogTitle>
-            {!editMode && (
+            {!editMode && activeTab === "details" && (
               <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
                 <FileEdit className="h-4 w-4 mr-1" />
                 Edit
               </Button>
             )}
           </div>
-          <DialogDescription>
-            Buyer details and tort coverage information
-          </DialogDescription>
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="coverage">Tort Coverage ({tortCoverage.length})</TabsTrigger>
+            <TabsTrigger value="details">Buyer Details</TabsTrigger>
+            <TabsTrigger value="coverage">Tort Coverage ({coverages.length})</TabsTrigger>
           </TabsList>
           
           <TabsContent value="details" className="pt-4">
@@ -234,6 +293,19 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="https://example.com"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-url2" className="flex items-center gap-2">
+                      <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                      Secondary URL 
+                    </Label>
+                    <Input
+                      id="edit-url2"
+                      value={url2}
+                      onChange={(e) => setUrl2(e.target.value)}
+                      placeholder="https://example.com/landing"
                     />
                   </div>
                   
@@ -282,6 +354,32 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                     />
                   </div>
                   
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-inbound-did" className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 text-primary" />
+                      Inbound DID
+                    </Label>
+                    <Input
+                      id="edit-inbound-did"
+                      value={inboundDid}
+                      onChange={(e) => setInboundDid(e.target.value)}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-transfer-did" className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 text-primary" />
+                      Transfer DID
+                    </Label>
+                    <Input
+                      id="edit-transfer-did"
+                      value={transferDid}
+                      onChange={(e) => setTransferDid(e.target.value)}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="edit-payout-terms">Payout Terms</Label>
                     <Input
@@ -313,11 +411,14 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                       // Reset form values
                       setName(buyer.name || "");
                       setUrl(buyer.url || "");
+                      setUrl2(buyer.url2 || "");
                       setContactName(buyer.contact_name || "");
                       setEmail(buyer.email || "");
                       setPlatform(buyer.platform || "");
                       setNotes(buyer.notes || "");
                       setPayoutTerms(buyer.payout_terms || "");
+                      setInboundDid(buyer.inbound_did || "");
+                      setTransferDid(buyer.transfer_did || "");
                     }}
                     disabled={isSubmitting}
                   >
@@ -350,17 +451,27 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                     <p className="font-medium">{buyer.name}</p>
                   </div>
                   
-                  {buyer.url && (
+                  {(buyer.url || buyer.url2) && (
                     <div className="space-y-1">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Globe className="h-3 w-3" />
                         Website
                       </span>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate max-w-[200px]">{buyer.url}</p>
-                        <Button variant="ghost" size="sm" className="h-7 px-2" onClick={openWebsite}>
-                          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
+                      <div className="flex gap-2">
+                        {buyer.url && (
+                          <Button variant="outline" size="sm" onClick={() => openWebsite(buyer.url)} className="h-8">
+                            <Globe className="h-3.5 w-3.5 mr-1" />
+                            Primary
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </Button>
+                        )}
+                        {buyer.url2 && (
+                          <Button variant="outline" size="sm" onClick={() => openWebsite(buyer.url2)} className="h-8">
+                            <LinkIcon className="h-3.5 w-3.5 mr-1" />
+                            Secondary
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -392,6 +503,26 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                     </div>
                   )}
                   
+                  {buyer.inbound_did && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        Inbound DID
+                      </span>
+                      <p>{buyer.inbound_did}</p>
+                    </div>
+                  )}
+                  
+                  {buyer.transfer_did && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        Transfer DID
+                      </span>
+                      <p>{buyer.transfer_did}</p>
+                    </div>
+                  )}
+                  
                   {buyer.payout_terms && (
                     <div className="space-y-1">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -420,38 +551,173 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
             )}
           </TabsContent>
           
-          <TabsContent value="coverage" className="pt-4">
-            {tortCoverage.length === 0 ? (
-              <div className="text-center py-8 border border-dashed rounded-md">
-                <p className="text-muted-foreground">No tort coverage configured for this buyer</p>
+          <TabsContent value="coverage" className="pt-4 space-y-4">
+            {!showAddForm && (
+              <div className="mb-4">
+                <Button onClick={() => setShowAddForm(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Tort Coverage
+                </Button>
+              </div>
+            )}
+            
+            {showAddForm && (
+              <Card className="mb-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Add New Coverage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AddTortCoverageForm 
+                    buyerId={buyerId} 
+                    onSuccess={handleAddCoverage}
+                    onCancel={() => setShowAddForm(false)}
+                    existingCoverages={coverages}
+                  />
+                </CardContent>
+              </Card>
+            )}
+            
+            {coverages.length === 0 && !showAddForm ? (
+              <div className="text-center py-8 bg-muted/30 rounded-md">
+                <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="font-medium">No tort coverages added yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add a tort coverage to specify which cases this buyer purchases.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => setShowAddForm(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Your First Coverage
+                </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="grid gap-3">
-                  {tortCoverage.map((coverage) => (
-                    <div key={coverage.id} className="flex justify-between items-center p-3 border rounded-md">
-                      <div>
-                        <div className="font-medium">{coverage.campaigns?.name || "Unknown Campaign"}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <BadgeDollarSign className="h-3.5 w-3.5" />
-                          <span>{formatCurrency(coverage.payout_amount)} payout per case</span>
+              <div className="space-y-3">
+                {coverages.map((coverage) => (
+                  <Card key={coverage.id} className="overflow-hidden">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium">
+                            {coverage.campaigns?.name || "Unknown Campaign"}
+                          </h3>
+                          
+                          {editingCoverageId === coverage.id ? (
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                                <input
+                                  type="number"
+                                  className="pl-7 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                  value={editAmount}
+                                  onChange={(e) => setEditAmount(e.target.value)}
+                                  min="0"
+                                  step="0.01"
+                                />
+                              </div>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleUpdateCoverage(coverage.id)}
+                              >
+                                Save
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => setEditingCoverageId(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center mt-1.5">
+                              <BadgeDollarSign className="h-4 w-4 text-green-600 mr-1" />
+                              <span className="font-semibold">
+                                {formatCurrency(coverage.payout_amount)}
+                              </span>
+                              <Badge variant="outline" className="ml-2">
+                                per case
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {editingCoverageId !== coverage.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={() => startEditCoverage(coverage.id, coverage.payout_amount)}
+                            >
+                              <FileEdit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveCoverage(coverage.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <Badge variant="outline" className="ml-2">
-                        Active
-                      </Badge>
+
+                      {/* Display additional fields */}
+                      <div className="mt-4 space-y-3 text-sm">
+                        {(coverage.did || coverage.campaign_key || coverage.spec_sheet_url || coverage.notes) && (
+                          <Separator className="my-3" />
+                        )}
+                        
+                        {coverage.did && (
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">DID:</span>
+                            <span>{coverage.did}</span>
+                          </div>
+                        )}
+                        
+                        {coverage.campaign_key && (
+                          <div className="flex items-center">
+                            <span className="font-medium mr-2">Campaign Key:</span>
+                            <span>{coverage.campaign_key}</span>
+                          </div>
+                        )}
+                        
+                        {coverage.spec_sheet_url && (
+                          <div className="flex items-center">
+                            <span className="font-medium mr-2">Spec Sheet:</span>
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-primary"
+                              onClick={() => window.open(coverage.spec_sheet_url, '_blank')}
+                            >
+                              View Spec Sheet
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {coverage.notes && (
+                          <div className="flex">
+                            <span className="font-medium mr-2 mt-0.5">Notes:</span>
+                            <p className="text-muted-foreground">{coverage.notes}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>
         </Tabs>
         
-        {!editMode && (
-          <DialogFooter className="pt-4">
-            <Button onClick={onClose}>Close</Button>
-          </DialogFooter>
+        {!editMode && activeTab === "details" && (
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={onClose}>Close</Button>
+          </div>
         )}
       </DialogContent>
     </Dialog>

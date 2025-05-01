@@ -33,7 +33,10 @@ export const useBuyers = () => {
     email: string = '',
     platform: string = '',
     notes: string = '',
-    payout_terms: string = ''
+    payout_terms: string = '',
+    inbound_did: string = '',
+    transfer_did: string = '',
+    url2: string = ''
   ) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -48,11 +51,14 @@ export const useBuyers = () => {
         .insert([{ 
           name, 
           url,
+          url2,
           contact_name,
           email,
           platform,
           notes,
           payout_terms,
+          inbound_did,
+          transfer_did,
           user_id: user.id 
         }])
         .select()
