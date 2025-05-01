@@ -52,25 +52,37 @@ export type Database = {
         Row: {
           buyer_id: string
           campaign_id: string
+          campaign_key: string | null
           created_at: string | null
+          did: string | null
           id: string
+          notes: string | null
           payout_amount: number
+          spec_sheet_url: string | null
           updated_at: string | null
         }
         Insert: {
           buyer_id: string
           campaign_id: string
+          campaign_key?: string | null
           created_at?: string | null
+          did?: string | null
           id?: string
+          notes?: string | null
           payout_amount?: number
+          spec_sheet_url?: string | null
           updated_at?: string | null
         }
         Update: {
           buyer_id?: string
           campaign_id?: string
+          campaign_key?: string | null
           created_at?: string | null
+          did?: string | null
           id?: string
+          notes?: string | null
           payout_amount?: number
+          spec_sheet_url?: string | null
           updated_at?: string | null
         }
         Relationships: [

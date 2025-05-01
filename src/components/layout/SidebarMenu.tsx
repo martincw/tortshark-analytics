@@ -77,6 +77,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) 
         <Table className="h-4 w-4 mr-2" />
         Bulk Stats
       </Link>
+
       <Link 
         to="/integrations" 
         className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
@@ -86,6 +87,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) 
         <LinkIcon className="h-4 w-4 mr-2" />
         Integrations
       </Link>
+      
       <a 
         href="https://tortshark-invoicing.lovable.app" 
         target="_blank"
