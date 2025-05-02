@@ -111,6 +111,10 @@ export interface CampaignTargets {
   monthlyProfit: number;
   roas: number;
   monthlyRevenue: number;
+  // Add additional needed properties
+  monthlyIncome: number;
+  targetProfit: number;
+  targetROAS: number;
 }
 
 export interface AccountConnection {
@@ -126,6 +130,12 @@ export interface BuyerStackItem {
   id: string;
   priority: number;
   buyer: CaseBuyer;
+  // Add missing properties needed in BuyerStackSection
+  campaign_id?: string;
+  buyer_id?: string;
+  stack_order?: number;
+  payout_amount?: number;
+  buyers?: CaseBuyer;
 }
 
 export interface GoogleAdsMetrics {
@@ -154,6 +164,9 @@ export interface ForecastedMetrics {
   cases: number;
   cpa: number;
   costPerLead: number;
+  // Add missing properties
+  date?: string;
+  conversionRate?: number;
 }
 
 export interface ProjectionParams {
@@ -162,12 +175,26 @@ export interface ProjectionParams {
   averageRevenuePerCase: number;
   costPerLead: number;
   forecastDuration: number;
+  // Add missing properties
+  adSpendGrowth: number;
+  conversionRateGrowth: number;
+  revenuePerCaseGrowth: number;
 }
 
 export interface GoalProgress {
   current: number;
   target: number;
   percentage: number;
+  // Add missing properties used in GoalTracker
+  metric: string;
+  percentComplete: number;
+  remaining: number;
+  daysRemaining: number;
+  dailyGoal: number;
+  projectedValue: number;
+  isOnTrack: boolean;
+  willReachTarget: boolean;
+  gapToTarget: number;
 }
 
 export interface CampaignStats {
@@ -178,4 +205,6 @@ export interface CampaignStats {
   ctr: number;
   cpc: number;
   conversionRate: number;
+  // Add missing property
+  adSpend: number;
 }
