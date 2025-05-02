@@ -1,10 +1,10 @@
 
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, DollarSign, TrendingUp } from "lucide-react";
+import { BarChart, DollarSign, TrendingUp, Info } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, format } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
@@ -24,9 +24,16 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
         revenue: 0,
         profit: 0,
         roas: 0,
-        daysInRange: 1
+        daysInRange: 1,
+        excludesToday: false,
+        displayDateRange: ""
       };
     }
+    
+    // Check if today falls within the date range
+    const today = new Date();
+    const todayString = format(today, 'yyyy-MM-dd');
+    const todayInRange = isDateInRange(todayString, dateRange.startDate, dateRange.endDate);
     
     // Calculate total metrics within date range
     let totalAdSpend = 0;
@@ -37,8 +44,22 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
     // Track which days have entries to calculate true average
     const daysWithEntries = new Set<string>();
     
+    // Check if we have any entries for today
+    let hasEntriesForToday = false;
+    
     campaign.statsHistory.forEach(entry => {
+      // Check if this entry is for today
+      if (entry.date === todayString) {
+        hasEntriesForToday = true;
+      }
+      
+      // Only include entries within date range
       if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+        // If it's today and we don't have entries for today, skip
+        if (entry.date === todayString && todayInRange && !hasEntriesForToday) {
+          return;
+        }
+        
         totalAdSpend += entry.adSpend || 0;
         totalLeads += entry.leads || 0;
         totalCases += entry.cases || 0;
@@ -50,16 +71,31 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
     // Calculate number of days in the selected range
     const startDate = parseISO(dateRange.startDate);
     const endDate = parseISO(dateRange.endDate);
-    const daysInRange = differenceInDays(endDate, startDate) + 1;
+    let daysInRange = differenceInDays(endDate, startDate) + 1;
+    
+    // If today is in range but has no entries, exclude it from days in range
+    const excludesToday = todayInRange && !hasEntriesForToday;
+    if (excludesToday) {
+      daysInRange--;
+    }
+    
+    // Calculate display date range for subtitle
+    let displayDateRange = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+    if (excludesToday) {
+      // If excluding today, show the updated end date
+      const adjustedEndDate = new Date(today);
+      adjustedEndDate.setDate(today.getDate() - 1);
+      displayDateRange = `${format(startDate, 'MMM d')} - ${format(adjustedEndDate, 'MMM d, yyyy')}`;
+    }
     
     // Use days with entries for average calculation if available
     const effectiveDays = daysWithEntries.size > 0 ? daysWithEntries.size : daysInRange;
     
     // Calculate daily averages
-    const dailyAdSpend = totalAdSpend / effectiveDays;
-    const dailyLeads = totalLeads / effectiveDays;
-    const dailyCases = totalCases / effectiveDays;
-    const dailyRevenue = totalRevenue / effectiveDays;
+    const dailyAdSpend = effectiveDays > 0 ? totalAdSpend / effectiveDays : 0;
+    const dailyLeads = effectiveDays > 0 ? totalLeads / effectiveDays : 0;
+    const dailyCases = effectiveDays > 0 ? totalCases / effectiveDays : 0;
+    const dailyRevenue = effectiveDays > 0 ? totalRevenue / effectiveDays : 0;
     const dailyProfit = dailyRevenue - dailyAdSpend;
     const roas = dailyAdSpend > 0 ? (dailyRevenue / dailyAdSpend) * 100 : 0;
     
@@ -70,7 +106,9 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
       revenue: dailyRevenue,
       profit: dailyProfit,
       roas,
-      daysInRange: effectiveDays
+      daysInRange: effectiveDays,
+      excludesToday,
+      displayDateRange
     };
   }, [campaign, dateRange]);
 
@@ -80,7 +118,18 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
         <CardTitle className="text-lg font-medium flex items-center gap-2">
           <BarChart className="h-5 w-5 text-primary" />
           Daily Performance Averages
+          {averages.excludesToday && (
+            <div className="ml-2 text-xs text-muted-foreground flex items-center">
+              <Info className="h-3 w-3 mr-1" />
+              Today excluded (no data)
+            </div>
+          )}
         </CardTitle>
+        {averages.displayDateRange && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Based on data from {averages.displayDateRange}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

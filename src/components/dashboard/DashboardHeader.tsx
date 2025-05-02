@@ -1,8 +1,8 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, Check } from "lucide-react";
+import { Plus, Filter, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { 
@@ -15,10 +15,12 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { AddStatsDialog } from "./AddStatsDialog";
 
 export function DashboardHeader() {
   const navigate = useNavigate();
   const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
+  const [isAddStatsDialogOpen, setIsAddStatsDialogOpen] = useState(false);
   
   const handleCampaignToggle = (campaignId: string) => {
     // Fix: Clone the array first, then modify it, and set the new array directly
@@ -107,10 +109,18 @@ export function DashboardHeader() {
           </DropdownMenuContent>
         </DropdownMenu>
         <DateRangePicker />
+        <Button variant="outline" onClick={() => setIsAddStatsDialogOpen(true)}>
+          <Calendar className="mr-2 h-4 w-4" /> Add Stats
+        </Button>
         <Button className="w-full md:w-auto" onClick={() => navigate("/add-campaign")}>
           <Plus className="mr-2 h-4 w-4" /> Add Campaign
         </Button>
       </div>
+      
+      <AddStatsDialog 
+        open={isAddStatsDialogOpen}
+        onOpenChange={setIsAddStatsDialogOpen}
+      />
     </div>
   );
 }
