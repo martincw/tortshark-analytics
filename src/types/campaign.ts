@@ -1,4 +1,5 @@
 
+
 export interface Campaign {
   id: string;
   name: string;
@@ -8,10 +9,10 @@ export interface Campaign {
   createdAt: string;
   updatedAt: string;
   buyerStack: BuyerStackEntry[];
-  // Add missing properties
   targets: CampaignTargets;
   platform: string;
   accountId?: string;
+  accountName?: string; // Add missing property used in CampaignContext and other files
   stats?: CampaignStats;
 }
 
@@ -19,7 +20,8 @@ export interface ManualStats {
   leads: number;
   cases: number;
   revenue: number;
-  retainers?: number; // Add missing property
+  retainers?: number;
+  date?: string; // Add missing property used in CampaignContext
 }
 
 export interface StatHistoryEntry {
@@ -71,7 +73,7 @@ export interface CaseBuyer {
   name: string;
   user_id: string;
   url?: string;
-  url2?: string; // Add missing property
+  url2?: string;
   contact_name?: string;
   email?: string;
   platform?: string;
@@ -79,8 +81,8 @@ export interface CaseBuyer {
   payout_terms?: string;
   created_at?: string;
   updated_at?: string;
-  inbound_did?: string; // Add missing property
-  transfer_did?: string; // Add missing property
+  inbound_did?: string;
+  transfer_did?: string;
 }
 
 export interface BuyerTortCoverage {
@@ -94,16 +96,14 @@ export interface BuyerTortCoverage {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  campaigns?: CampaignBasic; // Change to CampaignBasic to fix type errors
+  campaigns?: CampaignBasic;
 }
 
-// Add a simpler campaign type for the campaign reference in BuyerTortCoverage
 export interface CampaignBasic {
   id: string;
   name: string;
 }
 
-// Add missing interfaces
 export interface CampaignTargets {
   monthlySpend: number;
   casePayoutAmount: number;
@@ -111,7 +111,6 @@ export interface CampaignTargets {
   monthlyProfit: number;
   roas: number;
   monthlyRevenue: number;
-  // Add additional needed properties
   monthlyIncome: number;
   targetProfit: number;
   targetROAS: number;
@@ -128,9 +127,8 @@ export interface AccountConnection {
 
 export interface BuyerStackItem {
   id: string;
-  priority: number;
-  buyer: CaseBuyer;
-  // Add missing properties needed in BuyerStackSection
+  priority?: number;
+  buyer?: CaseBuyer;
   campaign_id?: string;
   buyer_id?: string;
   stack_order?: number;
@@ -146,6 +144,19 @@ export interface GoogleAdsMetrics {
   averageCpc: number;
   ctr: number;
   conversionRate: number;
+  adSpend: number; // Add missing property
+  date?: string; // Add missing property to match usage
+}
+
+// Add this interface to fix the GoogleAdsMetrics conversion issue
+export interface GoogleAdsMetricsResponse {
+  impressions: number;
+  clicks: number;
+  adSpend: number; 
+  ctr: number;
+  cpc: number;
+  date: string;
+  // Add any other properties that might be in the API response
 }
 
 export interface TrendData {
@@ -164,7 +175,6 @@ export interface ForecastedMetrics {
   cases: number;
   cpa: number;
   costPerLead: number;
-  // Add missing properties
   date?: string;
   conversionRate?: number;
 }
@@ -175,17 +185,19 @@ export interface ProjectionParams {
   averageRevenuePerCase: number;
   costPerLead: number;
   forecastDuration: number;
-  // Add missing properties
   adSpendGrowth: number;
   conversionRateGrowth: number;
   revenuePerCaseGrowth: number;
+  targetProfit?: number; // Add missing property used in AnalysisPage
+  growthRate?: number; // Add missing property used in AnalysisPage
+  conversionRate?: number; // Add missing property used in AnalysisPage
+  revenuePerCase?: number; // Add missing property used in AnalysisPage
 }
 
 export interface GoalProgress {
   current: number;
   target: number;
   percentage: number;
-  // Add missing properties used in GoalTracker
   metric: string;
   percentComplete: number;
   remaining: number;
@@ -205,6 +217,22 @@ export interface CampaignStats {
   ctr: number;
   cpc: number;
   conversionRate: number;
-  // Add missing property
   adSpend: number;
+  date?: string; // Add missing property used in CampaignCard
 }
+
+// Add forecasting related types used in AnalysisPage
+export type ForecastingModel = 'linear' | 'weighted' | 'exponential';
+export type ForecastingPeriod = 'week' | 'month' | 'quarter';
+
+export interface ForecastModelOption {
+  name: string;
+  label: string;
+  description: string;
+}
+
+export interface ForecastPeriodOption {
+  value: string;
+  label: string;
+}
+
