@@ -100,6 +100,16 @@ const localDateToUTCNoon = (localDate: Date): Date => {
 };
 
 /**
+ * Subtracts the specified number of days from the given date
+ * Returns a new Date object at UTC noon
+ */
+const subDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() - days);
+  return createDateAtUTCNoon(result);
+};
+
+/**
  * Formats a date safely for display, handling various input formats
  * and ensuring consistent output regardless of timezone
  */
@@ -275,6 +285,7 @@ export {
   localDateToUTCNoon,
   formatSafeDate,
   addDays,
+  subDays, // Added this export
   format,
   getWeekStartDate,
   standardizeDateString,
