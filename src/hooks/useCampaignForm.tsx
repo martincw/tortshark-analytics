@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { AccountConnection } from "@/types/campaign";
+import { AccountConnection, Campaign } from "@/types/campaign";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
@@ -112,18 +113,27 @@ export const useCampaignForm = () => {
     const currentDate = new Date().toISOString().split("T")[0];
     
     try {
-      const newCampaign = {
-        id,
+      const userId = session.user.id;
+      
+      const newCampaign: Omit<Campaign, "id"> = {
         name: campaignName,
         platform,
         accountId: selectedAccount.id,
         accountName: selectedAccount.name,
+        userId: userId,
+        createdAt: currentDate,
+        updatedAt: currentDate,
+        buyerStack: [],
         stats: {
           adSpend: 0,
           impressions: 0,
           clicks: 0,
           cpc: 0,
           date: currentDate,
+          cost: 0,
+          averageCpc: 0,
+          ctr: 0,
+          conversionRate: 0
         },
         manualStats: {
           leads: 0,
@@ -140,6 +150,9 @@ export const useCampaignForm = () => {
           monthlySpend: parseFloat(targetMonthlySpend) || 0,
           targetROAS: parseFloat(targetROAS) || 0,
           targetProfit: parseFloat(targetProfit) || 0,
+          monthlyRevenue: parseFloat(targetMonthlyIncome) || 0,
+          monthlyProfit: parseFloat(targetProfit) || 0,
+          roas: parseFloat(targetROAS) || 0,
         },
       };
       

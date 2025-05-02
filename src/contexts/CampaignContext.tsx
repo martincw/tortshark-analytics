@@ -108,7 +108,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       }
 
       if (data) {
-        const typedCampaigns = data.map(campaign => {
+        const typedCampaigns: Campaign[] = data.map(campaign => {
           const stats = campaign.campaign_stats && campaign.campaign_stats.length > 0
             ? {
               adSpend: campaign.campaign_stats[0].ad_spend || 0,
@@ -116,8 +116,15 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
               clicks: campaign.campaign_stats[0].clicks || 0,
               cpc: campaign.campaign_stats[0].cpc || 0,
               date: campaign.campaign_stats[0].date || '',
+              cost: campaign.campaign_stats[0].ad_spend || 0,
+              averageCpc: campaign.campaign_stats[0].cpc || 0,
+              ctr: 0,
+              conversionRate: 0
             }
-            : { adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: '' };
+            : { 
+              adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: '',
+              cost: 0, averageCpc: 0, ctr: 0, conversionRate: 0 
+            };
 
           const manualStats = campaign.campaign_manual_stats && campaign.campaign_manual_stats.length > 0
             ? {
@@ -129,71 +136,66 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             }
             : { leads: 0, cases: 0, retainers: 0, revenue: 0, date: '' };
 
-          const statsHistory = campaign.campaign_stats_history
-            ? campaign.campaign_stats_history.map(history => {
-              let formattedDate = history.date || '';
-              
-              if (formattedDate && typeof formattedDate === 'string') {
-                try {
-                  if (formattedDate.includes('T')) {
-                    formattedDate = format(parseISO(formattedDate), 'yyyy-MM-dd');
-                  }
-                } catch (err) {
-                  console.error(`Error formatting date ${formattedDate}:`, err);
-                }
-              }
-              
-              return {
-                id: history.id,
-                date: formattedDate,
-                leads: history.leads || 0,
-                cases: history.cases || 0,
-                retainers: history.retainers || 0,
-                revenue: history.revenue || 0,
-                adSpend: history.ad_spend || 0,
-                createdAt: history.created_at || ''
-              };
-            })
-            : [];
+          const statsHistory = campaign.campaign_stats_history?.map(entry => ({
+            id: entry.id,
+            campaignId: entry.campaign_id,
+            date: entry.date,
+            leads: entry.leads,
+            cases: entry.cases,
+            revenue: entry.revenue,
+            adSpend: entry.ad_spend,
+            createdAt: entry.created_at,
+            updatedAt: undefined
+          })) || [];
 
-          const platform = campaign.platform as "google" | "facebook" | "linkedin";
-          
           const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
             ? {
-                monthlyRetainers: campaign.campaign_targets[0].monthly_retainers || 0,
-                casePayoutAmount: campaign.campaign_targets[0].case_payout_amount || 0,
-                monthlyIncome: campaign.campaign_targets[0].monthly_income || 0,
-                monthlySpend: campaign.campaign_targets[0].monthly_spend || 0,
-                targetROAS: campaign.campaign_targets[0].target_roas || 0,
-                targetProfit: campaign.campaign_targets[0].target_profit || 0,
-              }
+              monthlySpend: campaign.campaign_targets[0].monthly_spend,
+              casePayoutAmount: campaign.campaign_targets[0].case_payout_amount,
+              monthlyRetainers: campaign.campaign_targets[0].monthly_retainers,
+              monthlyProfit: campaign.campaign_targets[0].target_profit,
+              roas: campaign.campaign_targets[0].target_roas,
+              monthlyRevenue: campaign.campaign_targets[0].monthly_income,
+              monthlyIncome: campaign.campaign_targets[0].monthly_income,
+              targetProfit: campaign.campaign_targets[0].target_profit,
+              targetROAS: campaign.campaign_targets[0].target_roas
+            }
             : {
-                monthlyRetainers: 0,
-                casePayoutAmount: 0,
-                monthlyIncome: 0,
-                monthlySpend: 0,
-                targetROAS: 0,
-                targetProfit: 0,
-              };
+              monthlySpend: 0,
+              casePayoutAmount: 0,
+              monthlyRetainers: 0,
+              monthlyProfit: 0,
+              roas: 0,
+              monthlyRevenue: 0,
+              monthlyIncome: 0,
+              targetProfit: 0, 
+              targetROAS: 0
+            };
 
           return {
             id: campaign.id,
             name: campaign.name,
-            platform: platform,
+            userId: campaign.user_id,
+            platform: campaign.platform,
             accountId: campaign.account_id,
             accountName: campaign.account_name,
-            stats: stats,
-            manualStats: manualStats,
-            statsHistory: statsHistory,
-            targets: targets,
+            createdAt: campaign.created_at,
+            updatedAt: campaign.updated_at,
+            stats,
+            manualStats,
+            statsHistory,
+            targets,
+            buyerStack: []  // Default empty buyer stack
           };
         });
-        
+
         setCampaigns(typedCampaigns);
+      } else {
+        setCampaigns([]);
       }
     } catch (err) {
-      setError((err as Error).message);
-      console.error("Failed to fetch campaigns:", err);
+      console.error("Error in fetchCampaigns:", err);
+      setError('Failed to fetch campaigns. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -269,97 +271,65 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [fetchCampaigns, user]);
 
-  const addCampaign = async (campaign: Omit<Campaign, "id">) => {
-    setIsLoading(true);
-    setError(null);
-
+  const addCampaign = useCallback(async (campaignData: Omit<Campaign, "id">) => {
     try {
-      const newCampaignId = uuidv4();
+      // Add campaign to the database
+      const { data, error } = await supabase.from('campaigns').insert([
+        {
+          name: campaignData.name,
+          platform: campaignData.platform,
+          user_id: campaignData.userId,
+          account_id: campaignData.accountId || null,
+          account_name: campaignData.accountName || null
+        }
+      ]).select('*').single();
 
-      const { error: campaignError } = await supabase
-        .from('campaigns')
-        .insert([
-          {
-            id: newCampaignId,
-            user_id: user?.id,
-            name: campaign.name,
-            platform: campaign.platform,
-            account_id: campaign.accountId,
-            account_name: campaign.accountName,
-          },
-        ]);
+      if (error) throw error;
 
-      if (campaignError) {
-        console.error("Error adding campaign:", campaignError);
-        setError(campaignError.message);
-        setIsLoading(false);
-        return null;
-      }
+      const newCampaignId = data.id;
 
-      const { error: targetsError } = await supabase
-        .from('campaign_targets')
-        .insert([
+      // Add campaign targets
+      if (campaignData.targets) {
+        const { error: targetsError } = await supabase.from('campaign_targets').insert([
           {
             campaign_id: newCampaignId,
-            monthly_retainers: campaign.targets.monthlyRetainers,
-            case_payout_amount: campaign.targets.casePayoutAmount,
-            monthly_income: campaign.targets.monthlyIncome,
-            monthly_spend: campaign.targets.monthlySpend,
-            target_roas: campaign.targets.targetROAS,
-            target_profit: campaign.targets.targetProfit,
-          },
+            monthly_retainers: campaignData.targets.monthlyRetainers,
+            case_payout_amount: campaignData.targets.casePayoutAmount,
+            monthly_income: campaignData.targets.monthlyIncome,
+            monthly_spend: campaignData.targets.monthlySpend,
+            target_roas: campaignData.targets.targetROAS,
+            target_profit: campaignData.targets.targetProfit
+          }
         ]);
 
-      if (targetsError) {
-        console.error("Error adding campaign targets:", targetsError);
+        if (targetsError) throw targetsError;
       }
 
-      const { error: statsError } = await supabase
-        .from('campaign_stats')
-        .insert([
+      // Add manual stats
+      if (campaignData.manualStats) {
+        const { error: manualStatsError } = await supabase.from('campaign_manual_stats').insert([
           {
             campaign_id: newCampaignId,
-            ad_spend: 0,
-            impressions: 0,
-            clicks: 0,
-            cpc: 0,
-            date: format(new Date(), 'yyyy-MM-dd'),
-          },
+            leads: campaignData.manualStats.leads,
+            cases: campaignData.manualStats.cases,
+            retainers: campaignData.manualStats.retainers || 0,
+            revenue: campaignData.manualStats.revenue,
+            date: campaignData.manualStats.date
+          }
         ]);
 
-      if (statsError) {
-        console.error("Error adding campaign stats:", statsError);
-      }
-      
-      const { error: manualStatsError } = await supabase
-        .from('campaign_manual_stats')
-        .insert([
-          {
-            campaign_id: newCampaignId,
-            leads: 0,
-            cases: 0,
-            retainers: 0,
-            revenue: 0,
-            date: format(new Date(), 'yyyy-MM-dd'),
-          },
-        ]);
-
-      if (manualStatsError) {
-        console.error("Error adding campaign manual stats:", manualStatsError);
+        if (manualStatsError) throw manualStatsError;
       }
 
+      // Refresh campaigns
       await fetchCampaigns();
-      toast.success("Campaign added successfully");
+
       return newCampaignId;
-    } catch (err) {
-      setError((err as Error).message);
-      console.error("Failed to add campaign:", err);
-      toast.error("Failed to add campaign");
-      return null;
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Error adding campaign:', error);
+      throw error;
     }
-  };
+  }, [fetchCampaigns]);
 
   const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
     setIsLoading(true);

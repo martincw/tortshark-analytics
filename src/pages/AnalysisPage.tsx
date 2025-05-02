@@ -55,7 +55,12 @@ const AnalysisPage = () => {
     revenuePerCase: 1000,
     adSpendGrowth: 0,
     conversionRateGrowth: 0,
-    revenuePerCaseGrowth: 0
+    revenuePerCaseGrowth: 0,
+    // Add the missing required properties
+    dailyBudget: 500,
+    leadConversionRate: 0.1,
+    averageRevenuePerCase: 1000,
+    forecastDuration: 30
   });
 
   useEffect(() => {

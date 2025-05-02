@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType } from "@/types/campaign";
+import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType, GoogleAdsMetricsResponse } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, TrendingUp } from "lucide-react";
@@ -48,8 +48,22 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
         );
         
         console.log(`GoogleAdsMetrics: Received ${sortedMetrics.length} data points`);
-        // No need for transformation - our fetchGoogleAdsMetrics now returns data with the correct type
-        setMetrics(sortedMetrics as GoogleAdsMetricsType[]);
+        
+        // Convert the GoogleAdsMetricsResponse to GoogleAdsMetricsType
+        const convertedMetrics: GoogleAdsMetricsType[] = sortedMetrics.map(metric => ({
+          impressions: metric.impressions,
+          clicks: metric.clicks,
+          adSpend: metric.adSpend,
+          ctr: metric.ctr,
+          cpc: metric.cpc,
+          date: metric.date,
+          // Calculate or provide default values for missing properties
+          cost: metric.adSpend, // Cost is equivalent to adSpend
+          averageCpc: metric.cpc,
+          conversionRate: 0 // Default value, update if available
+        }));
+        
+        setMetrics(convertedMetrics);
       } else {
         setError("Failed to load Google Ads metrics");
       }

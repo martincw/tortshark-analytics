@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
 import { useBuyers } from "@/hooks/useBuyers";
@@ -38,6 +37,13 @@ const PLATFORM_OPTIONS = [
   { value: "other", label: "Other" }
 ];
 
+// Extended buyer interface to ensure TypeScript knows about all fields
+interface ExtendedCaseBuyer extends CaseBuyer {
+  url2?: string;
+  inbound_did?: string;
+  transfer_did?: string;
+}
+
 interface BuyerDetailDialogProps {
   buyerId: string;
   isOpen: boolean;
@@ -46,7 +52,7 @@ interface BuyerDetailDialogProps {
 
 export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialogProps) {
   const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage } = useBuyers();
-  const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
+  const [buyer, setBuyer] = useState<ExtendedCaseBuyer | null>(null);
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details");
@@ -87,7 +93,7 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       
       if (buyerError) throw buyerError;
       
-      setBuyer(buyerData);
+      setBuyer(buyerData as ExtendedCaseBuyer);
       
       // Reset form state with buyer data
       setName(buyerData.name || "");

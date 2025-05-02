@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -111,6 +112,8 @@ export const ProfitForecasting: React.FC<ProfitForecastingProps> = ({
       const dailyProfit = dailyRevenue - dailyAdSpend;
       const dailyROI = dailyAdSpend > 0 ? (dailyProfit / dailyAdSpend) * 100 : 0;
       const dailyConversionRate = dailyLeads > 0 ? (dailyCases / dailyLeads) * 100 : 0;
+      const dailyCPA = dailyCases > 0 ? dailyAdSpend / dailyCases : 0;
+      const dailyCostPerLead = dailyLeads > 0 ? dailyAdSpend / dailyLeads : 0;
       
       forecast.push({
         date: format(forecastDate, "MMM dd"),
@@ -120,7 +123,9 @@ export const ProfitForecasting: React.FC<ProfitForecastingProps> = ({
         roi: dailyROI,
         leads: dailyLeads,
         cases: dailyCases,
-        conversionRate: dailyConversionRate
+        conversionRate: dailyConversionRate,
+        cpa: dailyCPA,
+        costPerLead: dailyCostPerLead
       });
     }
     
