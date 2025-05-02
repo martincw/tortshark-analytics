@@ -55,7 +55,7 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
       
       // Only include entries within date range
       if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        // If it's today and we don't have entries for today, skip
+        // Skip today's entry if today is in range but we don't have data for today
         if (entry.date === todayString && todayInRange && !hasEntriesForToday) {
           return;
         }

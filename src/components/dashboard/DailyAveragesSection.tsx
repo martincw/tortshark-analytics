@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, DollarSign, TrendingUp, Info } from "lucide-react";
@@ -55,9 +54,8 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         }
         
         // Only include entries within date range
-        // If it's today and we don't have entries, we'll exclude it later
         if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-          // If it's today and we want to exclude today, skip
+          // If it's today and we don't have entries for today across any campaign, skip
           if (entry.date === todayString && todayInRange && !hasEntriesForToday) {
             return;
           }
