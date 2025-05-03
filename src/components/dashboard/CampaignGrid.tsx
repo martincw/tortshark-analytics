@@ -1,10 +1,9 @@
-
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useEffect } from "react";
-import { CampaignCard } from "./CampaignCard";
-import { useCampaignGridData } from "@/hooks/useCampaignGridData";
 import { Card } from "@/components/ui/card";
+import { useCampaignGridData } from "@/hooks/useCampaignGridData";
+import { CampaignCard } from "./campaign-card/CampaignCard";
 
 interface CampaignGridProps {
   filteredCampaigns: Campaign[];
