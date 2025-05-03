@@ -178,6 +178,19 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
           </div>
           
           <div className="grid grid-cols-2 gap-4">
+            {/* Reordered fields: Ad Spend, Leads, Cases, Revenue */}
+            <div className="grid gap-2">
+              <Label htmlFor="adSpend">Ad Spend ($)</Label>
+              <Input
+                id="adSpend"
+                type="number"
+                min="0"
+                step="0.01"
+                value={adSpend || ""}
+                onChange={(e) => setAdSpend(Number(e.target.value))}
+              />
+            </div>
+            
             <div className="grid gap-2">
               <Label htmlFor="leads">Leads</Label>
               <Input
@@ -197,18 +210,6 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
                 min="0"
                 value={cases || ""}
                 onChange={(e) => setCases(Number(e.target.value))}
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="adSpend">Ad Spend ($)</Label>
-              <Input
-                id="adSpend"
-                type="number"
-                min="0"
-                step="0.01"
-                value={adSpend || ""}
-                onChange={(e) => setAdSpend(Number(e.target.value))}
               />
             </div>
             
