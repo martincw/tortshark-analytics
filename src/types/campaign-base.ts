@@ -7,7 +7,7 @@ export interface Campaign {
   statsHistory: StatHistoryEntry[];
   createdAt: string;
   updatedAt: string;
-  buyerStack: BuyerStackEntry[];
+  buyerStack: import('./buyer').BuyerStackEntry[];
   targets: CampaignTargets;
   platform: string;
   accountId?: string;
