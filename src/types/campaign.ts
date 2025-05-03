@@ -1,5 +1,3 @@
-
-
 export interface Campaign {
   id: string;
   name: string;
@@ -144,8 +142,8 @@ export interface GoogleAdsMetrics {
   averageCpc: number;
   ctr: number;
   conversionRate: number;
-  adSpend: number; // Add missing property
-  date?: string; // Add missing property to match usage
+  adSpend: number; 
+  date?: string;
 }
 
 // Add this interface to fix the GoogleAdsMetrics conversion issue
@@ -218,7 +216,8 @@ export interface CampaignStats {
   cpc: number;
   conversionRate: number;
   adSpend: number;
-  date?: string; // Add missing property used in CampaignCard
+  averageCpc: number;
+  date?: string;
 }
 
 // Add forecasting related types used in AnalysisPage
@@ -235,4 +234,3 @@ export interface ForecastPeriodOption {
   value: string;
   label: string;
 }
-

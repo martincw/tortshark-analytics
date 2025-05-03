@@ -119,11 +119,12 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
               cost: campaign.campaign_stats[0].ad_spend || 0,
               averageCpc: campaign.campaign_stats[0].cpc || 0,
               ctr: 0,
-              conversionRate: 0
+              conversionRate: 0,
+              conversions: 0  // Add the missing property
             }
             : { 
               adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: '',
-              cost: 0, averageCpc: 0, ctr: 0, conversionRate: 0 
+              cost: 0, averageCpc: 0, ctr: 0, conversionRate: 0, conversions: 0  // Add the missing property
             };
 
           const manualStats = campaign.campaign_manual_stats && campaign.campaign_manual_stats.length > 0

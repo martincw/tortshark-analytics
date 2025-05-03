@@ -50,7 +50,7 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
         console.log(`GoogleAdsMetrics: Received ${sortedMetrics.length} data points`);
         
         // Convert the GoogleAdsMetricsResponse to GoogleAdsMetricsType
-        const convertedMetrics: GoogleAdsMetricsType[] = sortedMetrics.map(metric => ({
+        const convertedMetrics: GoogleAdsMetrics[] = sortedMetrics.map(metric => ({
           impressions: metric.impressions,
           clicks: metric.clicks,
           adSpend: metric.adSpend,
@@ -60,7 +60,8 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
           // Calculate or provide default values for missing properties
           cost: metric.adSpend, // Cost is equivalent to adSpend
           averageCpc: metric.cpc,
-          conversionRate: 0 // Default value, update if available
+          conversionRate: 0, // Default value, update if available
+          conversions: 0 // Add missing conversions property
         }));
         
         setMetrics(convertedMetrics);
