@@ -1,6 +1,7 @@
 
 import React from "react";
-import { CardFooter, Button } from "@/components/ui/card";
+import { CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 interface CampaignCardActionsProps {
