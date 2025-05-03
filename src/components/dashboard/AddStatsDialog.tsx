@@ -107,22 +107,46 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
         toast.success("Stats added successfully");
       }
       
-      // Also update the campaign's manual stats to reflect the latest entry
-      const { error: manualStatsError } = await supabase
+      // Check if we should update the campaign's manual stats 
+      // Only update if this is a more recent date than what's currently stored
+      const { data: currentManualStats, error: manualStatsError } = await supabase
         .from('campaign_manual_stats')
-        .upsert({
-          campaign_id: selectedCampaignId,
-          leads,
-          cases,
-          retainers: cases,
-          revenue,
-          date: dateString
-        }, {
-          onConflict: 'campaign_id'
-        });
+        .select('date')
+        .eq('campaign_id', selectedCampaignId)
+        .single();
       
-      if (manualStatsError) {
-        console.error("Error updating manual stats:", manualStatsError);
+      if (manualStatsError && manualStatsError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error("Error checking manual stats:", manualStatsError);
+      }
+      
+      // Only update manual stats if:
+      // 1. There are no existing manual stats, or
+      // 2. This new date is more recent than the existing date
+      const shouldUpdateManualStats = !currentManualStats || 
+        !currentManualStats.date ||
+        new Date(dateString) >= new Date(currentManualStats.date);
+      
+      if (shouldUpdateManualStats) {
+        console.log("Updating manual stats with newer date:", dateString);
+        
+        const { error: manualStatsUpdateError } = await supabase
+          .from('campaign_manual_stats')
+          .upsert({
+            campaign_id: selectedCampaignId,
+            leads,
+            cases,
+            retainers: cases,
+            revenue,
+            date: dateString
+          }, {
+            onConflict: 'campaign_id'
+          });
+        
+        if (manualStatsUpdateError) {
+          console.error("Error updating manual stats:", manualStatsUpdateError);
+        }
+      } else {
+        console.log("Skipping manual stats update as the new date is older:", dateString);
       }
       
       // Refresh data
