@@ -50,7 +50,7 @@ const GoogleAdsMetrics: React.FC<GoogleAdsMetricsProps> = ({ campaign }) => {
         console.log(`GoogleAdsMetrics: Received ${sortedMetrics.length} data points`);
         
         // Convert the GoogleAdsMetricsResponse to GoogleAdsMetricsType
-        const convertedMetrics: GoogleAdsMetrics[] = sortedMetrics.map(metric => ({
+        const convertedMetrics: GoogleAdsMetricsType[] = sortedMetrics.map(metric => ({
           impressions: metric.impressions,
           clicks: metric.clicks,
           adSpend: metric.adSpend,

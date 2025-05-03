@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -133,7 +132,8 @@ export const useCampaignForm = () => {
           cost: 0,
           averageCpc: 0,
           ctr: 0,
-          conversionRate: 0
+          conversionRate: 0,
+          conversions: 0
         },
         manualStats: {
           leads: 0,

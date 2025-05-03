@@ -93,19 +93,21 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       
       if (buyerError) throw buyerError;
       
-      setBuyer(buyerData as ExtendedCaseBuyer);
+      // Cast buyerData to ExtendedCaseBuyer to ensure TypeScript recognizes all properties
+      const typedBuyerData = buyerData as ExtendedCaseBuyer;
+      setBuyer(typedBuyerData);
       
       // Reset form state with buyer data
-      setName(buyerData.name || "");
-      setUrl(buyerData.url || "");
-      setUrl2(buyerData.url2 || "");
-      setContactName(buyerData.contact_name || "");
-      setEmail(buyerData.email || "");
-      setPlatform(buyerData.platform || "");
-      setNotes(buyerData.notes || "");
-      setPayoutTerms(buyerData.payout_terms || "");
-      setInboundDid(buyerData.inbound_did || "");
-      setTransferDid(buyerData.transfer_did || "");
+      setName(typedBuyerData.name || "");
+      setUrl(typedBuyerData.url || "");
+      setUrl2(typedBuyerData.url2 || "");
+      setContactName(typedBuyerData.contact_name || "");
+      setEmail(typedBuyerData.email || "");
+      setPlatform(typedBuyerData.platform || "");
+      setNotes(typedBuyerData.notes || "");
+      setPayoutTerms(typedBuyerData.payout_terms || "");
+      setInboundDid(typedBuyerData.inbound_did || "");
+      setTransferDid(typedBuyerData.transfer_did || "");
       
       // Fetch tort coverage
       const coverage = await getBuyerTortCoverage(buyerId);

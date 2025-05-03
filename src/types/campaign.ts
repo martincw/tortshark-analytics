@@ -10,7 +10,7 @@ export interface Campaign {
   targets: CampaignTargets;
   platform: string;
   accountId?: string;
-  accountName?: string; // Add missing property used in CampaignContext and other files
+  accountName?: string;
   stats?: CampaignStats;
 }
 
@@ -19,7 +19,7 @@ export interface ManualStats {
   cases: number;
   revenue: number;
   retainers?: number;
-  date?: string; // Add missing property used in CampaignContext
+  date?: string;
 }
 
 export interface StatHistoryEntry {
@@ -146,7 +146,6 @@ export interface GoogleAdsMetrics {
   date?: string;
 }
 
-// Add this interface to fix the GoogleAdsMetrics conversion issue
 export interface GoogleAdsMetricsResponse {
   impressions: number;
   clicks: number;
@@ -154,7 +153,6 @@ export interface GoogleAdsMetricsResponse {
   ctr: number;
   cpc: number;
   date: string;
-  // Add any other properties that might be in the API response
 }
 
 export interface TrendData {
@@ -186,10 +184,10 @@ export interface ProjectionParams {
   adSpendGrowth: number;
   conversionRateGrowth: number;
   revenuePerCaseGrowth: number;
-  targetProfit?: number; // Add missing property used in AnalysisPage
-  growthRate?: number; // Add missing property used in AnalysisPage
-  conversionRate?: number; // Add missing property used in AnalysisPage
-  revenuePerCase?: number; // Add missing property used in AnalysisPage
+  targetProfit?: number;
+  growthRate?: number;
+  conversionRate?: number;
+  revenuePerCase?: number;
 }
 
 export interface GoalProgress {
@@ -220,7 +218,6 @@ export interface CampaignStats {
   date?: string;
 }
 
-// Add forecasting related types used in AnalysisPage
 export type ForecastingModel = 'linear' | 'weighted' | 'exponential';
 export type ForecastingPeriod = 'week' | 'month' | 'quarter';
 
