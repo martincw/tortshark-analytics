@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -83,9 +82,25 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         acc.impressions += campaign.stats.impressions;
         acc.clicks += campaign.stats.clicks;
         return acc;
-      }, { adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: baseCampaign.stats.date });
+      }, { 
+        adSpend: 0, 
+        impressions: 0, 
+        clicks: 0, 
+        cpc: 0, 
+        date: baseCampaign.stats.date, 
+        // Add the missing required fields
+        conversions: 0,
+        cost: 0,
+        ctr: 0,
+        conversionRate: 0,
+        averageCpc: 0
+      });
       
       totalStats.cpc = totalStats.clicks > 0 ? totalStats.adSpend / totalStats.clicks : 0;
+      totalStats.cost = totalStats.adSpend; // Set cost equal to adSpend
+      totalStats.averageCpc = totalStats.cpc; // Set averageCpc equal to cpc
+      totalStats.ctr = totalStats.impressions > 0 ? (totalStats.clicks / totalStats.impressions) * 100 : 0; // Calculate CTR
+      totalStats.conversionRate = totalStats.clicks > 0 ? (totalStats.conversions / totalStats.clicks) * 100 : 0; // Calculate conversion rate
       
       const totalManualStats = campaigns.reduce((acc, campaign) => {
         acc.leads += campaign.manualStats.leads;
