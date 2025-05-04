@@ -14,8 +14,6 @@ export interface CaseBuyer {
   payout_terms?: string;
   created_at?: string;
   updated_at?: string;
-  inbound_did?: string;
-  transfer_did?: string;
 }
 
 export interface BuyerStackEntry {
@@ -33,6 +31,9 @@ export interface BuyerTortCoverage {
   campaign_id: string;
   payout_amount: number;
   did?: string;
+  inbound_did?: string;
+  transfer_did?: string;
+  intake_center?: string;
   campaign_key?: string;
   spec_sheet_url?: string;
   notes?: string;

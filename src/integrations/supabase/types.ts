@@ -56,10 +56,13 @@ export type Database = {
           created_at: string | null
           did: string | null
           id: string
+          inbound_did: string | null
+          intake_center: string | null
           label: string | null
           notes: string | null
           payout_amount: number
           spec_sheet_url: string | null
+          transfer_did: string | null
           updated_at: string | null
         }
         Insert: {
@@ -69,10 +72,13 @@ export type Database = {
           created_at?: string | null
           did?: string | null
           id?: string
+          inbound_did?: string | null
+          intake_center?: string | null
           label?: string | null
           notes?: string | null
           payout_amount?: number
           spec_sheet_url?: string | null
+          transfer_did?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -82,10 +88,13 @@ export type Database = {
           created_at?: string | null
           did?: string | null
           id?: string
+          inbound_did?: string | null
+          intake_center?: string | null
           label?: string | null
           notes?: string | null
           payout_amount?: number
           spec_sheet_url?: string | null
+          transfer_did?: string | null
           updated_at?: string | null
         }
         Relationships: [

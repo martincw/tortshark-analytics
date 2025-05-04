@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CaseBuyer } from "@/types/campaign";
+import { CaseBuyer } from "@/types/buyer";
 import { toast } from "sonner";
 
 export const useBuyers = () => {
@@ -33,8 +33,6 @@ export const useBuyers = () => {
     platform: string = '',
     notes: string = '',
     payout_terms: string = '',
-    inbound_did: string = '',
-    transfer_did: string = '',
     url2: string = ''
   ) => {
     try {
@@ -56,8 +54,6 @@ export const useBuyers = () => {
           platform,
           notes,
           payout_terms,
-          inbound_did,
-          transfer_did,
           user_id: user.id 
         }])
         .select()
@@ -155,7 +151,10 @@ export const useBuyers = () => {
     campaignKey: string = '',
     notes: string = '',
     specSheetUrl: string = '',
-    label: string = ''
+    label: string = '',
+    inboundDid: string = '',
+    transferDid: string = '',
+    intakeCenter: string = ''
   ) => {
     try {
       const { data, error } = await supabase
@@ -168,7 +167,10 @@ export const useBuyers = () => {
           campaign_key: campaignKey,
           notes,
           spec_sheet_url: specSheetUrl,
-          label
+          label,
+          inbound_did: inboundDid,
+          transfer_did: transferDid,
+          intake_center: intakeCenter
         }])
         .select()
         .single();
@@ -193,6 +195,9 @@ export const useBuyers = () => {
       notes?: string;
       spec_sheet_url?: string;
       label?: string;
+      inbound_did?: string;
+      transfer_did?: string;
+      intake_center?: string;
     } = {}
   ) => {
     try {

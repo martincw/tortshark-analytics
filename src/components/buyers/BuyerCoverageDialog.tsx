@@ -30,9 +30,10 @@ import {
   Phone,
   Key,
   FileText,
-  Tag
+  Tag,
+  Building
 } from "lucide-react";
-import { BuyerTortCoverage, CaseBuyer } from "@/types/campaign";
+import { BuyerTortCoverage, CaseBuyer } from "@/types/buyer";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
@@ -82,6 +83,9 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
         campaign_id: item.campaign_id,
         payout_amount: item.payout_amount,
         did: item.did || '',
+        inbound_did: item.inbound_did || '',
+        transfer_did: item.transfer_did || '',
+        intake_center: item.intake_center || '',
         campaign_key: item.campaign_key || '',
         notes: item.notes || '',
         spec_sheet_url: item.spec_sheet_url || '',
@@ -313,6 +317,26 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                       {/* Display additional fields regardless of whether they're populated */}
                       <div className="mt-4 space-y-3 text-sm">
                         <Separator className="my-3" />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">Inbound DID:</span>
+                            <span>{coverage.inbound_did || "Not specified"}</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">Transfer DID:</span>
+                            <span>{coverage.transfer_did || "Not specified"}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">Intake Center:</span>
+                          <span>{coverage.intake_center || "Not specified"}</span>
+                        </div>
                         
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 mr-2 text-muted-foreground" />

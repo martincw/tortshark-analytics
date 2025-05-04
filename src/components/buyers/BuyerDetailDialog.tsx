@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
+import { CaseBuyer, BuyerTortCoverage } from "@/types/buyer";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
   Dialog,
@@ -37,13 +37,6 @@ const PLATFORM_OPTIONS = [
   { value: "other", label: "Other" }
 ];
 
-// Extended buyer interface to ensure TypeScript knows about all fields
-interface ExtendedCaseBuyer extends CaseBuyer {
-  url2?: string;
-  inbound_did?: string;
-  transfer_did?: string;
-}
-
 interface BuyerDetailDialogProps {
   buyerId: string;
   isOpen: boolean;
@@ -52,7 +45,7 @@ interface BuyerDetailDialogProps {
 
 export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialogProps) {
   const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage } = useBuyers();
-  const [buyer, setBuyer] = useState<ExtendedCaseBuyer | null>(null);
+  const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
   // Keep "coverage" as the default tab
@@ -71,8 +64,6 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
   const [platform, setPlatform] = useState("");
   const [notes, setNotes] = useState("");
   const [payoutTerms, setPayoutTerms] = useState("");
-  const [inboundDid, setInboundDid] = useState("");
-  const [transferDid, setTransferDid] = useState("");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -94,21 +85,17 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       
       if (buyerError) throw buyerError;
       
-      // Cast buyerData to ExtendedCaseBuyer to ensure TypeScript recognizes all properties
-      const typedBuyerData = buyerData as ExtendedCaseBuyer;
-      setBuyer(typedBuyerData);
+      setBuyer(buyerData);
       
       // Reset form state with buyer data
-      setName(typedBuyerData.name || "");
-      setUrl(typedBuyerData.url || "");
-      setUrl2(typedBuyerData.url2 || "");
-      setContactName(typedBuyerData.contact_name || "");
-      setEmail(typedBuyerData.email || "");
-      setPlatform(typedBuyerData.platform || "");
-      setNotes(typedBuyerData.notes || "");
-      setPayoutTerms(typedBuyerData.payout_terms || "");
-      setInboundDid(typedBuyerData.inbound_did || "");
-      setTransferDid(typedBuyerData.transfer_did || "");
+      setName(buyerData.name || "");
+      setUrl(buyerData.url || "");
+      setUrl2(buyerData.url2 || "");
+      setContactName(buyerData.contact_name || "");
+      setEmail(buyerData.email || "");
+      setPlatform(buyerData.platform || "");
+      setNotes(buyerData.notes || "");
+      setPayoutTerms(buyerData.payout_terms || "");
       
       // Fetch tort coverage
       const coverage = await getBuyerTortCoverage(buyerId);
@@ -138,9 +125,7 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
         email,
         platform,
         notes,
-        payout_terms: payoutTerms,
-        inbound_did: inboundDid,
-        transfer_did: transferDid
+        payout_terms: payoutTerms
       });
       
       setEditMode(false);
@@ -363,32 +348,6 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-inbound-did" className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-primary" />
-                      Inbound DID
-                    </Label>
-                    <Input
-                      id="edit-inbound-did"
-                      value={inboundDid}
-                      onChange={(e) => setInboundDid(e.target.value)}
-                      placeholder="(555) 123-4567"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-transfer-did" className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-primary" />
-                      Transfer DID
-                    </Label>
-                    <Input
-                      id="edit-transfer-did"
-                      value={transferDid}
-                      onChange={(e) => setTransferDid(e.target.value)}
-                      placeholder="(555) 123-4567"
-                    />
-                  </div>
-                  
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="edit-payout-terms">Payout Terms</Label>
                     <Input
@@ -426,8 +385,6 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                       setPlatform(buyer.platform || "");
                       setNotes(buyer.notes || "");
                       setPayoutTerms(buyer.payout_terms || "");
-                      setInboundDid(buyer.inbound_did || "");
-                      setTransferDid(buyer.transfer_did || "");
                     }}
                     disabled={isSubmitting}
                   >
@@ -504,22 +461,6 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground">Platform</span>
                     <p>{buyer.platform || "Not specified"}</p>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      Inbound DID
-                    </span>
-                    <p>{buyer.inbound_did || "Not specified"}</p>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      Transfer DID
-                    </span>
-                    <p>{buyer.transfer_did || "Not specified"}</p>
                   </div>
                   
                   <div className="space-y-1">
@@ -670,6 +611,26 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                       {/* Display additional fields */}
                       <div className="mt-4 space-y-3 text-sm">
                         <Separator className="my-3" />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">Inbound DID:</span>
+                            <span>{coverage.inbound_did || "Not specified"}</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span className="font-medium mr-2">Transfer DID:</span>
+                            <span>{coverage.transfer_did || "Not specified"}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">Intake Center:</span>
+                          <span>{coverage.intake_center || "Not specified"}</span>
+                        </div>
                         
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 mr-2 text-muted-foreground" />

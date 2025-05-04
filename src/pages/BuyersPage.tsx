@@ -54,8 +54,6 @@ export default function BuyersPage() {
   const [platform, setPlatform] = useState("");
   const [notes, setNotes] = useState("");
   const [payoutTerms, setPayoutTerms] = useState("");
-  const [inboundDid, setInboundDid] = useState("");
-  const [transferDid, setTransferDid] = useState("");
   const [showSecondaryUrl, setShowSecondaryUrl] = useState(false);
 
   const filteredBuyers = buyers.filter((buyer) => {
@@ -95,8 +93,6 @@ export default function BuyersPage() {
         platform, 
         notes, 
         payoutTerms,
-        inboundDid,
-        transferDid,
         url2
       );
       resetForm();
@@ -115,8 +111,6 @@ export default function BuyersPage() {
     setPlatform("");
     setNotes("");
     setPayoutTerms("");
-    setInboundDid("");
-    setTransferDid("");
     setShowSecondaryUrl(false);
   };
 
@@ -319,28 +313,6 @@ export default function BuyersPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">How cases are delivered to this buyer</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="inbound-did">Inbound DID</Label>
-                <Input
-                  id="inbound-did"
-                  value={inboundDid}
-                  onChange={(e) => setInboundDid(e.target.value)}
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="transfer-did">Transfer DID</Label>
-                <Input
-                  id="transfer-did"
-                  value={transferDid}
-                  onChange={(e) => setTransferDid(e.target.value)}
-                  placeholder="(555) 123-4567"
-                />
-              </div>
             </div>
             
             <div className="space-y-2">

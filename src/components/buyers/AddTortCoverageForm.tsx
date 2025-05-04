@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBuyers } from "@/hooks/useBuyers";
-import { Campaign, BuyerTortCoverage } from "@/types/campaign";
+import { BuyerTortCoverage } from "@/types/buyer";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -35,7 +35,9 @@ export function AddTortCoverageForm({
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const [did, setDid] = useState<string>("");
-  const [campaignId, setCampaignId] = useState<string>("");
+  const [inboundDid, setInboundDid] = useState<string>("");
+  const [transferDid, setTransferDid] = useState<string>("");
+  const [intakeCenter, setIntakeCenter] = useState<string>("");
   const [campaignKey, setCampaignKey] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [specSheetUrl, setSpecSheetUrl] = useState<string>("");
@@ -103,7 +105,10 @@ export function AddTortCoverageForm({
       campaignKey,
       notes,
       specSheetUrl,
-      label
+      label,
+      inboundDid,
+      transferDid,
+      intakeCenter
     );
     
     setLoading(false);
@@ -174,6 +179,41 @@ export function AddTortCoverageForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="inboundDid">Inbound DID</Label>
+          <Input
+            id="inboundDid"
+            type="text"
+            value={inboundDid}
+            onChange={(e) => setInboundDid(e.target.value)}
+            placeholder="(555) 123-4567"
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="transferDid">Transfer DID</Label>
+          <Input
+            id="transferDid"
+            type="text"
+            value={transferDid}
+            onChange={(e) => setTransferDid(e.target.value)}
+            placeholder="(555) 123-4567"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="intakeCenter">Intake Center</Label>
+        <Input
+          id="intakeCenter"
+          type="text"
+          value={intakeCenter}
+          onChange={(e) => setIntakeCenter(e.target.value)}
+          placeholder="Enter intake center name"
+        />
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="did">DID (Direct Inward Dialing)</Label>
         <Input
@@ -182,17 +222,6 @@ export function AddTortCoverageForm({
           value={did}
           onChange={(e) => setDid(e.target.value)}
           placeholder="18005551234"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="campaignId">Campaign ID</Label>
-        <Input
-          id="campaignId"
-          type="text"
-          value={campaignId}
-          onChange={(e) => setCampaignId(e.target.value)}
-          placeholder="Enter campaign ID"
         />
       </div>
 
