@@ -18,7 +18,7 @@ import {
   Building, Globe, Mail, User, Phone, 
   BadgeDollarSign, FileEdit, Calendar, 
   Check, X, Plus, Trash2, LinkIcon, 
-  ExternalLink, Shield, Tag
+  ExternalLink, Shield, Tag, Key, FileText
 } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { supabase } from "@/integrations/supabase/client";
