@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
@@ -301,32 +300,26 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                         </div>
                       </div>
 
-                      {/* Display additional fields */}
+                      {/* Always display additional fields, not conditional */}
                       <div className="mt-4 space-y-3 text-sm">
-                        {(coverage.did || coverage.campaign_key || coverage.spec_sheet_url || coverage.notes) && (
-                          <Separator className="my-3" />
-                        )}
+                        <Separator className="my-3" />
                         
-                        {coverage.did && (
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span className="font-medium mr-2">DID:</span>
-                            <span>{coverage.did}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center">
+                          <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">DID:</span>
+                          <span>{coverage.did || "Not specified"}</span>
+                        </div>
                         
-                        {coverage.campaign_key && (
-                          <div className="flex items-center">
-                            <Key className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span className="font-medium mr-2">Campaign Key:</span>
-                            <span>{coverage.campaign_key}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center">
+                          <Key className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">Campaign Key:</span>
+                          <span>{coverage.campaign_key || "Not specified"}</span>
+                        </div>
                         
-                        {coverage.spec_sheet_url && (
-                          <div className="flex items-center">
-                            <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span className="font-medium mr-2">Spec Sheet:</span>
+                        <div className="flex items-center">
+                          <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">Spec Sheet:</span>
+                          {coverage.spec_sheet_url ? (
                             <Button 
                               variant="link" 
                               className="h-auto p-0 text-primary"
@@ -334,15 +327,17 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                             >
                               View Spec Sheet
                             </Button>
-                          </div>
-                        )}
+                          ) : (
+                            <span className="text-muted-foreground">None provided</span>
+                          )}
+                        </div>
                         
-                        {coverage.notes && (
-                          <div className="flex">
-                            <span className="font-medium mr-2 mt-0.5">Notes:</span>
-                            <p className="text-muted-foreground">{coverage.notes}</p>
-                          </div>
-                        )}
+                        <div className="flex">
+                          <span className="font-medium mr-2 mt-0.5">Notes:</span>
+                          <p className="text-muted-foreground">
+                            {coverage.notes || "No notes added"}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </Card>

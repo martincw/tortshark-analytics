@@ -14,6 +14,8 @@ import {
 import { useBuyers } from "@/hooks/useBuyers";
 import { Campaign, BuyerTortCoverage } from "@/types/campaign";
 import { supabase } from "@/integrations/supabase/client";
+import { AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AddTortCoverageFormProps {
   buyerId: string;
@@ -39,10 +41,21 @@ export function AddTortCoverageForm({
   const [specSheetUrl, setSpecSheetUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
 
   useEffect(() => {
     fetchCampaigns();
   }, []);
+
+  useEffect(() => {
+    // Check if selected campaign is already covered by this buyer
+    if (selectedCampaign) {
+      const duplicate = existingCoverages.some(coverage => coverage.campaign_id === selectedCampaign);
+      setIsDuplicate(duplicate);
+    } else {
+      setIsDuplicate(false);
+    }
+  }, [selectedCampaign, existingCoverages]);
 
   const fetchCampaigns = async () => {
     setLoadingCampaigns(true);
@@ -61,12 +74,8 @@ export function AddTortCoverageForm({
     }
   };
 
-  // Filter out campaigns that already have coverage
-  const availableCampaigns = campaigns.filter(
-    (campaign) => !existingCoverages.some(
-      (coverage) => coverage.campaign_id === campaign.id
-    )
-  );
+  // We're no longer filtering out campaigns that already have coverage
+  // This allows adding multiple price points for the same campaign
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,30 +108,35 @@ export function AddTortCoverageForm({
         <Select 
           value={selectedCampaign}
           onValueChange={setSelectedCampaign}
-          disabled={loadingCampaigns || availableCampaigns.length === 0}
+          disabled={loadingCampaigns}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select a campaign" />
           </SelectTrigger>
           <SelectContent>
-            {availableCampaigns.map((campaign) => (
+            {campaigns.map((campaign) => (
               <SelectItem key={campaign.id} value={campaign.id}>
                 {campaign.name}
               </SelectItem>
             ))}
-            {availableCampaigns.length === 0 && (
+            {campaigns.length === 0 && (
               <SelectItem value="none" disabled>
                 No available campaigns
               </SelectItem>
             )}
           </SelectContent>
         </Select>
-        {availableCampaigns.length === 0 && !loadingCampaigns && (
-          <p className="text-sm text-muted-foreground mt-1">
-            This buyer is already covering all campaigns
-          </p>
-        )}
       </div>
+
+      {isDuplicate && (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            This buyer already covers this campaign with a different price point.
+            Adding another will create multiple entries for the same campaign.
+          </AlertDescription>
+        </Alert>
+      )}
       
       <div className="space-y-2">
         <Label htmlFor="amount">Payout Amount per Case ($)</Label>

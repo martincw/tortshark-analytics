@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
 import { useBuyers } from "@/hooks/useBuyers";
@@ -55,7 +56,8 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
   const [buyer, setBuyer] = useState<ExtendedCaseBuyer | null>(null);
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("details");
+  // Changed default tab from "details" to "coverage"
+  const [activeTab, setActiveTab] = useState("coverage");
   const [editMode, setEditMode] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCoverageId, setEditingCoverageId] = useState<string | null>(null);
@@ -269,8 +271,8 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">Buyer Details</TabsTrigger>
             <TabsTrigger value="coverage">Tort Coverage ({coverages.length})</TabsTrigger>
+            <TabsTrigger value="details">Buyer Details</TabsTrigger>
           </TabsList>
           
           <TabsContent value="details" className="pt-4">
