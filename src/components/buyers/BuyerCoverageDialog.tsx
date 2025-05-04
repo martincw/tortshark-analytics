@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
@@ -28,7 +29,8 @@ import {
   PencilLine,
   Phone,
   Key,
-  FileText
+  FileText,
+  Tag
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/campaign";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
@@ -83,6 +85,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
         campaign_key: item.campaign_key || '',
         notes: item.notes || '',
         spec_sheet_url: item.spec_sheet_url || '',
+        label: item.label || '',
         // Handle nested campaigns object structure
         campaigns: item.campaigns ? {
           id: item.campaigns.id,
@@ -235,9 +238,16 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium">
-                            {coverage.campaigns?.name || "Unknown Campaign"}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">
+                              {coverage.campaigns?.name || "Unknown Campaign"}
+                            </h3>
+                            {coverage.label && (
+                              <Badge variant="outline" className="text-xs">
+                                {coverage.label}
+                              </Badge>
+                            )}
+                          </div>
                           
                           {editingCoverageId === coverage.id ? (
                             <div className="flex items-center gap-2 mt-2">
@@ -300,7 +310,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                         </div>
                       </div>
 
-                      {/* Always display additional fields, not conditional */}
+                      {/* Display additional fields regardless of whether they're populated */}
                       <div className="mt-4 space-y-3 text-sm">
                         <Separator className="my-3" />
                         
@@ -384,7 +394,16 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                           key={coverage.id}
                           className="flex items-center justify-between"
                         >
-                          <span className="text-sm">{coverage.campaigns?.name || "Unknown"}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">
+                              {coverage.campaigns?.name || "Unknown"}
+                            </span>
+                            {coverage.label && (
+                              <span className="text-xs text-muted-foreground">
+                                ({coverage.label})
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center">
                             <div 
                               className="h-2 bg-primary rounded-full mr-3"

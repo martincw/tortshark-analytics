@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CaseBuyer } from "@/types/campaign";
@@ -155,7 +154,8 @@ export const useBuyers = () => {
     did: string = '',
     campaignKey: string = '',
     notes: string = '',
-    specSheetUrl: string = ''
+    specSheetUrl: string = '',
+    label: string = ''
   ) => {
     try {
       const { data, error } = await supabase
@@ -167,7 +167,8 @@ export const useBuyers = () => {
           did,
           campaign_key: campaignKey,
           notes,
-          spec_sheet_url: specSheetUrl
+          spec_sheet_url: specSheetUrl,
+          label
         }])
         .select()
         .single();
@@ -182,24 +183,6 @@ export const useBuyers = () => {
     }
   };
 
-  // Remove tort coverage for a buyer
-  const removeBuyerTortCoverage = async (coverageId: string) => {
-    try {
-      const { error } = await supabase
-        .from('buyer_tort_coverage')
-        .delete()
-        .eq('id', coverageId);
-
-      if (error) throw error;
-      toast.success('Tort coverage removed successfully');
-      return true;
-    } catch (error) {
-      console.error('Error removing tort coverage:', error);
-      toast.error('Failed to remove tort coverage');
-      return false;
-    }
-  };
-
   // Update payout amount for a tort coverage
   const updateBuyerTortCoverage = async (
     coverageId: string, 
@@ -209,6 +192,7 @@ export const useBuyers = () => {
       campaign_key?: string;
       notes?: string;
       spec_sheet_url?: string;
+      label?: string;
     } = {}
   ) => {
     try {
@@ -229,6 +213,24 @@ export const useBuyers = () => {
       console.error('Error updating tort coverage:', error);
       toast.error('Failed to update tort coverage');
       return null;
+    }
+  };
+
+  // Remove tort coverage for a buyer
+  const removeBuyerTortCoverage = async (coverageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('buyer_tort_coverage')
+        .delete()
+        .eq('id', coverageId);
+
+      if (error) throw error;
+      toast.success('Tort coverage removed successfully');
+      return true;
+    } catch (error) {
+      console.error('Error removing tort coverage:', error);
+      toast.error('Failed to remove tort coverage');
+      return false;
     }
   };
 

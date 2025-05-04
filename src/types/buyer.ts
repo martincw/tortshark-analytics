@@ -36,6 +36,7 @@ export interface BuyerTortCoverage {
   campaign_key?: string;
   spec_sheet_url?: string;
   notes?: string;
+  label?: string;
   created_at?: string;
   updated_at?: string;
   campaigns?: CampaignBasic;

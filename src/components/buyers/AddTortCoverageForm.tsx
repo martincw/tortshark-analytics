@@ -39,6 +39,7 @@ export function AddTortCoverageForm({
   const [campaignKey, setCampaignKey] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [specSheetUrl, setSpecSheetUrl] = useState<string>("");
+  const [label, setLabel] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
@@ -52,10 +53,20 @@ export function AddTortCoverageForm({
     if (selectedCampaign) {
       const duplicate = existingCoverages.some(coverage => coverage.campaign_id === selectedCampaign);
       setIsDuplicate(duplicate);
+
+      // If it's a duplicate, suggest a label
+      if (duplicate) {
+        const campaignName = campaigns.find(c => c.id === selectedCampaign)?.name || "";
+        const existingCount = existingCoverages.filter(c => c.campaign_id === selectedCampaign).length;
+        setLabel(`${campaignName} - Option ${existingCount + 1}`);
+      } else {
+        setLabel("");
+      }
     } else {
       setIsDuplicate(false);
+      setLabel("");
     }
-  }, [selectedCampaign, existingCoverages]);
+  }, [selectedCampaign, existingCoverages, campaigns]);
 
   const fetchCampaigns = async () => {
     setLoadingCampaigns(true);
@@ -74,9 +85,6 @@ export function AddTortCoverageForm({
     }
   };
 
-  // We're no longer filtering out campaigns that already have coverage
-  // This allows adding multiple price points for the same campaign
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -94,7 +102,8 @@ export function AddTortCoverageForm({
       did,
       campaignKey,
       notes,
-      specSheetUrl
+      specSheetUrl,
+      label
     );
     
     setLoading(false);
@@ -132,11 +141,25 @@ export function AddTortCoverageForm({
         <Alert variant="warning" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
-            This buyer already covers this campaign with a different price point.
-            Adding another will create multiple entries for the same campaign.
+            This buyer already has price points for this campaign.
+            Adding another will create a distinct entry for the same campaign.
           </AlertDescription>
         </Alert>
       )}
+      
+      <div className="space-y-2">
+        <Label htmlFor="label">Label (to distinguish multiple entries)</Label>
+        <Input
+          id="label"
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Standard, Premium, Special, etc."
+        />
+        <p className="text-xs text-muted-foreground">
+          A descriptive name to identify this specific price point
+        </p>
+      </div>
       
       <div className="space-y-2">
         <Label htmlFor="amount">Payout Amount per Case ($)</Label>

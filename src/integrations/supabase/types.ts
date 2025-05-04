@@ -56,6 +56,7 @@ export type Database = {
           created_at: string | null
           did: string | null
           id: string
+          label: string | null
           notes: string | null
           payout_amount: number
           spec_sheet_url: string | null
@@ -68,6 +69,7 @@ export type Database = {
           created_at?: string | null
           did?: string | null
           id?: string
+          label?: string | null
           notes?: string | null
           payout_amount?: number
           spec_sheet_url?: string | null
@@ -80,6 +82,7 @@ export type Database = {
           created_at?: string | null
           did?: string | null
           id?: string
+          label?: string | null
           notes?: string | null
           payout_amount?: number
           spec_sheet_url?: string | null

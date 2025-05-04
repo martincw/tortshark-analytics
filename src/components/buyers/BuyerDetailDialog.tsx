@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
 import { useBuyers } from "@/hooks/useBuyers";
@@ -19,7 +18,7 @@ import {
   Building, Globe, Mail, User, Phone, 
   BadgeDollarSign, FileEdit, Calendar, 
   Check, X, Plus, Trash2, LinkIcon, 
-  ExternalLink, Shield
+  ExternalLink, Shield, Tag
 } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,7 +55,7 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
   const [buyer, setBuyer] = useState<ExtendedCaseBuyer | null>(null);
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
-  // Changed default tab from "details" to "coverage"
+  // Keep "coverage" as the default tab
   const [activeTab, setActiveTab] = useState("coverage");
   const [editMode, setEditMode] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -461,87 +460,75 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                     <p className="font-medium">{buyer.name}</p>
                   </div>
                   
-                  {(buyer.url || buyer.url2) && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
-                        Website
-                      </span>
-                      <div className="flex gap-2">
-                        {buyer.url && (
-                          <Button variant="outline" size="sm" onClick={() => openWebsite(buyer.url)} className="h-8">
-                            <Globe className="h-3.5 w-3.5 mr-1" />
-                            Primary
-                            <ExternalLink className="h-3 w-3 ml-1" />
-                          </Button>
-                        )}
-                        {buyer.url2 && (
-                          <Button variant="outline" size="sm" onClick={() => openWebsite(buyer.url2)} className="h-8">
-                            <LinkIcon className="h-3.5 w-3.5 mr-1" />
-                            Secondary
-                            <ExternalLink className="h-3 w-3 ml-1" />
-                          </Button>
-                        )}
-                      </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Globe className="h-3 w-3" />
+                      Website
+                    </span>
+                    <div className="flex gap-2">
+                      {buyer.url ? (
+                        <Button variant="outline" size="sm" onClick={() => openWebsite(buyer.url)} className="h-8">
+                          <Globe className="h-3.5 w-3.5 mr-1" />
+                          Primary
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">No primary URL</span>
+                      )}
+                      {buyer.url2 && (
+                        <Button variant="outline" size="sm" onClick={() => openWebsite(buyer.url2)} className="h-8">
+                          <LinkIcon className="h-3.5 w-3.5 mr-1" />
+                          Secondary
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                      )}
                     </div>
-                  )}
+                  </div>
                   
-                  {buyer.contact_name && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        Contact
-                      </span>
-                      <p>{buyer.contact_name}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      Contact
+                    </span>
+                    <p>{buyer.contact_name || "Not specified"}</p>
+                  </div>
                   
-                  {buyer.email && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        Email
-                      </span>
-                      <p>{buyer.email}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      Email
+                    </span>
+                    <p>{buyer.email || "Not specified"}</p>
+                  </div>
                   
-                  {buyer.platform && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">Platform</span>
-                      <p>{buyer.platform}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Platform</span>
+                    <p>{buyer.platform || "Not specified"}</p>
+                  </div>
                   
-                  {buyer.inbound_did && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        Inbound DID
-                      </span>
-                      <p>{buyer.inbound_did}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      Inbound DID
+                    </span>
+                    <p>{buyer.inbound_did || "Not specified"}</p>
+                  </div>
                   
-                  {buyer.transfer_did && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        Transfer DID
-                      </span>
-                      <p>{buyer.transfer_did}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      Transfer DID
+                    </span>
+                    <p>{buyer.transfer_did || "Not specified"}</p>
+                  </div>
                   
-                  {buyer.payout_terms && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <BadgeDollarSign className="h-3 w-3" />
-                        Payout Terms
-                      </span>
-                      <p>{buyer.payout_terms}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <BadgeDollarSign className="h-3 w-3" />
+                      Payout Terms
+                    </span>
+                    <p>{buyer.payout_terms || "Not specified"}</p>
+                  </div>
                   
                   <div className="space-y-1 md:col-span-2">
                     <span className="text-xs text-muted-foreground">Created</span>
@@ -549,14 +536,12 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                   </div>
                 </div>
                 
-                {buyer.notes && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <span className="text-xs text-muted-foreground">Notes</span>
-                    <div className="bg-muted/30 p-3 rounded-md whitespace-pre-wrap">
-                      {buyer.notes}
-                    </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <span className="text-xs text-muted-foreground">Notes</span>
+                  <div className="bg-muted/30 p-3 rounded-md whitespace-pre-wrap">
+                    {buyer.notes || "No notes available"}
                   </div>
-                )}
+                </div>
               </div>
             )}
           </TabsContent>
@@ -610,9 +595,16 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium">
-                            {coverage.campaigns?.name || "Unknown Campaign"}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">
+                              {coverage.campaigns?.name || "Unknown Campaign"}
+                            </h3>
+                            {coverage.label && (
+                              <Badge variant="outline" className="text-xs">
+                                {coverage.label}
+                              </Badge>
+                            )}
+                          </div>
                           
                           {editingCoverageId === coverage.id ? (
                             <div className="flex items-center gap-2 mt-2">
@@ -677,28 +669,24 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
 
                       {/* Display additional fields */}
                       <div className="mt-4 space-y-3 text-sm">
-                        {(coverage.did || coverage.campaign_key || coverage.spec_sheet_url || coverage.notes) && (
-                          <Separator className="my-3" />
-                        )}
+                        <Separator className="my-3" />
                         
-                        {coverage.did && (
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span className="font-medium mr-2">DID:</span>
-                            <span>{coverage.did}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center">
+                          <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">DID:</span>
+                          <span>{coverage.did || "Not specified"}</span>
+                        </div>
                         
-                        {coverage.campaign_key && (
-                          <div className="flex items-center">
-                            <span className="font-medium mr-2">Campaign Key:</span>
-                            <span>{coverage.campaign_key}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center">
+                          <Key className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">Campaign Key:</span>
+                          <span>{coverage.campaign_key || "Not specified"}</span>
+                        </div>
                         
-                        {coverage.spec_sheet_url && (
-                          <div className="flex items-center">
-                            <span className="font-medium mr-2">Spec Sheet:</span>
+                        <div className="flex items-center">
+                          <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <span className="font-medium mr-2">Spec Sheet:</span>
+                          {coverage.spec_sheet_url ? (
                             <Button 
                               variant="link" 
                               className="h-auto p-0 text-primary"
@@ -706,15 +694,15 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                             >
                               View Spec Sheet
                             </Button>
-                          </div>
-                        )}
+                          ) : (
+                            <span className="text-muted-foreground">None provided</span>
+                          )}
+                        </div>
                         
-                        {coverage.notes && (
-                          <div className="flex">
-                            <span className="font-medium mr-2 mt-0.5">Notes:</span>
-                            <p className="text-muted-foreground">{coverage.notes}</p>
-                          </div>
-                        )}
+                        <div className="flex">
+                          <span className="font-medium mr-2 mt-0.5">Notes:</span>
+                          <p className="text-muted-foreground">{coverage.notes || "No notes added"}</p>
+                        </div>
                       </div>
                     </div>
                   </Card>
