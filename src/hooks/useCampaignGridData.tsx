@@ -1,5 +1,5 @@
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -10,20 +10,14 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   const [filterCampaign, setFilterCampaign] = useState("all");
   const { dateRange } = useCampaign();
   
-  useEffect(() => {
-    console.log(`useCampaignGridData received ${campaigns.length} campaigns with date range:`, dateRange);
-  }, [campaigns, dateRange]);
-  
+  // Only filter by date range once
   const dateFilteredCampaigns = useMemo(() => {
     if (!dateRange.startDate || !dateRange.endDate) {
-      console.log("No date range filter applied");
       return campaigns;
     }
 
-    console.log("Filtering campaigns by date range:", dateRange);
-    
     return campaigns.map(campaign => {
-      const filteredCampaign = JSON.parse(JSON.stringify(campaign));
+      const filteredCampaign = {...campaign};
       
       const filteredHistory = campaign.statsHistory.filter(entry => {
         const entryDate = new Date(entry.date);
@@ -37,6 +31,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         return entryDate >= startDate && entryDate <= endDate;
       });
       
+      // Pre-calculate aggregated stats to avoid doing this multiple times
       const aggregateStats = filteredHistory.reduce((acc, entry) => {
         acc.adSpend += entry.adSpend || 0;
         acc.leads += entry.leads || 0;
@@ -45,12 +40,22 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         return acc;
       }, { adSpend: 0, leads: 0, cases: 0, revenue: 0 });
       
-      filteredCampaign.stats.adSpend = aggregateStats.adSpend;
-      filteredCampaign.manualStats.leads = aggregateStats.leads;
-      filteredCampaign.manualStats.cases = aggregateStats.cases;
-      filteredCampaign.manualStats.revenue = aggregateStats.revenue;
+      filteredCampaign.stats = {
+        ...filteredCampaign.stats,
+        adSpend: aggregateStats.adSpend
+      };
+      
+      filteredCampaign.manualStats = {
+        ...filteredCampaign.manualStats,
+        leads: aggregateStats.leads,
+        cases: aggregateStats.cases,
+        revenue: aggregateStats.revenue
+      };
       
       filteredCampaign.statsHistory = filteredHistory;
+      
+      // Pre-calculate metrics to avoid doing this multiple times
+      filteredCampaign._metrics = calculateMetrics(filteredCampaign, dateRange);
       
       return filteredCampaign;
     });
@@ -71,7 +76,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
   
   const consolidatedCampaigns = useMemo(() => {
     return Object.entries(groupedCampaigns).map(([tortType, campaigns]) => {
-      const baseCampaign = JSON.parse(JSON.stringify(campaigns[0]));
+      const baseCampaign = {...campaigns[0]};
       
       const totalStats = campaigns.reduce((acc, campaign) => {
         acc.adSpend += campaign.stats.adSpend;
@@ -107,17 +112,10 @@ export function useCampaignGridData(campaigns: Campaign[]) {
     );
   }, [consolidatedCampaigns]);
   
-  const calculateEarningsPerLead = (campaign: Campaign) => {
-    const metrics = calculateMetrics(campaign);
-    return metrics.profit / (campaign.manualStats.leads || 1);
-  };
-  
   const sortedAndFilteredCampaigns = useMemo(() => {
-    console.log("useCampaignGridData: Filtering and sorting campaigns");
-    
     const filteredCampaigns = consolidatedCampaigns.filter(campaign => {
       const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           campaign.accountName.toLowerCase().includes(searchTerm.toLowerCase());
+                           (campaign.accountName && campaign.accountName.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesCampaign = filterCampaign === "all" || campaign.name === filterCampaign;
       
@@ -127,8 +125,10 @@ export function useCampaignGridData(campaigns: Campaign[]) {
     return [...filteredCampaigns].sort((a, b) => {
       switch (sortBy) {
         case "earningsPerLead": {
-          const earningsPerLeadA = calculateEarningsPerLead(a);
-          const earningsPerLeadB = calculateEarningsPerLead(b);
+          const earningsPerLeadA = a._metrics?.earningsPerLead || 
+            (a.manualStats.leads > 0 ? a.manualStats.revenue / a.manualStats.leads : 0);
+          const earningsPerLeadB = b._metrics?.earningsPerLead || 
+            (b.manualStats.leads > 0 ? b.manualStats.revenue / b.manualStats.leads : 0);
           return earningsPerLeadB - earningsPerLeadA;
         }
         case "name":
@@ -136,14 +136,14 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         case "adSpend":
           return b.stats.adSpend - a.stats.adSpend;
         case "roi": {
-          const metricsA = calculateMetrics(b).roi;
-          const metricsB = calculateMetrics(a).roi;
-          return metricsA - metricsB;
+          const metricsA = a._metrics?.roi || 0;
+          const metricsB = b._metrics?.roi || 0;
+          return metricsB - metricsA;
         }
         case "profit": {
-          const metricsA = calculateMetrics(b).profit;
-          const metricsB = calculateMetrics(a).profit;
-          return metricsA - metricsB;
+          const metricsA = a._metrics?.profit || 0;
+          const metricsB = b._metrics?.profit || 0;
+          return metricsB - metricsA;
         }
         case "leads":
           return b.manualStats.leads - a.manualStats.leads;
@@ -154,7 +154,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         case "dateOldest":
           return new Date(a.stats.date).getTime() - new Date(b.stats.date).getTime();
         case "account":
-          return a.accountName.localeCompare(b.accountName);
+          return (a.accountName || '').localeCompare(b.accountName || '');
         default:
           return 0;
       }

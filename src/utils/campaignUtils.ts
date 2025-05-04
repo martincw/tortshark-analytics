@@ -1,20 +1,28 @@
-
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 import { addDays, subDays } from "date-fns";
 
+// Create a cache for metric calculations to avoid recalculating
+const metricsCache = new Map<string, CampaignMetrics>();
+
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
-  console.log('Calculating metrics for campaign:', campaign.id);
-  console.log('Using date range:', dateRange);
+  // Create a cache key combining campaign ID and date range
+  const cacheKey = campaign.id + (dateRange ? `_${dateRange.startDate}_${dateRange.endDate}` : '_all');
+  
+  // Check if we have cached results
+  if (campaign._metrics) {
+    return campaign._metrics;
+  }
+  
+  if (metricsCache.has(cacheKey)) {
+    return metricsCache.get(cacheKey)!;
+  }
 
   // Get filtered stats based on date range
   const periodStats = getPeriodStats(campaign, dateRange);
   
   // Get previous week's stats using trailing 7 days
   const previousWeekStats = getPreviousWeekStats(campaign, dateRange);
-  
-  console.log('Period stats:', periodStats);
-  console.log('Previous week stats:', previousWeekStats);
   
   // Calculate metrics using period stats
   const costPerLead = periodStats.leads > 0 ? periodStats.adSpend / periodStats.leads : 0;
@@ -47,13 +55,14 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     weekOverWeekChange
   };
 
-  console.log('Final calculated metrics:', metrics);
+  // Store in cache
+  metricsCache.set(cacheKey, metrics);
+
   return metrics;
 };
 
 export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   if (!campaign.statsHistory || campaign.statsHistory.length === 0) {
-    console.log('No stats history available for getPeriodStats');
     return {
       leads: 0,
       cases: 0,
@@ -63,7 +72,6 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
   }
   
   if (!dateRange || !dateRange.startDate || !dateRange.endDate) {
-    console.log('No date range provided for getPeriodStats, using all campaign stats');
     // Sum up all stats from history
     const totalStats = campaign.statsHistory.reduce((acc, entry) => {
       return {
@@ -74,15 +82,27 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
       };
     }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
     
-    console.log('Total stats from all history:', totalStats);
     return totalStats;
   }
   
-  console.log(`Calculating period stats for range: ${dateRange.startDate} to ${dateRange.endDate}`);
+  // Optimize date range filtering by doing it once
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
   
   const periodStats = campaign.statsHistory.reduce((acc, entry) => {
-    if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-      console.log(`Including stats for date ${entry.date} in period calculation:`, entry);
+    // Lazy initialize dates only when needed
+    if (!startDate || !endDate) {
+      startDate = new Date(dateRange.startDate!);
+      startDate.setHours(0, 0, 0, 0);
+      
+      endDate = new Date(dateRange.endDate!);
+      endDate.setHours(23, 59, 59, 999);
+    }
+    
+    const entryDate = new Date(entry.date);
+    entryDate.setHours(12, 0, 0, 0);
+    
+    if (entryDate >= startDate && entryDate <= endDate) {
       return {
         leads: acc.leads + entry.leads,
         cases: acc.cases + entry.cases,
@@ -93,7 +113,6 @@ export const getPeriodStats = (campaign: Campaign, dateRange?: DateRange) => {
     return acc;
   }, { leads: 0, cases: 0, revenue: 0, adSpend: 0 });
   
-  console.log('Period stats calculation result:', periodStats);
   return periodStats;
 };
 
@@ -111,9 +130,6 @@ export const getPreviousWeekStats = (campaign: Campaign, dateRange?: DateRange) 
   // Calculate the previous 7 days period
   const previousEnd = subDays(trailingStart, 1); // Day before the trailing period starts
   const previousStart = subDays(previousEnd, 6); // 7 days before that
-  
-  console.log('Calculating previous week stats using ranges:');
-  console.log('Previous period:', previousStart.toISOString(), 'to', previousEnd.toISOString());
 
   const previousDateRange = {
     startDate: previousStart.toISOString().split('T')[0],

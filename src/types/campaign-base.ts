@@ -1,4 +1,3 @@
-
 export interface Campaign {
   id: string;
   name: string;
@@ -13,6 +12,7 @@ export interface Campaign {
   accountId?: string;
   accountName?: string;
   stats?: CampaignStats;
+  _metrics?: import('./metrics').CampaignMetrics; // Cache for pre-calculated metrics
 }
 
 export interface ManualStats {

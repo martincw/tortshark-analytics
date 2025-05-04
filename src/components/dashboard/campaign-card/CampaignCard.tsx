@@ -19,7 +19,9 @@ interface CampaignCardProps {
 export function CampaignCard({ campaign }: CampaignCardProps) {
   const { setSelectedCampaignId } = useCampaign();
   const navigate = useNavigate();
-  const metrics = calculateMetrics(campaign);
+  
+  // Use pre-calculated metrics if available (from useCampaignGridData)
+  const metrics = campaign._metrics || calculateMetrics(campaign);
   
   const {
     isQuickEntryOpen,
@@ -29,7 +31,6 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   } = useQuickStats(campaign.id);
   
   const handleViewDetails = () => {
-    console.log("Navigating to campaign details for campaign ID:", campaign.id);
     setSelectedCampaignId(campaign.id);
     navigate(`/campaign/${campaign.id}`);
   };
