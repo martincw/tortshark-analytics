@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, Wallet } from "lucide-react";
-import { formatCurrency } from "@/utils/campaignUtils";
+import { DollarSign, TrendingUp, Wallet, AlertCircle, Users } from "lucide-react";
+import { formatCurrency, formatPercent } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,10 @@ interface FinancialStats {
   revenue: number;
   cost: number;
   profit: number;
+  roas: number;
+  cases: number;
+  earningsPerLead: number;
+  partnerProfit: number;
 }
 
 const DashboardFinancialStats: React.FC = () => {
@@ -35,22 +39,33 @@ const DashboardFinancialStats: React.FC = () => {
         // Calculate totals from campaign history within date range
         let totalRevenue = 0;
         let totalCost = 0;
+        let totalLeads = 0;
+        let totalCases = 0;
         
         relevantCampaigns.forEach(campaign => {
           campaign.statsHistory.forEach(entry => {
             if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
               totalRevenue += entry.revenue || 0;
               totalCost += entry.adSpend || 0;
+              totalLeads += entry.leads || 0;
+              totalCases += entry.cases || 0;
             }
           });
         });
         
         const profit = totalRevenue - totalCost;
+        const roas = totalCost > 0 ? (totalRevenue / totalCost) * 100 : 0;
+        const earningsPerLead = totalLeads > 0 ? totalRevenue / totalLeads : 0;
+        const partnerProfit = profit / 2;
         
         console.log('Financial data calculated:', {
           revenue: totalRevenue,
           cost: totalCost,
           profit,
+          roas,
+          cases: totalCases,
+          earningsPerLead,
+          partnerProfit,
           dateRange,
           campaignsCount: relevantCampaigns.length
         });
@@ -58,10 +73,15 @@ const DashboardFinancialStats: React.FC = () => {
         setStats({
           revenue: totalRevenue,
           cost: totalCost,
-          profit
+          profit,
+          roas,
+          cases: totalCases,
+          earningsPerLead,
+          partnerProfit
         });
       } catch (error) {
         console.error('Error calculating financial stats:', error);
+        setStats(null);
       } finally {
         setLoading(false);
       }
@@ -82,7 +102,7 @@ const DashboardFinancialStats: React.FC = () => {
         {loading ? (
           <div className="py-8 text-center text-muted-foreground">Loading stats...</div>
         ) : stats ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -136,6 +156,76 @@ const DashboardFinancialStats: React.FC = () => {
                 stats.profit >= 0 ? "text-emerald-900" : "text-red-900"
               )}>
                 {formatCurrency(stats.profit)}
+              </div>
+            </div>
+
+            {/* New Card 4: ROAS */}
+            <div 
+              className={cn(
+                "p-4 rounded-lg shadow-sm",
+                "bg-gradient-to-br from-indigo-50 to-indigo-100",
+                "hover:shadow-md transition-shadow duration-300"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1 text-indigo-700 text-sm">
+                <TrendingUp className="h-4 w-4" />
+                ROAS
+              </div>
+              <div className={cn(
+                "text-2xl font-bold",
+                stats.roas >= 200 ? "text-indigo-900" : 
+                stats.roas >= 100 ? "text-indigo-700" : "text-orange-700"
+              )}>
+                {formatPercent(stats.roas)}
+              </div>
+            </div>
+
+            {/* New Card 5: Cases & EPL */}
+            <div 
+              className={cn(
+                "p-4 rounded-lg shadow-sm",
+                "bg-gradient-to-br from-blue-50 to-blue-100",
+                "hover:shadow-md transition-shadow duration-300"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1 text-blue-700 text-sm">
+                <AlertCircle className="h-4 w-4" />
+                Cases & EPL
+              </div>
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-700">Cases:</span>
+                  <span className="text-lg font-bold text-blue-900">{stats.cases}</span>
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-sm text-blue-700">EPL:</span>
+                  <span className="text-lg font-bold text-blue-900">{formatCurrency(stats.earningsPerLead)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* New Card 6: Partner Profit */}
+            <div 
+              className={cn(
+                "p-4 rounded-lg shadow-sm",
+                stats.partnerProfit >= 0 
+                  ? "bg-gradient-to-br from-green-50 to-green-100" 
+                  : "bg-gradient-to-br from-red-50 to-red-100",
+                "hover:shadow-md transition-shadow duration-300"
+              )}
+            >
+              <div className={cn(
+                "flex items-center gap-2 mb-1 text-sm",
+                stats.partnerProfit >= 0 ? "text-green-700" : "text-red-700"
+              )}>
+                <DollarSign className="h-4 w-4" />
+                Partner Profit
+              </div>
+              <div className={cn(
+                "text-2xl font-bold",
+                stats.partnerProfit >= 0 ? "text-green-900" : "text-red-900"
+              )}>
+                {formatCurrency(stats.partnerProfit)}
               </div>
             </div>
           </div>
