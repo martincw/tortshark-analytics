@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { CaseBuyer } from "@/types/campaign";
+import { CaseBuyer } from "@/types/buyer";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
   Dialog,
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building, Globe, Mail, User, PencilLine } from "lucide-react";
+import { Building, Globe, Mail, User, PencilLine, LinkIcon } from "lucide-react";
 
 interface BuyerEditDialogProps {
   buyer: CaseBuyer;
@@ -27,6 +27,7 @@ export function BuyerEditDialog({ buyer, isOpen, onClose }: BuyerEditDialogProps
   
   const [name, setName] = useState(buyer.name);
   const [url, setUrl] = useState(buyer.url || "");
+  const [url2, setUrl2] = useState(buyer.url2 || "");
   const [contactName, setContactName] = useState(buyer.contact_name || "");
   const [email, setEmail] = useState(buyer.email || "");
   const [platform, setPlatform] = useState(buyer.platform || "");
@@ -39,6 +40,7 @@ export function BuyerEditDialog({ buyer, isOpen, onClose }: BuyerEditDialogProps
     // Reset form if buyer changes
     setName(buyer.name);
     setUrl(buyer.url || "");
+    setUrl2(buyer.url2 || "");
     setContactName(buyer.contact_name || "");
     setEmail(buyer.email || "");
     setPlatform(buyer.platform || "");
@@ -56,6 +58,7 @@ export function BuyerEditDialog({ buyer, isOpen, onClose }: BuyerEditDialogProps
     await updateBuyer(buyer.id, {
       name,
       url,
+      url2,
       contact_name: contactName,
       email,
       platform,
@@ -106,6 +109,19 @@ export function BuyerEditDialog({ buyer, isOpen, onClose }: BuyerEditDialogProps
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-url2" className="flex items-center gap-2">
+                <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                Secondary URL 
+              </Label>
+              <Input
+                id="edit-url2"
+                value={url2}
+                onChange={(e) => setUrl2(e.target.value)}
+                placeholder="https://example.com/landing"
               />
             </div>
             
