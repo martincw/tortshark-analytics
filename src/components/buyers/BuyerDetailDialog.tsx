@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/buyer";
 import { useBuyers } from "@/hooks/useBuyers";
@@ -12,13 +13,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { 
   Building, Globe, Mail, User, Phone, 
   BadgeDollarSign, FileEdit, Calendar, 
   Check, X, Plus, Trash2, LinkIcon, 
-  ExternalLink, Shield, Tag, Key, FileText
+  ExternalLink, Shield, Tag, Key, FileText,
+  ToggleLeft, ToggleRight
 } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,7 +47,7 @@ interface BuyerDetailDialogProps {
 }
 
 export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialogProps) {
-  const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage } = useBuyers();
+  const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage, toggleTortCoverageActive } = useBuyers();
   const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,6 +193,21 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
     } catch (error) {
       console.error("Error updating coverage:", error);
       toast.error("Failed to update coverage");
+    }
+  };
+
+  // Add this new function to handle toggling active state
+  const handleToggleActive = async (coverageId: string, currentActive: boolean) => {
+    try {
+      await toggleTortCoverageActive(coverageId, !currentActive);
+      // Update local state to reflect the change
+      setCoverages(coverages.map(c => 
+        c.id === coverageId ? { ...c, is_active: !currentActive } : c
+      ));
+      toast.success(`Tort coverage ${!currentActive ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      console.error("Error toggling coverage status:", error);
+      toast.error("Failed to update coverage status");
     }
   };
 
@@ -532,12 +550,15 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
             ) : (
               <div className="space-y-3">
                 {coverages.map((coverage) => (
-                  <Card key={coverage.id} className="overflow-hidden">
+                  <Card 
+                    key={coverage.id} 
+                    className={`overflow-hidden ${!coverage.is_active ? 'border-muted bg-muted/20' : ''}`}
+                  >
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium">
+                            <h3 className={`font-semibold truncate max-w-[180px] ${!coverage.is_active ? 'text-muted-foreground' : ''}`}>
                               {coverage.campaigns?.name || "Unknown Campaign"}
                             </h3>
                             {coverage.label && (
@@ -545,6 +566,20 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                                 {coverage.label}
                               </Badge>
                             )}
+                            <div className="flex items-center gap-1 ml-auto">
+                              <Switch
+                                checked={coverage.is_active !== undefined ? coverage.is_active : true}
+                                onCheckedChange={() => handleToggleActive(coverage.id, coverage.is_active !== undefined ? coverage.is_active : true)}
+                                className="data-[state=checked]:bg-green-500"
+                              />
+                              <span className="text-xs text-muted-foreground flex items-center">
+                                {coverage.is_active !== undefined && coverage.is_active ? 
+                                  <ToggleRight className="h-3.5 w-3.5 text-green-500 mr-1" /> : 
+                                  <ToggleLeft className="h-3.5 w-3.5 mr-1" />
+                                }
+                                {coverage.is_active !== undefined && coverage.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
                           </div>
                           
                           {editingCoverageId === coverage.id ? (
@@ -586,7 +621,7 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 ml-2">
                           {editingCoverageId !== coverage.id && (
                             <Button
                               variant="ghost"
