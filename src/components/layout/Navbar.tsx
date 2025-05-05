@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { href: "/buyers", label: "Buyers" },
   { href: "https://app.relayfi.com/login", label: "Banking", icon: <WalletCards className="h-4 w-4 mr-2" />, external: true },
   { href: "https://app.leadprosper.io/dashboard", label: "LeadProsper", icon: <ExternalLink className="h-4 w-4 mr-2" />, external: true },
+  { href: "https://robby2dff4b-app.clickfunnels.com/funnels", label: "Clickfunnels", icon: <ExternalLink className="h-4 w-4 mr-2" />, external: true },
 ];
 
 const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
