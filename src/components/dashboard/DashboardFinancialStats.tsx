@@ -14,7 +14,10 @@ interface FinancialStats {
   profit: number;
   roas: number;
   cases: number;
+  leads: number;
   earningsPerLead: number;
+  costPerLead: number;
+  profitPerLead: number;
   partnerProfit: number;
 }
 
@@ -56,6 +59,8 @@ const DashboardFinancialStats: React.FC = () => {
         const profit = totalRevenue - totalCost;
         const roas = totalCost > 0 ? (totalRevenue / totalCost) * 100 : 0;
         const earningsPerLead = totalLeads > 0 ? totalRevenue / totalLeads : 0;
+        const costPerLead = totalLeads > 0 ? totalCost / totalLeads : 0;
+        const profitPerLead = totalLeads > 0 ? profit / totalLeads : 0;
         const partnerProfit = profit / 2;
         
         console.log('Financial data calculated:', {
@@ -63,8 +68,11 @@ const DashboardFinancialStats: React.FC = () => {
           cost: totalCost,
           profit,
           roas,
+          leads: totalLeads,
           cases: totalCases,
           earningsPerLead,
+          costPerLead,
+          profitPerLead,
           partnerProfit,
           dateRange,
           campaignsCount: relevantCampaigns.length
@@ -75,8 +83,11 @@ const DashboardFinancialStats: React.FC = () => {
           cost: totalCost,
           profit,
           roas,
+          leads: totalLeads,
           cases: totalCases,
           earningsPerLead,
+          costPerLead,
+          profitPerLead,
           partnerProfit
         });
       } catch (error) {
@@ -180,7 +191,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* Cases & EPL Card */}
+            {/* Lead Metrics Card - Updated with more metrics */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -189,17 +200,29 @@ const DashboardFinancialStats: React.FC = () => {
               )}
             >
               <div className="flex items-center gap-2 mb-1 text-blue-700 text-sm">
-                <AlertCircle className="h-4 w-4" />
-                Cases & EPL
+                <Users className="h-4 w-4" />
+                Lead Metrics
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-700">Leads:</span>
+                  <span className="text-sm font-bold text-blue-900">{stats.leads}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-700">CPL:</span>
+                  <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.costPerLead)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-700">EPL:</span>
+                  <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.earningsPerLead)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-700">PPL:</span>
+                  <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.profitPerLead)}</span>
+                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-blue-700">Cases:</span>
-                  <span className="text-lg font-bold text-blue-900">{stats.cases}</span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-sm text-blue-700">EPL:</span>
-                  <span className="text-lg font-bold text-blue-900">{formatCurrency(stats.earningsPerLead)}</span>
+                  <span className="text-sm font-bold text-blue-900">{stats.cases}</span>
                 </div>
               </div>
             </div>
