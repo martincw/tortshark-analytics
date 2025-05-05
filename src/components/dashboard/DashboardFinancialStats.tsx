@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, Wallet, Users } from "lucide-react";
+import { DollarSign, TrendingUp, Wallet, Users, BriefcaseBusiness } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
@@ -145,52 +144,84 @@ const DashboardFinancialStats: React.FC = () => {
         ) : stats ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* First row: Revenue, Cost, Profit */}
-            <StatCard
-              title="Revenue"
-              value={formatCurrency(stats.revenue)}
-              icon={<Wallet className="h-4 w-4" />}
-              color="revenue"
-            />
+            <div className="metric-card-revenue p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+                <Wallet className="h-4 w-4 text-metric-revenue" />
+                Revenue
+              </div>
+              <div className="text-xl font-bold text-metric-revenue-dark">
+                {formatCurrency(stats.revenue)}
+              </div>
+            </div>
             
-            <StatCard
-              title="Cost"
-              value={formatCurrency(stats.cost)}
-              icon={<DollarSign className="h-4 w-4" />}
-              color="cost"
-            />
+            <div className="metric-card-cost p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+                <DollarSign className="h-4 w-4 text-metric-cost" />
+                Cost
+              </div>
+              <div className="text-xl font-bold text-metric-cost-dark">
+                {formatCurrency(stats.cost)}
+              </div>
+            </div>
             
-            <StatCard
-              title="Profit"
-              value={formatCurrency(stats.profit)}
-              icon={<TrendingUp className="h-4 w-4" />}
-              color={stats.profit >= 0 ? "profit" : "cost"}
-            />
+            <div className={`p-4 rounded-lg border shadow-sm ${
+              stats.profit >= 0 ? "metric-card-profit" : "metric-card-cost"
+            }`}>
+              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+                <TrendingUp className="h-4 w-4 text-foreground" />
+                Profit
+              </div>
+              <div className={`text-xl font-bold ${
+                stats.profit >= 0 ? "text-metric-profit-dark" : "text-metric-cost"
+              }`}>
+                {formatCurrency(stats.profit)}
+              </div>
+            </div>
 
             {/* Second row: Leads, Cases, Partner Profit */}
-            <StatCard
-              title="Leads"
-              value={stats.leads.toString()}
-              icon={<Users className="h-4 w-4" />}
-              color="volume"
-              description="Total leads generated in period"
-            />
+            <div className="metric-card-volume p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+                <Users className="h-4 w-4 text-metric-volume" />
+                Leads
+              </div>
+              <div className="text-xl font-bold text-metric-volume-dark">
+                {stats.leads.toString()}
+              </div>
+              <div className="text-xs mt-1 text-muted-foreground">
+                Total leads generated in period
+              </div>
+            </div>
             
-            <StatCard
-              title="Cases"
-              value={stats.cases.toString()}
-              icon={<Users className="h-4 w-4" />}
-              color="performance"
-              description="Converted cases in period"
-            />
+            <div className="metric-card-volume p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+                <BriefcaseBusiness className="h-4 w-4 text-metric-volume-dark" />
+                Cases
+              </div>
+              <div className="text-xl font-bold text-metric-volume-dark">
+                {stats.cases.toString()}
+              </div>
+              <div className="text-xs mt-1 text-muted-foreground">
+                Converted cases in period
+              </div>
+            </div>
 
             {/* Partner Profit Card with daily and hourly metrics */}
-            <StatCard
-              title="Partner Profit"
-              value={formatCurrency(stats.partnerProfit)}
-              icon={<DollarSign className="h-4 w-4" />}
-              color={stats.partnerProfit >= 0 ? "profit" : "cost"}
-              description={`Daily: ${formatCurrency(stats.dailyProfit)} | Hourly: ${formatCurrency(stats.hourlyOpportunityCost)}`}
-            />
+            <div className={`p-4 rounded-lg border shadow-sm ${
+              stats.partnerProfit >= 0 ? "metric-card-profit" : "metric-card-cost"
+            }`}>
+              <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+                <DollarSign className="h-4 w-4 text-foreground" />
+                Partner Profit
+              </div>
+              <div className={`text-xl font-bold ${
+                stats.partnerProfit >= 0 ? "text-metric-profit-dark" : "text-metric-cost"
+              }`}>
+                {formatCurrency(stats.partnerProfit)}
+              </div>
+              <div className="text-xs mt-1 text-muted-foreground">
+                Daily: {formatCurrency(stats.dailyProfit)} | Hourly: {formatCurrency(stats.hourlyOpportunityCost)}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="py-8 text-center text-muted-foreground">
