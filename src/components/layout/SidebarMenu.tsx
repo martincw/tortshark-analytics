@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Table, LinkIcon, FileText } from "lucide-react";
+import { ExternalLink, Table, LinkIcon, FileText, Users } from "lucide-react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
 
@@ -96,6 +96,16 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) 
       >
         <FileText className="h-4 w-4 mr-2" />
         Invoicing
+      </a>
+
+      <a 
+        href="https://app.diagrams.net/#G1yXi1A4e7ahlSvTaP58a0d_p_NV3_dgCn#%7B%22pageId%22%3A%22prtHgNgQTEPvFCAcTncT%22%7D" 
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-4 py-2 rounded-md hover:bg-secondary flex items-center"
+      >
+        <Users className="h-4 w-4 mr-2" />
+        Org Chart
       </a>
     </div>
   );
