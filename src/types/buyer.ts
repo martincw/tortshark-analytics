@@ -38,6 +38,7 @@ export interface BuyerTortCoverage {
   spec_sheet_url?: string;
   notes?: string;
   label?: string;
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
   campaigns?: CampaignBasic;

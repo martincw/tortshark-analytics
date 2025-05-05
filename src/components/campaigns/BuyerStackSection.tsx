@@ -37,12 +37,14 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
-    if (campaign.id) {
+    if (campaign?.id) {
       loadBuyerStack();
     }
-  }, [campaign.id]);
+  }, [campaign?.id]);
 
   const loadBuyerStack = async () => {
+    if (!campaign?.id) return; // Add safety check
+    
     setLoading(true);
     try {
       const stack = await getCampaignBuyerStack(campaign.id);
@@ -57,6 +59,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
       setStackItems(formattedStack);
     } catch (error) {
       console.error("Error loading buyer stack:", error);
+      toast.error("Failed to load buyer stack");
     } finally {
       setLoading(false);
     }
@@ -94,13 +97,16 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
 
     // Persist the changes
     try {
-      await updateBuyerStackOrder(
+      const updateResult = await updateBuyerStackOrder(
         updatedItems.map(item => ({
           id: item.id,
           stack_order: item.stack_order
         }))
       );
-      toast.success("Stack order updated successfully");
+      
+      if (updateResult) {
+        toast.success("Stack order updated successfully");
+      }
     } catch (error) {
       console.error("Error updating stack order:", error);
       toast.error("Failed to update stack order");
@@ -205,10 +211,10 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={() => {
                                 handleRemoveFromStack(item.id);
                               }}
+                              type="button"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -219,7 +225,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                             <div className="flex flex-col text-sm">
                               <div className="flex items-center gap-1 text-muted-foreground mb-1">
                                 <BadgeDollarSign className="h-3.5 w-3.5" />
-                                <span>{formatCurrency(item.payout_amount)} per case</span>
+                                <span>{formatCurrency(item.payout_amount || 0)} per case</span>
                               </div>
                               
                               {item.buyers?.email && (
@@ -235,10 +241,10 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                                 variant="outline" 
                                 size="sm"
                                 className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                                onClick={() => {
                                   openWebsite(item.buyers?.url);
                                 }}
+                                type="button"
                               >
                                 <Globe className="h-3 w-3 mr-1" />
                                 Website

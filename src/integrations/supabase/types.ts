@@ -58,6 +58,7 @@ export type Database = {
           id: string
           inbound_did: string | null
           intake_center: string | null
+          is_active: boolean
           label: string | null
           notes: string | null
           payout_amount: number
@@ -74,6 +75,7 @@ export type Database = {
           id?: string
           inbound_did?: string | null
           intake_center?: string | null
+          is_active?: boolean
           label?: string | null
           notes?: string | null
           payout_amount?: number
@@ -90,6 +92,7 @@ export type Database = {
           id?: string
           inbound_did?: string | null
           intake_center?: string | null
+          is_active?: boolean
           label?: string | null
           notes?: string | null
           payout_amount?: number

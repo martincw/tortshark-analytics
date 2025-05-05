@@ -170,7 +170,8 @@ export const useBuyers = () => {
           label,
           inbound_did: inboundDid,
           transfer_did: transferDid,
-          intake_center: intakeCenter
+          intake_center: intakeCenter,
+          is_active: true
         }])
         .select()
         .single();
@@ -198,6 +199,7 @@ export const useBuyers = () => {
       inbound_did?: string;
       transfer_did?: string;
       intake_center?: string;
+      is_active?: boolean;
     } = {}
   ) => {
     try {
@@ -217,6 +219,27 @@ export const useBuyers = () => {
     } catch (error) {
       console.error('Error updating tort coverage:', error);
       toast.error('Failed to update tort coverage');
+      return null;
+    }
+  };
+
+  // Toggle active status for a tort coverage
+  const toggleTortCoverageActive = async (coverageId: string, isActive: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_tort_coverage')
+        .update({ is_active: isActive })
+        .eq('id', coverageId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      toast.success(`Tort coverage ${isActive ? 'activated' : 'deactivated'} successfully`);
+      return data;
+    } catch (error) {
+      console.error('Error toggling tort coverage active status:', error);
+      toast.error('Failed to update tort coverage status');
       return null;
     }
   };
@@ -343,6 +366,7 @@ export const useBuyers = () => {
     addBuyerTortCoverage,
     removeBuyerTortCoverage,
     updateBuyerTortCoverage,
+    toggleTortCoverageActive,
     getCampaignBuyerStack,
     updateBuyerStackOrder,
     addBuyerToStack,

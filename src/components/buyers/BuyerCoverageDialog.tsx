@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { StatCard } from "@/components/ui/stat-card";
 import { 
   CircleDollarSign, 
@@ -31,7 +31,9 @@ import {
   Key,
   FileText,
   Tag,
-  Building
+  Building,
+  ToggleLeft,
+  ToggleRight
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/buyer";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
@@ -46,7 +48,7 @@ interface BuyerCoverageDialogProps {
 }
 
 export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageDialogProps) {
-  const { buyers, getBuyerTortCoverage, removeBuyerTortCoverage, updateBuyerTortCoverage } = useBuyers();
+  const { buyers, getBuyerTortCoverage, removeBuyerTortCoverage, updateBuyerTortCoverage, toggleTortCoverageActive } = useBuyers();
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -90,6 +92,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
         notes: item.notes || '',
         spec_sheet_url: item.spec_sheet_url || '',
         label: item.label || '',
+        is_active: item.is_active !== undefined ? item.is_active : true,
         // Handle nested campaigns object structure
         campaigns: item.campaigns ? {
           id: item.campaigns.id,
@@ -148,6 +151,18 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     } catch (error) {
       console.error("Error updating coverage:", error);
       toast.error("Failed to update coverage");
+    }
+  };
+
+  const handleToggleActive = async (coverageId: string, currentActive: boolean) => {
+    try {
+      await toggleTortCoverageActive(coverageId, !currentActive);
+      setCoverages(coverages.map(c => 
+        c.id === coverageId ? { ...c, is_active: !currentActive } : c
+      ));
+    } catch (error) {
+      console.error("Error toggling coverage status:", error);
+      toast.error("Failed to update coverage status");
     }
   };
 
@@ -238,12 +253,15 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
             ) : (
               <div className="space-y-3">
                 {coverages.map((coverage) => (
-                  <Card key={coverage.id} className="overflow-hidden">
+                  <Card 
+                    key={coverage.id} 
+                    className={`overflow-hidden ${!coverage.is_active ? 'border-muted bg-muted/20' : ''}`}
+                  >
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium">
+                            <h3 className={`font-medium ${!coverage.is_active ? 'text-muted-foreground' : ''}`}>
                               {coverage.campaigns?.name || "Unknown Campaign"}
                             </h3>
                             {coverage.label && (
@@ -251,6 +269,16 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                                 {coverage.label}
                               </Badge>
                             )}
+                            <div className="flex items-center gap-1">
+                              <Switch
+                                checked={coverage.is_active}
+                                onCheckedChange={() => handleToggleActive(coverage.id, coverage.is_active)}
+                                className="data-[state=checked]:bg-green-500"
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {coverage.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
                           </div>
                           
                           {editingCoverageId === coverage.id ? (
