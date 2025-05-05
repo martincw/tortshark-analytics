@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -5,11 +6,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { 
   Globe, Mail, MoreHorizontal, 
   BadgeDollarSign, ExternalLink, 
   Building2, MessageSquare, Phone, 
-  AlertCircle
+  AlertCircle, ToggleLeft, ToggleRight
 } from "lucide-react";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/buyer";
 import { formatCurrency } from "@/utils/campaignUtils";
@@ -31,6 +33,7 @@ interface BuyerCardProps {
 export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
   const [tortCoverage, setTortCoverage] = useState<BuyerTortCoverage[]>([]);
   const [loadingCoverage, setLoadingCoverage] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     // Always fetch tort coverage on initial load
@@ -72,6 +75,39 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
     } finally {
       setLoadingCoverage(false);
     }
+  };
+
+  const toggleTortCoverageActive = async (coverageId: string, isActive: boolean) => {
+    setUpdatingId(coverageId);
+    try {
+      const { error } = await supabase
+        .from('buyer_tort_coverage')
+        .update({ is_active: isActive })
+        .eq('id', coverageId);
+
+      if (error) throw error;
+      
+      // Update local state
+      setTortCoverage(prevCoverage => 
+        prevCoverage.map(coverage => 
+          coverage.id === coverageId 
+            ? { ...coverage, is_active: isActive } 
+            : coverage
+        )
+      );
+      
+      toast.success(`Tort coverage ${isActive ? 'activated' : 'deactivated'}`);
+    } catch (error) {
+      console.error('Error toggling tort coverage active status:', error);
+      toast.error('Failed to update tort coverage status');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleToggleActive = (e: React.MouseEvent, coverageId: string, currentStatus: boolean) => {
+    e.stopPropagation();
+    toggleTortCoverageActive(coverageId, !currentStatus);
   };
 
   const openWebsite = (e: React.MouseEvent) => {
@@ -178,11 +214,32 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
             ) : tortCoverage.length > 0 ? (
               <div className="space-y-2">
                 {tortCoverage.slice(0, 3).map((coverage) => (
-                  <div key={coverage.id} className="flex items-center justify-between text-sm border-b pb-2">
-                    <span className="truncate max-w-[180px]">{coverage.campaigns?.name}</span>
-                    <div className="flex items-center">
-                      <BadgeDollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                      <span>{formatCurrency(coverage.payout_amount)}</span>
+                  <div 
+                    key={coverage.id} 
+                    className={`flex items-center justify-between text-sm border-b pb-2 ${!coverage.is_active ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center space-x-1 truncate max-w-[120px]">
+                      {coverage.is_active ? (
+                        <ToggleRight className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                      ) : (
+                        <ToggleLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate">{coverage.campaigns?.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center text-xs">
+                        <BadgeDollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                        <span>{formatCurrency(coverage.payout_amount)}</span>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()} className="relative z-10">
+                        <Switch
+                          size="sm"
+                          checked={coverage.is_active}
+                          onClick={(e) => handleToggleActive(e, coverage.id, coverage.is_active)}
+                          className={`scale-75 origin-right ${updatingId === coverage.id ? 'opacity-50' : ''}`}
+                          disabled={updatingId === coverage.id}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
