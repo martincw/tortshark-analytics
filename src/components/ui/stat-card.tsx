@@ -14,6 +14,7 @@ interface StatCardProps {
   valueClassName?: string;
   description?: string;
   isHighlighted?: boolean;
+  color?: "default" | "cost" | "volume" | "revenue" | "profit" | "ratio" | "rate" | "performance";
 }
 
 const statCardVariants = cva(
@@ -23,13 +24,46 @@ const statCardVariants = cva(
       highlighted: {
         true: "border-2 shadow-lg hover:shadow-xl",
         false: "hover:border-primary/50 hover:shadow-md",
+      },
+      color: {
+        default: "",
+        cost: "metric-card-cost",
+        volume: "metric-card-volume",
+        revenue: "metric-card-revenue",
+        profit: "metric-card-profit",
+        ratio: "metric-card-ratio",
+        rate: "metric-card-rate",
+        performance: "metric-card-performance"
       }
     },
     defaultVariants: {
       highlighted: false,
+      color: "default"
     },
   }
 );
+
+const valueColorMap = {
+  default: "",
+  cost: "text-metric-cost-dark",
+  volume: "text-metric-volume-dark",
+  revenue: "text-metric-revenue-dark",
+  profit: "text-metric-profit-dark",
+  ratio: "text-metric-ratio-dark",
+  rate: "text-metric-rate-dark",
+  performance: "text-metric-performance-dark"
+};
+
+const iconColorMap = {
+  default: "text-primary",
+  cost: "text-metric-cost",
+  volume: "text-metric-volume",
+  revenue: "text-metric-revenue",
+  profit: "text-metric-profit",
+  ratio: "text-metric-ratio",
+  rate: "text-metric-rate",
+  performance: "text-metric-performance"
+};
 
 export function StatCard({
   title,
@@ -41,17 +75,34 @@ export function StatCard({
   valueClassName,
   description,
   isHighlighted = false,
+  color = "default",
 }: StatCardProps) {
+  const colorClass = color as keyof typeof valueColorMap;
+  
   return (
-    <Card className={cn(statCardVariants({ highlighted: isHighlighted }), className)}>
+    <Card className={cn(
+      statCardVariants({ 
+        highlighted: isHighlighted,
+        color: isHighlighted ? "default" : color
+      }), 
+      className
+    )}>
       <CardContent className={cn("p-6 relative", isHighlighted && "bg-secondary/10")}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              {icon && <span className="text-primary">{icon}</span>}
+              {icon && <span className={cn(
+                iconColorMap[colorClass],
+                isHighlighted && "text-primary"
+              )}>{icon}</span>}
               {title}
             </p>
-            <h3 className={cn("text-2xl font-bold mt-1.5", isHighlighted && "text-2xl md:text-3xl", valueClassName)}>
+            <h3 className={cn(
+              "text-2xl font-bold mt-1.5", 
+              isHighlighted && "text-2xl md:text-3xl", 
+              !isHighlighted && valueColorMap[colorClass],
+              valueClassName
+            )}>
               {value}
             </h3>
             {description && (
@@ -61,8 +112,8 @@ export function StatCard({
               <p
                 className={cn(
                   "text-xs font-medium flex items-center mt-2 gap-1",
-                  trend === "up" && "text-success-DEFAULT",
-                  trend === "down" && "text-error-DEFAULT",
+                  trend === "up" && "text-metric-revenue",
+                  trend === "down" && "text-metric-cost",
                   trend === "neutral" && "text-muted-foreground"
                 )}
               >
@@ -80,7 +131,7 @@ export function StatCard({
               </p>
             )}
           </div>
-          {icon && !isHighlighted && <div className="text-primary opacity-90">{icon}</div>}
+          {icon && !isHighlighted && <div className={iconColorMap[colorClass]}>{icon}</div>}
         </div>
       </CardContent>
     </Card>

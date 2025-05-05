@@ -74,6 +74,58 @@ export default {
 				error: {
 					DEFAULT: '#EF4444',
 					muted: '#FEE2E2'
+				},
+				// New metric-specific colors
+				metric: {
+					// Cost metrics - red theme
+					cost: {
+						DEFAULT: '#EF4444',
+						light: '#FEE2E2',
+						dark: '#B91C1C',
+						muted: 'rgba(239, 68, 68, 0.1)'
+					},
+					// Volume metrics - blue theme
+					volume: {
+						DEFAULT: '#3B82F6',
+						light: '#DBEAFE',
+						dark: '#1D4ED8',
+						muted: 'rgba(59, 130, 246, 0.1)'
+					},
+					// Revenue metrics - green theme
+					revenue: {
+						DEFAULT: '#10B981',
+						light: '#D1FAE5',
+						dark: '#047857',
+						muted: 'rgba(16, 185, 129, 0.1)'
+					},
+					// Profit metrics - teal theme
+					profit: {
+						DEFAULT: '#14B8A6',
+						light: '#CCFBF1',
+						dark: '#0F766E',
+						muted: 'rgba(20, 184, 166, 0.1)'
+					},
+					// Ratio metrics - orange theme (ROAS, etc)
+					ratio: {
+						DEFAULT: '#F97316',
+						light: '#FFEDD5',
+						dark: '#C2410C',
+						muted: 'rgba(249, 115, 22, 0.1)'
+					},
+					// Rate metrics - purple theme (CVR, etc)
+					rate: {
+						DEFAULT: '#8B5CF6',
+						light: '#EDE9FE',
+						dark: '#6D28D9',
+						muted: 'rgba(139, 92, 246, 0.1)'
+					},
+					// Performance metrics - amber theme
+					performance: {
+						DEFAULT: '#F59E0B',
+						light: '#FEF3C7',
+						dark: '#B45309',
+						muted: 'rgba(245, 158, 11, 0.1)'
+					}
 				}
 			},
 			borderRadius: {

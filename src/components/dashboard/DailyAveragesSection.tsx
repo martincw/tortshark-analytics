@@ -1,7 +1,6 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, DollarSign, TrendingUp, Info } from "lucide-react";
+import { BarChart, DollarSign, TrendingUp, Info, Users, BriefcaseBusiness, Percent, Calculator } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { differenceInDays, parseISO, format } from "date-fns";
@@ -127,16 +126,16 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
 
   // Helper function to determine ROAS color class
   const getRoasColorClass = (roas: number) => {
-    if (roas >= 300) return "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20 text-success-DEFAULT";
-    if (roas >= 200) return "from-warning-DEFAULT/5 to-warning-DEFAULT/15 border-warning-DEFAULT/20 text-warning-DEFAULT";
-    return "from-error-DEFAULT/5 to-error-DEFAULT/15 border-error-DEFAULT/20 text-error-DEFAULT";
+    if (roas >= 300) return "text-metric-revenue-dark";
+    if (roas >= 200) return "text-metric-ratio";
+    return "text-metric-cost";
   };
 
   // Helper function to determine CVR color class
   const getCvrColorClass = (cvr: number) => {
-    if (cvr >= 30) return "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20 text-success-DEFAULT";
-    if (cvr >= 15) return "from-warning-DEFAULT/5 to-warning-DEFAULT/15 border-warning-DEFAULT/20 text-warning-DEFAULT";
-    return "from-error-DEFAULT/5 to-error-DEFAULT/15 border-error-DEFAULT/20 text-error-DEFAULT";
+    if (cvr >= 30) return "text-metric-revenue-dark";
+    if (cvr >= 15) return "text-metric-ratio";
+    return "text-metric-cost";
   };
 
   return (
@@ -160,117 +159,133 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Cost Metrics - Red gradient theme */}
-          <div className="bg-gradient-to-br from-error-DEFAULT/5 to-error-DEFAULT/15 p-4 rounded-lg border border-error-DEFAULT/20 shadow-sm">
+          {/* Cost Metrics - Red */}
+          <div className="metric-card-cost p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4 text-error-DEFAULT" />
+              <DollarSign className="h-4 w-4 text-metric-cost" />
               Daily Ad Spend
             </div>
-            <div className="text-xl font-bold text-error-DEFAULT">
+            <div className="text-xl font-bold text-metric-cost">
               {formatCurrency(averages.adSpend)}
             </div>
           </div>
           
-          {/* Volume Metrics - Purple/blue gradient theme */}
-          <div className="bg-gradient-to-br from-primary/5 to-primary/15 p-4 rounded-lg border border-primary/20 shadow-sm">
+          {/* Volume Metrics - Blue */}
+          <div className="metric-card-volume p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <BarChart className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-metric-volume" />
               Daily Leads
             </div>
-            <div className="text-xl font-bold text-primary">
+            <div className="text-xl font-bold text-metric-volume">
               {averages.leads.toFixed(1)}
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-primary/5 to-primary/15 p-4 rounded-lg border border-primary/20 shadow-sm">
+          <div className="metric-card-volume p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <BarChart className="h-4 w-4 text-primary" />
+              <BriefcaseBusiness className="h-4 w-4 text-metric-volume-dark" />
               Daily Cases
             </div>
-            <div className="text-xl font-bold text-primary">
+            <div className="text-xl font-bold text-metric-volume-dark">
               {averages.cases.toFixed(1)}
             </div>
           </div>
           
-          {/* Performance Metrics - Conditional styling based on values */}
-          <div className="bg-gradient-to-br from-success-DEFAULT/5 to-success-DEFAULT/15 p-4 rounded-lg border border-success-DEFAULT/20 shadow-sm">
+          {/* Revenue Metrics - Green */}
+          <div className="metric-card-revenue p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4 text-success-DEFAULT" />
+              <DollarSign className="h-4 w-4 text-metric-revenue" />
               Daily Revenue
             </div>
-            <div className="text-xl font-bold text-success-DEFAULT">
+            <div className="text-xl font-bold text-metric-revenue">
               {formatCurrency(averages.revenue)}
             </div>
           </div>
           
-          <div className={`bg-gradient-to-br ${averages.profit >= 0 
-            ? "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20" 
-            : "from-error-DEFAULT/5 to-error-DEFAULT/15 border-error-DEFAULT/20"} 
-            p-4 rounded-lg border shadow-sm`}>
+          {/* Profit Metrics - Teal */}
+          <div className={`p-4 rounded-lg border shadow-sm ${
+            averages.profit >= 0 ? "metric-card-profit" : "metric-card-cost"
+          }`}>
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <DollarSign className="h-4 w-4 text-foreground" />
               Daily Profit
             </div>
-            <div className={`text-xl font-bold ${averages.profit >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
+            <div className={`text-xl font-bold ${
+              averages.profit >= 0 ? "text-metric-profit-dark" : "text-metric-cost"
+            }`}>
               {formatCurrency(averages.profit)}
             </div>
           </div>
           
-          <div className={`bg-gradient-to-br ${getRoasColorClass(averages.roas)} 
-            p-4 rounded-lg border shadow-sm`}>
+          {/* ROAS - Ratio Metrics - Orange with conditional styling */}
+          <div className="metric-card-ratio p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <TrendingUp className="h-4 w-4" />
+              <Percent className="h-4 w-4 text-metric-ratio" />
               Daily ROAS
             </div>
-            <div className="text-xl font-bold">
+            <div className={`text-xl font-bold ${getRoasColorClass(averages.roas)}`}>
               {(averages.roas || 0).toFixed(1)}%
             </div>
             {averages.roas >= 300 && (
-              <div className="text-xs mt-1 text-success-DEFAULT">Excellent</div>
+              <div className="text-xs mt-1 text-metric-revenue">Excellent</div>
             )}
             {averages.roas >= 200 && averages.roas < 300 && (
-              <div className="text-xs mt-1 text-warning-DEFAULT">Good</div>
+              <div className="text-xs mt-1 text-metric-ratio">Good</div>
+            )}
+            {averages.roas < 200 && (
+              <div className="text-xs mt-1 text-metric-cost">Low</div>
             )}
           </div>
           
-          {/* New row for CVR, CPL, and EPL with updated styling */}
-          <div className={`bg-gradient-to-br ${getCvrColorClass(averages.conversionRate)} 
-            p-4 rounded-lg border shadow-sm`}>
+          {/* CVR - Rate Metrics - Purple with conditional styling */}
+          <div className="metric-card-rate p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <TrendingUp className="h-4 w-4" />
+              <Calculator className="h-4 w-4 text-metric-rate" />
               CVR
             </div>
-            <div className="text-xl font-bold">
+            <div className={`text-xl font-bold ${getCvrColorClass(averages.conversionRate)}`}>
               {(averages.conversionRate || 0).toFixed(1)}%
             </div>
             {averages.conversionRate >= 30 && (
-              <div className="text-xs mt-1 text-success-DEFAULT">High</div>
+              <div className="text-xs mt-1 text-metric-revenue">High</div>
+            )}
+            {averages.conversionRate >= 15 && averages.conversionRate < 30 && (
+              <div className="text-xs mt-1 text-metric-ratio">Medium</div>
+            )}
+            {averages.conversionRate < 15 && (
+              <div className="text-xs mt-1 text-metric-cost">Low</div>
             )}
           </div>
           
-          <div className="bg-gradient-to-br from-error-DEFAULT/5 to-error-DEFAULT/15 p-4 rounded-lg border border-error-DEFAULT/20 shadow-sm">
+          {/* CPL - Cost Metric (darker red) */}
+          <div className="metric-card-cost p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4 text-error-DEFAULT" />
+              <DollarSign className="h-4 w-4 text-metric-cost-dark" />
               CPL
             </div>
-            <div className="text-xl font-bold text-error-DEFAULT">
+            <div className="text-xl font-bold text-metric-cost-dark">
               {formatCurrency(averages.costPerLead)}
             </div>
           </div>
           
-          <div className={`bg-gradient-to-br ${averages.earningsPerLead > averages.costPerLead 
-            ? "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20" 
-            : "from-warning-DEFAULT/5 to-warning-DEFAULT/15 border-warning-DEFAULT/20"} 
-            p-4 rounded-lg border shadow-sm`}>
+          {/* EPL - Performance Metric (amber) */}
+          <div className="metric-card-performance p-4 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4 text-foreground" />
+              <DollarSign className="h-4 w-4 text-metric-performance" />
               EPL
             </div>
-            <div className={`text-xl font-bold ${averages.earningsPerLead > averages.costPerLead ? "text-success-DEFAULT" : ""}`}>
+            <div className={`text-xl font-bold ${
+              averages.earningsPerLead > averages.costPerLead 
+                ? "text-metric-performance-dark" 
+                : "text-foreground"
+            }`}>
               {formatCurrency(averages.earningsPerLead)}
             </div>
             {averages.earningsPerLead > averages.costPerLead && (
-              <div className="text-xs mt-1 text-success-DEFAULT">Profitable</div>
+              <div className="text-xs mt-1 text-metric-revenue">Profitable</div>
+            )}
+            {averages.earningsPerLead <= averages.costPerLead && (
+              <div className="text-xs mt-1 text-metric-cost">Unprofitable</div>
             )}
           </div>
         </div>

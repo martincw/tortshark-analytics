@@ -94,3 +94,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Add custom utility classes for metric cards */
+@layer components {
+  .metric-card-cost {
+    @apply bg-gradient-to-br from-metric-cost-light/20 to-metric-cost-light/40 border-metric-cost/30;
+  }
+  .metric-card-volume {
+    @apply bg-gradient-to-br from-metric-volume-light/20 to-metric-volume-light/40 border-metric-volume/30;
+  }
+  .metric-card-revenue {
+    @apply bg-gradient-to-br from-metric-revenue-light/20 to-metric-revenue-light/40 border-metric-revenue/30;
+  }
+  .metric-card-profit {
+    @apply bg-gradient-to-br from-metric-profit-light/20 to-metric-profit-light/40 border-metric-profit/30;
+  }
+  .metric-card-ratio {
+    @apply bg-gradient-to-br from-metric-ratio-light/20 to-metric-ratio-light/40 border-metric-ratio/30;
+  }
+  .metric-card-rate {
+    @apply bg-gradient-to-br from-metric-rate-light/20 to-metric-rate-light/40 border-metric-rate/30;
+  }
+  .metric-card-performance {
+    @apply bg-gradient-to-br from-metric-performance-light/20 to-metric-performance-light/40 border-metric-performance/30;
+  }
+}
