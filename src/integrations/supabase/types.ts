@@ -469,6 +469,7 @@ export type Database = {
           platform: string | null
           updated_at: string | null
           url: string | null
+          url2: string | null
           user_id: string
         }
         Insert: {
@@ -482,6 +483,7 @@ export type Database = {
           platform?: string | null
           updated_at?: string | null
           url?: string | null
+          url2?: string | null
           user_id: string
         }
         Update: {
@@ -495,6 +497,7 @@ export type Database = {
           platform?: string | null
           updated_at?: string | null
           url?: string | null
+          url2?: string | null
           user_id?: string
         }
         Relationships: []
