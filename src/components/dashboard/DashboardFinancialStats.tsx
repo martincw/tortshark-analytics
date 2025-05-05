@@ -15,6 +15,7 @@ interface FinancialStats {
   roas: number;
   cases: number;
   leads: number;
+  conversionRate: number;
   earningsPerLead: number;
   costPerLead: number;
   profitPerLead: number;
@@ -58,6 +59,7 @@ const DashboardFinancialStats: React.FC = () => {
         
         const profit = totalRevenue - totalCost;
         const roas = totalCost > 0 ? (totalRevenue / totalCost) * 100 : 0;
+        const conversionRate = totalLeads > 0 ? (totalCases / totalLeads) * 100 : 0;
         const earningsPerLead = totalLeads > 0 ? totalRevenue / totalLeads : 0;
         const costPerLead = totalLeads > 0 ? totalCost / totalLeads : 0;
         const profitPerLead = totalLeads > 0 ? profit / totalLeads : 0;
@@ -68,6 +70,7 @@ const DashboardFinancialStats: React.FC = () => {
           cost: totalCost,
           profit,
           roas,
+          conversionRate,
           leads: totalLeads,
           cases: totalCases,
           earningsPerLead,
@@ -83,6 +86,7 @@ const DashboardFinancialStats: React.FC = () => {
           cost: totalCost,
           profit,
           roas,
+          conversionRate,
           leads: totalLeads,
           cases: totalCases,
           earningsPerLead,
@@ -170,7 +174,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* ROAS Card */}
+            {/* Performance Rates Card with CVR and ROAS */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -180,14 +184,23 @@ const DashboardFinancialStats: React.FC = () => {
             >
               <div className="flex items-center gap-2 mb-1 text-indigo-700 text-sm">
                 <TrendingUp className="h-4 w-4" />
-                ROAS
+                Performance Rates
               </div>
-              <div className={cn(
-                "text-2xl font-bold",
-                stats.roas >= 200 ? "text-indigo-900" : 
-                stats.roas >= 100 ? "text-indigo-700" : "text-orange-700"
-              )}>
-                {formatPercent(stats.roas)}
+              <div className="flex flex-col space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-indigo-700">CVR:</span>
+                  <span className="text-sm font-bold text-indigo-900">{formatPercent(stats.conversionRate)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-indigo-700">ROAS:</span>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    stats.roas >= 200 ? "text-indigo-900" : 
+                    stats.roas >= 100 ? "text-indigo-700" : "text-orange-700"
+                  )}>
+                    {formatPercent(stats.roas)}
+                  </span>
+                </div>
               </div>
             </div>
 
