@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, DollarSign, TrendingUp, Info } from "lucide-react";
@@ -23,6 +24,9 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         revenue: 0,
         profit: 0,
         roas: 0,
+        conversionRate: 0,
+        costPerLead: 0,
+        earningsPerLead: 0,
         daysInRange: 1,
         excludesToday: false,
         displayDateRange: ""
@@ -100,6 +104,11 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const dailyProfit = dailyRevenue - dailyAdSpend;
     const roas = dailyAdSpend > 0 ? (dailyRevenue / dailyAdSpend) * 100 : 0;
     
+    // Calculate additional metrics
+    const conversionRate = dailyLeads > 0 ? (dailyCases / dailyLeads) * 100 : 0;
+    const costPerLead = dailyLeads > 0 ? dailyAdSpend / dailyLeads : 0;
+    const earningsPerLead = dailyLeads > 0 ? dailyRevenue / dailyLeads : 0;
+    
     return {
       adSpend: dailyAdSpend,
       leads: dailyLeads,
@@ -107,6 +116,9 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       revenue: dailyRevenue,
       profit: dailyProfit,
       roas,
+      conversionRate,
+      costPerLead,
+      earningsPerLead,
       daysInRange: effectiveDays,
       excludesToday,
       displayDateRange
@@ -191,6 +203,37 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
             <div className={`text-xl font-bold ${averages.roas >= 300 ? 'text-success-DEFAULT' : averages.roas >= 200 ? 'text-secondary' : averages.roas >= 0 ? '' : 'text-error-DEFAULT'}`}>
               {(averages.roas || 0).toFixed(1)}%
+            </div>
+          </div>
+          
+          {/* New row for CVR, CPL, and EPL */}
+          <div className={`p-4 rounded-lg border ${averages.conversionRate >= 30 ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : averages.conversionRate >= 15 ? 'bg-accent/10 border-accent/20' : 'bg-error-DEFAULT/10 border-error-DEFAULT/20'}`}>
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <TrendingUp className="h-4 w-4" />
+              CVR
+            </div>
+            <div className={`text-xl font-bold ${averages.conversionRate >= 30 ? 'text-success-DEFAULT' : averages.conversionRate >= 15 ? 'text-secondary' : ''}`}>
+              {(averages.conversionRate || 0).toFixed(1)}%
+            </div>
+          </div>
+          
+          <div className="bg-error-DEFAULT/10 p-4 rounded-lg border border-error-DEFAULT/20">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <DollarSign className="h-4 w-4" />
+              CPL
+            </div>
+            <div className="text-xl font-bold">
+              {formatCurrency(averages.costPerLead)}
+            </div>
+          </div>
+          
+          <div className={`p-4 rounded-lg border ${averages.earningsPerLead > averages.costPerLead ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : 'bg-accent/10 border-accent/20'}`}>
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <DollarSign className="h-4 w-4" />
+              EPL
+            </div>
+            <div className={`text-xl font-bold ${averages.earningsPerLead > averages.costPerLead ? 'text-success-DEFAULT' : ''}`}>
+              {formatCurrency(averages.earningsPerLead)}
             </div>
           </div>
         </div>
