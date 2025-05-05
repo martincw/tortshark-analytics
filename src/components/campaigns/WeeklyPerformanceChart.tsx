@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import {
   ChartContainer,
@@ -49,6 +50,29 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
     
     console.log('WeeklyPerformanceChart - Filtered stats:', filteredStats);
 
+    // Calculate aggregated totals for weighted averages
+    let totalLeads = 0;
+    let totalAdSpend = 0;
+    let totalRevenue = 0;
+
+    filteredStats.forEach(entry => {
+      totalLeads += entry.leads || 0;
+      totalAdSpend += entry.adSpend || 0;
+      totalRevenue += entry.revenue || 0;
+    });
+
+    // Calculate the overall weighted averages for the entire period
+    const overallCostPerLead = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
+    const overallEarningsPerLead = totalLeads > 0 ? totalRevenue / totalLeads : 0;
+    
+    console.log('WeeklyPerformanceChart - Weighted Averages:', {
+      totalLeads,
+      totalAdSpend,
+      totalRevenue,
+      overallCostPerLead,
+      overallEarningsPerLead
+    });
+
     return filteredStats
       .sort((a, b) => {
         const dateA = parseStoredDate(standardizeDateString(a.date));
@@ -61,14 +85,55 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
         const adSpend = entry.adSpend || 0;
         const displayDate = format(parseStoredDate(standardizeDateString(entry.date)), 'MMM dd');
         
+        // Calculate per-day metrics - but use the entry's own CPL/EPL to show daily fluctuations
+        // This preserves daily variation while the averages below use weighted calculations
+        const costPerLead = leads > 0 ? adSpend / leads : 0;
+        const earningsPerLead = leads > 0 ? revenue / leads : 0;
+        
         return {
           date: displayDate,
           adSpend: adSpend,
-          costPerLead: leads > 0 ? adSpend / leads : 0,
-          earningsPerLead: leads > 0 ? revenue / leads : 0
+          costPerLead: costPerLead,
+          earningsPerLead: earningsPerLead,
+          leads: leads,
+          revenue: revenue
         };
       });
   }, [campaign.statsHistory, dateRange]);
+
+  // Calculate proper weighted averages for the summary stats
+  const averages = useMemo(() => {
+    if (!dailyData.length) {
+      return {
+        averageDailyAdSpend: 0,
+        averageCostPerLead: 0,
+        averageEarningsPerLead: 0
+      };
+    }
+
+    // Sum totals across all days for weighted averaging
+    const totals = dailyData.reduce((acc, day) => {
+      return {
+        adSpend: acc.adSpend + day.adSpend,
+        leads: acc.leads + day.leads,
+        revenue: acc.revenue + day.revenue,
+        days: acc.days + 1
+      };
+    }, { adSpend: 0, leads: 0, revenue: 0, days: 0 });
+
+    // Calculate properly weighted averages
+    const averageDailyAdSpend = totals.days > 0 ? totals.adSpend / totals.days : 0;
+    
+    // These are the weighted averages (total amount / total leads)
+    const averageCostPerLead = totals.leads > 0 ? totals.adSpend / totals.leads : 0;
+    const averageEarningsPerLead = totals.leads > 0 ? totals.revenue / totals.leads : 0;
+
+    return {
+      averageDailyAdSpend,
+      averageCostPerLead,
+      averageEarningsPerLead
+    };
+  }, [dailyData]);
 
   const chartData = useMemo(() => {
     if (!campaign.statsHistory || campaign.statsHistory.length === 0) return [];
@@ -302,19 +367,19 @@ export function WeeklyPerformanceChart({ campaign }: WeeklyPerformanceChartProps
               <div className="bg-muted/50 p-3 rounded-md">
                 <div className="text-sm text-muted-foreground">Average Daily Ad Spend</div>
                 <div className="font-semibold mt-1">
-                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.adSpend, 0) / dailyData.length || 0)}
+                  {formatCurrency(averages.averageDailyAdSpend)}
                 </div>
               </div>
               <div className="bg-muted/50 p-3 rounded-md">
                 <div className="text-sm text-muted-foreground">Average Cost per Lead</div>
                 <div className="font-semibold mt-1">
-                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.costPerLead, 0) / dailyData.length || 0)}
+                  {formatCurrency(averages.averageCostPerLead)}
                 </div>
               </div>
               <div className="bg-muted/50 p-3 rounded-md">
                 <div className="text-sm text-muted-foreground">Average Earnings per Lead</div>
                 <div className="font-semibold mt-1">
-                  {formatCurrency(dailyData.reduce((sum, day) => sum + day.earningsPerLead, 0) / dailyData.length || 0)}
+                  {formatCurrency(averages.averageEarningsPerLead)}
                 </div>
               </div>
             </div>
