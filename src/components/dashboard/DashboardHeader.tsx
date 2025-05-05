@@ -88,7 +88,12 @@ export function DashboardHeader() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuContent 
+            align="end" 
+            className="w-72 bg-background" 
+            // Fix: Use the correct event type for onCloseAutoFocus
+            onCloseAutoFocus={(e: React.FocusEvent) => e.preventDefault()}
+          >
             <DropdownMenuLabel>Select Campaigns for Dashboard</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
