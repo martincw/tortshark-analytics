@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, Wallet, AlertCircle, Users } from "lucide-react";
+import { DollarSign, TrendingUp, Wallet, Users } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { isDateInRange, parseStoredDate } from "@/lib/utils/ManualDateUtils";
 import { cn } from "@/lib/utils";
+import { StatCard } from "@/components/ui/stat-card";
 
 interface FinancialStats {
   revenue: number;
@@ -142,176 +143,54 @@ const DashboardFinancialStats: React.FC = () => {
         {loading ? (
           <div className="py-8 text-center text-muted-foreground">Loading stats...</div>
         ) : stats ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div 
-              className={cn(
-                "p-4 rounded-lg shadow-sm",
-                "bg-gradient-to-br from-sky-50 to-sky-100",
-                "hover:shadow-md transition-shadow duration-300"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-1 text-sky-700 text-sm">
-                <Wallet className="h-4 w-4" />
-                Revenue
-              </div>
-              <div className="text-2xl font-bold text-sky-900">
-                {formatCurrency(stats.revenue)}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* First row: Revenue, Cost, Profit */}
+            <StatCard
+              title="Revenue"
+              value={formatCurrency(stats.revenue)}
+              icon={<Wallet className="h-4 w-4" />}
+              color="revenue"
+            />
             
-            <div 
-              className={cn(
-                "p-4 rounded-lg shadow-sm",
-                "bg-gradient-to-br from-rose-50 to-rose-100",
-                "hover:shadow-md transition-shadow duration-300"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-1 text-rose-700 text-sm">
-                <DollarSign className="h-4 w-4" />
-                Cost
-              </div>
-              <div className="text-2xl font-bold text-rose-900">
-                {formatCurrency(stats.cost)}
-              </div>
-            </div>
+            <StatCard
+              title="Cost"
+              value={formatCurrency(stats.cost)}
+              icon={<DollarSign className="h-4 w-4" />}
+              color="cost"
+            />
             
-            <div 
-              className={cn(
-                "p-4 rounded-lg shadow-sm",
-                stats.profit >= 0 
-                  ? "bg-gradient-to-br from-emerald-50 to-emerald-100" 
-                  : "bg-gradient-to-br from-red-50 to-red-100",
-                "hover:shadow-md transition-shadow duration-300"
-              )}
-            >
-              <div className={cn(
-                "flex items-center gap-2 mb-1 text-sm",
-                stats.profit >= 0 ? "text-emerald-700" : "text-red-700"
-              )}>
-                <TrendingUp className="h-4 w-4" />
-                Profit
-              </div>
-              <div className={cn(
-                "text-2xl font-bold",
-                stats.profit >= 0 ? "text-emerald-900" : "text-red-900"
-              )}>
-                {formatCurrency(stats.profit)}
-              </div>
-            </div>
+            <StatCard
+              title="Profit"
+              value={formatCurrency(stats.profit)}
+              icon={<TrendingUp className="h-4 w-4" />}
+              color={stats.profit >= 0 ? "profit" : "cost"}
+            />
 
-            {/* Performance Rates Card with distinct background colors for each row */}
-            <div 
-              className={cn(
-                "p-4 rounded-lg shadow-sm",
-                "bg-gradient-to-br from-indigo-50 to-indigo-100",
-                "hover:shadow-md transition-shadow duration-300"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-1 text-indigo-700 text-sm">
-                <TrendingUp className="h-4 w-4" />
-                Performance Rates
-              </div>
-              <div className="flex flex-col divide-y divide-indigo-100/30">
-                <div className="flex justify-between items-center p-1.5 bg-indigo-50/80 rounded-t-md">
-                  <span className="text-sm text-indigo-700">CVR:</span>
-                  <span className="text-sm font-bold text-indigo-900">{formatPercent(stats.conversionRate)}</span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-indigo-100/50 rounded-b-md">
-                  <span className="text-sm text-indigo-700">ROAS:</span>
-                  <span className={cn(
-                    "text-sm font-bold",
-                    stats.roas >= 200 ? "text-indigo-900" : 
-                    stats.roas >= 100 ? "text-indigo-700" : "text-orange-700"
-                  )}>
-                    {formatPercent(stats.roas)}
-                  </span>
-                </div>
-              </div>
-            </div>
+            {/* Second row: Leads, Cases, Partner Profit */}
+            <StatCard
+              title="Leads"
+              value={stats.leads.toString()}
+              icon={<Users className="h-4 w-4" />}
+              color="volume"
+              description="Total leads generated in period"
+            />
+            
+            <StatCard
+              title="Cases"
+              value={stats.cases.toString()}
+              icon={<Users className="h-4 w-4" />}
+              color="performance"
+              description="Converted cases in period"
+            />
 
-            {/* Lead Metrics Card - Updated with unique row backgrounds */}
-            <div 
-              className={cn(
-                "p-4 rounded-lg shadow-sm",
-                "bg-gradient-to-br from-blue-50 to-blue-100",
-                "hover:shadow-md transition-shadow duration-300"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-1 text-blue-700 text-sm">
-                <Users className="h-4 w-4" />
-                Lead Metrics
-              </div>
-              <div className="flex flex-col divide-y divide-blue-100/30">
-                <div className="flex justify-between items-center p-1.5 bg-blue-50/80 rounded-t-md">
-                  <span className="text-sm text-blue-700">Leads:</span>
-                  <span className="text-sm font-bold text-blue-900">{stats.leads}</span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-blue-100/50">
-                  <span className="text-sm text-blue-700">CPL:</span>
-                  <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.costPerLead)}</span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-blue-50/80">
-                  <span className="text-sm text-blue-700">EPL:</span>
-                  <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.earningsPerLead)}</span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-blue-100/50">
-                  <span className="text-sm text-blue-700">PPL:</span>
-                  <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.profitPerLead)}</span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-blue-50/80 rounded-b-md">
-                  <span className="text-sm text-blue-700">Cases:</span>
-                  <span className="text-sm font-bold text-blue-900">{stats.cases}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Partner Profit Card - Updated with daily and hourly metrics */}
-            <div 
-              className={cn(
-                "p-4 rounded-lg shadow-sm",
-                stats.partnerProfit >= 0 
-                  ? "bg-gradient-to-br from-green-50 to-green-100" 
-                  : "bg-gradient-to-br from-red-50 to-red-100",
-                "hover:shadow-md transition-shadow duration-300"
-              )}
-            >
-              <div className={cn(
-                "flex items-center gap-2 mb-1 text-sm",
-                stats.partnerProfit >= 0 ? "text-green-700" : "text-red-700"
-              )}>
-                <DollarSign className="h-4 w-4" />
-                Partner Profit
-              </div>
-              <div className="flex flex-col divide-y divide-green-100/30">
-                <div className="flex justify-between items-center p-1.5 bg-green-50/80 rounded-t-md">
-                  <span className="text-sm text-green-700">Total:</span>
-                  <span className={cn(
-                    "text-sm font-bold",
-                    stats.partnerProfit >= 0 ? "text-green-900" : "text-red-900"
-                  )}>
-                    {formatCurrency(stats.partnerProfit)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-green-100/50">
-                  <span className="text-sm text-green-700">Daily:</span>
-                  <span className={cn(
-                    "text-sm font-bold",
-                    stats.dailyProfit >= 0 ? "text-green-900" : "text-red-900"
-                  )}>
-                    {formatCurrency(stats.dailyProfit)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-1.5 bg-green-50/80 rounded-b-md">
-                  <span className="text-sm text-green-700">Hourly Rate:</span>
-                  <span className={cn(
-                    "text-sm font-bold",
-                    stats.hourlyOpportunityCost >= 0 ? "text-green-900" : "text-red-900"
-                  )}>
-                    {formatCurrency(stats.hourlyOpportunityCost)}
-                  </span>
-                </div>
-              </div>
-            </div>
+            {/* Partner Profit Card with daily and hourly metrics */}
+            <StatCard
+              title="Partner Profit"
+              value={formatCurrency(stats.partnerProfit)}
+              icon={<DollarSign className="h-4 w-4" />}
+              color={stats.partnerProfit >= 0 ? "profit" : "cost"}
+              description={`Daily: ${formatCurrency(stats.dailyProfit)} | Hourly: ${formatCurrency(stats.hourlyOpportunityCost)}`}
+            />
           </div>
         ) : (
           <div className="py-8 text-center text-muted-foreground">
