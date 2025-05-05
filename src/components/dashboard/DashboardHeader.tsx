@@ -91,8 +91,10 @@ export function DashboardHeader() {
           <DropdownMenuContent 
             align="end" 
             className="w-72 bg-background" 
-            // Fix: Use the correct event type for onCloseAutoFocus
-            onCloseAutoFocus={(e: React.FocusEvent) => e.preventDefault()}
+            // Fix: Use the correct event type expected by onCloseAutoFocus
+            onCloseAutoFocus={(event: Event) => {
+              event.preventDefault();
+            }}
           >
             <DropdownMenuLabel>Select Campaigns for Dashboard</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -101,7 +103,8 @@ export function DashboardHeader() {
                 <DropdownMenuCheckboxItem
                   key={campaign.id}
                   checked={selectedCampaignIds.includes(campaign.id)}
-                  onSelect={(e) => handleCampaignToggle(campaign.id, e)}
+                  // Fix: Make sure we're passing the correct event type
+                  onSelect={(e) => handleCampaignToggle(campaign.id, e as unknown as React.MouseEvent)}
                 >
                   {campaign.name}
                 </DropdownMenuCheckboxItem>
