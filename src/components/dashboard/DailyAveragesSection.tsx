@@ -125,8 +125,22 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     };
   }, [filteredCampaigns, dateRange]);
 
+  // Helper function to determine ROAS color class
+  const getRoasColorClass = (roas: number) => {
+    if (roas >= 300) return "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20 text-success-DEFAULT";
+    if (roas >= 200) return "from-warning-DEFAULT/5 to-warning-DEFAULT/15 border-warning-DEFAULT/20 text-warning-DEFAULT";
+    return "from-error-DEFAULT/5 to-error-DEFAULT/15 border-error-DEFAULT/20 text-error-DEFAULT";
+  };
+
+  // Helper function to determine CVR color class
+  const getCvrColorClass = (cvr: number) => {
+    if (cvr >= 30) return "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20 text-success-DEFAULT";
+    if (cvr >= 15) return "from-warning-DEFAULT/5 to-warning-DEFAULT/15 border-warning-DEFAULT/20 text-warning-DEFAULT";
+    return "from-error-DEFAULT/5 to-error-DEFAULT/15 border-error-DEFAULT/20 text-error-DEFAULT";
+  };
+
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-medium flex items-center gap-2">
           <BarChart className="h-5 w-5 text-primary" />
@@ -146,9 +160,10 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-error-DEFAULT/10 p-4 rounded-lg border border-error-DEFAULT/20">
+          {/* Cost Metrics - Red gradient theme */}
+          <div className="bg-gradient-to-br from-error-DEFAULT/5 to-error-DEFAULT/15 p-4 rounded-lg border border-error-DEFAULT/20 shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4" />
+              <DollarSign className="h-4 w-4 text-error-DEFAULT" />
               Daily Ad Spend
             </div>
             <div className="text-xl font-bold text-error-DEFAULT">
@@ -156,29 +171,31 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
+          {/* Volume Metrics - Purple/blue gradient theme */}
+          <div className="bg-gradient-to-br from-primary/5 to-primary/15 p-4 rounded-lg border border-primary/20 shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <BarChart className="h-4 w-4" />
+              <BarChart className="h-4 w-4 text-primary" />
               Daily Leads
             </div>
-            <div className="text-xl font-bold">
+            <div className="text-xl font-bold text-primary">
               {averages.leads.toFixed(1)}
             </div>
           </div>
           
-          <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
+          <div className="bg-gradient-to-br from-primary/5 to-primary/15 p-4 rounded-lg border border-primary/20 shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <BarChart className="h-4 w-4" />
+              <BarChart className="h-4 w-4 text-primary" />
               Daily Cases
             </div>
-            <div className="text-xl font-bold">
+            <div className="text-xl font-bold text-primary">
               {averages.cases.toFixed(1)}
             </div>
           </div>
           
-          <div className="bg-success-DEFAULT/10 p-4 rounded-lg border border-success-DEFAULT/20">
+          {/* Performance Metrics - Conditional styling based on values */}
+          <div className="bg-gradient-to-br from-success-DEFAULT/5 to-success-DEFAULT/15 p-4 rounded-lg border border-success-DEFAULT/20 shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4" />
+              <DollarSign className="h-4 w-4 text-success-DEFAULT" />
               Daily Revenue
             </div>
             <div className="text-xl font-bold text-success-DEFAULT">
@@ -186,55 +203,75 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
             </div>
           </div>
           
-          <div className={`p-4 rounded-lg border ${averages.profit >= 0 ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : 'bg-error-DEFAULT/10 border-error-DEFAULT/20'}`}>
+          <div className={`bg-gradient-to-br ${averages.profit >= 0 
+            ? "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20" 
+            : "from-error-DEFAULT/5 to-error-DEFAULT/15 border-error-DEFAULT/20"} 
+            p-4 rounded-lg border shadow-sm`}>
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4" />
+              <DollarSign className="h-4 w-4 text-foreground" />
               Daily Profit
             </div>
-            <div className={`text-xl font-bold ${averages.profit >= 0 ? 'text-success-DEFAULT' : 'text-error-DEFAULT'}`}>
+            <div className={`text-xl font-bold ${averages.profit >= 0 ? "text-success-DEFAULT" : "text-error-DEFAULT"}`}>
               {formatCurrency(averages.profit)}
             </div>
           </div>
           
-          <div className={`p-4 rounded-lg border ${averages.roas >= 300 ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : averages.roas >= 200 ? 'bg-accent/10 border-accent/20' : 'bg-error-DEFAULT/10 border-error-DEFAULT/20'}`}>
+          <div className={`bg-gradient-to-br ${getRoasColorClass(averages.roas)} 
+            p-4 rounded-lg border shadow-sm`}>
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <TrendingUp className="h-4 w-4" />
               Daily ROAS
             </div>
-            <div className={`text-xl font-bold ${averages.roas >= 300 ? 'text-success-DEFAULT' : averages.roas >= 200 ? 'text-secondary' : averages.roas >= 0 ? '' : 'text-error-DEFAULT'}`}>
+            <div className="text-xl font-bold">
               {(averages.roas || 0).toFixed(1)}%
             </div>
+            {averages.roas >= 300 && (
+              <div className="text-xs mt-1 text-success-DEFAULT">Excellent</div>
+            )}
+            {averages.roas >= 200 && averages.roas < 300 && (
+              <div className="text-xs mt-1 text-warning-DEFAULT">Good</div>
+            )}
           </div>
           
-          {/* New row for CVR, CPL, and EPL */}
-          <div className={`p-4 rounded-lg border ${averages.conversionRate >= 30 ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : averages.conversionRate >= 15 ? 'bg-accent/10 border-accent/20' : 'bg-error-DEFAULT/10 border-error-DEFAULT/20'}`}>
+          {/* New row for CVR, CPL, and EPL with updated styling */}
+          <div className={`bg-gradient-to-br ${getCvrColorClass(averages.conversionRate)} 
+            p-4 rounded-lg border shadow-sm`}>
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
               <TrendingUp className="h-4 w-4" />
               CVR
             </div>
-            <div className={`text-xl font-bold ${averages.conversionRate >= 30 ? 'text-success-DEFAULT' : averages.conversionRate >= 15 ? 'text-secondary' : ''}`}>
+            <div className="text-xl font-bold">
               {(averages.conversionRate || 0).toFixed(1)}%
             </div>
+            {averages.conversionRate >= 30 && (
+              <div className="text-xs mt-1 text-success-DEFAULT">High</div>
+            )}
           </div>
           
-          <div className="bg-error-DEFAULT/10 p-4 rounded-lg border border-error-DEFAULT/20">
+          <div className="bg-gradient-to-br from-error-DEFAULT/5 to-error-DEFAULT/15 p-4 rounded-lg border border-error-DEFAULT/20 shadow-sm">
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4" />
+              <DollarSign className="h-4 w-4 text-error-DEFAULT" />
               CPL
             </div>
-            <div className="text-xl font-bold">
+            <div className="text-xl font-bold text-error-DEFAULT">
               {formatCurrency(averages.costPerLead)}
             </div>
           </div>
           
-          <div className={`p-4 rounded-lg border ${averages.earningsPerLead > averages.costPerLead ? 'bg-success-DEFAULT/10 border-success-DEFAULT/20' : 'bg-accent/10 border-accent/20'}`}>
+          <div className={`bg-gradient-to-br ${averages.earningsPerLead > averages.costPerLead 
+            ? "from-success-DEFAULT/5 to-success-DEFAULT/15 border-success-DEFAULT/20" 
+            : "from-warning-DEFAULT/5 to-warning-DEFAULT/15 border-warning-DEFAULT/20"} 
+            p-4 rounded-lg border shadow-sm`}>
             <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
-              <DollarSign className="h-4 w-4" />
+              <DollarSign className="h-4 w-4 text-foreground" />
               EPL
             </div>
-            <div className={`text-xl font-bold ${averages.earningsPerLead > averages.costPerLead ? 'text-success-DEFAULT' : ''}`}>
+            <div className={`text-xl font-bold ${averages.earningsPerLead > averages.costPerLead ? "text-success-DEFAULT" : ""}`}>
               {formatCurrency(averages.earningsPerLead)}
             </div>
+            {averages.earningsPerLead > averages.costPerLead && (
+              <div className="text-xs mt-1 text-success-DEFAULT">Profitable</div>
+            )}
           </div>
         </div>
       </CardContent>
