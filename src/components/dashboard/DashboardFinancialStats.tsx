@@ -20,6 +20,8 @@ interface FinancialStats {
   costPerLead: number;
   profitPerLead: number;
   partnerProfit: number;
+  dailyProfit: number;
+  hourlyOpportunityCost: number;
 }
 
 const DashboardFinancialStats: React.FC = () => {
@@ -65,6 +67,25 @@ const DashboardFinancialStats: React.FC = () => {
         const profitPerLead = totalLeads > 0 ? profit / totalLeads : 0;
         const partnerProfit = profit / 2;
         
+        // Calculate number of days in the date range
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Calculate daily profit
+        const dailyProfit = daysDiff > 0 ? partnerProfit / daysDiff : 0;
+        
+        // Calculate hourly opportunity cost (8-hour workday, 5-day workweek)
+        const workdayHours = 8;
+        const workdaysPerWeek = 5;
+        const totalDays = daysDiff;
+        const totalWeeks = totalDays / 7;
+        const totalWorkdays = Math.min(totalDays, Math.ceil(totalWeeks * workdaysPerWeek)); // Cap at 5 days per week
+        const totalWorkHours = totalWorkdays * workdayHours;
+        
+        // Then calculate hourly opportunity cost
+        const hourlyOpportunityCost = totalWorkHours > 0 ? partnerProfit / totalWorkHours : 0;
+        
         console.log('Financial data calculated:', {
           revenue: totalRevenue,
           cost: totalCost,
@@ -77,6 +98,8 @@ const DashboardFinancialStats: React.FC = () => {
           costPerLead,
           profitPerLead,
           partnerProfit,
+          dailyProfit,
+          hourlyOpportunityCost,
           dateRange,
           campaignsCount: relevantCampaigns.length
         });
@@ -92,7 +115,9 @@ const DashboardFinancialStats: React.FC = () => {
           earningsPerLead,
           costPerLead,
           profitPerLead,
-          partnerProfit
+          partnerProfit,
+          dailyProfit,
+          hourlyOpportunityCost
         });
       } catch (error) {
         console.error('Error calculating financial stats:', error);
@@ -174,7 +199,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* Performance Rates Card with CVR and ROAS - Updated with alternating rows */}
+            {/* Performance Rates Card with distinct background colors for each row */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -187,11 +212,11 @@ const DashboardFinancialStats: React.FC = () => {
                 Performance Rates
               </div>
               <div className="flex flex-col divide-y divide-indigo-100/30">
-                <div className="flex justify-between items-center p-1.5 bg-white/80 rounded-md mb-1">
+                <div className="flex justify-between items-center p-1.5 bg-indigo-50/80 rounded-t-md">
                   <span className="text-sm text-indigo-700">CVR:</span>
                   <span className="text-sm font-bold text-indigo-900">{formatPercent(stats.conversionRate)}</span>
                 </div>
-                <div className="flex justify-between items-center p-1.5">
+                <div className="flex justify-between items-center p-1.5 bg-indigo-100/50 rounded-b-md">
                   <span className="text-sm text-indigo-700">ROAS:</span>
                   <span className={cn(
                     "text-sm font-bold",
@@ -204,7 +229,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* Lead Metrics Card - Updated with alternating row backgrounds */}
+            {/* Lead Metrics Card - Updated with unique row backgrounds */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -217,30 +242,30 @@ const DashboardFinancialStats: React.FC = () => {
                 Lead Metrics
               </div>
               <div className="flex flex-col divide-y divide-blue-100/30">
-                <div className="flex justify-between items-center p-1.5 bg-white/80 rounded-t-md">
+                <div className="flex justify-between items-center p-1.5 bg-blue-50/80 rounded-t-md">
                   <span className="text-sm text-blue-700">Leads:</span>
                   <span className="text-sm font-bold text-blue-900">{stats.leads}</span>
                 </div>
-                <div className="flex justify-between items-center p-1.5">
+                <div className="flex justify-between items-center p-1.5 bg-blue-100/50">
                   <span className="text-sm text-blue-700">CPL:</span>
                   <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.costPerLead)}</span>
                 </div>
-                <div className="flex justify-between items-center p-1.5 bg-white/80">
+                <div className="flex justify-between items-center p-1.5 bg-blue-50/80">
                   <span className="text-sm text-blue-700">EPL:</span>
                   <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.earningsPerLead)}</span>
                 </div>
-                <div className="flex justify-between items-center p-1.5">
+                <div className="flex justify-between items-center p-1.5 bg-blue-100/50">
                   <span className="text-sm text-blue-700">PPL:</span>
                   <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.profitPerLead)}</span>
                 </div>
-                <div className="flex justify-between items-center p-1.5 bg-white/80 rounded-b-md">
+                <div className="flex justify-between items-center p-1.5 bg-blue-50/80 rounded-b-md">
                   <span className="text-sm text-blue-700">Cases:</span>
                   <span className="text-sm font-bold text-blue-900">{stats.cases}</span>
                 </div>
               </div>
             </div>
 
-            {/* Partner Profit Card */}
+            {/* Partner Profit Card - Updated with daily and hourly metrics */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -257,11 +282,34 @@ const DashboardFinancialStats: React.FC = () => {
                 <DollarSign className="h-4 w-4" />
                 Partner Profit
               </div>
-              <div className={cn(
-                "text-2xl font-bold",
-                stats.partnerProfit >= 0 ? "text-green-900" : "text-red-900"
-              )}>
-                {formatCurrency(stats.partnerProfit)}
+              <div className="flex flex-col divide-y divide-green-100/30">
+                <div className="flex justify-between items-center p-1.5 bg-green-50/80 rounded-t-md">
+                  <span className="text-sm text-green-700">Total:</span>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    stats.partnerProfit >= 0 ? "text-green-900" : "text-red-900"
+                  )}>
+                    {formatCurrency(stats.partnerProfit)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-1.5 bg-green-100/50">
+                  <span className="text-sm text-green-700">Daily:</span>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    stats.dailyProfit >= 0 ? "text-green-900" : "text-red-900"
+                  )}>
+                    {formatCurrency(stats.dailyProfit)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-1.5 bg-green-50/80 rounded-b-md">
+                  <span className="text-sm text-green-700">Hourly Rate:</span>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    stats.hourlyOpportunityCost >= 0 ? "text-green-900" : "text-red-900"
+                  )}>
+                    {formatCurrency(stats.hourlyOpportunityCost)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
