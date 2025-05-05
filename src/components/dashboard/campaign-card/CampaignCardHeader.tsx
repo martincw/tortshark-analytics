@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "lucide-react";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+import { formatSafeDate } from "@/lib/utils/ManualDateUtils";
 
 interface CampaignCardHeaderProps {
   name: string;
@@ -16,7 +17,8 @@ export const CampaignCardHeader: React.FC<CampaignCardHeaderProps> = ({
   date,
   platform = "Google Ads" 
 }) => {
-  const formattedDate = format(new Date(date), "MMM d, yyyy");
+  // Use the safe date formatting function to handle potential invalid dates
+  const formattedDate = date ? formatSafeDate(date, "MMM d, yyyy") : "No date";
 
   return (
     <CardHeader className="pb-2">
