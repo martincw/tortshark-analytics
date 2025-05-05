@@ -21,8 +21,14 @@ export function DashboardHeader() {
   const navigate = useNavigate();
   const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
   const [isAddStatsDialogOpen, setIsAddStatsDialogOpen] = useState(false);
+  // Add state for controlling dropdown open state
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
-  const handleCampaignToggle = (campaignId: string) => {
+  const handleCampaignToggle = (campaignId: string, e: React.MouseEvent) => {
+    // Prevent dropdown from closing
+    e.preventDefault();
+    e.stopPropagation();
+    
     // Fix: Clone the array first, then modify it, and set the new array directly
     const newSelectedIds = [...selectedCampaignIds];
     
@@ -40,12 +46,25 @@ export function DashboardHeader() {
     setSelectedCampaignIds(newSelectedIds);
   };
   
-  const handleSelectAll = () => {
+  const handleSelectAll = (e: React.MouseEvent) => {
+    // Prevent dropdown from closing
+    e.preventDefault();
+    e.stopPropagation();
+    
     setSelectedCampaignIds(campaigns.map(campaign => campaign.id));
   };
   
-  const handleClearAll = () => {
+  const handleClearAll = (e: React.MouseEvent) => {
+    // Prevent dropdown from closing
+    e.preventDefault();
+    e.stopPropagation();
+    
     setSelectedCampaignIds([]);
+  };
+  
+  // Function to manually close the dropdown when done selecting
+  const handleCloseDropdown = () => {
+    setIsDropdownOpen(false);
   };
 
   return (
@@ -57,7 +76,7 @@ export function DashboardHeader() {
         </p>
       </div>
       <div className="flex gap-4 w-full md:w-auto">
-        <DropdownMenu>
+        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="flex items-center">
               <Filter className="h-4 w-4 mr-2" />
@@ -69,7 +88,7 @@ export function DashboardHeader() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-72">
+          <DropdownMenuContent align="end" className="w-72" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuLabel>Select Campaigns for Dashboard</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
@@ -77,7 +96,7 @@ export function DashboardHeader() {
                 <DropdownMenuCheckboxItem
                   key={campaign.id}
                   checked={selectedCampaignIds.includes(campaign.id)}
-                  onCheckedChange={() => handleCampaignToggle(campaign.id)}
+                  onSelect={(e) => handleCampaignToggle(campaign.id, e)}
                 >
                   {campaign.name}
                 </DropdownMenuCheckboxItem>
@@ -102,6 +121,13 @@ export function DashboardHeader() {
                     onClick={handleClearAll}
                   >
                     Clear All
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={handleCloseDropdown}
+                  >
+                    Done
                   </Button>
                 </div>
               </>

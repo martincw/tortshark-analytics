@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { subDays } from "@/lib/utils/ManualDateUtils";
 import { CampaignSelect } from "./stats/CampaignSelect";
 import { StatsForm } from "./stats/StatsForm";
 import { useStatsSubmission } from "./stats/useStatsSubmission";
@@ -17,8 +16,8 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
   const { campaigns, fetchCampaigns } = useCampaign();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [statsDate, setStatsDate] = useState<Date>(() => {
-    // Default to yesterday
-    return subDays(new Date(), 1);
+    // Default to today instead of yesterday
+    return new Date();
   });
   const [leads, setLeads] = useState<number>(0);
   const [cases, setCases] = useState<number>(0);
@@ -34,7 +33,7 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
   useEffect(() => {
     if (open) {
       setSelectedCampaignId(campaigns.length > 0 ? campaigns[0].id : "");
-      setStatsDate(subDays(new Date(), 1));
+      setStatsDate(new Date()); // Set to today
       setLeads(0);
       setCases(0);
       setAdSpend(0);

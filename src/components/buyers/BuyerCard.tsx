@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -12,7 +11,7 @@ import {
   Building2, MessageSquare, Phone, 
   AlertCircle
 } from "lucide-react";
-import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
+import { CaseBuyer, BuyerTortCoverage } from "@/types/buyer";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { 
   DropdownMenu,
@@ -46,6 +45,9 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
         .select(`
           id, 
           payout_amount,
+          buyer_id,
+          campaign_id,
+          is_active,
           campaigns:campaign_id (
             id, 
             name
@@ -57,9 +59,10 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
       
       const formattedCoverage: BuyerTortCoverage[] = (data || []).map(item => ({
         id: item.id,
-        buyer_id: buyer.id,
-        campaign_id: item.campaigns?.id || '',
+        buyer_id: item.buyer_id,
+        campaign_id: item.campaign_id,
         payout_amount: item.payout_amount,
+        is_active: item.is_active,
         campaigns: item.campaigns
       }));
       

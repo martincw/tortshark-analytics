@@ -61,8 +61,18 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   const [error, setError] = useState<string | null>(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
+    // Try to get saved date range from localStorage
+    const savedDateRange = localStorage.getItem('campaignDateRange');
+    if (savedDateRange) {
+      try {
+        return JSON.parse(savedDateRange);
+      } catch (e) {
+        console.error("Error parsing saved date range:", e);
+      }
+    }
+    
+    // Default date range (current week)
     const today = new Date();
-    // Get the current week (Monday to Sunday)
     const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 }); // 1 is Monday
     const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
 
@@ -71,10 +81,45 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       endDate: format(endOfCurrentWeek, 'yyyy-MM-dd'),
     };
   });
+  
   const [accountConnections, setAccountConnections] = useState<AccountConnection[]>([]);
-  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>(() => {
+    // Try to get saved campaign selections from localStorage
+    const savedSelections = localStorage.getItem('selectedCampaignIds');
+    if (savedSelections) {
+      try {
+        return JSON.parse(savedSelections);
+      } catch (e) {
+        console.error("Error parsing saved campaign selections:", e);
+        return [];
+      }
+    }
+    return [];
+  });
   
   const { user } = useAuth();
+  
+  // Save date range to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('campaignDateRange', JSON.stringify(dateRange));
+  }, [dateRange]);
+  
+  // Save selected campaign IDs to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('selectedCampaignIds', JSON.stringify(selectedCampaignIds));
+  }, [selectedCampaignIds]);
+
+  // Custom setDateRange that also saves to localStorage
+  const handleSetDateRange = useCallback((range: DateRange) => {
+    setDateRange(range);
+    localStorage.setItem('campaignDateRange', JSON.stringify(range));
+  }, []);
+
+  // Custom setSelectedCampaignIds that also saves to localStorage
+  const handleSetSelectedCampaignIds = useCallback((ids: string[]) => {
+    setSelectedCampaignIds(ids);
+    localStorage.setItem('selectedCampaignIds', JSON.stringify(ids));
+  }, []);
   
   const formatDate = (date: Date): string => {
     return format(date, 'yyyy-MM-dd');
@@ -584,7 +629,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     error,
     selectedCampaignId,
     dateRange,
-    setDateRange,
+    setDateRange: handleSetDateRange,
     setSelectedCampaignId,
     addCampaign,
     updateCampaign,
@@ -598,7 +643,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     fetchGoogleAdsAccounts,
     addAccountConnection,
     selectedCampaignIds,
-    setSelectedCampaignIds
+    setSelectedCampaignIds: handleSetSelectedCampaignIds
   };
 
   return (
