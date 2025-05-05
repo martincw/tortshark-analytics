@@ -102,7 +102,7 @@ const DashboardFinancialStats: React.FC = () => {
         {loading ? (
           <div className="py-8 text-center text-muted-foreground">Loading stats...</div>
         ) : stats ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -159,7 +159,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* New Card 4: ROAS */}
+            {/* ROAS Card */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -180,7 +180,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* New Card 5: Cases & EPL */}
+            {/* Cases & EPL Card */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -204,7 +204,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* New Card 6: Partner Profit */}
+            {/* Partner Profit Card */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
