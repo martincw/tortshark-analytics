@@ -174,7 +174,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* Performance Rates Card with CVR and ROAS */}
+            {/* Performance Rates Card with CVR and ROAS - Updated with alternating rows */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -186,12 +186,12 @@ const DashboardFinancialStats: React.FC = () => {
                 <TrendingUp className="h-4 w-4" />
                 Performance Rates
               </div>
-              <div className="flex flex-col space-y-1">
-                <div className="flex justify-between items-center">
+              <div className="flex flex-col divide-y divide-indigo-100/30">
+                <div className="flex justify-between items-center p-1.5 bg-white/80 rounded-md mb-1">
                   <span className="text-sm text-indigo-700">CVR:</span>
                   <span className="text-sm font-bold text-indigo-900">{formatPercent(stats.conversionRate)}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-1.5">
                   <span className="text-sm text-indigo-700">ROAS:</span>
                   <span className={cn(
                     "text-sm font-bold",
@@ -204,7 +204,7 @@ const DashboardFinancialStats: React.FC = () => {
               </div>
             </div>
 
-            {/* Lead Metrics Card - Updated with more metrics */}
+            {/* Lead Metrics Card - Updated with alternating row backgrounds */}
             <div 
               className={cn(
                 "p-4 rounded-lg shadow-sm",
@@ -216,24 +216,24 @@ const DashboardFinancialStats: React.FC = () => {
                 <Users className="h-4 w-4" />
                 Lead Metrics
               </div>
-              <div className="flex flex-col space-y-1">
-                <div className="flex justify-between items-center">
+              <div className="flex flex-col divide-y divide-blue-100/30">
+                <div className="flex justify-between items-center p-1.5 bg-white/80 rounded-t-md">
                   <span className="text-sm text-blue-700">Leads:</span>
                   <span className="text-sm font-bold text-blue-900">{stats.leads}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-1.5">
                   <span className="text-sm text-blue-700">CPL:</span>
                   <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.costPerLead)}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-1.5 bg-white/80">
                   <span className="text-sm text-blue-700">EPL:</span>
                   <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.earningsPerLead)}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-1.5">
                   <span className="text-sm text-blue-700">PPL:</span>
                   <span className="text-sm font-bold text-blue-900">{formatCurrency(stats.profitPerLead)}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-1.5 bg-white/80 rounded-b-md">
                   <span className="text-sm text-blue-700">Cases:</span>
                   <span className="text-sm font-bold text-blue-900">{stats.cases}</span>
                 </div>
