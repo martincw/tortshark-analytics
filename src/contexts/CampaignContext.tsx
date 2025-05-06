@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
@@ -165,11 +166,11 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
               averageCpc: campaign.campaign_stats[0].cpc || 0,
               ctr: 0,
               conversionRate: 0,
-              conversions: 0  // Add the missing property
+              conversions: 0
             }
             : { 
               adSpend: 0, impressions: 0, clicks: 0, cpc: 0, date: '',
-              cost: 0, averageCpc: 0, ctr: 0, conversionRate: 0, conversions: 0  // Add the missing property
+              cost: 0, averageCpc: 0, ctr: 0, conversionRate: 0, conversions: 0
             };
 
           const manualStats = campaign.campaign_manual_stats && campaign.campaign_manual_stats.length > 0
@@ -227,11 +228,12 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             accountName: campaign.account_name,
             createdAt: campaign.created_at,
             updatedAt: campaign.updated_at,
+            is_active: campaign.is_active, // Properly include the is_active field
             stats,
             manualStats,
             statsHistory,
             targets,
-            buyerStack: []  // Default empty buyer stack
+            buyerStack: []
           };
         });
 
@@ -387,6 +389,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       if (updates.platform !== undefined) campaignUpdates.platform = updates.platform;
       if (updates.accountId !== undefined) campaignUpdates.account_id = updates.accountId;
       if (updates.accountName !== undefined) campaignUpdates.account_name = updates.accountName;
+      if (updates.is_active !== undefined) campaignUpdates.is_active = updates.is_active; // Include is_active in updates
+      
       if (updates.targets !== undefined) {
         campaignUpdates.monthly_retainers = updates.targets.monthlyRetainers;
         campaignUpdates.case_payout_amount = updates.targets.casePayoutAmount;

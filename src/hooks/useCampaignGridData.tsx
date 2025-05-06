@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -111,11 +110,16 @@ export function useCampaignGridData(campaigns: Campaign[]) {
         return acc;
       }, { leads: 0, cases: 0, retainers: 0, revenue: 0, date: baseCampaign.manualStats.date });
       
+      // Ensure is_active is preserved in consolidated campaign
+      // A group is considered active if ANY of its campaigns are active
+      const isActive = campaigns.some(campaign => campaign.is_active !== false);
+      
       return {
         ...baseCampaign,
         name: tortType,
         stats: totalStats,
-        manualStats: totalManualStats
+        manualStats: totalManualStats,
+        is_active: isActive
       };
     });
   }, [groupedCampaigns]);
@@ -140,8 +144,8 @@ export function useCampaignGridData(campaigns: Campaign[]) {
     
     return [...filteredCampaigns].sort((a, b) => {
       // First sort by active status (active campaigns first)
-      if ((a.is_active === true) && (b.is_active !== true)) return -1;
-      if ((a.is_active !== true) && (b.is_active === true)) return 1;
+      if ((a.is_active !== false) && (b.is_active === false)) return -1;
+      if ((a.is_active === false) && (b.is_active !== false)) return 1;
       
       // Then apply the selected sort criteria
       switch (sortBy) {
@@ -189,7 +193,7 @@ export function useCampaignGridData(campaigns: Campaign[]) {
     setSortBy,
     filterCampaign,
     setFilterCampaign,
-    campaignTypes,
+    campaignTypes: Array.from(new Set(consolidatedCampaigns.map(campaign => campaign.name))),
     sortedAndFilteredCampaigns
   };
 }

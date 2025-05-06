@@ -22,7 +22,7 @@ interface CampaignCardProps {
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
-  const { setSelectedCampaignId } = useCampaign();
+  const { setSelectedCampaignId, updateCampaign } = useCampaign();
   const navigate = useNavigate();
   const { getActiveBuyerStackShort } = useBuyers();
   
@@ -40,11 +40,18 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     handleQuickStatsSubmit
   } = useQuickStats(campaign.id);
   
+  // Update local state when campaign prop changes
+  useEffect(() => {
+    setIsActive(campaign.is_active !== false);
+  }, [campaign.is_active]);
+  
   // Fetch buyer stack when component mounts
   useEffect(() => {
     const fetchBuyerStack = async () => {
       const stackData = await getActiveBuyerStackShort(campaign.id, 3);
-      setBuyerStack(stackData);
+      if (Array.isArray(stackData)) {
+        setBuyerStack(stackData);
+      }
     };
     
     fetchBuyerStack();
@@ -60,19 +67,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     setLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('campaigns')
-        .update({ is_active: newActiveState })
-        .eq('id', campaign.id);
-      
-      if (error) throw error;
-      
+      // Update local state first for immediate UI feedback
       setIsActive(newActiveState);
+      
+      // Use context's updateCampaign to ensure proper state management
+      await updateCampaign(campaign.id, { is_active: newActiveState });
+      
       toast.success(`Campaign ${newActiveState ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error('Error toggling campaign active status:', error);
       toast.error('Failed to update campaign status');
-      setIsActive(!newActiveState); // Revert the UI state
+      setIsActive(!newActiveState); // Revert the UI state on error
     } finally {
       setLoading(false);
     }

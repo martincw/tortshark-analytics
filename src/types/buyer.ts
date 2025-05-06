@@ -49,12 +49,15 @@ export interface BuyerTortCoverage {
 export interface BuyerStackItem {
   id: string;
   priority?: number;
-  buyer?: CaseBuyer;
-  campaign_id?: string;
   buyer_id?: string;
+  campaign_id?: string;
   stack_order?: number;
   payout_amount?: number;
-  buyers?: CaseBuyer;
   is_active?: boolean;
   coverage_id?: string;
+  buyers?: {
+    id: string;
+    name: string;
+    user_id?: string;
+  };
 }
