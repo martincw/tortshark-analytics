@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,19 +73,31 @@ const DashboardFinancialStats: React.FC = () => {
         const endDate = new Date(dateRange.endDate);
         const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         
-        // Calculate daily profit
-        const dailyProfit = daysDiff > 0 ? partnerProfit / daysDiff : 0;
+        // Calculate number of elapsed days in the date range (up to today)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize to start of day
         
-        // Calculate hourly opportunity cost (8-hour workday, 5-day workweek)
+        // Determine the last elapsed day (either today or endDate, whichever comes first)
+        const lastElapsedDate = today < endDate ? today : endDate;
+        
+        // Calculate elapsed days from start date to lastElapsedDate
+        const elapsedDaysDiff = Math.ceil((lastElapsedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        // Ensure we have at least 1 elapsed day for calculations
+        const effectiveElapsedDays = Math.max(1, elapsedDaysDiff);
+        
+        // Calculate daily profit based on elapsed days only
+        const dailyProfit = partnerProfit / effectiveElapsedDays;
+        
+        // Calculate hourly opportunity cost (8-hour workday, 5-day workweek) based on elapsed days
         const workdayHours = 8;
         const workdaysPerWeek = 5;
-        const totalDays = daysDiff;
-        const totalWeeks = totalDays / 7;
-        const totalWorkdays = Math.min(totalDays, Math.ceil(totalWeeks * workdaysPerWeek)); // Cap at 5 days per week
-        const totalWorkHours = totalWorkdays * workdayHours;
+        const totalElapsedDays = effectiveElapsedDays;
+        const totalElapsedWeeks = totalElapsedDays / 7;
+        const totalElapsedWorkdays = Math.min(totalElapsedDays, Math.ceil(totalElapsedWeeks * workdaysPerWeek));
+        const totalElapsedWorkHours = totalElapsedWorkdays * workdayHours;
         
         // Then calculate hourly opportunity cost
-        const hourlyOpportunityCost = totalWorkHours > 0 ? partnerProfit / totalWorkHours : 0;
+        const hourlyOpportunityCost = totalElapsedWorkHours > 0 ? partnerProfit / totalElapsedWorkHours : 0;
         
         console.log('Financial data calculated:', {
           revenue: totalRevenue,
@@ -101,7 +114,9 @@ const DashboardFinancialStats: React.FC = () => {
           dailyProfit,
           hourlyOpportunityCost,
           dateRange,
-          campaignsCount: relevantCampaigns.length
+          campaignsCount: relevantCampaigns.length,
+          totalDays: daysDiff,
+          elapsedDays: effectiveElapsedDays
         });
         
         setStats({
