@@ -42,6 +42,7 @@ export interface BuyerTortCoverage {
   created_at?: string;
   updated_at?: string;
   campaigns?: CampaignBasic;
+  campaign_url?: string;
 }
 
 export interface BuyerStackItem {
