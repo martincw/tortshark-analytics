@@ -11,11 +11,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Loader2, AlertTriangle, Wand2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBuyers } from "@/hooks/useBuyers";
 import { BuyerTortCoverage } from "@/types/buyer";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 interface AddTortCoverageFormProps {
   buyerId: string;
@@ -45,6 +56,11 @@ export function AddTortCoverageForm({
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
+  
+  // AI parsing states
+  const [rawCampaignText, setRawCampaignText] = useState<string>("");
+  const [isAiParsingDialogOpen, setIsAiParsingDialogOpen] = useState(false);
+  const [isParsingLoading, setIsParsingLoading] = useState(false);
 
   useEffect(() => {
     fetchCampaigns();
@@ -115,8 +131,120 @@ export function AddTortCoverageForm({
     onSuccess();
   };
 
+  const parseWithAI = async () => {
+    if (!rawCampaignText.trim()) {
+      toast.error("Please enter campaign information to parse");
+      return;
+    }
+
+    setIsParsingLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-tort-coverage', {
+        body: { campaignText: rawCampaignText }
+      });
+
+      if (error) throw error;
+      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to parse campaign information");
+      }
+
+      const parsedData = data.data;
+      
+      // Fill form fields with parsed data
+      if (parsedData.campaignId) {
+        // Find if this campaign ID exists in our list
+        const campaignExists = campaigns.some(c => c.id === parsedData.campaignId);
+        if (campaignExists) {
+          setSelectedCampaign(parsedData.campaignId);
+        } else {
+          toast.warning(`Campaign with ID ${parsedData.campaignId} not found in your campaigns list`);
+        }
+      }
+      
+      if (parsedData.amount && !isNaN(parsedData.amount)) {
+        setAmount(parsedData.amount.toString());
+      }
+      
+      if (parsedData.did) setDid(parsedData.did);
+      if (parsedData.inboundDid) setInboundDid(parsedData.inboundDid);
+      if (parsedData.transferDid) setTransferDid(parsedData.transferDid);
+      if (parsedData.intakeCenter) setIntakeCenter(parsedData.intakeCenter);
+      if (parsedData.campaignKey) setCampaignKey(parsedData.campaignKey);
+      if (parsedData.notes) setNotes(parsedData.notes);
+      if (parsedData.specSheetUrl) setSpecSheetUrl(parsedData.specSheetUrl);
+      if (parsedData.label) setLabel(parsedData.label);
+
+      setIsAiParsingDialogOpen(false);
+      toast.success("Successfully parsed campaign information");
+    } catch (error) {
+      console.error("Error parsing with AI:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to parse campaign information");
+    } finally {
+      setIsParsingLoading(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-medium">Add Tort Coverage</h2>
+        
+        <Dialog open={isAiParsingDialogOpen} onOpenChange={setIsAiParsingDialogOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="flex items-center gap-1"
+            >
+              <Wand2 className="h-4 w-4 mr-1" />
+              Parse with AI
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Parse Campaign Information with AI</DialogTitle>
+              <DialogDescription>
+                Paste campaign details from emails, specs, or other sources and our AI will extract the relevant information to populate the form.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4">
+              <Textarea
+                className="min-h-[200px]"
+                placeholder="Paste campaign information here... Include campaign ID, payout amount, DIDs, and other relevant details."
+                value={rawCampaignText}
+                onChange={(e) => setRawCampaignText(e.target.value)}
+              />
+            </div>
+            
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button 
+                type="button" 
+                onClick={parseWithAI}
+                disabled={isParsingLoading || !rawCampaignText.trim()}
+              >
+                {isParsingLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Parsing...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-1" />
+                    Parse
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="campaign">Select Campaign (Tort)</Label>
         <Select 

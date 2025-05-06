@@ -51,3 +51,6 @@ verify_jwt = true
 
 [edge_functions.upload-logo]
 verify_jwt = true
+
+[edge_functions.extract-tort-coverage]
+verify_jwt = true
