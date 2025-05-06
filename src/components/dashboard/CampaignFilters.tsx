@@ -70,9 +70,10 @@ export function CampaignFilters({
                 <SelectItem value="profit">Highest Profit</SelectItem>
                 <SelectItem value="date">Date (Newest)</SelectItem>
                 <SelectItem value="dateOldest">Date (Oldest)</SelectItem>
-                <SelectItem value="adSpend">Ad Spend</SelectItem>
-                <SelectItem value="leads">Leads</SelectItem>
-                <SelectItem value="cases">Cases</SelectItem>
+                <SelectItem value="adSpend">Highest Ad Spend</SelectItem>
+                <SelectItem value="leads">Most Leads</SelectItem>
+                <SelectItem value="cases">Most Cases</SelectItem>
+                <SelectItem value="revenue">Highest Revenue</SelectItem>
                 <SelectItem value="account">Account</SelectItem>
               </SelectContent>
             </Select>

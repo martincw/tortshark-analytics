@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -5,7 +6,7 @@ import { useCampaign } from "@/contexts/CampaignContext";
 
 export function useCampaignGridData(campaigns: Campaign[]) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("earningsPerLead");
+  const [sortBy, setSortBy] = useState("profit");
   const [filterCampaign, setFilterCampaign] = useState("all");
   const { dateRange } = useCampaign();
   
@@ -170,6 +171,8 @@ export function useCampaignGridData(campaigns: Campaign[]) {
           const metricsB = b._metrics?.profit || 0;
           return metricsB - metricsA;
         }
+        case "revenue":
+          return b.manualStats.revenue - a.manualStats.revenue;
         case "leads":
           return b.manualStats.leads - a.manualStats.leads;
         case "cases":

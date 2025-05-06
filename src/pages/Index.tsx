@@ -1,3 +1,4 @@
+
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
@@ -6,6 +7,8 @@ import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSectio
 import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CampaignFilters } from "@/components/dashboard/CampaignFilters";
+import { useCampaignGridData } from "@/hooks/useCampaignGridData";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns } = useCampaign();
@@ -15,6 +18,18 @@ const Index = () => {
   const filteredCampaigns = selectedCampaignIds.length > 0
     ? campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id))
     : campaigns;
+  
+  // Use the campaign grid data hook for filtering and sorting
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortBy,
+    setSortBy,
+    filterCampaign,
+    setFilterCampaign,
+    campaignTypes,
+    sortedAndFilteredCampaigns
+  } = useCampaignGridData(filteredCampaigns);
   
   // Log when date range or filtered campaigns change to help debug
   useEffect(() => {
@@ -86,7 +101,16 @@ const Index = () => {
         
         {/* Campaigns Tab Content */}
         <TabsContent value="campaigns" className="space-y-6 mt-0">
-          <CampaignGrid filteredCampaigns={filteredCampaigns} />
+          <CampaignFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            filterCampaign={filterCampaign}
+            setFilterCampaign={setFilterCampaign}
+            campaignTypes={campaignTypes}
+          />
+          <CampaignGrid filteredCampaigns={sortedAndFilteredCampaigns} />
         </TabsContent>
       </Tabs>
     </div>
