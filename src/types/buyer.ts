@@ -43,6 +43,7 @@ export interface BuyerTortCoverage {
   updated_at?: string;
   campaigns?: CampaignBasic;
   campaign_url?: string;
+  buyer?: CaseBuyer;
 }
 
 export interface BuyerStackItem {
@@ -54,4 +55,6 @@ export interface BuyerStackItem {
   stack_order?: number;
   payout_amount?: number;
   buyers?: CaseBuyer;
+  is_active?: boolean;
+  coverage_id?: string;
 }

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useBuyers } from "@/hooks/useBuyers";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { 
@@ -20,7 +21,9 @@ import {
   ExternalLink, 
   Mail, 
   Globe,
-  BadgeDollarSign
+  BadgeDollarSign,
+  EyeOff,
+  Eye
 } from "lucide-react";
 import { AddBuyerToStackDialog } from "./AddBuyerToStackDialog";
 import { toast } from "sonner";
@@ -30,11 +33,13 @@ interface BuyerStackSectionProps {
 }
 
 export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
-  const { getCampaignBuyerStack, updateBuyerStackOrder, removeBuyerFromStack } = useBuyers();
+  const { getCampaignBuyerStack, updateBuyerStackOrder, removeBuyerFromStack, toggleStackItemActive } = useBuyers();
   const [stackItems, setStackItems] = useState<BuyerStackItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     if (campaign?.id) {
@@ -54,6 +59,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
         buyer_id: item.buyers?.id || '',
         stack_order: item.stack_order,
         payout_amount: item.payout_amount,
+        is_active: item.is_active,
         buyers: item.buyers as CaseBuyer
       }));
       setStackItems(formattedStack);
@@ -100,7 +106,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
       const updateResult = await updateBuyerStackOrder(
         updatedItems.map(item => ({
           id: item.id,
-          stack_order: item.stack_order
+          stack_order: item.stack_order || 0
         }))
       );
       
@@ -128,6 +134,22 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     }
   };
 
+  const handleToggleActive = async (itemId: string, currentStatus: boolean) => {
+    setTogglingId(itemId);
+    try {
+      await toggleStackItemActive(itemId, !currentStatus);
+      setStackItems(items => 
+        items.map(item => 
+          item.id === itemId ? { ...item, is_active: !currentStatus } : item
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling item status:", error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const handleAddToStack = () => {
     loadBuyerStack();
     setShowAddDialog(false);
@@ -146,6 +168,11 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     window.open(fullUrl, '_blank');
   };
 
+  // Filter items based on active status
+  const displayItems = showInactive 
+    ? stackItems 
+    : stackItems.filter(item => item.is_active);
+
   return (
     <Card className="shadow-md">
       <CardHeader className="pb-3">
@@ -156,10 +183,20 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
               Arrange buyers in priority order for this campaign
             </CardDescription>
           </div>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Buyer
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowInactive(!showInactive)}
+            >
+              {showInactive ? <Eye className="mr-1 h-4 w-4" /> : <EyeOff className="mr-1 h-4 w-4" />}
+              {showInactive ? "Hide inactive" : "Show inactive"}
+            </Button>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Buyer
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -167,7 +204,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
           <div className="flex justify-center py-8">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
           </div>
-        ) : stackItems.length === 0 ? (
+        ) : displayItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground border border-dashed rounded-md">
             <p>No buyers in the stack yet</p>
             <p className="text-sm mt-1">Add buyers to create a waterfall for this campaign</p>
@@ -181,7 +218,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                   ref={provided.innerRef}
                   className="space-y-2"
                 >
-                  {stackItems.map((item, index) => (
+                  {displayItems.map((item, index) => (
                     <Draggable key={item.id} draggableId={item.id} index={index}>
                       {(provided, snapshot) => (
                         <div
@@ -189,7 +226,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                           {...provided.draggableProps}
                           className={`border rounded-md p-3 bg-white flex flex-col gap-2 ${
                             snapshot.isDragging ? "shadow-lg" : ""
-                          }`}
+                          } ${!item.is_active ? "opacity-50" : ""}`}
                         >
                           {/* Buyer Header */}
                           <div className="flex items-center justify-between">
@@ -204,20 +241,32 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
                                 <div className="font-medium flex items-center gap-2">
                                   {item.buyers?.name || "Unknown Buyer"}
                                   <Badge className="ml-2">{`Priority ${index + 1}`}</Badge>
+                                  {!item.is_active && (
+                                    <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
+                                  )}
                                 </div>
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => {
-                                handleRemoveFromStack(item.id);
-                              }}
-                              type="button"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                size="sm"
+                                checked={!!item.is_active}
+                                disabled={togglingId === item.id}
+                                onCheckedChange={() => handleToggleActive(item.id, !!item.is_active)}
+                                className="scale-75 origin-right"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  handleRemoveFromStack(item.id);
+                                }}
+                                type="button"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                           
                           {/* Buyer Details */}
@@ -269,7 +318,7 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
             isOpen={showAddDialog}
             onClose={() => setShowAddDialog(false)}
             onSuccess={handleAddToStack}
-            currentStackIds={stackItems.map(item => item.buyer_id)}
+            currentStackIds={stackItems.map(item => item.buyer_id || '')}
           />
         )}
       </CardContent>

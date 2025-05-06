@@ -170,6 +170,7 @@ export type Database = {
           campaign_id: string
           created_at: string | null
           id: string
+          is_active: boolean
           payout_amount: number
           stack_order: number
           updated_at: string | null
@@ -179,6 +180,7 @@ export type Database = {
           campaign_id: string
           created_at?: string | null
           id?: string
+          is_active?: boolean
           payout_amount?: number
           stack_order?: number
           updated_at?: string | null
@@ -188,6 +190,7 @@ export type Database = {
           campaign_id?: string
           created_at?: string | null
           id?: string
+          is_active?: boolean
           payout_amount?: number
           stack_order?: number
           updated_at?: string | null

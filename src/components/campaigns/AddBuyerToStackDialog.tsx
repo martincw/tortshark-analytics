@@ -17,8 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBuyers } from "@/hooks/useBuyers";
-import { CaseBuyer, BuyerTortCoverage } from "@/types/campaign";
+import { BuyerTortCoverage } from "@/types/buyer";
 import { supabase } from "@/integrations/supabase/client";
+import { BadgeDollarSign, CircleDollarSign, CheckCircle2 } from "lucide-react";
 
 interface AddBuyerToStackDialogProps {
   campaignId: string;
@@ -32,96 +33,96 @@ export function AddBuyerToStackDialog({
   campaignId, 
   isOpen, 
   onClose, 
-  onSuccess,
-  currentStackIds
+  onSuccess
 }: AddBuyerToStackDialogProps) {
   const { addBuyerToStack } = useBuyers();
-  const [buyers, setBuyers] = useState<{
+  const [coverages, setCoverages] = useState<{
     id: string;
-    name: string;
+    buyer_id: string;
+    buyer_name: string;
     payout_amount: number;
-    coverage_id: string;
+    label?: string;
   }[]>([]);
-  const [selectedBuyer, setSelectedBuyer] = useState("");
-  const [payoutAmount, setPayoutAmount] = useState("0");
+  const [selectedCoverage, setSelectedCoverage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingBuyers, setLoadingBuyers] = useState(false);
+  const [loadingCoverages, setLoadingCoverages] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchEligibleBuyers();
+      fetchEligibleCoverages();
     }
   }, [isOpen, campaignId]);
 
-  const fetchEligibleBuyers = async () => {
-    setLoadingBuyers(true);
+  const fetchEligibleCoverages = async () => {
+    setLoadingCoverages(true);
     try {
-      // Query buyers that have coverage for this campaign but are not yet in the stack
+      // Query all tort coverages for this campaign
       const { data, error } = await supabase
         .from("buyer_tort_coverage")
         .select(`
           id,
           payout_amount,
           buyer_id,
+          label,
+          is_active,
           case_buyers (id, name)
         `)
-        .eq("campaign_id", campaignId);
+        .eq("campaign_id", campaignId)
+        .eq("is_active", true);
 
       if (error) throw error;
 
-      // Filter out buyers already in the stack
-      const eligibleBuyers = (data || [])
-        .filter(item => !currentStackIds.includes(item.buyer_id))
-        .map(item => ({
-          id: item.buyer_id,
-          name: item.case_buyers?.name || "Unknown",
-          payout_amount: item.payout_amount,
-          coverage_id: item.id
-        }));
+      // Map the data to a more convenient format
+      const formattedCoverages = (data || []).map(item => ({
+        id: item.id,
+        buyer_id: item.buyer_id,
+        buyer_name: item.case_buyers?.name || "Unknown",
+        payout_amount: item.payout_amount,
+        label: item.label
+      }));
 
-      setBuyers(eligibleBuyers);
+      setCoverages(formattedCoverages);
       
-      // Pre-select the first buyer and their payout amount
-      if (eligibleBuyers.length > 0) {
-        setSelectedBuyer(eligibleBuyers[0].id);
-        setPayoutAmount(eligibleBuyers[0].payout_amount.toString());
+      // Pre-select the first coverage if available
+      if (formattedCoverages.length > 0) {
+        setSelectedCoverage(formattedCoverages[0].id);
       }
     } catch (error) {
-      console.error("Error fetching eligible buyers:", error);
+      console.error("Error fetching eligible coverages:", error);
     } finally {
-      setLoadingBuyers(false);
+      setLoadingCoverages(false);
     }
   };
-
-  // Update payout amount when selected buyer changes
-  useEffect(() => {
-    const selectedBuyerData = buyers.find(b => b.id === selectedBuyer);
-    if (selectedBuyerData) {
-      setPayoutAmount(selectedBuyerData.payout_amount.toString());
-    }
-  }, [selectedBuyer, buyers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedBuyer) {
+    if (!selectedCoverage) {
       return;
     }
     
     setLoading(true);
     
     // Get the next available stack_order
-    const nextOrder = currentStackIds.length;
+    const { data } = await supabase
+      .from('campaign_buyer_stack')
+      .select('stack_order')
+      .eq('campaign_id', campaignId)
+      .order('stack_order', { ascending: false })
+      .limit(1);
     
-    const selectedBuyerData = buyers.find(b => b.id === selectedBuyer);
-    if (!selectedBuyerData) return;
+    const nextOrder = data && data.length > 0 ? (data[0].stack_order + 1) : 0;
     
-    // Use the payout amount from the buyer's tort coverage
+    const selectedCoverageData = coverages.find(c => c.id === selectedCoverage);
+    if (!selectedCoverageData) return;
+    
+    // Add the buyer to the stack
     await addBuyerToStack(
       campaignId,
-      selectedBuyer,
-      selectedBuyerData.payout_amount,
-      nextOrder
+      selectedCoverageData.buyer_id,
+      selectedCoverageData.payout_amount,
+      nextOrder,
+      selectedCoverageData.id
     );
     
     setLoading(false);
@@ -134,42 +135,48 @@ export function AddBuyerToStackDialog({
         <DialogHeader>
           <DialogTitle>Add Buyer to Stack</DialogTitle>
           <DialogDescription>
-            Select a buyer to add to this campaign's waterfall
+            Select a tort coverage to add to this campaign's waterfall
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <p className="text-sm mb-4">
-              Buyers must have tort coverage for this campaign before they can be added to the stack. 
-              The payout amount is automatically set based on the coverage.
+              Buyers must have tort coverage for this campaign before they can be added to the stack.
+              You can now add multiple price points for the same buyer if needed.
             </p>
             
             <Select 
-              value={selectedBuyer} 
-              onValueChange={setSelectedBuyer}
-              disabled={loadingBuyers || buyers.length === 0}
+              value={selectedCoverage} 
+              onValueChange={setSelectedCoverage}
+              disabled={loadingCoverages || coverages.length === 0}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a buyer" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a tort coverage" />
               </SelectTrigger>
               <SelectContent>
-                {buyers.map((buyer) => (
-                  <SelectItem key={buyer.id} value={buyer.id}>
-                    {buyer.name} - {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(buyer.payout_amount)}
+                {coverages.map((coverage) => (
+                  <SelectItem key={coverage.id} value={coverage.id} className="py-2">
+                    <div className="flex items-center gap-2">
+                      <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {coverage.buyer_name} - {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(coverage.payout_amount)}
+                        {coverage.label && <span className="text-muted-foreground ml-1">({coverage.label})</span>}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
-                {buyers.length === 0 && (
+                {coverages.length === 0 && (
                   <SelectItem value="none" disabled>
-                    No eligible buyers
+                    No eligible tort coverages
                   </SelectItem>
                 )}
               </SelectContent>
             </Select>
             
-            {buyers.length === 0 && !loadingBuyers && (
+            {coverages.length === 0 && !loadingCoverages && (
               <p className="text-sm text-muted-foreground mt-1">
-                No eligible buyers available. Buyers must have tort coverage for this campaign before they can be added to the stack.
+                No eligible tort coverages available. Buyers must have tort coverage for this campaign before they can be added to the stack.
               </p>
             )}
           </div>
@@ -185,7 +192,7 @@ export function AddBuyerToStackDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !selectedBuyer || buyers.length === 0}
+              disabled={loading || !selectedCoverage || coverages.length === 0}
             >
               {loading ? "Adding..." : "Add to Stack"}
             </Button>

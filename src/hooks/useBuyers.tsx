@@ -274,10 +274,12 @@ export const useBuyers = () => {
           id,
           stack_order,
           payout_amount,
+          is_active,
           buyers:buyer_id (
             id,
             name,
-            url
+            url,
+            email
           )
         `)
         .eq('campaign_id', campaignId)
@@ -314,7 +316,7 @@ export const useBuyers = () => {
   };
 
   // Add buyer to campaign stack
-  const addBuyerToStack = async (campaignId: string, buyerId: string, payoutAmount: number, stackOrder: number) => {
+  const addBuyerToStack = async (campaignId: string, buyerId: string, payoutAmount: number, stackOrder: number, coverageId: string) => {
     try {
       const { data, error } = await supabase
         .from('campaign_buyer_stack')
@@ -322,7 +324,8 @@ export const useBuyers = () => {
           campaign_id: campaignId,
           buyer_id: buyerId,
           payout_amount: payoutAmount,
-          stack_order: stackOrder
+          stack_order: stackOrder,
+          is_active: true
         }])
         .select()
         .single();
@@ -333,6 +336,27 @@ export const useBuyers = () => {
     } catch (error) {
       console.error('Error adding buyer to stack:', error);
       toast.error('Failed to add buyer to stack');
+      return null;
+    }
+  };
+
+  // Toggle active status for a stack item
+  const toggleStackItemActive = async (stackItemId: string, isActive: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from('campaign_buyer_stack')
+        .update({ is_active: isActive })
+        .eq('id', stackItemId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      toast.success(`Stack item ${isActive ? 'activated' : 'deactivated'} successfully`);
+      return data;
+    } catch (error) {
+      console.error('Error toggling stack item active status:', error);
+      toast.error('Failed to update stack item status');
       return null;
     }
   };
@@ -352,6 +376,33 @@ export const useBuyers = () => {
       console.error('Error removing buyer from stack:', error);
       toast.error('Failed to remove buyer from stack');
       return false;
+    }
+  };
+  
+  // Get active buyer stack for a campaign (used in campaign cards)
+  const getActiveBuyerStackShort = async (campaignId: string, limit = 2) => {
+    try {
+      const { data, error } = await supabase
+        .from('campaign_buyer_stack')
+        .select(`
+          id,
+          stack_order,
+          payout_amount,
+          buyers:buyer_id (
+            id,
+            name
+          )
+        `)
+        .eq('campaign_id', campaignId)
+        .eq('is_active', true)
+        .order('stack_order')
+        .limit(limit);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching active buyer stack:', error);
+      return [];
     }
   };
 
@@ -374,6 +425,8 @@ export const useBuyers = () => {
     updateBuyerStackOrder,
     addBuyerToStack,
     removeBuyerFromStack,
+    toggleStackItemActive,
+    getActiveBuyerStackShort,
     fetchBuyers
   };
 };
