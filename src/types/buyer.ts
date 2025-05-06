@@ -59,5 +59,7 @@ export interface BuyerStackItem {
     id: string;
     name: string;
     user_id?: string;
+    email?: string;
+    url?: string;
   };
 }

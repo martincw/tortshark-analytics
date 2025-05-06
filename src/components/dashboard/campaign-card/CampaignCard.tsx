@@ -32,6 +32,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const [isActive, setIsActive] = useState(campaign.is_active !== false);
   const [buyerStack, setBuyerStack] = useState<BuyerStackItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   
   const {
     isQuickEntryOpen,
@@ -65,6 +66,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const handleToggleActive = async () => {
     const newActiveState = !isActive;
     setLoading(true);
+    setIsToggling(true);
     
     try {
       // Update local state first for immediate UI feedback
@@ -80,23 +82,32 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       setIsActive(!newActiveState); // Revert the UI state on error
     } finally {
       setLoading(false);
+      setTimeout(() => setIsToggling(false), 300); // Animation timeout
     }
   };
 
   return (
     <>
-      <Card className={`overflow-hidden hover:shadow-md transition-shadow border border-border/80 group ${isActive ? 'bg-[#F2FCE2]/40' : ''}`}>
+      <Card 
+        className={`overflow-hidden hover:shadow-md transition-all duration-300 transform border border-border/80 group 
+                   ${isActive ? 'bg-[#F2FCE2]/40' : ''} 
+                   ${isToggling ? (isActive ? 'scale-[1.02]' : 'scale-[0.98]') : ''} 
+                   animate-fade-in`}
+      >
         <CampaignCardHeader 
           name={campaign.name} 
           date={campaign.stats.date}
           right={
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{isActive ? 'Active' : 'Inactive'}</span>
+              <span className={`text-xs transition-colors duration-200 ${isActive ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {isActive ? 'Active' : 'Inactive'}
+              </span>
               <Switch 
                 checked={isActive} 
                 onCheckedChange={handleToggleActive}
                 disabled={loading}
                 size="sm"
+                className={`transition-all ${isToggling ? 'scale-110' : ''}`}
               />
             </div>
           }
@@ -111,15 +122,21 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           />
           
           {buyerStack.length > 0 && (
-            <div className="mt-3 border-t pt-2">
+            <div className="mt-3 border-t pt-2 animate-fade-in">
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Buyer Stack</p>
               <div className="space-y-1">
                 {buyerStack.map((item, index) => (
-                  <div key={item.id} className="flex justify-between items-center text-sm">
+                  <div 
+                    key={item.id} 
+                    className="flex justify-between items-center text-sm hover:bg-muted/30 p-1 rounded-sm transition-colors duration-200"
+                  >
                     <span className="font-medium truncate max-w-[70%]">
-                      {index + 1}. {item.buyers?.name}
+                      <span className="inline-block w-5 h-5 mr-1 bg-primary/10 text-primary rounded-full text-xs flex items-center justify-center">
+                        {index + 1}
+                      </span>
+                      {item.buyers?.name}
                     </span>
-                    <span className="text-muted-foreground">
+                    <span className="text-muted-foreground font-medium">
                       ${item.payout_amount?.toLocaleString()}
                     </span>
                   </div>
