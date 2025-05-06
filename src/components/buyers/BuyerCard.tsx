@@ -212,8 +212,8 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
               </div>
             ) : tortCoverage.length > 0 ? (
-              <div className="space-y-2">
-                {tortCoverage.slice(0, 3).map((coverage) => (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {tortCoverage.map((coverage) => (
                   <div 
                     key={coverage.id} 
                     className={`flex items-center justify-between text-sm border-b pb-2 ${!coverage.is_active ? 'opacity-60' : ''}`}
@@ -243,12 +243,6 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
                     </div>
                   </div>
                 ))}
-                
-                {tortCoverage.length > 3 && (
-                  <div className="text-center text-xs text-primary mt-2">
-                    +{tortCoverage.length - 3} more coverages
-                  </div>
-                )}
               </div>
             ) : (
               <div className="text-center p-3 border border-dashed rounded-md">
