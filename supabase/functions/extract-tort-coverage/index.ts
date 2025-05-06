@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignText } = await req.json();
+    const { campaignText, selectedCampaignId, selectedCampaignName } = await req.json();
     
     if (!campaignText || typeof campaignText !== 'string') {
       throw new Error('Campaign text is required and must be a string');
@@ -23,6 +23,32 @@ serve(async (req) => {
     if (!openaiApiKey) {
       throw new Error('OpenAI API key is not configured');
     }
+
+    // Prepare context with selected campaign information
+    let systemPrompt = `Extract tort coverage information from the provided text.`;
+    
+    // Add campaign context if available
+    if (selectedCampaignId) {
+      systemPrompt += `\nThe text is about Campaign ID: ${selectedCampaignId}`;
+      if (selectedCampaignName) {
+        systemPrompt += ` (${selectedCampaignName})`;
+      }
+    }
+    
+    systemPrompt += `\nReturn a JSON object with these fields:
+    - campaignId (string, required): The ID of the campaign
+    - campaignName (string, optional): The name of the campaign
+    - amount (number, required): Payout amount per case
+    - inboundDid (string, optional): Inbound DID number
+    - transferDid (string, optional): Transfer DID number
+    - intakeCenter (string, optional): Intake center name
+    - campaignKey (string, optional): Campaign key
+    - notes (string, optional): Any notes about the tort
+    - specSheetUrl (string, optional): URL to spec sheet
+    - label (string, optional): Label for distinguishing multiple entries
+
+    Return null for fields that cannot be determined from the text.
+    Ensure the JSON object is properly formatted and includes all fields.`;
 
     // Call OpenAI API to extract structured information
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -36,22 +62,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Extract tort coverage information from the provided text. 
-            Return a JSON object with these fields:
-            - campaignId (string, required): The ID of the campaign
-            - campaignName (string, optional): The name of the campaign
-            - amount (number, required): Payout amount per case
-            - did (string, optional): Direct Inward Dialing number
-            - inboundDid (string, optional): Inbound DID number
-            - transferDid (string, optional): Transfer DID number
-            - intakeCenter (string, optional): Intake center name
-            - campaignKey (string, optional): Campaign key
-            - notes (string, optional): Any notes about the tort
-            - specSheetUrl (string, optional): URL to spec sheet
-            - label (string, optional): Label for distinguishing multiple entries
-
-            Return null for fields that cannot be determined from the text.
-            Ensure the JSON object is properly formatted and includes all fields.`
+            content: systemPrompt
           },
           {
             role: 'user',
@@ -86,6 +97,15 @@ serve(async (req) => {
       } else {
         throw new Error('No JSON data found in OpenAI response');
       }
+    }
+
+    // If a campaign was selected, make sure the extracted data uses that ID
+    if (selectedCampaignId && !extractedData.campaignId) {
+      extractedData.campaignId = selectedCampaignId;
+    }
+    
+    if (selectedCampaignName && !extractedData.campaignName) {
+      extractedData.campaignName = selectedCampaignName;
     }
 
     console.log('Extracted data:', extractedData);

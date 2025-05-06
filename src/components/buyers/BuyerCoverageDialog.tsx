@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
@@ -33,7 +34,8 @@ import {
   Tag,
   Building,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Link
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/buyer";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
@@ -260,23 +262,31 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className={`font-medium ${!coverage.is_active ? 'text-muted-foreground' : ''}`}>
-                              {coverage.campaigns?.name || "Unknown Campaign"}
-                            </h3>
-                            {coverage.label && (
-                              <Badge variant="outline" className="text-xs">
-                                {coverage.label}
-                              </Badge>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <Switch
-                                checked={coverage.is_active}
-                                onCheckedChange={() => handleToggleActive(coverage.id, coverage.is_active)}
-                                className="data-[state=checked]:bg-green-500"
-                              />
-                              <span className="text-xs text-muted-foreground">
-                                {coverage.is_active ? 'Active' : 'Inactive'}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className={`font-medium ${!coverage.is_active ? 'text-muted-foreground' : ''}`}>
+                                {coverage.campaigns?.name || "Unknown Campaign"}
+                              </h3>
+                              {coverage.label && (
+                                <Badge variant="outline" className="text-xs">
+                                  {coverage.label}
+                                </Badge>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <Switch
+                                  checked={coverage.is_active}
+                                  onCheckedChange={() => handleToggleActive(coverage.id, coverage.is_active)}
+                                  className="data-[state=checked]:bg-green-500"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  {coverage.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <span className="text-xs text-muted-foreground flex items-center">
+                                <Link className="h-3.5 w-3.5 mr-1" /> 
+                                Campaign ID: {coverage.campaign_id}
                               </span>
                             </div>
                           </div>
@@ -364,12 +374,6 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                           <Building className="h-4 w-4 mr-2 text-muted-foreground" />
                           <span className="font-medium mr-2">Intake Center:</span>
                           <span>{coverage.intake_center || "Not specified"}</span>
-                        </div>
-                        
-                        <div className="flex items-center">
-                          <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span className="font-medium mr-2">DID:</span>
-                          <span>{coverage.did || "Not specified"}</span>
                         </div>
                         
                         <div className="flex items-center">

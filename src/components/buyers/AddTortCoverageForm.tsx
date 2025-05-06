@@ -44,8 +44,8 @@ export function AddTortCoverageForm({
   const { addBuyerTortCoverage } = useBuyers();
   const [campaigns, setCampaigns] = useState<{ id: string; name: string; }[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
+  const [selectedCampaignName, setSelectedCampaignName] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
-  const [did, setDid] = useState<string>("");
   const [inboundDid, setInboundDid] = useState<string>("");
   const [transferDid, setTransferDid] = useState<string>("");
   const [intakeCenter, setIntakeCenter] = useState<string>("");
@@ -80,9 +80,16 @@ export function AddTortCoverageForm({
       } else {
         setLabel("");
       }
+      
+      // Save the selected campaign name
+      const campaign = campaigns.find(c => c.id === selectedCampaign);
+      if (campaign) {
+        setSelectedCampaignName(campaign.name);
+      }
     } else {
       setIsDuplicate(false);
       setLabel("");
+      setSelectedCampaignName("");
     }
   }, [selectedCampaign, existingCoverages, campaigns]);
 
@@ -107,6 +114,7 @@ export function AddTortCoverageForm({
     e.preventDefault();
     
     if (!selectedCampaign || parseFloat(amount) <= 0) {
+      toast.error("Please select a campaign and enter a valid amount");
       return;
     }
     
@@ -117,7 +125,7 @@ export function AddTortCoverageForm({
       buyerId, 
       selectedCampaign, 
       payoutAmount,
-      did,
+      "", // No longer using separate did field
       campaignKey,
       notes,
       specSheetUrl,
@@ -132,6 +140,11 @@ export function AddTortCoverageForm({
   };
 
   const parseWithAI = async () => {
+    if (!selectedCampaign) {
+      toast.error("Please select a campaign first");
+      return;
+    }
+    
     if (!rawCampaignText.trim()) {
       toast.error("Please enter campaign information to parse");
       return;
@@ -141,7 +154,11 @@ export function AddTortCoverageForm({
 
     try {
       const { data, error } = await supabase.functions.invoke('extract-tort-coverage', {
-        body: { campaignText: rawCampaignText }
+        body: { 
+          campaignText: rawCampaignText,
+          selectedCampaignId: selectedCampaign,
+          selectedCampaignName: selectedCampaignName
+        }
       });
 
       if (error) throw error;
@@ -153,21 +170,10 @@ export function AddTortCoverageForm({
       const parsedData = data.data;
       
       // Fill form fields with parsed data
-      if (parsedData.campaignId) {
-        // Find if this campaign ID exists in our list
-        const campaignExists = campaigns.some(c => c.id === parsedData.campaignId);
-        if (campaignExists) {
-          setSelectedCampaign(parsedData.campaignId);
-        } else {
-          toast.warning(`Campaign with ID ${parsedData.campaignId} not found in your campaigns list`);
-        }
-      }
-      
       if (parsedData.amount && !isNaN(parsedData.amount)) {
         setAmount(parsedData.amount.toString());
       }
       
-      if (parsedData.did) setDid(parsedData.did);
       if (parsedData.inboundDid) setInboundDid(parsedData.inboundDid);
       if (parsedData.transferDid) setTransferDid(parsedData.transferDid);
       if (parsedData.intakeCenter) setIntakeCenter(parsedData.intakeCenter);
@@ -186,88 +192,103 @@ export function AddTortCoverageForm({
     }
   };
 
+  // Only show Parse with AI button if a campaign is selected
+  const showParseWithAI = !!selectedCampaign;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-medium">Add Tort Coverage</h2>
         
-        <Dialog open={isAiParsingDialogOpen} onOpenChange={setIsAiParsingDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="flex items-center gap-1"
-            >
-              <Wand2 className="h-4 w-4 mr-1" />
-              Parse with AI
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
-            <DialogHeader>
-              <DialogTitle>Parse Campaign Information with AI</DialogTitle>
-              <DialogDescription>
-                Paste campaign details from emails, specs, or other sources and our AI will extract the relevant information to populate the form.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4">
-              <Textarea
-                className="min-h-[200px]"
-                placeholder="Paste campaign information here... Include campaign ID, payout amount, DIDs, and other relevant details."
-                value={rawCampaignText}
-                onChange={(e) => setRawCampaignText(e.target.value)}
-              />
-            </div>
-            
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
+        {showParseWithAI && (
+          <Dialog open={isAiParsingDialogOpen} onOpenChange={setIsAiParsingDialogOpen}>
+            <DialogTrigger asChild>
               <Button 
                 type="button" 
-                onClick={parseWithAI}
-                disabled={isParsingLoading || !rawCampaignText.trim()}
+                variant="outline" 
+                className="flex items-center gap-1"
               >
-                {isParsingLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Parsing...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-1" />
-                    Parse
-                  </>
-                )}
+                <Wand2 className="h-4 w-4 mr-1" />
+                Parse with AI
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[525px]">
+              <DialogHeader>
+                <DialogTitle>Parse Campaign Information with AI</DialogTitle>
+                <DialogDescription>
+                  Paste campaign details from emails, specs, or other sources and our AI will extract the relevant information to populate the form.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4">
+                <p className="text-sm mb-2">Selected campaign: <strong>{selectedCampaignName}</strong> (ID: {selectedCampaign})</p>
+                <Textarea
+                  className="min-h-[200px]"
+                  placeholder="Paste campaign information here... Include payout amount, DIDs, and other relevant details."
+                  value={rawCampaignText}
+                  onChange={(e) => setRawCampaignText(e.target.value)}
+                />
+              </div>
+              
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button 
+                  type="button" 
+                  onClick={parseWithAI}
+                  disabled={isParsingLoading || !rawCampaignText.trim()}
+                >
+                  {isParsingLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Parsing...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-1" />
+                      Parse
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="campaign">Select Campaign (Tort)</Label>
-        <Select 
-          value={selectedCampaign}
-          onValueChange={setSelectedCampaign}
-          disabled={loadingCampaigns}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select a campaign" />
-          </SelectTrigger>
-          <SelectContent>
-            {campaigns.map((campaign) => (
-              <SelectItem key={campaign.id} value={campaign.id}>
-                {campaign.name}
-              </SelectItem>
-            ))}
-            {campaigns.length === 0 && (
-              <SelectItem value="none" disabled>
-                No available campaigns
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <Select 
+              value={selectedCampaign}
+              onValueChange={setSelectedCampaign}
+              disabled={loadingCampaigns}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a campaign" />
+              </SelectTrigger>
+              <SelectContent>
+                {campaigns.map((campaign) => (
+                  <SelectItem key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </SelectItem>
+                ))}
+                {campaigns.length === 0 && (
+                  <SelectItem value="none" disabled>
+                    No available campaigns
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedCampaign && (
+            <div className="text-xs text-muted-foreground">
+              ID: {selectedCampaign}
+            </div>
+          )}
+        </div>
       </div>
 
       {isDuplicate && (
@@ -339,17 +360,6 @@ export function AddTortCoverageForm({
           value={intakeCenter}
           onChange={(e) => setIntakeCenter(e.target.value)}
           placeholder="Enter intake center name"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="did">DID (Direct Inward Dialing)</Label>
-        <Input
-          id="did"
-          type="text"
-          value={did}
-          onChange={(e) => setDid(e.target.value)}
-          placeholder="18005551234"
         />
       </div>
 
