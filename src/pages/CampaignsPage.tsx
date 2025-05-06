@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { CampaignList } from "@/components/dashboard/CampaignList";
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
@@ -207,7 +207,11 @@ const CampaignsPage = () => {
           </div>
         </div>
       ) : (
-        <CampaignGrid filteredCampaigns={campaigns} />
+        viewMode === "grid" ? (
+          <CampaignGrid filteredCampaigns={campaigns} />
+        ) : (
+          <CampaignList campaigns={campaigns} onClearFilters={() => {}} />
+        )
       )}
     </div>
   );

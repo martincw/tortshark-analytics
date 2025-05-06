@@ -1,25 +1,24 @@
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "lucide-react";
 import { CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "lucide-react";
 import { format } from "date-fns";
-import { formatSafeDate } from "@/lib/utils/ManualDateUtils";
 
 interface CampaignCardHeaderProps {
   name: string;
   date: string;
   platform?: string;
+  right?: React.ReactNode;
 }
 
-export const CampaignCardHeader: React.FC<CampaignCardHeaderProps> = ({ 
+export function CampaignCardHeader({ 
   name, 
   date,
-  platform = "Google Ads" 
-}) => {
-  // Use the safe date formatting function to handle potential invalid dates
-  const formattedDate = date ? formatSafeDate(date, "MMM d, yyyy") : "No date";
-
+  platform,
+  right 
+}: CampaignCardHeaderProps) {
+  const formattedDate = date ? format(new Date(date), "MMM d, yyyy") : "No date";
+  
   return (
     <CardHeader className="pb-2">
       <div className="flex justify-between items-start">
@@ -30,10 +29,8 @@ export const CampaignCardHeader: React.FC<CampaignCardHeaderProps> = ({
             {formattedDate}
           </p>
         </div>
-        <Badge variant="default" className="shrink-0">
-          {platform}
-        </Badge>
+        {right}
       </div>
     </CardHeader>
   );
-};
+}

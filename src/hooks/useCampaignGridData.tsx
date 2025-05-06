@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -138,6 +139,11 @@ export function useCampaignGridData(campaigns: Campaign[]) {
     });
     
     return [...filteredCampaigns].sort((a, b) => {
+      // First sort by active status (active campaigns first)
+      if ((a.is_active === true) && (b.is_active !== true)) return -1;
+      if ((a.is_active !== true) && (b.is_active === true)) return 1;
+      
+      // Then apply the selected sort criteria
       switch (sortBy) {
         case "earningsPerLead": {
           const earningsPerLeadA = a._metrics?.earningsPerLead || 

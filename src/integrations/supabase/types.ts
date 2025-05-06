@@ -391,6 +391,7 @@ export type Database = {
           account_name: string
           created_at: string | null
           id: string
+          is_active: boolean
           name: string
           platform: string
           updated_at: string | null
@@ -401,6 +402,7 @@ export type Database = {
           account_name: string
           created_at?: string | null
           id?: string
+          is_active?: boolean
           name: string
           platform: string
           updated_at?: string | null
@@ -411,6 +413,7 @@ export type Database = {
           account_name?: string
           created_at?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           platform?: string
           updated_at?: string | null
