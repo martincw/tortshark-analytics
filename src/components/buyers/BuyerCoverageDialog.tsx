@@ -35,7 +35,9 @@ import {
   Building,
   ToggleLeft,
   ToggleRight,
-  Link
+  Link,
+  ExternalLink,
+  Hash
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/buyer";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
@@ -93,6 +95,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
         campaign_key: item.campaign_key || '',
         notes: item.notes || '',
         spec_sheet_url: item.spec_sheet_url || '',
+        campaign_url: item.campaign_url || '',
         label: item.label || '',
         is_active: item.is_active !== undefined ? item.is_active : true,
         // Handle nested campaigns object structure
@@ -182,6 +185,12 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
   };
 
   const openSpecSheet = (url?: string) => {
+    if (url) {
+      window.open(url, '_blank');
+    }
+  };
+
+  const openCampaignUrl = (url?: string) => {
     if (url) {
       window.open(url, '_blank');
     }
@@ -283,11 +292,26 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center">
-                              <span className="text-xs text-muted-foreground flex items-center">
-                                <Link className="h-3.5 w-3.5 mr-1" /> 
+
+                            <div className="flex flex-col gap-1 text-xs mt-1">
+                              <div className="flex items-center text-muted-foreground">
+                                <Hash className="h-3.5 w-3.5 mr-1" />
                                 Campaign ID: {coverage.campaign_id}
-                              </span>
+                              </div>
+                              
+                              {coverage.campaign_url && (
+                                <div className="flex items-center">
+                                  <Link className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                                  <Button
+                                    variant="link"
+                                    className="h-auto p-0 text-xs"
+                                    onClick={() => openCampaignUrl(coverage.campaign_url)}
+                                  >
+                                    {coverage.campaign_url}
+                                    <ExternalLink className="h-3 w-3 ml-1" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                           

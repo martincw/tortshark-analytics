@@ -21,7 +21,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Loader2, AlertTriangle, Wand2 } from "lucide-react";
+import { Loader2, AlertTriangle, Wand2, Hash, Link, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBuyers } from "@/hooks/useBuyers";
 import { BuyerTortCoverage } from "@/types/buyer";
@@ -52,6 +52,8 @@ export function AddTortCoverageForm({
   const [campaignKey, setCampaignKey] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [specSheetUrl, setSpecSheetUrl] = useState<string>("");
+  const [campaignUrl, setCampaignUrl] = useState<string>("");
+  const [campaignId, setCampaignId] = useState<string>("");
   const [label, setLabel] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
@@ -85,11 +87,13 @@ export function AddTortCoverageForm({
       const campaign = campaigns.find(c => c.id === selectedCampaign);
       if (campaign) {
         setSelectedCampaignName(campaign.name);
+        setCampaignId(campaign.id); // Set the campaign ID display field
       }
     } else {
       setIsDuplicate(false);
       setLabel("");
       setSelectedCampaignName("");
+      setCampaignId("");
     }
   }, [selectedCampaign, existingCoverages, campaigns]);
 
@@ -132,7 +136,8 @@ export function AddTortCoverageForm({
       label,
       inboundDid,
       transferDid,
-      intakeCenter
+      intakeCenter,
+      campaignUrl
     );
     
     setLoading(false);
@@ -180,7 +185,9 @@ export function AddTortCoverageForm({
       if (parsedData.campaignKey) setCampaignKey(parsedData.campaignKey);
       if (parsedData.notes) setNotes(parsedData.notes);
       if (parsedData.specSheetUrl) setSpecSheetUrl(parsedData.specSheetUrl);
+      if (parsedData.campaignUrl) setCampaignUrl(parsedData.campaignUrl);
       if (parsedData.label) setLabel(parsedData.label);
+      if (parsedData.campaignId) setCampaignId(parsedData.campaignId);
 
       setIsAiParsingDialogOpen(false);
       toast.success("Successfully parsed campaign information");
@@ -224,7 +231,7 @@ export function AddTortCoverageForm({
                 <p className="text-sm mb-2">Selected campaign: <strong>{selectedCampaignName}</strong> (ID: {selectedCampaign})</p>
                 <Textarea
                   className="min-h-[200px]"
-                  placeholder="Paste campaign information here... Include payout amount, DIDs, and other relevant details."
+                  placeholder="Paste campaign information here... Include payout amount, DIDs, campaign URL, and other relevant details."
                   value={rawCampaignText}
                   onChange={(e) => setRawCampaignText(e.target.value)}
                 />
@@ -283,11 +290,6 @@ export function AddTortCoverageForm({
               </SelectContent>
             </Select>
           </div>
-          {selectedCampaign && (
-            <div className="text-xs text-muted-foreground">
-              ID: {selectedCampaign}
-            </div>
-          )}
         </div>
       </div>
 
@@ -300,6 +302,39 @@ export function AddTortCoverageForm({
           </AlertDescription>
         </Alert>
       )}
+      
+      <div className="space-y-2">
+        <Label htmlFor="campaignId">Campaign ID</Label>
+        <div className="flex items-center">
+          <Hash className="h-4 w-4 text-muted-foreground absolute ml-3" />
+          <Input
+            id="campaignId"
+            type="text"
+            value={campaignId}
+            onChange={(e) => setCampaignId(e.target.value)}
+            placeholder="Enter campaign ID"
+            className="pl-9"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Internal ID used to identify this campaign (auto-filled when campaign is selected)
+        </p>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="campaignUrl">Campaign URL</Label>
+        <div className="flex items-center">
+          <Link className="h-4 w-4 text-muted-foreground absolute ml-3" />
+          <Input
+            id="campaignUrl"
+            type="url"
+            value={campaignUrl}
+            onChange={(e) => setCampaignUrl(e.target.value)}
+            placeholder="https://example.com/campaign"
+            className="pl-9"
+          />
+        </div>
+      </div>
       
       <div className="space-y-2">
         <Label htmlFor="label">Label (to distinguish multiple entries)</Label>

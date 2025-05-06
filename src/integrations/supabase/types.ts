@@ -53,6 +53,7 @@ export type Database = {
           buyer_id: string
           campaign_id: string
           campaign_key: string | null
+          campaign_url: string | null
           created_at: string | null
           did: string | null
           id: string
@@ -70,6 +71,7 @@ export type Database = {
           buyer_id: string
           campaign_id: string
           campaign_key?: string | null
+          campaign_url?: string | null
           created_at?: string | null
           did?: string | null
           id?: string
@@ -87,6 +89,7 @@ export type Database = {
           buyer_id?: string
           campaign_id?: string
           campaign_key?: string | null
+          campaign_url?: string | null
           created_at?: string | null
           did?: string | null
           id?: string

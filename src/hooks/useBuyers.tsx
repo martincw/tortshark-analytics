@@ -154,7 +154,8 @@ export const useBuyers = () => {
     label: string = '',
     inboundDid: string = '',
     transferDid: string = '',
-    intakeCenter: string = ''
+    intakeCenter: string = '',
+    campaignUrl: string = ''
   ) => {
     try {
       const { data, error } = await supabase
@@ -171,7 +172,8 @@ export const useBuyers = () => {
           inbound_did: inboundDid,
           transfer_did: transferDid,
           intake_center: intakeCenter,
-          is_active: true
+          is_active: true,
+          campaign_url: campaignUrl
         }])
         .select()
         .single();
@@ -200,6 +202,7 @@ export const useBuyers = () => {
       transfer_did?: string;
       intake_center?: string;
       is_active?: boolean;
+      campaign_url?: string;
     } = {}
   ) => {
     try {

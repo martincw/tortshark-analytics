@@ -45,6 +45,7 @@ serve(async (req) => {
     - campaignKey (string, optional): Campaign key
     - notes (string, optional): Any notes about the tort
     - specSheetUrl (string, optional): URL to spec sheet
+    - campaignUrl (string, optional): URL for the campaign
     - label (string, optional): Label for distinguishing multiple entries
 
     Return null for fields that cannot be determined from the text.
