@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -203,7 +202,7 @@ const DashboardFinancialStats: React.FC = () => {
                 {stats.leads.toString()}
               </div>
               <div className="text-xs mt-1 text-muted-foreground">
-                Total leads generated in period
+                CPL: {formatCurrency(stats.costPerLead)}
               </div>
             </div>
             
@@ -216,7 +215,7 @@ const DashboardFinancialStats: React.FC = () => {
                 {stats.cases.toString()}
               </div>
               <div className="text-xs mt-1 text-muted-foreground">
-                Converted cases in period
+                Conversion: {formatPercent(stats.conversionRate)}
               </div>
             </div>
 
