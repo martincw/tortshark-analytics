@@ -87,16 +87,50 @@ const DashboardFinancialStats: React.FC = () => {
         // Calculate daily profit based on elapsed days only
         const dailyProfit = partnerProfit / effectiveElapsedDays;
         
-        // Calculate hourly opportunity cost (8-hour workday, 5-day workweek) based on elapsed days
+        // Refined hourly calculation only counting hours that have already passed
         const workdayHours = 8;
         const workdaysPerWeek = 5;
-        const totalElapsedDays = effectiveElapsedDays;
-        const totalElapsedWeeks = totalElapsedDays / 7;
-        const totalElapsedWorkdays = Math.min(totalElapsedDays, Math.ceil(totalElapsedWeeks * workdaysPerWeek));
-        const totalElapsedWorkHours = totalElapsedWorkdays * workdayHours;
         
-        // Then calculate hourly opportunity cost
-        const hourlyOpportunityCost = totalElapsedWorkHours > 0 ? partnerProfit / totalElapsedWorkHours : 0;
+        // Function to determine if a date is a workday (Monday-Friday)
+        const isWorkday = (date: Date) => {
+          const dayOfWeek = date.getDay();
+          return dayOfWeek >= 1 && dayOfWeek <= 5; // 0=Sunday, 1=Monday, ..., 6=Saturday
+        };
+        
+        // Calculate elapsed work hours with more precision
+        let totalElapsedWorkHours = 0;
+        let currentDate = new Date(startDate);
+        
+        // Iterate through each day in the date range up to today or end date (whichever comes first)
+        while (currentDate <= lastElapsedDate) {
+          if (isWorkday(currentDate)) {
+            if (currentDate.toDateString() === today.toDateString()) {
+              // For today, only count hours that have already passed in the workday
+              const currentHour = new Date().getHours();
+              const workdayStartHour = 9; // Assuming 9am-5pm workday
+              const workdayEndHour = 17; // 5pm
+              
+              // Only count hours if we're in or past the workday
+              if (currentHour >= workdayStartHour) {
+                // Count elapsed hours today, capped at workday length
+                const elapsedHoursToday = Math.min(currentHour - workdayStartHour, workdayHours);
+                totalElapsedWorkHours += elapsedHoursToday;
+              }
+            } else {
+              // For past days, count full workday
+              totalElapsedWorkHours += workdayHours;
+            }
+          }
+          
+          // Move to next day
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        // Ensure we have at least one hour for the calculation to avoid division by zero
+        const effectiveElapsedWorkHours = Math.max(1, totalElapsedWorkHours);
+        
+        // Calculate hourly opportunity cost based on elapsed work hours
+        const hourlyOpportunityCost = partnerProfit / effectiveElapsedWorkHours;
         
         console.log('Financial data calculated:', {
           revenue: totalRevenue,
@@ -115,7 +149,8 @@ const DashboardFinancialStats: React.FC = () => {
           dateRange,
           campaignsCount: relevantCampaigns.length,
           totalDays: daysDiff,
-          elapsedDays: effectiveElapsedDays
+          elapsedDays: effectiveElapsedDays,
+          totalElapsedWorkHours: effectiveElapsedWorkHours
         });
         
         setStats({

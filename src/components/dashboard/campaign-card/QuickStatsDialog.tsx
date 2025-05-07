@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -16,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { subDays } from "@/lib/utils/ManualDateUtils";
 
 interface QuickStatsDialogProps {
   isOpen: boolean;
@@ -45,7 +45,8 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
     revenue: "0",
     adSpend: "0"
   });
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Set default date to yesterday instead of today
+  const [selectedDate, setSelectedDate] = useState<Date>(subDays(new Date(), 1));
   const [calendarOpen, setCalendarOpen] = useState(false);
   
   const handleSubmit = () => {
