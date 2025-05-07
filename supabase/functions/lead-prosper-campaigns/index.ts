@@ -18,19 +18,27 @@ const handleCors = (req: Request): Response | null => {
 
 // Fetch campaigns from the Lead Prosper API
 async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
-  const response = await fetch('https://api.leadprosper.io/public/campaigns', {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch('https://api.leadprosper.io/public/campaigns', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch campaigns: ${error}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      const status = response.status;
+      console.error(`Lead Prosper API error (${status}):`, errorText);
+      throw new Error(`Lead Prosper API returned ${status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error in fetchLeadProsperCampaigns:', error);
+    throw error;
   }
-
-  return await response.json();
 }
 
 serve(async (req) => {
@@ -42,6 +50,7 @@ serve(async (req) => {
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header provided');
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -49,9 +58,20 @@ serve(async (req) => {
     }
 
     // Create a Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl,
+      supabaseAnonKey,
       {
         global: {
           headers: { Authorization: authHeader },
@@ -59,9 +79,36 @@ serve(async (req) => {
       }
     );
 
+    // Get the current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      console.error('User authentication error:', userError?.message);
+      return new Response(
+        JSON.stringify({ error: userError?.message || 'User not found' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get the Lead Prosper API key from the request body
-    const { apiKey } = await req.json();
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { apiKey } = requestData;
+    
     if (!apiKey) {
+      console.error('No API key provided');
       return new Response(
         JSON.stringify({ error: 'No API key provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -69,20 +116,34 @@ serve(async (req) => {
     }
 
     // Fetch campaigns from the Lead Prosper API
-    const campaigns = await fetchLeadProsperCampaigns(apiKey);
+    let campaigns;
+    try {
+      campaigns = await fetchLeadProsperCampaigns(apiKey);
+    } catch (apiError) {
+      console.error('Lead Prosper API error:', apiError);
+      return new Response(
+        JSON.stringify({ error: `Lead Prosper API error: ${apiError.message}` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Store the campaigns in the external_lp_campaigns table
     if (campaigns && campaigns.data && Array.isArray(campaigns.data)) {
-      for (const campaign of campaigns.data) {
-        // Upsert the campaign
-        await supabaseClient.from('external_lp_campaigns').upsert({
-          lp_campaign_id: campaign.id,
-          name: campaign.name,
-          status: campaign.status || 'active',
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'lp_campaign_id',
-        });
+      try {
+        for (const campaign of campaigns.data) {
+          // Upsert the campaign
+          await supabaseClient.from('external_lp_campaigns').upsert({
+            lp_campaign_id: campaign.id,
+            name: campaign.name,
+            status: campaign.status || 'active',
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'lp_campaign_id',
+          });
+        }
+      } catch (dbError) {
+        console.error('Error storing campaigns in database:', dbError);
+        // Continue to return campaigns even if storage fails
       }
     }
 
@@ -92,6 +153,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    console.error('Unexpected error in lead-prosper-campaigns:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

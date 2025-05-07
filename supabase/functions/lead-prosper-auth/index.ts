@@ -25,16 +25,36 @@ serve(async (req) => {
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header provided');
       return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
+        JSON.stringify({ 
+          error: 'No authorization header',
+          isConnected: false,
+          credentials: null
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Create a Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Server configuration error', 
+          isConnected: false,
+          credentials: null
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl,
+      supabaseAnonKey,
       {
         global: {
           headers: { Authorization: authHeader },
@@ -45,12 +65,17 @@ serve(async (req) => {
     // Get the current user
     const {
       data: { user },
-      error,
+      error: userError,
     } = await supabaseClient.auth.getUser();
 
-    if (error || !user) {
+    if (userError || !user) {
+      console.error('User authentication error:', userError?.message);
       return new Response(
-        JSON.stringify({ error: error?.message || 'User not found' }),
+        JSON.stringify({ 
+          error: userError?.message || 'User not found',
+          isConnected: false,
+          credentials: null
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -61,11 +86,29 @@ serve(async (req) => {
       .select('*')
       .eq('user_id', user.id)
       .eq('platform', 'leadprosper')
+      .eq('is_connected', true)
       .single();
 
-    if (credentialsError && credentialsError.code !== 'PGRST116') {
+    if (credentialsError) {
+      // PGRST116 is the error code for "no rows returned"
+      if (credentialsError.code === 'PGRST116') {
+        console.log('No Lead Prosper credentials found for user:', user.id);
+        return new Response(
+          JSON.stringify({
+            isConnected: false,
+            credentials: null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.error('Error fetching credentials:', credentialsError);
       return new Response(
-        JSON.stringify({ error: credentialsError.message }),
+        JSON.stringify({ 
+          error: credentialsError.message,
+          isConnected: false,
+          credentials: null
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -79,8 +122,13 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    console.error('Unexpected error in lead-prosper-auth:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        isConnected: false,
+        credentials: null
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

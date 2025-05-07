@@ -1,26 +1,90 @@
-
 import { supabase, SUPABASE_PROJECT_URL } from '../supabase/client';
 
+// Cache for storing API key temporarily
+let cachedApiKey: string | null = null;
+
 export const leadProsperApi = {
-  async checkConnection() {
-    const { data, error } = await supabase.functions.invoke('lead-prosper-auth');
-    if (error) {
-      console.error('Error checking Lead Prosper connection:', error);
-      throw error;
+  // Get cached API key if available
+  getCachedApiKey(): string | null {
+    return cachedApiKey || localStorage.getItem('lp_api_key');
+  },
+
+  // Set cached API key
+  setCachedApiKey(apiKey: string | null): void {
+    cachedApiKey = apiKey;
+    if (apiKey) {
+      localStorage.setItem('lp_api_key', apiKey);
+    } else {
+      localStorage.removeItem('lp_api_key');
     }
-    return data;
+  },
+
+  async checkConnection() {
+    try {
+      // Get auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session found');
+        return { isConnected: false, error: 'Authentication required' };
+      }
+
+      const { data, error } = await supabase.functions.invoke('lead-prosper-auth', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+      
+      if (error) {
+        console.error('Error checking Lead Prosper connection:', error);
+        throw error;
+      }
+      
+      // If we have credentials with an API key, cache it
+      if (data.credentials?.credentials?.apiKey) {
+        this.setCachedApiKey(data.credentials.credentials.apiKey);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error in checkConnection:', error);
+      // Return a structured error response
+      return { 
+        isConnected: false, 
+        error: error.message || 'Failed to check connection status',
+        details: error
+      };
+    }
   },
 
   async getCampaigns(apiKey: string) {
-    const { data, error } = await supabase.functions.invoke('lead-prosper-campaigns', {
-      body: { apiKey }
-    });
-    
-    if (error) {
-      console.error('Error fetching Lead Prosper campaigns:', error);
-      throw error;
+    try {
+      // Cache the provided API key
+      this.setCachedApiKey(apiKey);
+      
+      // Get auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session found');
+        throw new Error('Authentication required');
+      }
+
+      const { data, error } = await supabase.functions.invoke('lead-prosper-campaigns', {
+        body: { apiKey },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+      
+      if (error) {
+        console.error('Error fetching Lead Prosper campaigns:', error);
+        throw error;
+      }
+      
+      return data.campaigns || [];
+    } catch (error) {
+      console.error('Error in getCampaigns:', error);
+      throw new Error(`Failed to load Lead Prosper campaigns: ${error.message}`);
     }
-    return data.campaigns || [];
   },
 
   async syncLeads(apiKey: string, lp_campaign_id: number, startDate: string, endDate: string) {
@@ -61,44 +125,62 @@ export const leadProsperApi = {
   },
 
   async createConnection(apiKey: string, name: string, userId: string) {
-    const { data, error } = await supabase
-      .from('account_connections')
-      .insert([
-        {
-          name: name,
-          platform: 'leadprosper',
-          is_connected: true,
-          user_id: userId,
-          credentials: { apiKey }
-        }
-      ])
-      .select()
-      .single();
+    try {
+      // Cache the API key immediately
+      this.setCachedApiKey(apiKey);
       
-    if (error) {
-      console.error('Error creating Lead Prosper connection:', error);
-      throw error;
+      const { data, error } = await supabase
+        .from('account_connections')
+        .insert([
+          {
+            name: name,
+            platform: 'leadprosper',
+            is_connected: true,
+            user_id: userId,
+            credentials: { apiKey }
+          }
+        ])
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error creating Lead Prosper connection:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error in createConnection:', error);
+      throw new Error(`Failed to create Lead Prosper connection: ${error.message}`);
     }
-    return data;
   },
 
   async updateConnection(id: string, apiKey: string, name: string) {
-    const { data, error } = await supabase
-      .from('account_connections')
-      .update({
-        name,
-        credentials: { apiKey },
-        last_synced: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      // Cache the API key immediately
+      this.setCachedApiKey(apiKey);
       
-    if (error) {
-      console.error('Error updating Lead Prosper connection:', error);
-      throw error;
+      const { data, error } = await supabase
+        .from('account_connections')
+        .update({
+          name,
+          credentials: { apiKey },
+          last_synced: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error updating Lead Prosper connection:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error in updateConnection:', error);
+      throw new Error(`Failed to update Lead Prosper connection: ${error.message}`);
     }
-    return data;
   },
 
   async deleteConnection(id: string) {

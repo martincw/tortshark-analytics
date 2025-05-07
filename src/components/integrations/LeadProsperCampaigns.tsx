@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
   Table, 
   TableBody, 
@@ -21,8 +22,8 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { format, subDays } from 'date-fns';
-import { Loader2, RefreshCw, Search, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+import { Loader2, RefreshCw, Search, Calendar, AlertCircle } from 'lucide-react';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { LeadProsperConnection as LeadProsperConnectionType } from '@/integrations/leadprosper/types';
 
@@ -34,6 +35,7 @@ export default function LeadProsperCampaigns() {
   const [filteredCampaigns, setFilteredCampaigns] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [connection, setConnection] = useState<LeadProsperConnectionType | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadCampaigns();
@@ -54,9 +56,16 @@ export default function LeadProsperCampaigns() {
   const loadCampaigns = async () => {
     try {
       setIsLoading(true);
+      setErrorMessage(null);
       
       // Check connection status
       const connectionData = await leadProsperApi.checkConnection();
+      
+      if (connectionData.error) {
+        setErrorMessage(`Connection error: ${connectionData.error}`);
+        setIsLoading(false);
+        return;
+      }
       
       if (!connectionData.isConnected) {
         setIsLoading(false);
@@ -73,20 +82,34 @@ export default function LeadProsperCampaigns() {
         credentials: connectionData.credentials.credentials || {}
       });
       
-      // Get campaigns
-      const apiKey = connectionData.credentials.credentials?.apiKey;
+      // Get API key - try from credentials first, then from cache
+      let apiKey = connectionData.credentials.credentials?.apiKey;
+      
       if (!apiKey) {
+        apiKey = leadProsperApi.getCachedApiKey();
+        console.log("Using cached API key");
+      }
+      
+      if (!apiKey) {
+        setErrorMessage('API key not found in credentials. Please reconnect your Lead Prosper account.');
         toast.error('API key not found in credentials');
         setIsLoading(false);
         return;
       }
       
-      const campaignsData = await leadProsperApi.getCampaigns(apiKey);
-      setCampaigns(campaignsData);
-      setFilteredCampaigns(campaignsData);
+      try {
+        const campaignsData = await leadProsperApi.getCampaigns(apiKey);
+        setCampaigns(campaignsData);
+        setFilteredCampaigns(campaignsData);
+      } catch (campaignsError) {
+        console.error('Error loading campaigns:', campaignsError);
+        setErrorMessage(`Failed to load campaigns: ${campaignsError.message}`);
+        toast.error('Failed to load Lead Prosper campaigns');
+      }
       
     } catch (error) {
       console.error('Error loading Lead Prosper campaigns:', error);
+      setErrorMessage(`Failed to load Lead Prosper campaigns: ${error.message}`);
       toast.error('Failed to load Lead Prosper campaigns');
     } finally {
       setIsLoading(false);
@@ -95,11 +118,13 @@ export default function LeadProsperCampaigns() {
   
   const handleRefreshCampaigns = async () => {
     setIsRefreshing(true);
+    setErrorMessage(null);
     try {
       await loadCampaigns();
       toast.success('Campaigns refreshed successfully');
     } catch (error) {
       console.error('Error refreshing campaigns:', error);
+      setErrorMessage(`Failed to refresh campaigns: ${error.message}`);
       toast.error('Failed to refresh campaigns');
     } finally {
       setIsRefreshing(false);
@@ -155,6 +180,14 @@ export default function LeadProsperCampaigns() {
           </div>
         ) : (
           <div className="space-y-4">
+            {errorMessage && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+          
             <div className="flex items-center border rounded-md px-3 focus-within:ring-1 focus-within:ring-ring">
               <Search className="h-5 w-5 mr-2 text-muted-foreground" />
               <Input

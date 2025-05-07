@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -42,18 +43,35 @@ export default function LeadProsperConnection() {
   const [apiKey, setApiKey] = useState('');
   const [connectionName, setConnectionName] = useState('Lead Prosper');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     checkConnection();
     leadProsperApi.getLeadProsperWebhookUrl().then(url => {
       setWebhookUrl(url);
     });
+    
+    // Try to restore API key from cache
+    const cachedApiKey = leadProsperApi.getCachedApiKey();
+    if (cachedApiKey) {
+      setApiKey(cachedApiKey);
+    }
   }, []);
 
   const checkConnection = async () => {
     try {
       setIsLoading(true);
+      setErrorMessage(null);
       const data = await leadProsperApi.checkConnection();
+      
+      if (data.error) {
+        console.error('Connection check returned error:', data.error);
+        setErrorMessage(`Connection error: ${data.error}`);
+        setIsConnected(false);
+        return;
+      }
+      
       setIsConnected(data.isConnected);
       if (data.credentials) {
         const credentials = typeof data.credentials.credentials === 'string' 
@@ -72,25 +90,58 @@ export default function LeadProsperConnection() {
             ...credentials
           }
         });
-        setApiKey(credentials.apiKey || '');
+        
+        // Update the API key state and cache
+        if (credentials.apiKey) {
+          setApiKey(credentials.apiKey);
+          leadProsperApi.setCachedApiKey(credentials.apiKey);
+        }
+        
         setConnectionName(data.credentials.name);
       }
     } catch (error) {
       console.error('Error checking connection:', error);
+      setErrorMessage('Failed to check Lead Prosper connection status');
       toast.error('Failed to check Lead Prosper connection status');
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleConnect = async () => {
+  
+  const verifyApiKey = async () => {
     if (!apiKey) {
       toast.error('Please enter your Lead Prosper API key');
+      return false;
+    }
+    
+    setIsVerifying(true);
+    
+    try {
+      // Basic validation - API keys are typically long strings
+      if (apiKey.length < 10) {
+        toast.error('API key appears to be invalid (too short)');
+        return false;
+      }
+      
+      // Store the API key in cache immediately
+      leadProsperApi.setCachedApiKey(apiKey);
+      return true;
+    } catch (error) {
+      console.error('API key verification error:', error);
+      return false;
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!await verifyApiKey()) {
       return;
     }
 
     try {
       setIsSubmitting(true);
+      setErrorMessage(null);
       
       if (connection?.id) {
         // Update existing connection
@@ -135,9 +186,9 @@ export default function LeadProsperConnection() {
           platform: 'leadprosper',
           isConnected: newConnection.is_connected,
           lastSynced: newConnection.last_synced,
-          apiKey: '',
+          apiKey: apiKey,
           credentials: {
-            apiKey: newCredentials.apiKey || '',
+            apiKey: apiKey,
             ...newCredentials
           }
         });
@@ -149,7 +200,8 @@ export default function LeadProsperConnection() {
       setShowDialog(false);
     } catch (error) {
       console.error('Connection error:', error);
-      toast.error('Failed to connect to Lead Prosper');
+      setErrorMessage(error.message || 'Failed to connect to Lead Prosper');
+      toast.error(error.message || 'Failed to connect to Lead Prosper');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,6 +215,7 @@ export default function LeadProsperConnection() {
       await leadProsperApi.deleteConnection(connection.id);
       setConnection(null);
       setIsConnected(false);
+      leadProsperApi.setCachedApiKey(null);
       toast.success('Lead Prosper disconnected successfully');
     } catch (error) {
       console.error('Disconnect error:', error);
@@ -243,14 +296,24 @@ export default function LeadProsperConnection() {
             </Accordion>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <Key className="h-12 w-12 text-muted-foreground" />
-            <div className="text-center">
-              <h3 className="font-medium">Not Connected</h3>
-              <p className="text-sm text-muted-foreground">
-                Connect your Lead Prosper account to import leads
-              </p>
+          <div className="space-y-4">
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              <Key className="h-12 w-12 text-muted-foreground" />
+              <div className="text-center">
+                <h3 className="font-medium">Not Connected</h3>
+                <p className="text-sm text-muted-foreground">
+                  Connect your Lead Prosper account to import leads
+                </p>
+              </div>
             </div>
+            
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Connection Error</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
       </CardContent>
