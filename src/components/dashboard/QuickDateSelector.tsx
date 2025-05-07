@@ -51,6 +51,10 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Get yesterday's date
+  const yesterday = subDays(today, 1);
+  yesterday.setHours(23, 59, 59, 999);
+
   const handleQuickSelect = (option: string) => {
     let start: Date;
     let end: Date;
@@ -69,9 +73,10 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         end = getEndOfWeek(lastWeek);
         break;
       case 'Last7Days':
-        start = subDays(today, 6);
-        end = new Date();
-        end.setHours(23, 59, 59, 999);
+        // Changed: Use yesterday as end date instead of now
+        end = yesterday;
+        // Start date is 7 days before end date
+        start = subDays(end, 6);
         break;
       case 'MonthToDate':
         start = getStartOfMonth(today);
@@ -83,10 +88,10 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         end = endOfMonth(lastMonth);
         break;
       case 'Last30Days':
-        start = new Date(today);
-        start.setDate(today.getDate() - 29);
-        end = new Date();
-        end.setHours(23, 59, 59, 999);
+        // Changed: Use yesterday as end date instead of now
+        end = yesterday;
+        // Start date is 30 days before end date
+        start = subDays(end, 29);
         break;
       case 'Yesterday':
         start = new Date(today);
@@ -146,13 +151,21 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
       case 'MonthToDate':
         return startDate.getTime() === getStartOfMonth(today).getTime();
       case 'Last7Days':
-        const last7Start = new Date(today);
-        last7Start.setDate(today.getDate() - 6);
-        return startDate.getTime() === last7Start.getTime();
+        // Update the check for Last7Days
+        const last7End = new Date(yesterday);
+        const last7Start = subDays(last7End, 6);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last7Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last7End, "yyyy-MM-dd")
+        );
       case 'Last30Days':
-        const last30Start = new Date(today);
-        last30Start.setDate(today.getDate() - 29);
-        return startDate.getTime() === last30Start.getTime();
+        // Update the check for Last30Days
+        const last30End = new Date(yesterday);
+        const last30Start = subDays(last30End, 29);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last30Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last30End, "yyyy-MM-dd")
+        );
       case 'ThisWeek':
         const thisWeekStart = getStartOfWeek(today);
         const thisWeekEnd = getEndOfWeek(today);

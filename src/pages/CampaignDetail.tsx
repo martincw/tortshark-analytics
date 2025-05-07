@@ -205,7 +205,7 @@ const CampaignDetail = () => {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <h1 className="text-2xl font-bold mb-4">Campaign not found</h1>
-        <Button onClick={() => navigate("/campaigns")} variant="default">
+        <Button onClick={() => navigate("/")} variant="default">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Campaigns
         </Button>
@@ -542,7 +542,7 @@ const CampaignDetail = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <Button
-            onClick={() => navigate("/campaigns")}
+            onClick={() => navigate("/")}
             variant="ghost"
             size="sm"
             className="text-muted-foreground hover:text-foreground px-0 mb-2"
