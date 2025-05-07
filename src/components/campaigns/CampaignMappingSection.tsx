@@ -1,221 +1,177 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import CampaignMappingDialog from "@/components/accounts/CampaignMappingDialog";
+import LeadProsperMappingDialog from "./LeadProsperMappingDialog";
+import { CardHeader, CardTitle, CardDescription, CardContent, Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Trash2 } from "lucide-react";
-import { campaignMappingService } from "@/services/campaignMappingService";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-interface GoogleCampaign {
-  id: string;
-  name: string;
-  status: string;
-}
-
-interface CampaignMapping {
-  id: string;
-  google_account_id: string;
-  google_campaign_id: string;
-  google_campaign_name: string;
-  is_active: boolean;
-  last_synced: string | null;
-}
+import { leadProsperApi } from "@/integrations/leadprosper/client";
 
 interface CampaignMappingSectionProps {
   campaignId: string;
-  availableAccounts: {
-    id: string;
-    name: string;
-    platform: string;
-  }[];
+  campaignName: string;
 }
 
-export function CampaignMappingSection({ campaignId, availableAccounts }: CampaignMappingSectionProps) {
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
-  const [availableCampaigns, setAvailableCampaigns] = useState<GoogleCampaign[]>([]);
-  const [selectedCampaign, setSelectedCampaign] = useState<string>("");
-  const [mappings, setMappings] = useState<CampaignMapping[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+export default function CampaignMappingSection({ campaignId, campaignName }: CampaignMappingSectionProps) {
+  const { user } = useAuth();
+  const [googleMappings, setGoogleMappings] = useState<any[]>([]);
+  const [leadProsperMappings, setLeadProsperMappings] = useState<any[]>([]);
+  const [isLoadingGoogle, setIsLoadingGoogle] = useState(true);
+  const [isLoadingLP, setIsLoadingLP] = useState(true);
 
-  const loadMappings = async () => {
+  const fetchGoogleMappings = async () => {
+    setIsLoadingGoogle(true);
     try {
-      const mappings = await campaignMappingService.getMappingsForCampaign(campaignId);
-      setMappings(mappings);
+      const { data, error } = await supabase
+        .from('campaign_ad_mappings')
+        .select('*')
+        .eq('tortshark_campaign_id', campaignId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setGoogleMappings(data || []);
     } catch (error) {
-      console.error("Error loading mappings:", error);
-      toast.error("Failed to load campaign mappings");
+      console.error('Error fetching Google ad mappings:', error);
+      toast.error('Failed to load campaign mappings');
+    } finally {
+      setIsLoadingGoogle(false);
+    }
+  };
+  
+  const fetchLeadProsperMappings = async () => {
+    setIsLoadingLP(true);
+    try {
+      const mappings = await leadProsperApi.getCampaignMappings(campaignId);
+      setLeadProsperMappings(mappings || []);
+    } catch (error) {
+      console.error('Error fetching Lead Prosper mappings:', error);
+      // Don't show error toast to avoid confusion if Lead Prosper is not set up
+    } finally {
+      setIsLoadingLP(false);
     }
   };
 
   useEffect(() => {
-    loadMappings();
-  }, [campaignId]);
-
-  const handleAccountChange = async (accountId: string) => {
-    setSelectedAccount(accountId);
-    setSelectedCampaign("");
-    setIsLoading(true);
-
-    try {
-      const campaigns = await campaignMappingService.listAvailableCampaigns(accountId);
-      setAvailableCampaigns(campaigns);
-    } catch (error) {
-      console.error("Error loading campaigns:", error);
-      toast.error("Failed to load Google Ads campaigns");
-    } finally {
-      setIsLoading(false);
+    if (campaignId && user) {
+      fetchGoogleMappings();
+      fetchLeadProsperMappings();
     }
-  };
-
-  const handleAddMapping = async () => {
-    if (!selectedAccount || !selectedCampaign) return;
-
-    const campaign = availableCampaigns.find(c => c.id === selectedCampaign);
-    if (!campaign) return;
-
-    try {
-      await campaignMappingService.createMapping(
-        campaignId,
-        selectedAccount,
-        campaign.id,
-        campaign.name
-      );
-      
-      toast.success("Campaign mapping added successfully");
-      await loadMappings();
-      
-      // Reset selections
-      setSelectedAccount("");
-      setSelectedCampaign("");
-      setAvailableCampaigns([]);
-    } catch (error) {
-      console.error("Error adding mapping:", error);
-      toast.error("Failed to add campaign mapping");
-    }
-  };
-
-  const handleDeleteMapping = async (mapping: CampaignMapping) => {
-    try {
-      await campaignMappingService.deleteMapping(
-        campaignId,
-        mapping.google_account_id,
-        mapping.google_campaign_id
-      );
-      
-      toast.success("Campaign mapping removed successfully");
-      await loadMappings();
-    } catch (error) {
-      console.error("Error removing mapping:", error);
-      toast.error("Failed to remove campaign mapping");
-    }
-  };
-
-  const googleAccounts = availableAccounts.filter(account => account.platform === "google");
+  }, [campaignId, user]);
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Google Ads Campaign Mappings</h3>
-      
-      {googleAccounts.length === 0 ? (
-        <Alert>
-          <AlertDescription>
-            No Google Ads accounts connected. Please connect a Google Ads account first.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Google Ads Account</label>
-              <Select value={selectedAccount} onValueChange={handleAccountChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {googleAccounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Google Ads Campaign</label>
-              <Select 
-                value={selectedCampaign} 
-                onValueChange={setSelectedCampaign}
-                disabled={!selectedAccount || isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={isLoading ? "Loading campaigns..." : "Select a campaign"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCampaigns.map((campaign) => (
-                    <SelectItem key={campaign.id} value={campaign.id}>
-                      {campaign.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>External Integrations</CardTitle>
+        <CardDescription>
+          Map this campaign to external platforms for automatic data import
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Google Ads Mappings */}
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-medium">Google Ads Campaigns</h3>
+            <CampaignMappingDialog 
+              campaignId={campaignId} 
+              onMappingCreated={fetchGoogleMappings} 
+            />
           </div>
-
-          <Button
-            onClick={handleAddMapping}
-            disabled={!selectedAccount || !selectedCampaign}
-          >
-            Add Campaign Mapping
-          </Button>
-
-          {mappings.length > 0 && (
-            <div className="mt-6 space-y-4">
-              <h4 className="text-sm font-medium">Mapped Campaigns</h4>
-              <div className="space-y-2">
-                {mappings.map((mapping) => {
-                  const account = googleAccounts.find(a => a.id === mapping.google_account_id);
-                  return (
-                    <div 
-                      key={mapping.id} 
-                      className="flex items-center justify-between p-3 bg-muted rounded-md"
-                    >
-                      <div className="space-y-1">
-                        <div className="font-medium">{mapping.google_campaign_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {account?.name || mapping.google_account_id}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {mapping.last_synced && (
-                          <Badge variant="secondary" className="font-normal">
-                            Last synced: {new Date(mapping.last_synced).toLocaleDateString()}
-                          </Badge>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteMapping(mapping)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          
+          {isLoadingGoogle ? (
+            <div className="flex justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : googleMappings.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Google Campaign Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Google Campaign ID</TableHead>
+                  <TableHead>Google Account ID</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {googleMappings.map((mapping) => (
+                  <TableRow key={mapping.id}>
+                    <TableCell>{mapping.google_campaign_name}</TableCell>
+                    <TableCell>
+                      {mapping.is_active ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Active</Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">Inactive</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{mapping.google_campaign_id}</TableCell>
+                    <TableCell className="font-mono text-xs">{mapping.google_account_id}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              No Google Ads campaigns mapped yet
             </div>
           )}
-        </>
-      )}
-    </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Lead Prosper Mappings */}
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-medium">Lead Prosper Campaigns</h3>
+            <LeadProsperMappingDialog 
+              campaignId={campaignId}
+              campaignName={campaignName}
+              onMappingUpdated={fetchLeadProsperMappings}
+            />
+          </div>
+          
+          {isLoadingLP ? (
+            <div className="flex justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : leadProsperMappings.filter(m => m.active).length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead Prosper Campaign</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Campaign ID</TableHead>
+                  <TableHead>Mapped On</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leadProsperMappings
+                  .filter(mapping => mapping.active)
+                  .map((mapping) => (
+                    <TableRow key={mapping.id}>
+                      <TableCell>{mapping.lp_campaign?.name || 'Unknown'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Active</Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{mapping.lp_campaign?.lp_campaign_id || 'Unknown'}</TableCell>
+                      <TableCell>{new Date(mapping.linked_at).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              No Lead Prosper campaigns mapped yet
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -54,3 +54,16 @@ verify_jwt = true
 
 [edge_functions.extract-tort-coverage]
 verify_jwt = true
+
+[edge_functions.lead-prosper-auth]
+verify_jwt = true
+
+[edge_functions.lead-prosper-campaigns]
+verify_jwt = true
+
+[edge_functions.lead-prosper-sync]
+verify_jwt = true
+
+[edge_functions.lead-prosper-webhook]
+verify_jwt = false
+
