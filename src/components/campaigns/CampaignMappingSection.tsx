@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import CampaignMappingDialog from "@/components/accounts/CampaignMappingDialog";
+import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 import LeadProsperMappingDialog from "./LeadProsperMappingDialog";
 import { CardHeader, CardTitle, CardDescription, CardContent, Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,18 +12,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { leadProsperApi } from "@/integrations/leadprosper/client";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface CampaignMappingSectionProps {
   campaignId: string;
-  campaignName: string;
+  availableAccounts: any[];
 }
 
-export default function CampaignMappingSection({ campaignId, campaignName }: CampaignMappingSectionProps) {
+export default function CampaignMappingSection({ campaignId, availableAccounts }: CampaignMappingSectionProps) {
   const { user } = useAuth();
+  const { campaigns } = useCampaign();
   const [googleMappings, setGoogleMappings] = useState<any[]>([]);
   const [leadProsperMappings, setLeadProsperMappings] = useState<any[]>([]);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(true);
   const [isLoadingLP, setIsLoadingLP] = useState(true);
+  const [campaignName, setCampaignName] = useState("");
+
+  useEffect(() => {
+    // Find campaign name from campaigns context or availableAccounts
+    if (campaignId) {
+      const campaign = campaigns?.find(c => c.id === campaignId) || 
+                       availableAccounts?.find(a => a.id === campaignId);
+      if (campaign) {
+        setCampaignName(campaign.name || "Campaign");
+      }
+    }
+  }, [campaignId, campaigns, availableAccounts]);
 
   const fetchGoogleMappings = async () => {
     setIsLoadingGoogle(true);
@@ -82,6 +96,10 @@ export default function CampaignMappingSection({ campaignId, campaignName }: Cam
             <CampaignMappingDialog 
               campaignId={campaignId} 
               onMappingCreated={fetchGoogleMappings} 
+              isOpen={false}
+              onClose={() => {}}
+              accountId=""
+              campaigns={[]}
             />
           </div>
           

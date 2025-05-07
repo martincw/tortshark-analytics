@@ -12,7 +12,7 @@ import {
 import { useCampaignForm } from "@/hooks/useCampaignForm";
 import CampaignDetailsSection from "./CampaignDetailsSection";
 import CampaignTargetsSection from "./CampaignTargetsSection";
-import { CampaignMappingSection } from "./CampaignMappingSection";
+import CampaignMappingSection from "./CampaignMappingSection";
 import { toast } from "sonner";
 
 interface CampaignFormProps {

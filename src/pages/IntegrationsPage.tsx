@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Google } from "@/components/integrations/Google";
+import Google from "@/components/integrations/Google";
 import LeadProsper from "@/components/integrations/LeadProsper";
 
 export default function IntegrationsPage() {

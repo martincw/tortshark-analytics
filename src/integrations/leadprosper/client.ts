@@ -119,7 +119,7 @@ export const leadProsperApi = {
     const { data: externalCampaign, error: externalCampaignError } = await supabase
       .from('external_lp_campaigns')
       .select('id')
-      .eq('lp_campaign_id', lp_campaign_id)
+      .eq('lp_campaign_id', parseInt(lp_campaign_id))
       .single();
       
     if (externalCampaignError) {

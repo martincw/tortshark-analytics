@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -57,16 +56,23 @@ export default function LeadProsperConnection() {
       const data = await leadProsperApi.checkConnection();
       setIsConnected(data.isConnected);
       if (data.credentials) {
+        const credentials = typeof data.credentials.credentials === 'string' 
+          ? JSON.parse(data.credentials.credentials)
+          : data.credentials.credentials || {};
+          
         setConnection({
           id: data.credentials.id,
           name: data.credentials.name,
           platform: 'leadprosper',
           isConnected: data.credentials.is_connected,
           lastSynced: data.credentials.last_synced,
-          apiKey: '',
-          credentials: data.credentials.credentials || {}
+          apiKey: credentials.apiKey || '',
+          credentials: {
+            apiKey: credentials.apiKey || '',
+            ...credentials
+          }
         });
-        setApiKey(data.credentials.credentials?.apiKey || '');
+        setApiKey(credentials.apiKey || '');
         setConnectionName(data.credentials.name);
       }
     } catch (error) {
@@ -94,11 +100,19 @@ export default function LeadProsperConnection() {
           connectionName
         );
         
+        // Extract credentials from the response
+        const updatedCredentials = typeof updatedConnection.credentials === 'string'
+          ? JSON.parse(updatedConnection.credentials)
+          : updatedConnection.credentials || {};
+        
         setConnection({
           ...connection,
           name: updatedConnection.name,
           lastSynced: updatedConnection.last_synced,
-          credentials: updatedConnection.credentials
+          credentials: {
+            apiKey: updatedCredentials.apiKey || '',
+            ...updatedCredentials
+          }
         });
         
         toast.success('Lead Prosper connection updated successfully');
@@ -110,6 +124,11 @@ export default function LeadProsperConnection() {
           user?.id || ''
         );
         
+        // Extract credentials from the response
+        const newCredentials = typeof newConnection.credentials === 'string'
+          ? JSON.parse(newConnection.credentials)
+          : newConnection.credentials || {};
+        
         setConnection({
           id: newConnection.id,
           name: newConnection.name,
@@ -117,7 +136,10 @@ export default function LeadProsperConnection() {
           isConnected: newConnection.is_connected,
           lastSynced: newConnection.last_synced,
           apiKey: '',
-          credentials: newConnection.credentials
+          credentials: {
+            apiKey: newCredentials.apiKey || '',
+            ...newCredentials
+          }
         });
         
         toast.success('Lead Prosper connected successfully');
