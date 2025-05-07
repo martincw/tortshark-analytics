@@ -114,7 +114,10 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
           {/* Google Ads Mapping Dialog */}
           <CampaignMappingDialog 
             isOpen={isDialogOpen} 
-            onClose={() => setIsDialogOpen(false)} 
+            onClose={() => {
+              setIsDialogOpen(false);
+              fetchGoogleMappings(); // Refresh mappings when dialog closes
+            }} 
             accountId={selectedAccountId}
             campaigns={campaignsForMapping} 
           />
