@@ -19,6 +19,7 @@ const handleCors = (req: Request): Response | null => {
 // Fetch campaigns from the Lead Prosper API
 async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
   try {
+    console.log('Fetching Lead Prosper campaigns with provided API key');
     const response = await fetch('https://api.leadprosper.io/public/campaigns', {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -34,6 +35,7 @@ async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
     }
 
     const data = await response.json();
+    console.log(`Successfully fetched ${data.data?.length || 0} campaigns from Lead Prosper`);
     return data;
   } catch (error) {
     console.error('Error in fetchLeadProsperCampaigns:', error);
@@ -85,13 +87,23 @@ serve(async (req) => {
       error: userError,
     } = await supabaseClient.auth.getUser();
 
-    if (userError || !user) {
+    if (userError) {
       console.error('User authentication error:', userError?.message);
       return new Response(
         JSON.stringify({ error: userError?.message || 'User not found' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    if (!user) {
+      console.error('No user found in session');
+      return new Response(
+        JSON.stringify({ error: 'No user found in session' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Successfully authenticated user: ${user.id}`);
 
     // Get the Lead Prosper API key from the request body
     let requestData;
@@ -141,6 +153,7 @@ serve(async (req) => {
             onConflict: 'lp_campaign_id',
           });
         }
+        console.log(`Successfully stored ${campaigns.data.length} campaigns in database`);
       } catch (dbError) {
         console.error('Error storing campaigns in database:', dbError);
         // Continue to return campaigns even if storage fails

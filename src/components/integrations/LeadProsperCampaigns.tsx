@@ -2,245 +2,275 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { 
   Card, 
   CardContent, 
   CardDescription, 
+  CardFooter, 
   CardHeader, 
-  CardTitle,
-  CardFooter
+  CardTitle 
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { Loader2, RefreshCw, Search, Calendar, AlertCircle } from 'lucide-react';
-import { leadProsperApi } from '@/integrations/leadprosper/client';
-import { LeadProsperConnection as LeadProsperConnectionType } from '@/integrations/leadprosper/types';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
+  Search, 
+  Loader2, 
+  AlertCircle,
+  HelpCircle,
+  Link as LinkIcon,
+  ExternalLink
+} from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 export default function LeadProsperCampaigns() {
   const { user } = useAuth();
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [filteredCampaigns, setFilteredCampaigns] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [connection, setConnection] = useState<LeadProsperConnectionType | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<{ isConnected: boolean, error?: string }>({
+    isConnected: false
+  });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCampaigns();
+    checkConnectionAndLoadCampaigns();
   }, []);
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = campaigns.filter(campaign => 
-        campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        campaign.id.toString().includes(searchTerm)
-      );
-      setFilteredCampaigns(filtered);
-    } else {
-      setFilteredCampaigns(campaigns);
-    }
-  }, [searchTerm, campaigns]);
-
-  const loadCampaigns = async () => {
+  const checkConnectionAndLoadCampaigns = async () => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
       
-      // Check connection status
+      // Check if the user is connected to Lead Prosper
       const connectionData = await leadProsperApi.checkConnection();
       
       if (connectionData.error) {
+        setConnectionStatus({ isConnected: false, error: connectionData.error });
         setErrorMessage(`Connection error: ${connectionData.error}`);
-        setIsLoading(false);
         return;
       }
       
       if (!connectionData.isConnected) {
-        setIsLoading(false);
+        console.log('No active Lead Prosper connection found');
+        setConnectionStatus({ isConnected: false });
+        setErrorMessage('No active Lead Prosper connection found. Please connect your account first.');
         return;
       }
       
-      setConnection({
-        id: connectionData.credentials.id,
-        name: connectionData.credentials.name,
-        platform: 'leadprosper',
-        isConnected: connectionData.credentials.is_connected,
-        lastSynced: connectionData.credentials.last_synced,
-        apiKey: '',
-        credentials: connectionData.credentials.credentials || {}
-      });
+      setConnectionStatus({ isConnected: true });
       
-      // Get API key - try from credentials first, then from cache
-      let apiKey = connectionData.credentials.credentials?.apiKey;
-      
+      // Get the API key
+      const apiKey = connectionData.credentials?.credentials?.apiKey || 
+                     leadProsperApi.getCachedApiKey();
+                     
       if (!apiKey) {
-        apiKey = leadProsperApi.getCachedApiKey();
-        console.log("Using cached API key");
-      }
-      
-      if (!apiKey) {
-        setErrorMessage('API key not found in credentials. Please reconnect your Lead Prosper account.');
-        toast.error('API key not found in credentials');
-        setIsLoading(false);
+        setErrorMessage('API key not found. Please reconnect your Lead Prosper account.');
         return;
       }
       
-      try {
-        const campaignsData = await leadProsperApi.getCampaigns(apiKey);
-        setCampaigns(campaignsData);
-        setFilteredCampaigns(campaignsData);
-      } catch (campaignsError) {
-        console.error('Error loading campaigns:', campaignsError);
-        setErrorMessage(`Failed to load campaigns: ${campaignsError.message}`);
-        toast.error('Failed to load Lead Prosper campaigns');
-      }
+      // Load campaigns
+      await loadCampaigns(apiKey);
       
     } catch (error) {
-      console.error('Error loading Lead Prosper campaigns:', error);
-      setErrorMessage(`Failed to load Lead Prosper campaigns: ${error.message}`);
+      console.error('Error checking connection and loading campaigns:', error);
+      setErrorMessage('Failed to check connection status and load campaigns');
       toast.error('Failed to load Lead Prosper campaigns');
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleRefreshCampaigns = async () => {
-    setIsRefreshing(true);
-    setErrorMessage(null);
+
+  const loadCampaigns = async (apiKey: string) => {
     try {
-      await loadCampaigns();
+      const campaigns = await leadProsperApi.getCampaigns(apiKey);
+      setCampaigns(campaigns);
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
+      setErrorMessage(`Failed to load campaigns: ${error.message}`);
+      toast.error('Failed to load Lead Prosper campaigns');
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      
+      // Get API key from cache first
+      let apiKey = leadProsperApi.getCachedApiKey();
+      
+      // If no key in cache, get it from connection data
+      if (!apiKey) {
+        const connectionData = await leadProsperApi.checkConnection();
+        
+        if (!connectionData.isConnected || !connectionData.credentials?.credentials?.apiKey) {
+          toast.error('No API key found. Please reconnect your Lead Prosper account.');
+          return;
+        }
+        
+        apiKey = connectionData.credentials.credentials.apiKey;
+      }
+      
+      await loadCampaigns(apiKey);
       toast.success('Campaigns refreshed successfully');
     } catch (error) {
       console.error('Error refreshing campaigns:', error);
-      setErrorMessage(`Failed to refresh campaigns: ${error.message}`);
       toast.error('Failed to refresh campaigns');
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  if (!connection?.isConnected) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Lead Prosper Campaigns</CardTitle>
-          <CardDescription>
-            Connect to Lead Prosper to view and manage your campaigns
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <p className="mb-4 text-muted-foreground">
-              No active Lead Prosper connection found. Please connect your account first.
-            </p>
-            <Button variant="outline" onClick={() => window.location.hash = '#connection'}>
-              Go to Connection Setup
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const filteredCampaigns = campaigns.filter(campaign => 
+    campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    campaign.id.toString().includes(searchTerm)
+  );
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Lead Prosper Campaigns</CardTitle>
-          <CardDescription>
-            View and manage your Lead Prosper campaigns
-          </CardDescription>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefreshCampaigns}
-          disabled={isRefreshing}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center">
+          Lead Prosper Campaigns
+        </CardTitle>
+        <CardDescription>
+          View and manage your Lead Prosper campaigns
+        </CardDescription>
       </CardHeader>
+      
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : errorMessage ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Connection Error</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>{errorMessage}</p>
+              <Button 
+                variant="secondary"
+                size="sm"
+                onClick={() => window.location.href = "/integrations?tab=leadprosper"}
+              >
+                Go to Lead Prosper Connection
+              </Button>
+            </AlertDescription>
+          </Alert>
         ) : (
           <div className="space-y-4">
-            {errorMessage && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{errorMessage}</AlertDescription>
-              </Alert>
-            )}
-          
-            <div className="flex items-center border rounded-md px-3 focus-within:ring-1 focus-within:ring-ring">
-              <Search className="h-5 w-5 mr-2 text-muted-foreground" />
-              <Input
-                placeholder="Search campaigns..."
-                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
+              <div className="flex items-center border rounded-md px-3 w-full sm:w-auto focus-within:ring-1 focus-within:ring-ring">
+                <Search className="h-4 w-4 mr-2 text-muted-foreground" />
+                <Input
+                  placeholder="Search campaigns..."
+                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <Button 
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isRefreshing || !connectionStatus.isConnected}
+              >
+                {isRefreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <span>Refresh Campaigns</span>
+                )}
+              </Button>
             </div>
             
-            {filteredCampaigns.length > 0 ? (
-              <div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Campaign Name</TableHead>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCampaigns.map((campaign) => (
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Campaign Name</TableHead>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <div className="flex items-center">
+                        <span>Actions</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <HelpCircle className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              View or manage campaign in Lead Prosper
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCampaigns.length > 0 ? (
+                    filteredCampaigns.map((campaign) => (
                       <TableRow key={campaign.id}>
-                        <TableCell className="font-medium">{campaign.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{campaign.id}</TableCell>
+                        <TableCell>{campaign.name}</TableCell>
+                        <TableCell>{campaign.id}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{campaign.status}</Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                            {new Date(campaign.created_at).toLocaleDateString()}
-                          </div>
+                          <a
+                            href={`https://app.leadprosper.io/campaigns/${campaign.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-blue-500 hover:text-blue-700"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View
+                          </a>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                {searchTerm ? "No campaigns found matching your search" : "No campaigns found"}
-              </div>
-            )}
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        {searchTerm ? (
+                          <>No campaigns match your search</>
+                        ) : (
+                          <>No campaigns found</>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </CardContent>
-      <CardFooter className="text-sm text-muted-foreground">
-        Last synced: {connection?.lastSynced 
-          ? new Date(connection.lastSynced).toLocaleString() 
-          : 'Never'}
-      </CardFooter>
     </Card>
   );
 }

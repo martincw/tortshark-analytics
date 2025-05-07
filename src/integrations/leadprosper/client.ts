@@ -2,6 +2,8 @@ import { supabase, SUPABASE_PROJECT_URL } from '../supabase/client';
 
 // Cache for storing API key temporarily
 let cachedApiKey: string | null = null;
+let connectionStatusCache: { isConnected: boolean, timestamp: number, credentials: any } | null = null;
+const CONNECTION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export const leadProsperApi = {
   // Get cached API key if available
@@ -21,6 +23,19 @@ export const leadProsperApi = {
 
   async checkConnection() {
     try {
+      console.log('Checking Lead Prosper connection...');
+      
+      // First try to use cache if it exists and is not expired
+      if (connectionStatusCache && 
+          (Date.now() - connectionStatusCache.timestamp) < CONNECTION_CACHE_TTL) {
+        console.log('Using cached connection status');
+        return {
+          isConnected: connectionStatusCache.isConnected,
+          credentials: connectionStatusCache.credentials,
+          fromCache: true
+        };
+      }
+      
       // Get auth header
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -28,23 +43,68 @@ export const leadProsperApi = {
         return { isConnected: false, error: 'Authentication required' };
       }
 
-      const { data, error } = await supabase.functions.invoke('lead-prosper-auth', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
+      // Try to fetch connection status from edge function
+      try {
+        const { data, error } = await supabase.functions.invoke('lead-prosper-auth', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+        
+        if (error) {
+          console.error('Error checking Lead Prosper connection (edge function):', error);
+          // Don't throw, continue with fallback below
+        } else {
+          // Update cache with edge function response
+          connectionStatusCache = {
+            isConnected: data.isConnected,
+            credentials: data.credentials,
+            timestamp: Date.now()
+          };
+          
+          // If we have credentials with an API key, cache it
+          if (data.credentials?.credentials?.apiKey) {
+            this.setCachedApiKey(data.credentials.credentials.apiKey);
+          }
+          
+          return data;
         }
-      });
-      
-      if (error) {
-        console.error('Error checking Lead Prosper connection:', error);
-        throw error;
+      } catch (edgeFunctionError) {
+        console.error('Edge function error in checkConnection:', edgeFunctionError);
+        // Continue with fallback
+      }
+
+      // Fallback: direct database query for connection status
+      console.log('Falling back to direct database query for connection status');
+      const { data: connections, error: dbError } = await supabase
+        .from('account_connections')
+        .select('*')
+        .eq('platform', 'leadprosper')
+        .eq('is_connected', true)
+        .maybeSingle();
+        
+      if (dbError) {
+        console.error('Error checking Lead Prosper connection (db fallback):', dbError);
+        throw dbError;
       }
       
-      // If we have credentials with an API key, cache it
-      if (data.credentials?.credentials?.apiKey) {
-        this.setCachedApiKey(data.credentials.credentials.apiKey);
+      // Update cache with database response
+      connectionStatusCache = {
+        isConnected: !!connections,
+        credentials: connections,
+        timestamp: Date.now()
+      };
+      
+      // Extract and cache API key if available
+      if (connections?.credentials?.apiKey) {
+        this.setCachedApiKey(connections.credentials.apiKey);
       }
       
-      return data;
+      return {
+        isConnected: !!connections,
+        credentials: connections || null,
+        fromFallback: true
+      };
     } catch (error) {
       console.error('Error in checkConnection:', error);
       // Return a structured error response
@@ -58,6 +118,8 @@ export const leadProsperApi = {
 
   async getCampaigns(apiKey: string) {
     try {
+      console.log('Getting Lead Prosper campaigns...');
+      
       // Cache the provided API key
       this.setCachedApiKey(apiKey);
       
@@ -80,6 +142,7 @@ export const leadProsperApi = {
         throw error;
       }
       
+      console.log(`Retrieved ${data.campaigns?.length || 0} campaigns`);
       return data.campaigns || [];
     } catch (error) {
       console.error('Error in getCampaigns:', error);
@@ -126,6 +189,8 @@ export const leadProsperApi = {
 
   async createConnection(apiKey: string, name: string, userId: string) {
     try {
+      console.log('Creating Lead Prosper connection...');
+      
       // Cache the API key immediately
       this.setCachedApiKey(apiKey);
       
@@ -148,6 +213,10 @@ export const leadProsperApi = {
         throw error;
       }
       
+      // Clear connection cache to force refresh on next check
+      connectionStatusCache = null;
+      
+      console.log('Lead Prosper connection created successfully');
       return data;
     } catch (error) {
       console.error('Error in createConnection:', error);
@@ -157,6 +226,8 @@ export const leadProsperApi = {
 
   async updateConnection(id: string, apiKey: string, name: string) {
     try {
+      console.log('Updating Lead Prosper connection...');
+      
       // Cache the API key immediately
       this.setCachedApiKey(apiKey);
       
@@ -176,6 +247,10 @@ export const leadProsperApi = {
         throw error;
       }
       
+      // Clear connection cache to force refresh on next check
+      connectionStatusCache = null;
+      
+      console.log('Lead Prosper connection updated successfully');
       return data;
     } catch (error) {
       console.error('Error in updateConnection:', error);
@@ -184,16 +259,29 @@ export const leadProsperApi = {
   },
 
   async deleteConnection(id: string) {
-    const { error } = await supabase
-      .from('account_connections')
-      .delete()
-      .eq('id', id);
+    try {
+      console.log('Deleting Lead Prosper connection...');
       
-    if (error) {
-      console.error('Error deleting Lead Prosper connection:', error);
-      throw error;
+      const { error } = await supabase
+        .from('account_connections')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        console.error('Error deleting Lead Prosper connection:', error);
+        throw error;
+      }
+      
+      // Clear API key and connection cache
+      this.setCachedApiKey(null);
+      connectionStatusCache = null;
+      
+      console.log('Lead Prosper connection deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('Error in deleteConnection:', error);
+      throw new Error(`Failed to delete Lead Prosper connection: ${error.message}`);
     }
-    return true;
   },
 
   async mapCampaign(ts_campaign_id: string, lp_campaign_id: string) {

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,10 +14,8 @@ import { Button } from "@/components/ui/button";
 import { 
   Menu, 
   LogOut, 
-  WalletCards,
-  ExternalLink,
-  CalendarIcon,
   LayoutDashboard,
+  CalendarIcon,
   CreditCard,
   Users,
 } from "lucide-react";
@@ -25,14 +24,19 @@ import { SidebarMenu } from "./SidebarMenu";
 import { NavItems } from "./NavItems";
 import { NavItem } from "@/types/navigation";
 
+// Main navigation items (excluding external links that will only be in sidebar)
 const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
-  { href: "https://app.relayfi.com/login", label: "Banking", icon: <WalletCards className="h-4 w-4 mr-2" />, external: true },
-  { href: "https://app.leadprosper.io/dashboard", label: "LeadProsper", icon: <ExternalLink className="h-4 w-4 mr-2" />, external: true },
-  { href: "https://robby2dff4b-app.clickfunnels.com/funnels", label: "Clickfunnels", icon: <ExternalLink className="h-4 w-4 mr-2" />, external: true },
+];
+
+// External links that will only appear in sidebar
+export const externalNavItems: NavItem[] = [
+  { href: "https://app.relayfi.com/login", label: "Banking", external: true },
+  { href: "https://app.leadprosper.io/dashboard", label: "LeadProsper", external: true },
+  { href: "https://robby2dff4b-app.clickfunnels.com/funnels", label: "Clickfunnels", external: true },
 ];
 
 const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
@@ -71,7 +75,11 @@ export const Navbar: React.FC = () => {
                   Manage your campaigns and account settings from here.
                 </SheetDescription>
               </SheetHeader>
-              <SidebarMenu navItems={navItems} isActive={isActive} />
+              <SidebarMenu 
+                navItems={navItems}
+                externalNavItems={externalNavItems} 
+                isActive={isActive} 
+              />
             </SheetContent>
           </Sheet>
           <Link to="/" className="ml-4">

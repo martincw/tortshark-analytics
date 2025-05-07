@@ -7,30 +7,18 @@ import { NavItem } from "@/types/navigation";
 
 interface SidebarMenuProps {
   navItems: NavItem[];
+  externalNavItems: NavItem[];
   isActive: (href: string) => boolean;
 }
 
-export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) => {
+export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavItems, isActive }) => {
   const { buyers, loading } = useBuyers();
 
   return (
     <div className="grid gap-4 py-4">
+      {/* Main Navigation Items */}
       {navItems.map((item) => (
-        item.external ? (
-          <a 
-            key={item.href}
-            href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
-              item.priority ? "text-primary font-medium" : ""
-            }`}
-          >
-            {item.icon}
-            {item.label}
-            {item.priority && <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 rounded-full">New</span>}
-          </a>
-        ) : item.dropdown ? (
+        item.dropdown ? (
           <div key={item.href} className="px-4 py-2 rounded-md hover:bg-secondary">
             <Link to={item.href} className="font-medium">
               {item.label}
@@ -67,6 +55,25 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, isActive }) 
           </Link>
         )
       ))}
+      
+      {/* External Links */}
+      <div className="px-4 py-2">
+        <h3 className="text-sm font-medium mb-2">External Links</h3>
+        <div className="space-y-1">
+          {externalNavItems.map((item) => (
+            <a 
+              key={item.href}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1 rounded-md hover:bg-secondary flex items-center"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {item.label}
+            </a>
+          ))}
+        </div>
+      </div>
       
       <Link 
         to="/bulk-stats" 

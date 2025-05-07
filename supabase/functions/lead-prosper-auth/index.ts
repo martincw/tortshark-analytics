@@ -68,17 +68,32 @@ serve(async (req) => {
       error: userError,
     } = await supabaseClient.auth.getUser();
 
-    if (userError || !user) {
+    if (userError) {
       console.error('User authentication error:', userError?.message);
       return new Response(
         JSON.stringify({ 
-          error: userError?.message || 'User not found',
+          error: userError?.message || 'User authentication failed',
           isConnected: false,
           credentials: null
         }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Additional check to make sure we have a user
+    if (!user) {
+      console.error('No user found in session');
+      return new Response(
+        JSON.stringify({ 
+          error: 'No user found in session',
+          isConnected: false,
+          credentials: null
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Successfully authenticated user: ${user.id}`);
 
     // Check if the user has stored credentials for Lead Prosper
     const { data: credentials, error: credentialsError } = await supabaseClient
