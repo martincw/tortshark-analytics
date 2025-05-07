@@ -7,7 +7,7 @@ import { CardHeader, CardTitle, CardDescription, CardContent, Card } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, Link2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,6 +27,14 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(true);
   const [isLoadingLP, setIsLoadingLP] = useState(true);
   const [campaignName, setCampaignName] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Find the current campaign object for use in the mapping dialog
+  const currentCampaign = campaigns?.find(c => c.id === campaignId);
+  const campaignsForMapping = currentCampaign ? [currentCampaign] : [];
+  
+  // Get the selected account ID based on the current campaign
+  const selectedAccountId = currentCampaign?.accountId || "";
 
   useEffect(() => {
     // Find campaign name from campaigns context or availableAccounts
@@ -93,15 +101,23 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
         <div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-medium">Google Ads Campaigns</h3>
-            <CampaignMappingDialog 
-              campaignId={campaignId} 
-              onMappingCreated={fetchGoogleMappings} 
-              isOpen={false}
-              onClose={() => {}}
-              accountId=""
-              campaigns={[]}
-            />
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              Map Google Campaign
+            </Button>
           </div>
+          
+          {/* Google Ads Mapping Dialog */}
+          <CampaignMappingDialog 
+            isOpen={isDialogOpen} 
+            onClose={() => setIsDialogOpen(false)} 
+            accountId={selectedAccountId}
+            campaigns={campaignsForMapping} 
+          />
           
           {isLoadingGoogle ? (
             <div className="flex justify-center p-4">
