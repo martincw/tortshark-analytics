@@ -63,8 +63,15 @@ export const leadProsperApi = {
           };
           
           // If we have credentials with an API key, cache it
-          if (data.credentials?.credentials?.apiKey) {
-            this.setCachedApiKey(data.credentials.credentials.apiKey);
+          if (data.isConnected && data.credentials?.credentials) {
+            // Handle credentials stored as a string or as a JSON object
+            const credentialsObj = typeof data.credentials.credentials === 'string' 
+              ? JSON.parse(data.credentials.credentials) 
+              : data.credentials.credentials;
+              
+            if (credentialsObj && typeof credentialsObj === 'object' && 'apiKey' in credentialsObj) {
+              this.setCachedApiKey(credentialsObj.apiKey);
+            }
           }
           
           return data;
@@ -81,28 +88,52 @@ export const leadProsperApi = {
         .select('*')
         .eq('platform', 'leadprosper')
         .eq('is_connected', true)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
         
       if (dbError) {
         console.error('Error checking Lead Prosper connection (db fallback):', dbError);
         throw dbError;
       }
+
+      if (!connections || connections.length === 0) {
+        console.log('No active Lead Prosper connections found');
+        connectionStatusCache = {
+          isConnected: false,
+          credentials: null,
+          timestamp: Date.now()
+        };
+        return {
+          isConnected: false,
+          credentials: null,
+          fromFallback: true
+        };
+      }
+      
+      const mostRecentConnection = connections[0];
       
       // Update cache with database response
       connectionStatusCache = {
-        isConnected: !!connections,
-        credentials: connections,
+        isConnected: true,
+        credentials: mostRecentConnection,
         timestamp: Date.now()
       };
       
       // Extract and cache API key if available
-      if (connections?.credentials?.apiKey) {
-        this.setCachedApiKey(connections.credentials.apiKey);
+      if (mostRecentConnection.credentials) {
+        // Handle credentials stored as a string or as a JSON object
+        const credentialsObj = typeof mostRecentConnection.credentials === 'string' 
+          ? JSON.parse(mostRecentConnection.credentials) 
+          : mostRecentConnection.credentials;
+          
+        if (credentialsObj && typeof credentialsObj === 'object' && 'apiKey' in credentialsObj) {
+          this.setCachedApiKey(credentialsObj.apiKey);
+        }
       }
       
       return {
-        isConnected: !!connections,
-        credentials: connections || null,
+        isConnected: true,
+        credentials: mostRecentConnection,
         fromFallback: true
       };
     } catch (error) {

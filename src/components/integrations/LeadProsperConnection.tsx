@@ -74,30 +74,44 @@ export default function LeadProsperConnection() {
       
       setIsConnected(data.isConnected);
       if (data.credentials) {
-        const credentials = typeof data.credentials.credentials === 'string' 
-          ? JSON.parse(data.credentials.credentials)
-          : data.credentials.credentials || {};
-          
-        setConnection({
-          id: data.credentials.id,
-          name: data.credentials.name,
-          platform: 'leadprosper',
-          isConnected: data.credentials.is_connected,
-          lastSynced: data.credentials.last_synced,
-          apiKey: credentials.apiKey || '',
-          credentials: {
-            apiKey: credentials.apiKey || '',
-            ...credentials
-          }
-        });
+        let credentialsData = data.credentials.credentials;
         
-        // Update the API key state and cache
-        if (credentials.apiKey) {
-          setApiKey(credentials.apiKey);
-          leadProsperApi.setCachedApiKey(credentials.apiKey);
+        // Parse credentials if it's a string
+        if (typeof credentialsData === 'string') {
+          try {
+            credentialsData = JSON.parse(credentialsData);
+          } catch (e) {
+            console.error('Failed to parse credentials JSON:', e);
+            credentialsData = {};
+          }
         }
         
-        setConnectionName(data.credentials.name);
+        // Make sure credentialsData is an object
+        if (credentialsData && typeof credentialsData === 'object') {
+          setConnection({
+            id: data.credentials.id,
+            name: data.credentials.name,
+            platform: 'leadprosper',
+            isConnected: data.credentials.is_connected,
+            lastSynced: data.credentials.last_synced,
+            apiKey: credentialsData.apiKey || '',
+            credentials: {
+              apiKey: credentialsData.apiKey || '',
+              ...credentialsData
+            }
+          });
+          
+          // Update the API key state and cache
+          if (credentialsData.apiKey) {
+            setApiKey(credentialsData.apiKey);
+            leadProsperApi.setCachedApiKey(credentialsData.apiKey);
+          }
+          
+          setConnectionName(data.credentials.name);
+        } else {
+          console.error('Invalid credentials format:', credentialsData);
+          setErrorMessage('Invalid credentials format in connection data');
+        }
       }
     } catch (error) {
       console.error('Error checking connection:', error);
@@ -152,17 +166,26 @@ export default function LeadProsperConnection() {
         );
         
         // Extract credentials from the response
-        const updatedCredentials = typeof updatedConnection.credentials === 'string'
-          ? JSON.parse(updatedConnection.credentials)
-          : updatedConnection.credentials || {};
+        let updatedCredentials = updatedConnection.credentials;
+        if (typeof updatedCredentials === 'string') {
+          try {
+            updatedCredentials = JSON.parse(updatedCredentials);
+          } catch (e) {
+            console.error('Failed to parse credentials JSON:', e);
+            updatedCredentials = { apiKey };
+          }
+        } else if (!updatedCredentials) {
+          updatedCredentials = { apiKey };
+        }
         
         setConnection({
           ...connection,
           name: updatedConnection.name,
           lastSynced: updatedConnection.last_synced,
+          apiKey: apiKey,
           credentials: {
-            apiKey: updatedCredentials.apiKey || '',
-            ...updatedCredentials
+            apiKey: apiKey,
+            ...(typeof updatedCredentials === 'object' ? updatedCredentials : {})
           }
         });
         
@@ -176,9 +199,17 @@ export default function LeadProsperConnection() {
         );
         
         // Extract credentials from the response
-        const newCredentials = typeof newConnection.credentials === 'string'
-          ? JSON.parse(newConnection.credentials)
-          : newConnection.credentials || {};
+        let newCredentials = newConnection.credentials;
+        if (typeof newCredentials === 'string') {
+          try {
+            newCredentials = JSON.parse(newCredentials);
+          } catch (e) {
+            console.error('Failed to parse credentials JSON:', e);
+            newCredentials = { apiKey };
+          }
+        } else if (!newCredentials) {
+          newCredentials = { apiKey };
+        }
         
         setConnection({
           id: newConnection.id,
@@ -189,7 +220,7 @@ export default function LeadProsperConnection() {
           apiKey: apiKey,
           credentials: {
             apiKey: apiKey,
-            ...newCredentials
+            ...(typeof newCredentials === 'object' ? newCredentials : {})
           }
         });
         

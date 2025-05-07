@@ -96,27 +96,17 @@ serve(async (req) => {
     console.log(`Successfully authenticated user: ${user.id}`);
 
     // Check if the user has stored credentials for Lead Prosper
+    // Note: We've changed from .single() to .order() and .limit() to handle multiple connections
     const { data: credentials, error: credentialsError } = await supabaseClient
       .from('account_connections')
       .select('*')
       .eq('user_id', user.id)
       .eq('platform', 'leadprosper')
       .eq('is_connected', true)
-      .single();
+      .order('updated_at', { ascending: false })
+      .limit(1);
 
     if (credentialsError) {
-      // PGRST116 is the error code for "no rows returned"
-      if (credentialsError.code === 'PGRST116') {
-        console.log('No Lead Prosper credentials found for user:', user.id);
-        return new Response(
-          JSON.stringify({
-            isConnected: false,
-            credentials: null,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
       console.error('Error fetching credentials:', credentialsError);
       return new Response(
         JSON.stringify({ 
@@ -128,11 +118,26 @@ serve(async (req) => {
       );
     }
 
+    // Check if we have any active connections
+    if (!credentials || credentials.length === 0) {
+      console.log('No Lead Prosper credentials found for user:', user.id);
+      return new Response(
+        JSON.stringify({
+          isConnected: false,
+          credentials: null,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Return the most recent connection
+    const mostRecentConnection = credentials[0];
+    
     // Return the connection status
     return new Response(
       JSON.stringify({
-        isConnected: !!credentials,
-        credentials: credentials || null,
+        isConnected: true,
+        credentials: mostRecentConnection || null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
