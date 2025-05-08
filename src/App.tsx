@@ -1,3 +1,4 @@
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,14 +23,32 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 // Protected route component that redirects to auth page if not authenticated
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, authError } = useAuth();
   
-  // While checking authentication status, show nothing or a loading indicator
-  if (isLoading) return null;
+  // While checking authentication status, show a simple loading indicator
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+  
+  // If there's an auth error that's not just an expired session, log it
+  if (authError && !authError.includes("Invalid Refresh Token") && !authError.includes("not found")) {
+    console.error("Authentication error in protected route:", authError);
+  }
   
   // If not authenticated, redirect to auth page
   if (!user) return <Navigate to="/auth" replace />;

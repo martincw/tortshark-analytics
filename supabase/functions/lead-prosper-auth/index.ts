@@ -76,6 +76,10 @@ serve(async (req) => {
         global: {
           headers: { Authorization: authHeader },
         },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     );
 
@@ -113,14 +117,14 @@ serve(async (req) => {
     console.log(`Successfully authenticated user: ${user.id}`);
 
     // Check if the user has stored credentials for Lead Prosper
-    // With the new unique constraint, we can get the single connection directly
+    // With the unique constraint, we can get the single connection directly
     const { data: connection, error: credentialsError } = await supabaseClient
       .from('account_connections')
       .select('*')
       .eq('user_id', user.id)
       .eq('platform', 'leadprosper')
       .eq('is_connected', true)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no record exists
 
     if (credentialsError && credentialsError.code !== 'PGRST116') { // PGRST116 is "not found" error
       console.error('Error fetching credentials:', credentialsError);
@@ -148,12 +152,17 @@ serve(async (req) => {
     
     // Parse credentials to ensure consistent format
     if (connection.credentials) {
-      const parsedCredentials = safeParseCredentials(connection.credentials);
-      
-      if (parsedCredentials) {
-        connection.credentials = parsedCredentials;
-      } else {
-        console.error('Failed to parse connection credentials');
+      try {
+        const parsedCredentials = safeParseCredentials(connection.credentials);
+        
+        if (parsedCredentials) {
+          connection.credentials = parsedCredentials;
+        } else {
+          console.error('Failed to parse connection credentials');
+        }
+      } catch (error) {
+        console.error('Error processing credentials:', error);
+        // Continue with original credentials if parsing fails
       }
     }
     
@@ -171,7 +180,7 @@ serve(async (req) => {
     console.error('Unexpected error in lead-prosper-auth:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error.message || 'Unknown server error',
         isConnected: false,
         credentials: null
       }),

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InfoIcon, Key, Mail, User } from "lucide-react";
+import { InfoIcon, Key, Mail, User, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -17,16 +17,34 @@ const AuthPage = () => {
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   
   useEffect(() => {
+    // Clear any stale error state
+    setError(null);
+    
     // Check if already signed in
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Already signed in, redirect to home
-        navigate("/");
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Session check error:", sessionError);
+          // Don't set error for typical auth flow errors
+          if (!sessionError.message.includes("Invalid Refresh Token") && !sessionError.message.includes("not found")) {
+            setError(sessionError.message);
+          }
+          return;
+        }
+        
+        if (session) {
+          // Already signed in, redirect to home
+          navigate("/");
+        }
+      } catch (err) {
+        console.error("Auth check error:", err);
       }
     };
     
@@ -34,7 +52,7 @@ const AuthPage = () => {
     
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+      if (event === 'SIGNED_IN' && session) {
         navigate("/");
       }
     });
@@ -46,6 +64,7 @@ const AuthPage = () => {
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (!email || !password) {
       toast.error("Please enter both email and password");
@@ -62,6 +81,7 @@ const AuthPage = () => {
       
       if (error) {
         console.error("Login error:", error);
+        setError(error.message);
         toast.error(error.message || "Failed to sign in");
         return;
       }
@@ -70,9 +90,10 @@ const AuthPage = () => {
         toast.success("Signed in successfully");
         navigate("/");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("An unexpected error occurred");
+      setError(error.message || "An unexpected error occurred");
+      toast.error("An unexpected error occurred during login");
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +101,7 @@ const AuthPage = () => {
   
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (!email || !password) {
       toast.error("Please enter both email and password");
@@ -101,6 +123,7 @@ const AuthPage = () => {
       
       if (error) {
         console.error("Registration error:", error);
+        setError(error.message);
         toast.error(error.message || "Failed to register");
         return;
       }
@@ -110,9 +133,10 @@ const AuthPage = () => {
         // Switch to login tab after successful registration
         setActiveTab("login");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error("An unexpected error occurred");
+      setError(error.message || "An unexpected error occurred");
+      toast.error("An unexpected error occurred during registration");
     } finally {
       setIsLoading(false);
     }
@@ -120,6 +144,23 @@ const AuthPage = () => {
   
   const handleTabChange = (value: string) => {
     setActiveTab(value as "login" | "register");
+    // Clear error when switching tabs
+    setError(null);
+  };
+  
+  const tryAgainWithCacheClear = () => {
+    // Clear local storage and session storage
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Reload the page
+      window.location.reload();
+      toast.success("Cache cleared, trying again...");
+    } catch (error) {
+      console.error("Error clearing cache:", error);
+      toast.error("Failed to clear cache. Try manually clearing your browser data.");
+    }
   };
   
   return (
@@ -129,6 +170,23 @@ const AuthPage = () => {
           <h1 className="text-3xl font-bold">TortShark</h1>
           <p className="text-muted-foreground">Mass Tort Campaign Management</p>
         </div>
+        
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="space-y-2">
+              <p>Authentication error: {error}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={tryAgainWithCacheClear}
+                className="mt-2"
+              >
+                Clear Cache & Try Again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Card>
           <Tabs value={activeTab} onValueChange={handleTabChange}>
