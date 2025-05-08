@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
@@ -9,6 +10,9 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Card, 
   CardHeader, 
@@ -36,13 +40,16 @@ import {
   ToggleRight,
   Link,
   ExternalLink,
-  Hash
+  Hash,
+  Check,
+  X
 } from "lucide-react";
 import { BuyerTortCoverage, CaseBuyer } from "@/types/buyer";
 import { AddTortCoverageForm } from "./AddTortCoverageForm";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { EditTortCoverageForm } from "./EditTortCoverageForm";
 
 interface BuyerCoverageDialogProps {
   buyerId: string;
@@ -58,7 +65,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
   const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
   const [activeTab, setActiveTab] = useState<string>("coverages");
   const [editingCoverageId, setEditingCoverageId] = useState<string | null>(null);
-  const [editAmount, setEditAmount] = useState<string>("");
+  const [editingCoverage, setEditingCoverage] = useState<BuyerTortCoverage | null>(null);
 
   // Fetch data when the dialog opens or buyerId changes
   useEffect(() => {
@@ -119,8 +126,8 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
       try {
         const success = await removeBuyerTortCoverage(coverageId);
         if (success) {
-          // Reload all coverages to ensure UI is in sync
-          await fetchBuyerData();
+          // Update the local state
+          setCoverages(coverages.filter(coverage => coverage.id !== coverageId));
           toast.success("Coverage removed successfully");
         }
       } catch (error) {
@@ -130,46 +137,61 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     }
   };
 
-  const handleAddCoverage = async () => {
-    await fetchBuyerData();
+  const handleAddCoverage = async (newCoverage: BuyerTortCoverage) => {
+    // Add the new coverage to the local state
+    setCoverages([...coverages, newCoverage]);
     setShowAddForm(false);
     toast.success("Coverage added successfully");
   };
 
-  const startEditCoverage = (coverageId: string, amount: number) => {
-    setEditingCoverageId(coverageId);
-    setEditAmount(amount.toString());
+  const startEditCoverage = (coverage: BuyerTortCoverage) => {
+    setEditingCoverageId(coverage.id);
+    setEditingCoverage(coverage);
   };
 
-  const handleUpdateCoverage = async (coverageId: string) => {
-    const amount = parseFloat(editAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-    
+  const handleUpdateCoverage = async (updatedCoverage: BuyerTortCoverage) => {
     try {
-      await updateBuyerTortCoverage(coverageId, amount);
+      // Update the UI optimistically
+      const updatedCoverages = coverages.map(c => 
+        c.id === updatedCoverage.id ? updatedCoverage : c
+      );
+      setCoverages(updatedCoverages);
       setEditingCoverageId(null);
-      toast.success("Coverage amount updated");
-      // Reload coverage data to ensure UI is in sync
-      await fetchBuyerData();
+      setEditingCoverage(null);
+      
+      toast.success("Tort coverage updated successfully");
     } catch (error) {
       console.error("Error updating coverage:", error);
       toast.error("Failed to update coverage");
+      // Revert the optimistic update on failure
+      await fetchBuyerData();
     }
   };
 
   const handleToggleActive = async (coverageId: string, currentActive: boolean) => {
     try {
       await toggleTortCoverageActive(coverageId, !currentActive);
-      // Reload all coverages after toggle instead of just updating local state
-      await fetchBuyerData();
+      
+      // Update the local state optimistically
+      const updatedCoverages = coverages.map(coverage =>
+        coverage.id === coverageId 
+          ? { ...coverage, is_active: !currentActive } 
+          : coverage
+      );
+      
+      setCoverages(updatedCoverages);
       toast.success(`Tort coverage ${!currentActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error("Error toggling coverage status:", error);
       toast.error("Failed to update coverage status");
+      // Revert the optimistic update on failure
+      await fetchBuyerData();
     }
+  };
+
+  const cancelEdit = () => {
+    setEditingCoverageId(null);
+    setEditingCoverage(null);
   };
 
   // Calculate coverage statistics
@@ -182,6 +204,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
     // Reset state when dialog closes
     setShowAddForm(false);
     setEditingCoverageId(null);
+    setEditingCoverage(null);
     onClose();
   };
 
@@ -217,7 +240,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
           </TabsList>
           
           <TabsContent value="coverages" className="space-y-4 py-4">
-            {!showAddForm && (
+            {!showAddForm && !editingCoverageId && (
               <div className="mb-4">
                 <Button onClick={() => setShowAddForm(true)}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -237,6 +260,22 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                     onSuccess={handleAddCoverage}
                     onCancel={() => setShowAddForm(false)}
                     existingCoverages={coverages}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {editingCoverageId && editingCoverage && (
+              <Card className="mb-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Edit Coverage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <EditTortCoverageForm 
+                    coverage={editingCoverage}
+                    onSave={handleUpdateCoverage}
+                    onCancel={cancelEdit}
+                    existingCoverages={coverages.filter(c => c.id !== editingCoverageId)}
                   />
                 </CardContent>
               </Card>
@@ -264,7 +303,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
               </div>
             ) : (
               <div className="space-y-3">
-                {coverages.map((coverage) => (
+                {!editingCoverageId && !showAddForm && coverages.map((coverage) => (
                   <Card 
                     key={coverage.id} 
                     className={`overflow-hidden ${!coverage.is_active ? 'border-muted bg-muted/20' : ''}`}
@@ -316,56 +355,25 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
                             </div>
                           </div>
                           
-                          {editingCoverageId === coverage.id ? (
-                            <div className="flex items-center gap-2 mt-2">
-                              <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                                <input
-                                  type="number"
-                                  className="pl-7 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                  value={editAmount}
-                                  onChange={(e) => setEditAmount(e.target.value)}
-                                  min="0"
-                                  step="0.01"
-                                />
-                              </div>
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleUpdateCoverage(coverage.id)}
-                              >
-                                Save
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                onClick={() => setEditingCoverageId(null)}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center mt-1.5">
-                              <BadgeDollarSign className="h-4 w-4 text-green-600 mr-1" />
-                              <span className="font-semibold">
-                                {formatCurrency(coverage.payout_amount)}
-                              </span>
-                              <Badge variant="outline" className="ml-2">
-                                per case
-                              </Badge>
-                            </div>
-                          )}
+                          <div className="flex items-center mt-1.5">
+                            <BadgeDollarSign className="h-4 w-4 text-green-600 mr-1" />
+                            <span className="font-semibold">
+                              {formatCurrency(coverage.payout_amount)}
+                            </span>
+                            <Badge variant="outline" className="ml-2">
+                              per case
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          {editingCoverageId !== coverage.id && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              onClick={() => startEditCoverage(coverage.id, coverage.payout_amount)}
-                            >
-                              <PencilLine className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => startEditCoverage(coverage)}
+                          >
+                            <PencilLine className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"

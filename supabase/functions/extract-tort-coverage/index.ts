@@ -1,130 +1,215 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Set up CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
-  // Handle CORS preflight requests
+// Handle CORS preflight requests
+const handleCors = (req: Request): Response | null => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  return null;
+};
 
+// Extract phone numbers from text
+const extractPhoneNumbers = (text: string): string[] => {
+  // This regex matches various phone number formats
+  const phoneRegex = /\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g;
+  const matches = [...text.matchAll(phoneRegex)];
+  
+  return matches.map((match) => {
+    // Format consistently as (XXX) XXX-XXXX
+    const areaCode = match[1];
+    const prefix = match[2];
+    const lineNumber = match[3];
+    return `(${areaCode}) ${prefix}-${lineNumber}`;
+  });
+};
+
+// Extract URLs from text
+const extractUrls = (text: string): string[] => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = [...text.matchAll(urlRegex)];
+  return matches.map(m => m[0]);
+};
+
+// Extract monetary values from text
+const extractMoneyValues = (text: string): number[] => {
+  // Look for dollar amounts, with or without commas, with or without cents
+  const moneyRegex = /\$\s?([0-9,]+(\.[0-9]{2})?)/g;
+  const matches = [...text.matchAll(moneyRegex)];
+  return matches.map(m => parseFloat(m[1].replace(/,/g, '')));
+};
+
+// Extract campaign keys (usually alphanumeric codes)
+const extractCampaignKeys = (text: string): string[] => {
+  // Look for potential campaign keys (capital letters + numbers)
+  const keyRegex = /([A-Z]{2,}[0-9]{1,}|[A-Z]{2,}-[0-9]{1,})/g;
+  const matches = [...text.matchAll(keyRegex)];
+  return matches.map(m => m[0]);
+};
+
+// Extract intake center names (common patterns)
+const extractIntakeCenters = (text: string): string[] => {
+  const lowerText = text.toLowerCase();
+  const centers = [];
+  
+  // Common intake center indicators
+  const indicators = [
+    "intake center", "call center", "transfer to", "route to",
+    "legal intake", "processing center", "qualification center"
+  ];
+  
+  for (const indicator of indicators) {
+    if (lowerText.includes(indicator)) {
+      // Look for a name near the indicator (simplistic approach)
+      const position = lowerText.indexOf(indicator);
+      const surroundingText = text.substring(
+        Math.max(0, position - 30), 
+        Math.min(text.length, position + 30)
+      );
+      
+      // Extract potential center name - look for capitalized words
+      const centerMatch = surroundingText.match(/([A-Z][a-z]+ )+/);
+      if (centerMatch && !centers.includes(centerMatch[0].trim())) {
+        centers.push(centerMatch[0].trim());
+      }
+    }
+  }
+  
+  return centers;
+};
+
+// Main parser function
+const parseTortCoverageData = (
+  text: string, 
+  campaignId: string, 
+  campaignName: string
+): Record<string, any> => {
+  const phoneNumbers = extractPhoneNumbers(text);
+  const urls = extractUrls(text);
+  const moneyValues = extractMoneyValues(text);
+  const campaignKeys = extractCampaignKeys(text);
+  const centers = extractIntakeCenters(text);
+  
+  // Start building the parsed data
+  const parsed: Record<string, any> = {};
+  
+  // Get payout amount (usually the largest money value, or first one)
+  if (moneyValues.length > 0) {
+    // Sort descending and take largest value for payout
+    parsed.amount = Math.max(...moneyValues);
+  }
+  
+  // Try to identify inbound and transfer DIDs
+  if (phoneNumbers.length >= 2) {
+    // Logic: First is often inbound, second is transfer
+    parsed.inboundDid = phoneNumbers[0];
+    parsed.transferDid = phoneNumbers[1];
+  } else if (phoneNumbers.length === 1) {
+    // If only one phone, use it as inbound
+    parsed.inboundDid = phoneNumbers[0];
+  }
+  
+  // Set campaign URL if found
+  if (urls.length > 0) {
+    for (const url of urls) {
+      if (url.includes('sheet') || url.includes('doc') || url.includes('drive')) {
+        parsed.specSheetUrl = url;
+      } else {
+        parsed.campaignUrl = url;
+      }
+    }
+  }
+  
+  // Set campaign key if found
+  if (campaignKeys.length > 0) {
+    parsed.campaignKey = campaignKeys[0];
+  }
+  
+  // Set intake center if found
+  if (centers.length > 0) {
+    parsed.intakeCenter = centers[0];
+  }
+  
+  // Set campaign ID and suggested label
+  parsed.campaignId = campaignId;
+  
+  // Extract notes - look for sections that might be relevant instructions
+  const noteIndicators = [
+    "please note", "important", "instructions", "requirements",
+    "qualification", "criteria", "notes"
+  ];
+  
+  const lowerText = text.toLowerCase();
+  for (const indicator of noteIndicators) {
+    if (lowerText.includes(indicator)) {
+      const position = lowerText.indexOf(indicator);
+      const endPosition = lowerText.indexOf("\n\n", position);
+      const noteText = text.substring(
+        position,
+        endPosition > position ? endPosition : position + 100
+      );
+      
+      if (noteText.length > 10) {
+        parsed.notes = (parsed.notes ? parsed.notes + "\n" : "") + noteText.trim();
+      }
+    }
+  }
+  
+  return parsed;
+};
+
+serve(async (req) => {
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  // Parse request body
   try {
     const { campaignText, selectedCampaignId, selectedCampaignName } = await req.json();
     
-    if (!campaignText || typeof campaignText !== 'string') {
-      throw new Error('Campaign text is required and must be a string');
-    }
-
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key is not configured');
-    }
-
-    // Prepare context with selected campaign information
-    let systemPrompt = `Extract tort coverage information from the provided text.`;
-    
-    // Add campaign context if available
-    if (selectedCampaignId) {
-      systemPrompt += `\nThe text is about Campaign ID: ${selectedCampaignId}`;
-      if (selectedCampaignName) {
-        systemPrompt += ` (${selectedCampaignName})`;
-      }
+    if (!campaignText) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No campaign text provided" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    systemPrompt += `\nReturn a JSON object with these fields:
-    - campaignId (string, required): The ID of the campaign
-    - campaignName (string, optional): The name of the campaign
-    - amount (number, required): Payout amount per case
-    - inboundDid (string, optional): Inbound DID number
-    - transferDid (string, optional): Transfer DID number
-    - intakeCenter (string, optional): Intake center name
-    - campaignKey (string, optional): Campaign key
-    - notes (string, optional): Any notes about the tort
-    - specSheetUrl (string, optional): URL to spec sheet
-    - campaignUrl (string, optional): URL for the campaign
-    - label (string, optional): Label for distinguishing multiple entries
-
-    Return null for fields that cannot be determined from the text.
-    Ensure the JSON object is properly formatted and includes all fields.`;
-
-    // Call OpenAI API to extract structured information
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: campaignText
-          }
-        ],
-        temperature: 0.1
+    if (!selectedCampaignId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No campaign ID provided" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Parse the campaign text to extract relevant tort coverage data
+    const extractedData = parseTortCoverageData(
+      campaignText, 
+      selectedCampaignId,
+      selectedCampaignName || "Unknown Campaign"
+    );
+    
+    // Return the extracted data
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        data: extractedData
       }),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to extract information from OpenAI');
-    }
-
-    let extractedData;
-    try {
-      const content = data.choices[0].message.content;
-      // Try to parse the response as JSON directly
-      extractedData = JSON.parse(content);
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError);
-      // If direct parsing fails, try to extract JSON from the content
-      const jsonMatch = data.choices[0].message.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          extractedData = JSON.parse(jsonMatch[0]);
-        } catch (e) {
-          throw new Error('Failed to parse structured data from OpenAI response');
-        }
-      } else {
-        throw new Error('No JSON data found in OpenAI response');
-      }
-    }
-
-    // If a campaign was selected, make sure the extracted data uses that ID
-    if (selectedCampaignId && !extractedData.campaignId) {
-      extractedData.campaignId = selectedCampaignId;
-    }
-    
-    if (selectedCampaignName && !extractedData.campaignName) {
-      extractedData.campaignName = selectedCampaignName;
-    }
-
-    console.log('Extracted data:', extractedData);
-
-    return new Response(JSON.stringify({
-      success: true,
-      data: extractedData
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
-    console.error('Error in extract-tort-coverage function:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error("Error processing request:", error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error"
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

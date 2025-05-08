@@ -22,7 +22,7 @@ import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
-import LeadsPage from "./pages/LeadsPage"; // Add import for the new LeadsPage
+import LeadsPage from "./pages/LeadsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +68,9 @@ const App = () => (
               {/* Auth page is public */}
               <Route path="/auth" element={<AuthPage />} />
               
+              {/* Redirect /campaign to /campaigns to fix 404 issues */}
+              <Route path="/campaign" element={<Navigate to="/campaigns" replace />} />
+              
               {/* All other routes are protected and wrapped with MainLayout */}
               <Route element={
                 <ProtectedRoute>
@@ -76,6 +79,7 @@ const App = () => (
               }>
                 <Route path="/" element={<Index />} />
                 <Route path="/campaign/:id" element={<CampaignDetail />} />
+                <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/add-campaign" element={<AddCampaignPage />} />
                 <Route path="/bulk-stats" element={<BulkStatsPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
@@ -83,7 +87,7 @@ const App = () => (
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/buyers" element={<BuyersPage />} />
-                <Route path="/leads" element={<LeadsPage />} /> {/* Add the new LeadsPage route */}
+                <Route path="/leads" element={<LeadsPage />} /> 
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

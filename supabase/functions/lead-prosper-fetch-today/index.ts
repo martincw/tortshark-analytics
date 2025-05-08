@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
 import { format } from "https://esm.sh/date-fns@2.30.0";
@@ -17,11 +16,12 @@ const handleCors = (req: Request): Response | null => {
   return null;
 };
 
-// Fetch leads from the Lead Prosper API for today
+// Fetch leads from the Lead Prosper API for today with retries
 async function fetchTodayLeads(
   apiKey: string,
   campaignId: number,
-  timezone: string = 'America/Denver'
+  timezone: string = 'America/Denver',
+  maxRetries: number = 3
 ): Promise<any> {
   const today = format(new Date(), 'yyyy-MM-dd');
   
@@ -29,22 +29,46 @@ async function fetchTodayLeads(
   
   const url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${today}&end_date=${today}&timezone=${timezone}`;
   
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error(`Failed to fetch leads for campaign ${campaignId}: ${error}`);
-    throw new Error(`Failed to fetch leads: ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`Failed to fetch leads for campaign ${campaignId} (attempt ${attempt}/${maxRetries}): ${error}`);
+        
+        // If this is our last retry, throw the error
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to fetch leads: ${error}`);
+        }
+        
+        // Otherwise wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        continue;
+      }
+
+      const data = await response.json();
+      console.log(`Received ${data.data?.length || 0} leads for campaign ${campaignId}`);
+      return data;
+    } catch (error) {
+      lastError = error;
+      
+      // If this is our last retry, we'll throw the error after the loop
+      if (attempt < maxRetries) {
+        console.log(`Retry attempt ${attempt} failed, trying again...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+      }
+    }
   }
-
-  const data = await response.json();
-  console.log(`Received ${data.data?.length || 0} leads for campaign ${campaignId}`);
-  return data;
+  
+  // If we've exhausted all retries, throw the last error
+  throw lastError || new Error(`Failed to fetch leads for campaign ${campaignId} after ${maxRetries} attempts`);
 }
 
 // Process leads and update metrics
@@ -119,7 +143,19 @@ serve(async (req) => {
     );
 
     // Get parameters from the request
-    const { apiKey } = await req.json();
+    let apiKey;
+    try {
+      const body = await req.json();
+      apiKey = body.apiKey;
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to parse request body',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!apiKey) {
       return new Response(
@@ -155,12 +191,20 @@ serve(async (req) => {
     console.log(`Found ${mappings.length} active campaign mappings`);
     
     let totalLeads = 0;
+    let successCount = 0;
+    let errorCount = 0;
     const results = [];
 
     // Process each campaign mapping
     for (const mapping of mappings) {
       if (!mapping.lp_campaign || !mapping.lp_campaign.lp_campaign_id) {
         console.warn(`Missing LP campaign ID for mapping to ${mapping.ts_campaign_id}`);
+        results.push({
+          ts_campaign_id: mapping.ts_campaign_id,
+          error: 'Missing Lead Prosper campaign ID',
+          status: 'skipped'
+        });
+        errorCount++;
         continue;
       }
 
@@ -177,28 +221,34 @@ serve(async (req) => {
           });
           
           totalLeads += leadsData.data.length;
+          successCount++;
           
           results.push({
             campaign_id: lpCampaignId,
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
-            leads_count: leadsData.data.length
+            leads_count: leadsData.data.length,
+            status: 'success'
           });
         } else {
           results.push({
             campaign_id: lpCampaignId,
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
-            leads_count: 0
+            leads_count: 0,
+            status: 'success'
           });
+          successCount++;
         }
       } catch (error) {
         console.error(`Error processing campaign ${lpCampaignId}:`, error);
+        errorCount++;
         results.push({
           campaign_id: lpCampaignId,
           ts_campaign_id: mapping.ts_campaign_id,
           campaign_name: mapping.lp_campaign?.name || 'Unknown',
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error'
         });
       }
     }
@@ -206,9 +256,11 @@ serve(async (req) => {
     // Return success with summary
     return new Response(
       JSON.stringify({ 
-        success: true, 
+        success: errorCount === 0,
         total_leads: totalLeads,
-        campaigns_processed: results.length,
+        campaigns_processed: mappings.length,
+        success_count: successCount,
+        error_count: errorCount,
         results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -216,7 +268,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'Unexpected error occurred', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Search, Filter, RefreshCcw } from 'lucide-react';
+import { Calendar as CalendarIcon, Search, Filter, RefreshCcw, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -30,13 +30,15 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function LeadsPage() {
   const { campaigns } = useCampaign();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Get filters from URL params or set defaults
@@ -57,6 +59,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   
   // Calendar states
   const [startDateOpen, setStartDateOpen] = useState(false);
@@ -83,6 +86,7 @@ export default function LeadsPage() {
   const loadLeads = async () => {
     try {
       setLoading(true);
+      setRefreshError(null);
       
       const result = await leadProsperApi.getLeadsList({
         page,
@@ -91,6 +95,7 @@ export default function LeadsPage() {
         endDate: filters.endDate,
         ts_campaign_id: filters.campaignId || undefined,
         status: filters.status || undefined,
+        searchTerm: filters.searchTerm || undefined,
       });
       
       setLeads(result.leads);
@@ -98,7 +103,7 @@ export default function LeadsPage() {
       
     } catch (error) {
       console.error('Error loading leads:', error);
-      toast({
+      uiToast({
         title: 'Error loading leads',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: 'destructive',
@@ -118,36 +123,48 @@ export default function LeadsPage() {
     e.preventDefault();
     // Reset page when searching
     setPage(1);
+    loadLeads();
   };
   
   // Refresh today's leads
   const refreshTodaysLeads = async () => {
     try {
       setRefreshing(true);
+      setRefreshError(null);
       
+      // Get the Lead Prosper API Key
+      const apiKeyResponse = await leadProsperApi.getApiCredentials();
+      
+      if (!apiKeyResponse?.apiKey) {
+        throw new Error('No Lead Prosper API key found. Please connect your account first.');
+      }
+      
+      // Call the edge function to fetch today's leads
       const result = await leadProsperApi.fetchTodayLeads();
       
       if (result.success) {
-        toast({
-          title: 'Leads refreshed',
+        toast.success(`Lead refresh succeeded`, {
           description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaigns`,
+          duration: 5000,
         });
         
         // Reload the leads list to show the new data
-        loadLeads();
+        await loadLeads();
       } else {
-        toast({
-          title: 'Error refreshing leads',
-          description: result.error || 'Failed to refresh leads',
-          variant: 'destructive',
+        setRefreshError(result.error || 'Failed to refresh leads');
+        toast.error('Lead refresh failed', {
+          description: result.error || 'Unknown error occurred',
+          duration: 5000,
         });
       }
     } catch (error) {
       console.error('Error refreshing leads:', error);
-      toast({
-        title: 'Error refreshing leads',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setRefreshError(errorMessage);
+      
+      toast.error('Error refreshing leads', {
+        description: errorMessage,
+        duration: 5000,
       });
     } finally {
       setRefreshing(false);
@@ -215,6 +232,15 @@ export default function LeadsPage() {
           </Button>
         </div>
       </div>
+      
+      {refreshError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {refreshError}
+          </AlertDescription>
+        </Alert>
+      )}
       
       <Card>
         <CardHeader className="pb-3">
@@ -457,6 +483,26 @@ export default function LeadsPage() {
             </div>
           )}
         </CardContent>
+        
+        {refreshError && (
+          <CardFooter className="pb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              <AlertDescription className="text-sm">
+                {refreshError}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={refreshTodaysLeads} 
+                  className="ml-2"
+                  disabled={refreshing}
+                >
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

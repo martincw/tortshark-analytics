@@ -21,16 +21,26 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Loader2, AlertTriangle, Wand2, Hash, Link, ExternalLink } from "lucide-react";
+import { 
+  Loader2, 
+  AlertTriangle, 
+  Wand2, 
+  Hash, 
+  Link, 
+  ExternalLink, 
+  Plus,
+  FilePlus
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBuyers } from "@/hooks/useBuyers";
+import { useCampaign } from "@/contexts/CampaignContext";
 import { BuyerTortCoverage } from "@/types/buyer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface AddTortCoverageFormProps {
   buyerId: string;
-  onSuccess: () => void;
+  onSuccess: (newCoverage: BuyerTortCoverage) => void;
   onCancel: () => void;
   existingCoverages: BuyerTortCoverage[];
 }
@@ -42,6 +52,7 @@ export function AddTortCoverageForm({
   existingCoverages 
 }: AddTortCoverageFormProps) {
   const { addBuyerTortCoverage } = useBuyers();
+  const { addCampaign } = useCampaign();
   const [campaigns, setCampaigns] = useState<{ id: string; name: string; }[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [selectedCampaignName, setSelectedCampaignName] = useState<string>("");
@@ -58,6 +69,12 @@ export function AddTortCoverageForm({
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
+  
+  // New campaign creation states
+  const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
+  const [newCampaignName, setNewCampaignName] = useState("");
+  const [newCampaignPlatform, setNewCampaignPlatform] = useState("leadprosper");
+  const [creatingCampaign, setCreatingCampaign] = useState(false);
   
   // AI parsing states
   const [rawCampaignText, setRawCampaignText] = useState<string>("");
@@ -114,6 +131,46 @@ export function AddTortCoverageForm({
     }
   };
 
+  const handleCreateNewCampaign = async () => {
+    if (!newCampaignName.trim()) {
+      toast.error("Please enter a campaign name");
+      return;
+    }
+    
+    setCreatingCampaign(true);
+    
+    try {
+      const newCampaign = await addCampaign({
+        name: newCampaignName.trim(),
+        platform: newCampaignPlatform,
+        accountId: "manual",
+        accountName: "Manual Entry",
+      });
+      
+      if (newCampaign) {
+        // Update campaigns list
+        setCampaigns([...campaigns, { id: newCampaign.id, name: newCampaign.name }]);
+        
+        // Select the newly created campaign
+        setSelectedCampaign(newCampaign.id);
+        setSelectedCampaignName(newCampaign.name);
+        setCampaignId(newCampaign.id);
+        
+        toast.success(`Campaign "${newCampaignName}" created successfully`);
+        setShowNewCampaignDialog(false);
+        
+        // Reset form
+        setNewCampaignName("");
+        setNewCampaignPlatform("leadprosper");
+      }
+    } catch (error) {
+      console.error("Error creating campaign:", error);
+      toast.error("Failed to create campaign");
+    } finally {
+      setCreatingCampaign(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -124,24 +181,54 @@ export function AddTortCoverageForm({
     
     setLoading(true);
     
-    const payoutAmount = parseFloat(amount);
-    await addBuyerTortCoverage(
-      buyerId, 
-      selectedCampaign, 
-      payoutAmount,
-      "", // No longer using separate did field
-      campaignKey,
-      notes,
-      specSheetUrl,
-      label,
-      inboundDid,
-      transferDid,
-      intakeCenter,
-      campaignUrl
-    );
-    
-    setLoading(false);
-    onSuccess();
+    try {
+      const payoutAmount = parseFloat(amount);
+      const newCoverage = await addBuyerTortCoverage(
+        buyerId, 
+        selectedCampaign, 
+        payoutAmount,
+        "", // No longer using separate did field
+        campaignKey,
+        notes,
+        specSheetUrl,
+        label,
+        inboundDid,
+        transferDid,
+        intakeCenter,
+        campaignUrl
+      );
+      
+      if (newCoverage) {
+        // Get the campaign details to include in the updated coverage
+        const campaign = campaigns.find(c => c.id === selectedCampaign);
+        
+        // Create a full coverage object for the UI update
+        const fullCoverage: BuyerTortCoverage = {
+          ...newCoverage,
+          campaign_id: selectedCampaign,
+          buyer_id: buyerId,
+          payout_amount: payoutAmount,
+          did: "",
+          campaign_key: campaignKey,
+          notes,
+          spec_sheet_url: specSheetUrl,
+          label,
+          inbound_did: inboundDid,
+          transfer_did: transferDid,
+          intake_center: intakeCenter,
+          campaign_url: campaignUrl,
+          is_active: true,
+          campaigns: campaign ? { id: campaign.id, name: campaign.name } : undefined
+        };
+        
+        onSuccess(fullCoverage);
+      }
+    } catch (error) {
+      console.error("Error adding tort coverage:", error);
+      toast.error("Failed to add coverage");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const parseWithAI = async () => {
@@ -287,11 +374,101 @@ export function AddTortCoverageForm({
                     No available campaigns
                   </SelectItem>
                 )}
+                <SelectItem value="new-campaign" className="text-primary font-medium">
+                  + Add New Campaign
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setShowNewCampaignDialog(true)}
+            title="Create New Campaign"
+          >
+            <FilePlus className="h-4 w-4" />
+          </Button>
         </div>
       </div>
+
+      {/* New Campaign Dialog */}
+      <Dialog open={showNewCampaignDialog || selectedCampaign === "new-campaign"} onOpenChange={(open) => {
+        setShowNewCampaignDialog(open);
+        if (!open && selectedCampaign === "new-campaign") {
+          setSelectedCampaign("");
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Campaign</DialogTitle>
+            <DialogDescription>
+              Add a new campaign that will be available for tort coverage
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="newCampaignName">Campaign Name</Label>
+              <Input
+                id="newCampaignName"
+                value={newCampaignName}
+                onChange={(e) => setNewCampaignName(e.target.value)}
+                placeholder="Enter campaign name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="newCampaignPlatform">Platform</Label>
+              <Select
+                value={newCampaignPlatform}
+                onValueChange={setNewCampaignPlatform}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="leadprosper">Lead Prosper</SelectItem>
+                  <SelectItem value="manual">Manual Entry</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowNewCampaignDialog(false);
+                if (selectedCampaign === "new-campaign") {
+                  setSelectedCampaign("");
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!newCampaignName.trim() || creatingCampaign}
+              onClick={handleCreateNewCampaign}
+            >
+              {creatingCampaign ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create Campaign
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isDuplicate && (
         <Alert variant="warning" className="bg-amber-50 border-amber-200">
@@ -314,6 +491,7 @@ export function AddTortCoverageForm({
             onChange={(e) => setCampaignId(e.target.value)}
             placeholder="Enter campaign ID"
             className="pl-9"
+            readOnly
           />
         </div>
         <p className="text-xs text-muted-foreground">
@@ -442,9 +620,14 @@ export function AddTortCoverageForm({
         </Button>
         <Button 
           type="submit" 
-          disabled={loading || !selectedCampaign || parseFloat(amount) <= 0}
+          disabled={loading || !selectedCampaign || selectedCampaign === "new-campaign" || parseFloat(amount) <= 0}
         >
-          {loading ? "Adding..." : "Add Coverage"}
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Adding...
+            </>
+          ) : "Add Coverage"}
         </Button>
       </div>
     </form>
