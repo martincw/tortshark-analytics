@@ -22,6 +22,9 @@ export interface LeadResponse {
 // Cache for API keys to avoid repeated database lookups
 let cachedApiKey: string | null = null;
 
+// Default timezone for Lead Prosper API calls
+const DEFAULT_TIMEZONE = 'America/Denver';
+
 export const leadProsperApi = {
   // Get credentials for Lead Prosper API
   async getApiCredentials(): Promise<LeadProsperCredentials> {
@@ -502,7 +505,7 @@ export const leadProsperApi = {
   },
 
   // Fetch today's leads from Lead Prosper
-  async fetchTodayLeads(): Promise<{
+  async fetchTodayLeads(timezone: string = DEFAULT_TIMEZONE): Promise<{
     success: boolean;
     total_leads: number;
     campaigns_processed: number;
@@ -519,10 +522,13 @@ export const leadProsperApi = {
         throw new Error('Not connected to Lead Prosper. Please add your API key first.');
       }
 
-      console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length})`);
+      console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length}) and timezone: ${timezone}`);
       
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
-        body: { apiKey },
+        body: { 
+          apiKey,
+          timezone // Pass timezone parameter to the edge function
+        },
       });
 
       if (error) {

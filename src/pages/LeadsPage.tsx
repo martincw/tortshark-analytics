@@ -6,7 +6,7 @@ import { Calendar as CalendarIcon, Search, Filter, RefreshCcw, AlertCircle } fro
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -35,6 +35,15 @@ import { useCampaign } from '@/contexts/CampaignContext';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+// List of supported timezones
+const SUPPORTED_TIMEZONES = [
+  { value: 'America/Denver', label: 'America/Denver (Default)' },
+  { value: 'America/New_York', label: 'America/New_York' },
+  { value: 'America/Chicago', label: 'America/Chicago' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
+  { value: 'UTC', label: 'UTC' },
+];
 
 export default function LeadsPage() {
   const { campaigns } = useCampaign();
@@ -67,6 +76,10 @@ export default function LeadsPage() {
   
   // Filter and popover states
   const [filtersOpen, setFiltersOpen] = useState(false);
+  
+  // Timezone state for handling API requests
+  const [selectedTimezone, setSelectedTimezone] = useState('America/Denver');
+  const [timezoneModalOpen, setTimezoneModalOpen] = useState(false);
   
   // Update URL when filters change
   useEffect(() => {
@@ -139,8 +152,8 @@ export default function LeadsPage() {
         throw new Error('No Lead Prosper API key found. Please connect your account first.');
       }
       
-      // Call the edge function to fetch today's leads
-      const result = await leadProsperApi.fetchTodayLeads();
+      // Call the edge function to fetch today's leads with the selected timezone
+      const result = await leadProsperApi.fetchTodayLeads(selectedTimezone);
       
       if (result.success) {
         toast.success(`Lead refresh succeeded`, {
@@ -151,21 +164,41 @@ export default function LeadsPage() {
         // Reload the leads list to show the new data
         await loadLeads();
       } else {
-        setRefreshError(result.error || 'Failed to refresh leads');
-        toast.error('Lead refresh failed', {
-          description: result.error || 'Unknown error occurred',
-          duration: 5000,
-        });
+        const errorMessage = result.error || 'Failed to refresh leads';
+        setRefreshError(errorMessage);
+        
+        // Check if it's a timezone-related error
+        if (errorMessage.includes('timezone') || errorMessage.includes('Cannot assign null')) {
+          setTimezoneModalOpen(true);
+          toast.error('Timezone error detected', {
+            description: 'Please try selecting a different timezone format',
+            duration: 8000,
+          });
+        } else {
+          toast.error('Lead refresh failed', {
+            description: errorMessage,
+            duration: 5000,
+          });
+        }
       }
     } catch (error) {
       console.error('Error refreshing leads:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setRefreshError(errorMessage);
       
-      toast.error('Error refreshing leads', {
-        description: errorMessage,
-        duration: 5000,
-      });
+      // Check if it's a timezone-related error
+      if (errorMessage.includes('timezone') || errorMessage.includes('Cannot assign null')) {
+        setTimezoneModalOpen(true);
+        toast.error('Timezone error detected', {
+          description: 'Please try selecting a different timezone format',
+          duration: 8000,
+        });
+      } else {
+        toast.error('Error refreshing leads', {
+          description: errorMessage,
+          duration: 5000,
+        });
+      }
     } finally {
       setRefreshing(false);
     }
@@ -211,6 +244,16 @@ export default function LeadsPage() {
   const totalPages = Math.ceil(totalLeads / pageSize);
   const showPagination = totalPages > 1;
   
+  // Handle timezone selection and retry
+  const handleTimezoneSelect = (timezone: string) => {
+    setSelectedTimezone(timezone);
+    setTimezoneModalOpen(false);
+    // Automatically retry with the new timezone
+    setTimeout(() => {
+      refreshTodaysLeads();
+    }, 500);
+  };
+  
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -222,6 +265,38 @@ export default function LeadsPage() {
         </div>
         
         <div className="flex gap-2">
+          <Popover open={timezoneModalOpen} onOpenChange={setTimezoneModalOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden" // Hidden by default, opened programmatically
+              >
+                Select Timezone
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <h4 className="font-medium">Select Timezone</h4>
+                <p className="text-sm text-muted-foreground">
+                  A timezone error was detected. Please select a different timezone format to try again.
+                </p>
+                <div className="space-y-2">
+                  {SUPPORTED_TIMEZONES.map((tz) => (
+                    <Button
+                      key={tz.value}
+                      variant={selectedTimezone === tz.value ? "default" : "outline"}
+                      className="w-full justify-start text-left"
+                      onClick={() => handleTimezoneSelect(tz.value)}
+                    >
+                      {tz.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          
           <Button
             variant="outline"
             onClick={refreshTodaysLeads}
@@ -236,8 +311,17 @@ export default function LeadsPage() {
       {refreshError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {refreshError}
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span>{refreshError}</span>
+            {refreshError.includes('timezone') || refreshError.includes('Cannot assign null') ? (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setTimezoneModalOpen(true)}
+              >
+                Try Different Timezone
+              </Button>
+            ) : null}
           </AlertDescription>
         </Alert>
       )}
@@ -488,7 +572,7 @@ export default function LeadsPage() {
           <CardFooter className="pb-4">
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4 mr-2" />
-              <AlertDescription className="text-sm">
+              <AlertDescription className="text-sm flex flex-wrap items-center gap-2">
                 {refreshError}
                 <Button 
                   variant="outline" 
@@ -499,6 +583,16 @@ export default function LeadsPage() {
                 >
                   Try Again
                 </Button>
+                
+                {refreshError.includes('timezone') || refreshError.includes('Cannot assign null') ? (
+                  <Button 
+                    variant="secondary" 
+                    size="sm"
+                    onClick={() => setTimezoneModalOpen(true)}
+                  >
+                    Change Timezone
+                  </Button>
+                ) : null}
               </AlertDescription>
             </Alert>
           </CardFooter>

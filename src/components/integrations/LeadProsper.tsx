@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import LeadProsperConnection from './LeadProsperConnection';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,10 +8,22 @@ import { toast } from 'sonner';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { supabase } from "@/integrations/supabase/client";
 
+// List of supported timezones for reference
+const SUPPORTED_TIMEZONES = [
+  'America/Denver', // Default
+  'America/New_York',
+  'America/Chicago',
+  'America/Los_Angeles',
+  'UTC',
+];
+
 export function LeadProsper() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const defaultTab = searchParams.get('tab') === 'campaigns' ? 'campaigns' : 'connection';
+  
+  // Current timezone to use for API requests
+  const [currentTimezone] = useState('America/Denver'); // Default timezone
   
   // Handle tab navigation based on URL
   const handleTabChange = (value: string) => {
