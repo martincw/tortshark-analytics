@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -22,12 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import {
   Tooltip,
   TooltipContent,
@@ -40,7 +33,8 @@ import {
   AlertCircle,
   HelpCircle,
   Link as LinkIcon,
-  ExternalLink
+  ExternalLink,
+  RotateCcw
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -55,17 +49,49 @@ export default function LeadProsperCampaigns() {
     isConnected: false
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Quick retry logic for transient errors
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 1500;
 
   useEffect(() => {
-    checkConnectionAndLoadCampaigns();
+    loadCampaigns();
   }, []);
+  
+  const resetAndRetry = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage('Resetting connection state...');
+      
+      // Clear all caches
+      leadProsperApi.resetState();
+      
+      // Reset retry counter
+      setRetryCount(0);
+      
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Try loading again
+      await loadCampaigns();
+      toast.success('Connection reset and campaigns reloaded');
+      
+    } catch (error) {
+      console.error('Reset and retry failed:', error);
+      setErrorMessage('Reset and retry failed. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const checkConnectionAndLoadCampaigns = async () => {
+  const loadCampaigns = async () => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
       
       // Check if the user is connected to Lead Prosper
+      console.log('Checking Lead Prosper connection status...');
       const connectionData = await leadProsperApi.checkConnection();
       
       if (connectionData.error) {
@@ -82,71 +108,118 @@ export default function LeadProsperCampaigns() {
       }
       
       setConnectionStatus({ isConnected: true });
+      console.log('Connection confirmed, fetching campaigns...');
       
       // Get the API key
-      const apiKey = connectionData.credentials?.credentials?.apiKey || 
-                     leadProsperApi.getCachedApiKey();
-                     
-      if (!apiKey) {
-        setErrorMessage('API key not found. Please reconnect your Lead Prosper account.');
+      let apiKey;
+      try {
+        // Try to get API key from credentials first
+        if (connectionData.credentials?.credentials) {
+          const credentials = typeof connectionData.credentials.credentials === 'string' 
+            ? JSON.parse(connectionData.credentials.credentials) 
+            : connectionData.credentials.credentials;
+            
+          apiKey = credentials?.apiKey;
+        }
+        
+        // If not found in credentials, try to get from cache
+        if (!apiKey) {
+          apiKey = leadProsperApi.getCachedApiKey();
+        }
+        
+        if (!apiKey) {
+          throw new Error('API key not found');
+        }
+      } catch (error) {
+        console.error('Error extracting API key:', error);
+        setErrorMessage('API key not found or invalid. Please reconnect your Lead Prosper account.');
         return;
       }
       
-      // Load campaigns
-      await loadCampaigns(apiKey);
-      
+      // Get campaigns
+      try {
+        const campaignsData = await leadProsperApi.getCampaigns(apiKey);
+        setCampaigns(campaignsData || []);
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
+        
+        // If we have retries left, try again after delay
+        if (retryCount < MAX_RETRIES) {
+          setRetryCount(prev => prev + 1);
+          setErrorMessage(`Campaign fetch failed, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+          
+          setTimeout(() => {
+            loadCampaigns();
+          }, RETRY_DELAY);
+          return;
+        }
+        
+        setErrorMessage(`Failed to load campaigns: ${error.message}`);
+      }
     } catch (error) {
-      console.error('Error checking connection and loading campaigns:', error);
-      setErrorMessage('Failed to check connection status and load campaigns');
-      toast.error('Failed to load Lead Prosper campaigns');
+      console.error('Error in loadCampaigns:', error);
+      setErrorMessage(`Unexpected error: ${error.message}`);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const loadCampaigns = async (apiKey: string) => {
-    try {
-      const campaigns = await leadProsperApi.getCampaigns(apiKey);
-      setCampaigns(campaigns);
-    } catch (error) {
-      console.error('Error loading campaigns:', error);
-      setErrorMessage(`Failed to load campaigns: ${error.message}`);
-      toast.error('Failed to load Lead Prosper campaigns');
     }
   };
 
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true);
+      setRetryCount(0); // Reset retry counter
       
-      // Get API key from cache first
-      let apiKey = leadProsperApi.getCachedApiKey();
+      // Force refresh connection status
+      const connectionData = await leadProsperApi.checkConnection(true);
       
-      // If no key in cache, get it from connection data
-      if (!apiKey) {
-        const connectionData = await leadProsperApi.checkConnection();
-        
-        if (!connectionData.isConnected || !connectionData.credentials?.credentials?.apiKey) {
-          toast.error('No API key found. Please reconnect your Lead Prosper account.');
-          return;
-        }
-        
-        apiKey = connectionData.credentials.credentials.apiKey;
+      if (!connectionData.isConnected) {
+        toast.error('No active Lead Prosper connection found');
+        setErrorMessage('No active Lead Prosper connection found. Please connect your account first.');
+        return;
       }
       
-      await loadCampaigns(apiKey);
+      // Get API key (either from credentials or cache)
+      let apiKey;
+      try {
+        // Try to get API key from credentials first
+        if (connectionData.credentials?.credentials) {
+          const credentials = typeof connectionData.credentials.credentials === 'string' 
+            ? JSON.parse(connectionData.credentials.credentials) 
+            : connectionData.credentials.credentials;
+            
+          apiKey = credentials?.apiKey;
+        }
+        
+        // If not found in credentials, try to get from cache
+        if (!apiKey) {
+          apiKey = leadProsperApi.getCachedApiKey();
+        }
+        
+        if (!apiKey) {
+          throw new Error('API key not found');
+        }
+      } catch (error) {
+        console.error('Error extracting API key:', error);
+        setErrorMessage('API key not found. Please reconnect your Lead Prosper account.');
+        return;
+      }
+      
+      // Get campaigns with force refresh
+      const campaignsData = await leadProsperApi.getCampaigns(apiKey);
+      setCampaigns(campaignsData || []);
       toast.success('Campaigns refreshed successfully');
     } catch (error) {
       console.error('Error refreshing campaigns:', error);
-      toast.error('Failed to refresh campaigns');
+      toast.error(`Failed to refresh campaigns: ${error.message}`);
+      setErrorMessage(`Failed to refresh campaigns: ${error.message}`);
     } finally {
       setIsRefreshing(false);
     }
   };
 
   const filteredCampaigns = campaigns.filter(campaign => 
-    campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    campaign.id.toString().includes(searchTerm)
+    campaign.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    campaign.id?.toString().includes(searchTerm)
   );
 
   return (
@@ -162,22 +235,36 @@ export default function LeadProsperCampaigns() {
       
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center py-8">
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            {errorMessage && (
+              <p className="text-sm text-muted-foreground">{errorMessage}</p>
+            )}
           </div>
         ) : errorMessage ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Connection Error</AlertTitle>
-            <AlertDescription className="space-y-2">
+            <AlertDescription className="space-y-4">
               <p>{errorMessage}</p>
-              <Button 
-                variant="secondary"
-                size="sm"
-                onClick={() => window.location.href = "/integrations?tab=leadprosper"}
-              >
-                Go to Lead Prosper Connection
-              </Button>
+              
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => resetAndRetry()}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset and Retry
+                </Button>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = "/integrations?tab=leadprosper"}
+                >
+                  Go to Lead Prosper Connection
+                </Button>
+              </div>
             </AlertDescription>
           </Alert>
         ) : (
@@ -236,10 +323,10 @@ export default function LeadProsperCampaigns() {
                   {filteredCampaigns.length > 0 ? (
                     filteredCampaigns.map((campaign) => (
                       <TableRow key={campaign.id}>
-                        <TableCell>{campaign.name}</TableCell>
+                        <TableCell>{campaign.name || 'Unnamed Campaign'}</TableCell>
                         <TableCell>{campaign.id}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{campaign.status}</Badge>
+                          <Badge variant="outline">{campaign.status || 'Unknown'}</Badge>
                         </TableCell>
                         <TableCell>
                           <a
@@ -271,6 +358,12 @@ export default function LeadProsperCampaigns() {
           </div>
         )}
       </CardContent>
+      
+      <CardFooter className="flex justify-between">
+        <p className="text-sm text-muted-foreground">
+          {campaigns.length} campaigns found
+        </p>
+      </CardFooter>
     </Card>
   );
 }

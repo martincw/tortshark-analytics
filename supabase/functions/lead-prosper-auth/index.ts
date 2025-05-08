@@ -69,6 +69,7 @@ serve(async (req) => {
       );
     }
     
+    // Set up the Supabase client with better error handling
     const supabaseClient = createClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -83,17 +84,29 @@ serve(async (req) => {
       }
     );
 
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
+    let userId: string;
 
-    if (userError) {
-      console.error('User authentication error:', userError?.message);
+    try {
+      // Get the current user
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+      
+      if (userError) {
+        throw userError;
+      }
+      
+      // Additional check to make sure we have a user
+      if (!user) {
+        throw new Error('No user found in session');
+      }
+      
+      console.log(`Successfully authenticated user: ${user.id}`);
+      userId = user.id;
+      
+    } catch (authError) {
+      console.error('User authentication error:', authError?.message);
       return new Response(
         JSON.stringify({ 
-          error: userError?.message || 'User authentication failed',
+          error: authError?.message || 'Authentication failed',
           isConnected: false,
           credentials: null
         }),
@@ -101,81 +114,78 @@ serve(async (req) => {
       );
     }
 
-    // Additional check to make sure we have a user
-    if (!user) {
-      console.error('No user found in session');
+    // With validated user, check if the user has stored credentials for Lead Prosper
+    try {
+      // With the unique constraint, we can get the single connection directly
+      const { data: connection, error: credentialsError } = await supabaseClient
+        .from('account_connections')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('platform', 'leadprosper')
+        .eq('is_connected', true)
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no record exists
+
+      if (credentialsError && credentialsError.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error('Error fetching credentials:', credentialsError);
+        return new Response(
+          JSON.stringify({ 
+            error: credentialsError.message,
+            isConnected: false,
+            credentials: null
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check if we have an active connection
+      if (!connection) {
+        console.log('No Lead Prosper credentials found for user:', userId);
+        return new Response(
+          JSON.stringify({
+            isConnected: false,
+            credentials: null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Parse credentials to ensure consistent format
+      if (connection.credentials) {
+        try {
+          const parsedCredentials = safeParseCredentials(connection.credentials);
+          
+          if (parsedCredentials) {
+            connection.credentials = parsedCredentials;
+          } else {
+            console.error('Failed to parse connection credentials');
+          }
+        } catch (error) {
+          console.error('Error processing credentials:', error);
+          // Continue with original credentials if parsing fails
+        }
+      }
+      
+      console.log(`Found active Lead Prosper connection for user: ${userId}, connection ID: ${connection.id}`);
+      
+      // Return the connection status
       return new Response(
-        JSON.stringify({ 
-          error: 'No user found in session',
-          isConnected: false,
-          credentials: null
+        JSON.stringify({
+          isConnected: true,
+          credentials: connection || null,
         }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    console.log(`Successfully authenticated user: ${user.id}`);
-
-    // Check if the user has stored credentials for Lead Prosper
-    // With the unique constraint, we can get the single connection directly
-    const { data: connection, error: credentialsError } = await supabaseClient
-      .from('account_connections')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('platform', 'leadprosper')
-      .eq('is_connected', true)
-      .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no record exists
-
-    if (credentialsError && credentialsError.code !== 'PGRST116') { // PGRST116 is "not found" error
-      console.error('Error fetching credentials:', credentialsError);
+    } catch (dbError) {
+      console.error('Database error in lead-prosper-auth:', dbError);
       return new Response(
         JSON.stringify({ 
-          error: credentialsError.message,
+          error: `Database error: ${dbError.message}`,
           isConnected: false,
           credentials: null
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Check if we have an active connection
-    if (!connection) {
-      console.log('No Lead Prosper credentials found for user:', user.id);
-      return new Response(
-        JSON.stringify({
-          isConnected: false,
-          credentials: null,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Parse credentials to ensure consistent format
-    if (connection.credentials) {
-      try {
-        const parsedCredentials = safeParseCredentials(connection.credentials);
-        
-        if (parsedCredentials) {
-          connection.credentials = parsedCredentials;
-        } else {
-          console.error('Failed to parse connection credentials');
-        }
-      } catch (error) {
-        console.error('Error processing credentials:', error);
-        // Continue with original credentials if parsing fails
-      }
-    }
-    
-    console.log(`Found active Lead Prosper connection for user: ${user.id}, connection ID: ${connection.id}`);
-    
-    // Return the connection status
-    return new Response(
-      JSON.stringify({
-        isConnected: true,
-        credentials: connection || null,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
     console.error('Unexpected error in lead-prosper-auth:', error);
     return new Response(

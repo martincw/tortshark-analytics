@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -36,7 +37,8 @@ import {
   Check, 
   X, 
   AlertCircle,
-  RotateCcw
+  RotateCcw,
+  CheckCircle
 } from 'lucide-react';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { LeadProsperConnection as LeadProsperConnectionType } from '@/integrations/leadprosper/types';
@@ -47,14 +49,16 @@ export default function LeadProsperConnection() {
   const [connection, setConnection] = useState<LeadProsperConnectionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [connectionName, setConnectionName] = useState('Lead Prosper');
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // First load - check connection and get webhook URL
   useEffect(() => {
     checkConnection();
     leadProsperApi.getLeadProsperWebhookUrl().then(url => {
@@ -68,10 +72,13 @@ export default function LeadProsperConnection() {
     }
   }, []);
 
+  // Check the connection status
   const checkConnection = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
+      setSuccessMessage(null);
+      
       const data = await leadProsperApi.checkConnection(forceRefresh);
       
       if (data.error) {
@@ -82,6 +89,7 @@ export default function LeadProsperConnection() {
       }
       
       setIsConnected(data.isConnected);
+      
       if (data.credentials) {
         let credentialsData = data.credentials.credentials;
         
@@ -122,6 +130,10 @@ export default function LeadProsperConnection() {
           setErrorMessage('Invalid credentials format in connection data');
         }
       }
+      
+      if (data.isConnected && !data.fromCache) {
+        setSuccessMessage('Connection status verified successfully');
+      }
     } catch (error) {
       console.error('Error checking connection:', error);
       setErrorMessage('Failed to check Lead Prosper connection status');
@@ -130,7 +142,8 @@ export default function LeadProsperConnection() {
       setIsLoading(false);
     }
   };
-  
+
+  // Verify API key is valid before saving
   const verifyApiKey = async () => {
     if (!apiKey) {
       toast.error('Please enter your Lead Prosper API key');
@@ -140,25 +153,38 @@ export default function LeadProsperConnection() {
     setIsVerifying(true);
     
     try {
-      // Basic validation - API keys are typically long strings
+      // First do basic validation
       if (apiKey.length < 10) {
         toast.error('API key appears to be invalid (too short)');
         return false;
       }
       
-      // Store the API key in cache immediately
-      leadProsperApi.setCachedApiKey(apiKey);
-      return true;
+      const isValid = await leadProsperApi.verifyApiKey(apiKey);
+      
+      if (isValid) {
+        toast.success('API key verified successfully');
+        return true;
+      } else {
+        toast.error('API key verification failed. Please check your key and try again.');
+        return false;
+      }
     } catch (error) {
       console.error('API key verification error:', error);
+      toast.error(`Verification error: ${error.message || 'Unknown error'}`);
       return false;
     } finally {
       setIsVerifying(false);
     }
   };
 
+  // Connect to Lead Prosper
   const handleConnect = async () => {
     if (!await verifyApiKey()) {
+      return;
+    }
+    
+    if (!user?.id) {
+      toast.error('User ID not available. Please login again.');
       return;
     }
 
@@ -166,14 +192,8 @@ export default function LeadProsperConnection() {
       setIsSubmitting(true);
       setErrorMessage(null);
       
-      if (!user?.id) {
-        toast.error('User ID not available. Please login again.');
-        return;
-      }
-      
-      // Either update existing connection or create a new one
-      // The API now handles the upsert pattern internally
-      const updatedConnection = await leadProsperApi.createConnection(
+      // Save the connection
+      const updatedConnection = await leadProsperApi.saveConnection(
         apiKey,
         connectionName,
         user.id
@@ -192,6 +212,7 @@ export default function LeadProsperConnection() {
         updatedCredentials = { apiKey };
       }
       
+      // Update connection state
       setConnection({
         id: updatedConnection.id,
         name: updatedConnection.name,
@@ -222,6 +243,7 @@ export default function LeadProsperConnection() {
     }
   };
 
+  // Disconnect from Lead Prosper
   const handleDisconnect = async () => {
     if (!connection?.id) return;
     
@@ -240,12 +262,13 @@ export default function LeadProsperConnection() {
     }
   };
   
+  // Reset authentication state
   const handleResetAuth = async () => {
     try {
       setIsResetting(true);
       
       // Reset API state
-      leadProsperApi.resetAuth();
+      leadProsperApi.resetState();
       
       // Reset UI state
       setApiKey('');
@@ -281,6 +304,14 @@ export default function LeadProsperConnection() {
           </div>
         ) : isConnected ? (
           <div className="space-y-4">
+            {successMessage && (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <AlertTitle className="text-green-800">Success</AlertTitle>
+                <AlertDescription className="text-green-700">{successMessage}</AlertDescription>
+              </Alert>
+            )}
+          
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">{connection?.name}</p>
@@ -497,6 +528,23 @@ export default function LeadProsperConnection() {
                     You can find your API key in the Lead Prosper dashboard under Settings &gt; API Keys
                   </p>
                 </div>
+                
+                <Button 
+                  variant="secondary" 
+                  type="button" 
+                  onClick={() => verifyApiKey()}
+                  disabled={isVerifying || !apiKey}
+                  className="mt-2"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>Verify API Key</>
+                  )}
+                </Button>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
