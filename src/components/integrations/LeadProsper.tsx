@@ -4,6 +4,8 @@ import LeadProsperConnection from './LeadProsperConnection';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
+import { leadProsperApi } from '@/integrations/leadprosper/client';
 
 export function LeadProsper() {
   const location = useLocation();
@@ -26,6 +28,22 @@ export function LeadProsper() {
       `${window.location.pathname}?${newParams.toString()}`
     );
   };
+  
+  // Check connection on initial load
+  useEffect(() => {
+    // If initial tab is campaigns, verify connection first
+    if (defaultTab === 'campaigns') {
+      leadProsperApi.checkConnection()
+        .then(connectionData => {
+          if (!connectionData.isConnected) {
+            toast.warning('No active Lead Prosper connection found. Please connect your account first.');
+          }
+        })
+        .catch(err => {
+          console.error('Connection check failed:', err);
+        });
+    }
+  }, []);
   
   return (
     <Tabs defaultValue={defaultTab} onValueChange={handleTabChange}>

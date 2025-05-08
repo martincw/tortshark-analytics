@@ -10,6 +10,8 @@ export const leadProsperApi = {
     campaignsTimestamp: 0,
     connectionStatus: null as { isConnected: boolean, credentials: any } | null,
     connectionTimestamp: 0,
+    verificationPending: false,
+    lastAuthError: null as string | null
   },
   
   // Cache expiration times (in milliseconds)
@@ -26,6 +28,8 @@ export const leadProsperApi = {
     this._cache.campaignsTimestamp = 0;
     this._cache.connectionStatus = null;
     this._cache.connectionTimestamp = 0;
+    this._cache.verificationPending = false;
+    this._cache.lastAuthError = null;
     
     // Clear localStorage cache
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -64,10 +68,11 @@ export const leadProsperApi = {
     }
   },
 
-  // Verify an API key is valid
+  // Verify an API key is valid - using simplified direct approach
   async verifyApiKey(apiKey: string): Promise<boolean> {
     try {
       console.log('Verifying Lead Prosper API key...');
+      this._cache.verificationPending = true;
       
       // Basic validation
       if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10) {
@@ -75,7 +80,7 @@ export const leadProsperApi = {
         return false;
       }
       
-      // Call the verification endpoint
+      // Call the verification endpoint - no auth required
       const { data, error } = await supabase.functions.invoke('lead-prosper-verify', {
         body: { apiKey }
       });
@@ -95,6 +100,8 @@ export const leadProsperApi = {
     } catch (e) {
       console.error('Unexpected error during API key verification:', e);
       return false;
+    } finally {
+      this._cache.verificationPending = false;
     }
   },
 
@@ -113,13 +120,18 @@ export const leadProsperApi = {
       this.setCachedApiKey(apiKey);
       
       // Check for existing connection
-      const { data: existingConn } = await supabase
+      const { data: existingConn, error: queryError } = await supabase
         .from('account_connections')
         .select('id')
         .eq('platform', 'leadprosper')
         .eq('user_id', userId)
         .maybeSingle();
-        
+      
+      if (queryError) {
+        console.error('Error checking for existing connection:', queryError);
+        throw new Error(`Database error: ${queryError.message}`);
+      }
+      
       let result;
       
       if (existingConn) {
@@ -221,14 +233,75 @@ export const leadProsperApi = {
       if (!session) {
         console.error('No active session found');
         this.resetState();
+        this._cache.lastAuthError = 'Authentication required';
         return { 
           isConnected: false, 
-          error: 'Authentication required',
+          error: 'Authentication required. Please sign in.',
           credentials: null
         };
       }
 
-      // Direct database query for connection status
+      try {
+        // First try the auth edge function
+        const { data: authData, error: authError } = await supabase.functions.invoke('lead-prosper-auth', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+        
+        if (authError) {
+          console.error('Error from lead-prosper-auth function:', authError);
+          // Fall back to direct database query if edge function fails
+        } else if (authData) {
+          console.log('Successfully retrieved connection status from auth function');
+          
+          if (!authData.isConnected) {
+            this._cache.connectionStatus = {
+              isConnected: false,
+              credentials: null
+            };
+            this._cache.connectionTimestamp = Date.now();
+            
+            return {
+              isConnected: false,
+              credentials: null
+            };
+          }
+          
+          // Update cache
+          this._cache.connectionStatus = {
+            isConnected: true,
+            credentials: authData.credentials
+          };
+          this._cache.connectionTimestamp = Date.now();
+          
+          // Extract and cache API key if available
+          if (authData.credentials?.credentials) {
+            let credentialsObj;
+            try {
+              credentialsObj = typeof authData.credentials.credentials === 'string' 
+                ? JSON.parse(authData.credentials.credentials) 
+                : authData.credentials.credentials;
+                
+              if (credentialsObj && typeof credentialsObj === 'object' && 'apiKey' in credentialsObj) {
+                this.setCachedApiKey(credentialsObj.apiKey);
+              }
+            } catch (parseError) {
+              console.error('Failed to parse credentials:', parseError);
+            }
+          }
+          
+          return {
+            isConnected: true,
+            credentials: authData.credentials
+          };
+        }
+      } catch (authFnError) {
+        console.error('Auth function error:', authFnError);
+        // Continue with direct database query as fallback
+      }
+
+      // Direct database query for connection status as fallback
       console.log('Querying database for connection status');
       const { data: connection, error: dbError } = await supabase
         .from('account_connections')
@@ -326,19 +399,40 @@ export const leadProsperApi = {
         return this._cache.campaigns;
       }
 
-      // Make direct API call to the Lead Prosper API using our edge function
+      // First try getting the session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Make API call to the Lead Prosper API using our edge function
       console.log('Making API request for campaigns data');
+      
       const { data, error } = await supabase.functions.invoke('lead-prosper-campaigns', {
-        body: { apiKey: keyToUse }
+        body: { apiKey: keyToUse },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : undefined
       });
       
       if (error) {
         console.error('Error fetching Lead Prosper campaigns:', error);
+        
+        // If we have cached data and encounter an error, use the cached data as fallback
+        if (this._cache.campaigns) {
+          console.log('Using cached campaigns data as fallback after error');
+          return this._cache.campaigns;
+        }
+        
         throw new Error(`Failed to fetch campaigns: ${error.message}`);
       }
       
       if (!data || !data.campaigns) {
         console.error('Invalid response format from Lead Prosper API');
+        
+        // Again try using cached data as fallback
+        if (this._cache.campaigns) {
+          console.log('Using cached campaigns data as fallback after invalid response');
+          return this._cache.campaigns;
+        }
+        
         throw new Error('Invalid response format from Lead Prosper API');
       }
       
@@ -350,6 +444,13 @@ export const leadProsperApi = {
       return data.campaigns;
     } catch (error) {
       console.error('Error in getCampaigns:', error);
+      
+      // Last resort - if we have any cached data and it's better than nothing
+      if (this._cache.campaigns) {
+        console.log('Using stale cached campaigns data as last resort fallback');
+        return this._cache.campaigns;
+      }
+      
       throw new Error(`Failed to load Lead Prosper campaigns: ${error.message}`);
     }
   },
@@ -512,6 +613,9 @@ export const leadProsperApi = {
         apiKey = cachedKey;
       }
       
+      // Get current session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      
       // Call the sync edge function with backfill mode
       const { data, error } = await supabase.functions.invoke('lead-prosper-sync', {
         body: {
@@ -521,7 +625,10 @@ export const leadProsperApi = {
           startDate,
           endDate,
           mode: 'backfill'
-        }
+        },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : undefined
       });
       
       if (error) {

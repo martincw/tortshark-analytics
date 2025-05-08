@@ -24,7 +24,21 @@ serve(async (req) => {
   
   try {
     // Get the API key from the request body
-    const { apiKey } = await req.json();
+    let apiKey;
+    
+    try {
+      const requestData = await req.json();
+      apiKey = requestData.apiKey;
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Invalid JSON in request body" 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Basic validation
     if (!apiKey) {
@@ -56,6 +70,8 @@ serve(async (req) => {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
+      // Add a timeout to avoid hanging requests
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
 
     if (!response.ok) {

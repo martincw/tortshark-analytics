@@ -64,15 +64,22 @@ serve(async (req) => {
     
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization');
+    
+    // Log detailed auth information for debugging
+    console.log(`Auth header present: ${!!authHeader}`);
+    
     if (!authHeader) {
       console.error('No authorization header provided');
       return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
+        JSON.stringify({ 
+          error: 'No authorization header', 
+          authenticated: false 
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create a Supabase client
+    // Create a Supabase client with better error handling
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
     
@@ -84,6 +91,7 @@ serve(async (req) => {
       );
     }
     
+    // Initialize Supabase client with auth header
     const supabaseClient = createClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -91,32 +99,48 @@ serve(async (req) => {
         global: {
           headers: { Authorization: authHeader },
         },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     );
 
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
-
-    if (userError) {
-      console.error('User authentication error:', userError?.message);
+    // Get the current user - using more reliable pattern
+    let user;
+    try {
+      // Extract the JWT token from the Authorization header
+      const token = authHeader.replace('Bearer ', '');
+      console.log(`Attempting to get user with token (length: ${token.length})`);
+      
+      // Use getUser with explicit token
+      const { data, error } = await supabaseClient.auth.getUser(token);
+      
+      if (error) {
+        console.error('User authentication error:', error?.message);
+        throw error;
+      }
+      
+      user = data.user;
+      
+      // Double check user exists
+      if (!user) {
+        console.error('No user found after successful auth call');
+        throw new Error('Authentication successful but no user returned');
+      }
+      
+      console.log(`Successfully authenticated user: ${user.id}`);
+      
+    } catch (userError) {
+      console.error('Authentication error details:', userError);
       return new Response(
-        JSON.stringify({ error: userError?.message || 'User not found' }),
+        JSON.stringify({ 
+          error: userError?.message || 'User authentication failed',
+          authenticated: false 
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    if (!user) {
-      console.error('No user found in session');
-      return new Response(
-        JSON.stringify({ error: 'No user found in session' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Successfully authenticated user: ${user.id}`);
 
     // Get the Lead Prosper API key from the request body
     let requestData;
@@ -181,9 +205,12 @@ serve(async (req) => {
       console.warn('Invalid or empty campaigns data received from Lead Prosper API');
     }
 
-    // Return the campaigns
+    // Return the campaigns with successful authentication status
     return new Response(
-      JSON.stringify({ campaigns: campaigns?.data || [] }),
+      JSON.stringify({ 
+        campaigns: campaigns?.data || [],
+        authenticated: true
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

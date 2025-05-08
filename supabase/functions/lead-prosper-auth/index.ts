@@ -87,15 +87,21 @@ serve(async (req) => {
     let userId: string;
 
     try {
-      // Get the current user
-      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+      // Extract the JWT token from the Authorization header
+      const token = authHeader.replace('Bearer ', '');
+      console.log(`Attempting to get user with token (length: ${token.length})`);
+      
+      // Use getUser with explicit token for more reliable authentication
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
       
       if (userError) {
+        console.error('User authentication error:', userError);
         throw userError;
       }
       
       // Additional check to make sure we have a user
       if (!user) {
+        console.error('No user found in session');
         throw new Error('No user found in session');
       }
       
