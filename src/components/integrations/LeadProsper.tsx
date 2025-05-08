@@ -64,21 +64,40 @@ export function LeadProsper() {
     if (!apiKey) return;
     
     try {
-      toast.info('Testing Lead Prosper connection by syncing today\'s data...');
+      toast.info('Testing Lead Prosper connection by syncing today\'s data...', {
+        duration: 10000, // Longer duration to show loading status
+      });
       const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
       
       if (result.success) {
-        toast.success('Successfully synchronized with Lead Prosper', {
-          description: `Retrieved data for ${result.campaigns_processed} campaigns using ${result.endpoint_used || 'leads'} endpoint`,
-        });
+        if (result.total_leads > 0) {
+          toast.success('Successfully retrieved leads from Lead Prosper', {
+            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
+          });
+        } else if (result.used_stats_fallback) {
+          toast.success('Connected to Lead Prosper', {
+            description: `Retrieved campaign stats data successfully. No new leads found for today.`,
+          });
+        } else {
+          toast.info('Connected to Lead Prosper', {
+            description: `Connection successful, but no new leads found for today.`,
+          });
+        }
       } else if (result.timezone_error) {
         toast.warning('Connected, but timezone issues were detected', {
           description: 'The connection works, but there may be timezone compatibility issues. Visit the Leads page to see detailed status.',
         });
+      } else {
+        toast.warning('Connection test completed with issues', {
+          description: result.error || 'Unknown issue occurred during synchronization',
+        });
       }
     } catch (error) {
       console.error('Error testing Lead Prosper sync:', error);
-      // Don't show error toast as this is just a background test
+      // Only show error for explicit connection test, not background test
+      toast.error('Error testing Lead Prosper connection', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+      });
     }
   };
   

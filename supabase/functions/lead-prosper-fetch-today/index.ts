@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
 import { format } from "https://esm.sh/date-fns@2.30.0";
@@ -50,7 +51,8 @@ async function fetchTodayLeadsWithTimezoneOptions(
   // Try each timezone format with /leads endpoint
   const leadsErrors = [];
   
-  for (const { format, description } of timezoneFormats.slice(0, 5)) { // Try first 5 formats with /leads endpoint
+  // Try all formats, not just the first few
+  for (const { format, description } of timezoneFormats) {
     try {
       console.log(`Trying ${description} with /leads endpoint`);
       
@@ -72,7 +74,7 @@ async function fetchTodayLeadsWithTimezoneOptions(
       if (response.ok) {
         const data = await response.json();
         console.log(`Success using ${description} with /leads endpoint! Received ${data.data?.length || 0} leads`);
-        return data;
+        return { ...data, endpoint: 'leads' };
       }
       
       // If not successful, capture the error
@@ -102,47 +104,69 @@ async function fetchTodayLeadsWithTimezoneOptions(
   console.log("All /leads endpoint attempts failed. Trying /stats endpoint...");
   
   try {
-    // Build URL for /stats endpoint - this endpoint might be more tolerant with timezone formats
-    const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${today}&end_date=${today}`;
-    
-    console.log(`Trying /stats endpoint without timezone parameter`);
-    
-    // Make the API call to stats endpoint
-    const statsResponse = await fetch(statsUrl, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    // Try different date formats for /stats endpoint
+    const dateFormats = [
+      { startDate: today, endDate: today, description: "Same day" },
+      { 
+        startDate: format(new Date(Date.now() - 86400000), 'yyyy-MM-dd'), // Yesterday
+        endDate: today, 
+        description: "Yesterday and today" 
       },
-    });
-
-    if (statsResponse.ok) {
-      const statsData = await statsResponse.json();
-      console.log(`Success with /stats endpoint! Processing stats data instead.`);
+      {
+        startDate: today,
+        endDate: format(new Date(Date.now() + 86400000), 'yyyy-MM-dd'), // Tomorrow
+        description: "Today and tomorrow"
+      }
+    ];
+    
+    // Try each date range
+    for (const { startDate, endDate, description } of dateFormats) {
+      // Build URL for /stats endpoint
+      const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${startDate}&end_date=${endDate}`;
       
-      // Format stats data to match expected structure for leads processing
-      return {
-        success: true,
-        data: [], // No leads data, but we'll record the stats
-        stats: statsData.data || [],
-        endpoint: 'stats'
-      };
+      console.log(`Trying /stats endpoint with date range ${description} (${startDate} to ${endDate})`);
+      
+      // Make the API call to stats endpoint
+      const statsResponse = await fetch(statsUrl, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        console.log(`Success with /stats endpoint using ${description}! Processing stats data instead.`);
+        
+        // Filter to only include today's stats
+        const todayStats = statsData.data?.filter((item: any) => 
+          item.date?.split('T')[0] === today
+        ) || [];
+        
+        console.log(`Found ${todayStats.length} stats entries for today (${today})`);
+        
+        // Format stats data to match expected structure for leads processing
+        return {
+          success: true,
+          data: [], // No leads data, but we'll record the stats
+          stats: todayStats,
+          endpoint: 'stats'
+        };
+      }
+      
+      // Log error but continue trying other date ranges
+      const statsErrorText = await statsResponse.text();
+      const statsStatusCode = statsResponse.status;
+      console.error(`Failed with /stats endpoint using ${description}: ${statsStatusCode} - ${statsErrorText}`);
     }
     
-    // If stats endpoint also failed, capture error
-    const statsErrorText = await statsResponse.text();
-    const statsStatusCode = statsResponse.status;
-    console.error(`Failed with /stats endpoint: ${statsStatusCode} - ${statsErrorText}`);
-    
-    // If we've tried all formats and endpoints and none worked, report detailed error
+    // If all stats attempts failed, report detailed error
     const errorDetails = JSON.stringify({
       leads_attempts: leadsErrors,
-      stats_attempt: { 
-        error: statsErrorText,
-        status: statsStatusCode
-      }
+      date_formats_tried: dateFormats.map(df => df.description)
     }, null, 2);
     
-    throw new Error(`Failed to fetch data using any endpoint or timezone format. Details: ${errorDetails}`);
+    throw new Error(`Failed to fetch data using any endpoint, timezone format, or date range. Details: ${errorDetails}`);
     
   } catch (finalError) {
     console.error("All API attempts failed:", finalError);
@@ -341,6 +365,7 @@ serve(async (req) => {
     let successCount = 0;
     let errorCount = 0;
     const results = [];
+    let debugInfo = [];
 
     // Process each campaign mapping
     for (const mapping of mappings) {
@@ -367,6 +392,15 @@ serve(async (req) => {
           lpCampaignId, 
           requestedTimezone
         );
+        
+        const campaignDebugInfo = {
+          campaign_id: lpCampaignId,
+          endpoint_used: apiResponse.endpoint || 'unknown',
+          leads_count: apiResponse.data?.length || 0,
+          stats_count: apiResponse.stats?.length || 0
+        };
+        
+        debugInfo.push(campaignDebugInfo);
         
         // Check if we got leads data
         if (apiResponse.data && apiResponse.data.length > 0) {
@@ -395,7 +429,12 @@ serve(async (req) => {
             ts_campaign_id: mapping.ts_campaign_id
           });
           
-          // Still count this as a success even though we used stats instead of leads
+          // Add up the total leads from stats
+          const statsLeadsCount = apiResponse.stats.reduce((total: number, stat: any) => {
+            return total + (stat.leads || 0);
+          }, 0);
+          
+          totalLeads += statsLeadsCount;
           successCount++;
           
           results.push({
@@ -404,6 +443,7 @@ serve(async (req) => {
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
             stats_count: apiResponse.stats.length,
+            leads_count: statsLeadsCount,
             endpoint_used: 'stats',
             status: 'success_stats_only'
           });
@@ -446,6 +486,7 @@ serve(async (req) => {
         success_count: successCount,
         error_count: errorCount,
         results,
+        debug_info: debugInfo,
         last_synced: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

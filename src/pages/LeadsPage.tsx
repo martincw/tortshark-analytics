@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -60,6 +61,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any[]>([]);
   
   // Calendar states
   const [startDateOpen, setStartDateOpen] = useState(false);
@@ -144,6 +146,7 @@ export default function LeadsPage() {
     try {
       setRefreshing(true);
       setRefreshError(null);
+      setDebugInfo([]);
       
       // Get the Lead Prosper API Key
       const apiKeyResponse = await leadProsperApi.getApiCredentials();
@@ -155,6 +158,11 @@ export default function LeadsPage() {
       // Call the edge function to fetch today's leads
       const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
       
+      // Store debug info for troubleshooting
+      if (result.debug_info) {
+        setDebugInfo(result.debug_info);
+      }
+      
       if (result.success) {
         // Store the last synced timestamp
         if (result.last_synced) {
@@ -164,13 +172,18 @@ export default function LeadsPage() {
         // Provide additional info if we used stats endpoint as fallback
         if (result.used_stats_fallback) {
           toast.success(`Lead refresh succeeded using stats data`, {
-            description: `Unable to fetch detailed leads directly, but successfully retrieved metrics data for ${result.campaigns_processed} campaigns`,
+            description: `Retrieved metrics data for ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
             duration: 6000,
           });
-        } else {
+        } else if (result.total_leads > 0) {
           toast.success(`Lead refresh succeeded`, {
-            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaigns`,
+            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
             duration: 5000,
+          });
+        } else {
+          toast.info(`No new leads found`, {
+            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no new leads for today`,
+            duration: 4000,
           });
         }
         
@@ -178,13 +191,7 @@ export default function LeadsPage() {
         await loadLeads();
       } else {
         // Check for timezone-specific issues
-        const isTimezoneError = 
-          result.timezone_error || 
-          (result.error && (
-            result.error.toLowerCase().includes('timezone') ||
-            result.error.includes('valid zone') ||
-            result.error.toLowerCase().includes('cannot assign null')
-          ));
+        const isTimezoneError = result.timezone_error || false;
         
         const errorMessage = result.error || 'Failed to refresh leads';
         setRefreshError(errorMessage);
@@ -300,6 +307,27 @@ export default function LeadsPage() {
             </Button>
           </AlertDescription>
         </Alert>
+      )}
+      
+      {/* Debug information panel - only show if there's debug info */}
+      {debugInfo && debugInfo.length > 0 && (
+        <Card className="bg-slate-50 border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Lead Retrieval Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 py-0">
+            <div className="text-xs">
+              {debugInfo.map((info, index) => (
+                <div key={index} className="mb-1 p-2 bg-slate-100 rounded">
+                  <div>Campaign ID: {info.campaign_id}</div>
+                  <div>Endpoint used: {info.endpoint_used}</div>
+                  <div>Leads retrieved: {info.leads_count}</div>
+                  {info.stats_count > 0 && <div>Stats entries: {info.stats_count}</div>}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
       
       <Card>
