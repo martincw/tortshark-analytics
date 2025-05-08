@@ -489,5 +489,68 @@ export const leadProsperApi = {
     } catch {
       return false;
     }
+  },
+
+  // Backfill leads from Lead Prosper
+  async backfillLeads(
+    apiKey: string,
+    lp_campaign_id: number,
+    ts_campaign_id: string,
+    startDate: string,
+    endDate: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log('Starting Lead Prosper backfill process...');
+      console.log(`Campaign: LP ID ${lp_campaign_id} -> TS ID ${ts_campaign_id}`);
+      console.log(`Date range: ${startDate} to ${endDate}`);
+      
+      if (!apiKey) {
+        const cachedKey = this.getCachedApiKey();
+        if (!cachedKey) {
+          throw new Error('No API key provided or found in cache');
+        }
+        apiKey = cachedKey;
+      }
+      
+      // Call the sync edge function with backfill mode
+      const { data, error } = await supabase.functions.invoke('lead-prosper-sync', {
+        body: {
+          apiKey,
+          lp_campaign_id,
+          ts_campaign_id,
+          startDate,
+          endDate,
+          mode: 'backfill'
+        }
+      });
+      
+      if (error) {
+        console.error('Error during Lead Prosper backfill:', error);
+        return { 
+          success: false, 
+          error: `Failed to backfill leads: ${error.message || 'Unknown error'}`
+        };
+      }
+      
+      if (!data?.success) {
+        console.error('Backfill process returned an error:', data?.error);
+        return { 
+          success: false, 
+          error: data?.error || 'Backfill process failed without specific error message'
+        };
+      }
+      
+      console.log('Lead Prosper backfill completed successfully');
+      return {
+        success: true
+      };
+      
+    } catch (error) {
+      console.error('Unexpected error during backfill process:', error);
+      return { 
+        success: false, 
+        error: error.message || 'An unexpected error occurred during backfill'
+      };
+    }
   }
 };
