@@ -34,6 +34,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
+          isValid: false,
           error: "Invalid JSON in request body" 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -46,6 +47,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
+          isValid: false,
           error: "No API key provided" 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -57,6 +59,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
+          isValid: false,
           error: "Invalid API key format" 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -81,6 +84,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
+          isValid: false,
           status: response.status,
           error: `Lead Prosper API error: ${response.status} ${response.statusText}`,
           details: errorText
@@ -93,7 +97,8 @@ serve(async (req) => {
     console.log("Lead Prosper API connection successful");
     return new Response(
       JSON.stringify({ 
-        success: true, 
+        success: true,
+        isValid: true,
         message: "Lead Prosper API connection successful" 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -103,7 +108,8 @@ serve(async (req) => {
     console.error("Error verifying Lead Prosper API:", error);
     return new Response(
       JSON.stringify({ 
-        success: false, 
+        success: false,
+        isValid: false, 
         error: error.message || "Unknown error during verification" 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

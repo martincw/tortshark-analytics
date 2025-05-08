@@ -69,9 +69,9 @@ export const leadProsperApi = {
       if (error) {
         if (error.code === 'PGRST116') {
           // No record found
-          return { isConnected: false };
+          return { isConnected: false, fromCache: !forceRefresh };
         }
-        return { isConnected: false, error: error.message };
+        return { isConnected: false, error: error.message, fromCache: !forceRefresh };
       }
 
       // Parse credentials if they're stored as a string
@@ -94,7 +94,7 @@ export const leadProsperApi = {
       };
     } catch (error) {
       console.error('Error checking Lead Prosper connection:', error);
-      return { isConnected: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { isConnected: false, error: error instanceof Error ? error.message : 'Unknown error', fromCache: !forceRefresh };
     }
   },
 
@@ -323,6 +323,7 @@ export const leadProsperApi = {
   // Verify that an API key is valid
   async verifyApiKey(apiKey: string): Promise<boolean> {
     try {
+      console.log('Verifying Lead Prosper API key...');
       const { data, error } = await supabase.functions.invoke('lead-prosper-verify', {
         body: { apiKey },
       });
@@ -332,7 +333,8 @@ export const leadProsperApi = {
         return false;
       }
 
-      return data?.isValid === true;
+      // Check both success and isValid properties for backward compatibility
+      return data?.success === true || data?.isValid === true;
     } catch (error) {
       console.error('Error in verifyApiKey:', error);
       return false;

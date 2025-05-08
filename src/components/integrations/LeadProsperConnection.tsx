@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -60,7 +61,7 @@ export default function LeadProsperConnection() {
   // First load - check connection and get webhook URL
   useEffect(() => {
     checkConnection();
-    // Get webhook URL directly
+    // Get webhook URL directly as a string, not a Promise
     const url = leadProsperApi.getLeadProsperWebhookUrl();
     setWebhookUrl(url);
     
@@ -157,7 +158,9 @@ export default function LeadProsperConnection() {
         return false;
       }
       
+      console.log('Verifying API key...');
       const isValid = await leadProsperApi.verifyApiKey(apiKey);
+      console.log('API key verification result:', isValid);
       
       if (isValid) {
         toast.success('API key verified successfully');
@@ -168,7 +171,7 @@ export default function LeadProsperConnection() {
       }
     } catch (error) {
       console.error('API key verification error:', error);
-      toast.error(`Verification error: ${error.message || 'Unknown error'}`);
+      toast.error(`Verification error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     } finally {
       setIsVerifying(false);
@@ -234,8 +237,8 @@ export default function LeadProsperConnection() {
       }, 1000);
     } catch (error) {
       console.error('Connection error:', error);
-      setErrorMessage(error.message || 'Failed to connect to Lead Prosper');
-      toast.error(error.message || 'Failed to connect to Lead Prosper');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to connect to Lead Prosper');
+      toast.error(error instanceof Error ? error.message : 'Failed to connect to Lead Prosper');
     } finally {
       setIsSubmitting(false);
     }

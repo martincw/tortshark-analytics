@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
@@ -77,6 +78,7 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   const fetchLeadProsperMappings = async () => {
     setIsLoadingLP(true);
     try {
+      // Using the new method name getCampaignMappings
       const mappings = await leadProsperApi.getCampaignMappings(campaignId);
       setLeadProsperMappings(mappings || []);
     } catch (error) {
