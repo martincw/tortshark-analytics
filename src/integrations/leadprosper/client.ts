@@ -1,4 +1,3 @@
-
 import { supabase, SUPABASE_PROJECT_URL } from '../supabase/client';
 
 // Cache for storing API key temporarily
@@ -95,21 +94,20 @@ export const leadProsperApi = {
 
       // Fallback: direct database query for connection status
       console.log('Falling back to direct database query for connection status');
-      const { data: connections, error: dbError } = await supabase
+      const { data: connection, error: dbError } = await supabase
         .from('account_connections')
         .select('*')
         .eq('platform', 'leadprosper')
         .eq('is_connected', true)
-        .order('updated_at', { ascending: false })
-        .limit(1);
+        .maybeSingle();
         
       if (dbError) {
         console.error('Error checking Lead Prosper connection (db fallback):', dbError);
         throw dbError;
       }
 
-      if (!connections || connections.length === 0) {
-        console.log('No active Lead Prosper connections found');
+      if (!connection) {
+        console.log('No active Lead Prosper connection found');
         // Clear cached API key since no connections found
         this.resetAuth();
         
@@ -126,23 +124,21 @@ export const leadProsperApi = {
         };
       }
       
-      const mostRecentConnection = connections[0];
-      
       // Update cache with database response
       connectionStatusCache = {
         isConnected: true,
-        credentials: mostRecentConnection,
+        credentials: connection,
         timestamp: Date.now()
       };
       
       // Extract and cache API key if available
-      if (mostRecentConnection.credentials) {
+      if (connection.credentials) {
         // Handle credentials stored as a string or as a JSON object
         let credentialsObj;
         try {
-          credentialsObj = typeof mostRecentConnection.credentials === 'string' 
-            ? JSON.parse(mostRecentConnection.credentials) 
-            : mostRecentConnection.credentials;
+          credentialsObj = typeof connection.credentials === 'string' 
+            ? JSON.parse(connection.credentials) 
+            : connection.credentials;
             
           if (credentialsObj && typeof credentialsObj === 'object' && 'apiKey' in credentialsObj) {
             this.setCachedApiKey(credentialsObj.apiKey);
@@ -154,7 +150,7 @@ export const leadProsperApi = {
       
       return {
         isConnected: true,
-        credentials: mostRecentConnection,
+        credentials: connection,
         fromFallback: true
       };
     } catch (error) {
@@ -249,6 +245,26 @@ export const leadProsperApi = {
       // Clear any existing connection cache
       connectionStatusCache = null;
       
+      // First check if a connection already exists
+      const { data: existingConnection, error: checkError } = await supabase
+        .from('account_connections')
+        .select('id')
+        .eq('platform', 'leadprosper')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (checkError) {
+        console.error('Error checking for existing Lead Prosper connection:', checkError);
+        throw checkError;
+      }
+      
+      if (existingConnection) {
+        // If connection exists, update it instead of creating a new one
+        console.log('Existing Lead Prosper connection found, updating...');
+        return this.updateConnection(existingConnection.id, apiKey, name);
+      }
+      
+      // No existing connection, create a new one
       const { data, error } = await supabase
         .from('account_connections')
         .insert([

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -167,78 +166,48 @@ export default function LeadProsperConnection() {
       setIsSubmitting(true);
       setErrorMessage(null);
       
-      if (connection?.id) {
-        // Update existing connection
-        const updatedConnection = await leadProsperApi.updateConnection(
-          connection.id,
-          apiKey,
-          connectionName
-        );
-        
-        // Extract credentials from the response
-        let updatedCredentials = updatedConnection.credentials;
-        if (typeof updatedCredentials === 'string') {
-          try {
-            updatedCredentials = JSON.parse(updatedCredentials);
-          } catch (e) {
-            console.error('Failed to parse credentials JSON:', e);
-            updatedCredentials = { apiKey };
-          }
-        } else if (!updatedCredentials) {
+      if (!user?.id) {
+        toast.error('User ID not available. Please login again.');
+        return;
+      }
+      
+      // Either update existing connection or create a new one
+      // The API now handles the upsert pattern internally
+      const updatedConnection = await leadProsperApi.createConnection(
+        apiKey,
+        connectionName,
+        user.id
+      );
+      
+      // Extract credentials from the response
+      let updatedCredentials = updatedConnection.credentials;
+      if (typeof updatedCredentials === 'string') {
+        try {
+          updatedCredentials = JSON.parse(updatedCredentials);
+        } catch (e) {
+          console.error('Failed to parse credentials JSON:', e);
           updatedCredentials = { apiKey };
         }
-        
-        setConnection({
-          ...connection,
-          name: updatedConnection.name,
-          lastSynced: updatedConnection.last_synced,
-          apiKey: apiKey,
-          credentials: {
-            apiKey: apiKey,
-            ...(typeof updatedCredentials === 'object' ? updatedCredentials : {})
-          }
-        });
-        
-        toast.success('Lead Prosper connection updated successfully');
-      } else {
-        // Create new connection
-        const newConnection = await leadProsperApi.createConnection(
-          apiKey,
-          connectionName,
-          user?.id || ''
-        );
-        
-        // Extract credentials from the response
-        let newCredentials = newConnection.credentials;
-        if (typeof newCredentials === 'string') {
-          try {
-            newCredentials = JSON.parse(newCredentials);
-          } catch (e) {
-            console.error('Failed to parse credentials JSON:', e);
-            newCredentials = { apiKey };
-          }
-        } else if (!newCredentials) {
-          newCredentials = { apiKey };
-        }
-        
-        setConnection({
-          id: newConnection.id,
-          name: newConnection.name,
-          platform: 'leadprosper',
-          isConnected: newConnection.is_connected,
-          lastSynced: newConnection.last_synced,
-          apiKey: apiKey,
-          credentials: {
-            apiKey: apiKey,
-            ...(typeof newCredentials === 'object' ? newCredentials : {})
-          }
-        });
-        
-        toast.success('Lead Prosper connected successfully');
+      } else if (!updatedCredentials) {
+        updatedCredentials = { apiKey };
       }
+      
+      setConnection({
+        id: updatedConnection.id,
+        name: updatedConnection.name,
+        platform: 'leadprosper',
+        isConnected: updatedConnection.is_connected,
+        lastSynced: updatedConnection.last_synced,
+        apiKey: apiKey,
+        credentials: {
+          apiKey: apiKey,
+          ...(typeof updatedCredentials === 'object' ? updatedCredentials : {})
+        }
+      });
       
       setIsConnected(true);
       setShowDialog(false);
+      toast.success('Lead Prosper connected successfully');
       
       // Force refresh connection status
       setTimeout(() => {

@@ -113,17 +113,16 @@ serve(async (req) => {
     console.log(`Successfully authenticated user: ${user.id}`);
 
     // Check if the user has stored credentials for Lead Prosper
-    // Note: We've changed from .single() to .order() and .limit() to handle multiple connections
-    const { data: connections, error: credentialsError } = await supabaseClient
+    // With the new unique constraint, we can get the single connection directly
+    const { data: connection, error: credentialsError } = await supabaseClient
       .from('account_connections')
       .select('*')
       .eq('user_id', user.id)
       .eq('platform', 'leadprosper')
       .eq('is_connected', true)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .single();
 
-    if (credentialsError) {
+    if (credentialsError && credentialsError.code !== 'PGRST116') { // PGRST116 is "not found" error
       console.error('Error fetching credentials:', credentialsError);
       return new Response(
         JSON.stringify({ 
@@ -135,8 +134,8 @@ serve(async (req) => {
       );
     }
 
-    // Check if we have any active connections
-    if (!connections || connections.length === 0) {
+    // Check if we have an active connection
+    if (!connection) {
       console.log('No Lead Prosper credentials found for user:', user.id);
       return new Response(
         JSON.stringify({
@@ -146,28 +145,25 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Get the most recent connection
-    const mostRecentConnection = connections[0];
     
     // Parse credentials to ensure consistent format
-    if (mostRecentConnection.credentials) {
-      const parsedCredentials = safeParseCredentials(mostRecentConnection.credentials);
+    if (connection.credentials) {
+      const parsedCredentials = safeParseCredentials(connection.credentials);
       
       if (parsedCredentials) {
-        mostRecentConnection.credentials = parsedCredentials;
+        connection.credentials = parsedCredentials;
       } else {
         console.error('Failed to parse connection credentials');
       }
     }
     
-    console.log(`Found active Lead Prosper connection for user: ${user.id}, connection ID: ${mostRecentConnection.id}`);
+    console.log(`Found active Lead Prosper connection for user: ${user.id}, connection ID: ${connection.id}`);
     
     // Return the connection status
     return new Response(
       JSON.stringify({
         isConnected: true,
-        credentials: mostRecentConnection || null,
+        credentials: connection || null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
