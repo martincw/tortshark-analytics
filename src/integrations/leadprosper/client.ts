@@ -1,4 +1,3 @@
-
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,7 +22,7 @@ export interface LeadResponse {
 let cachedApiKey: string | null = null;
 
 // Default timezone for Lead Prosper API calls
-const DEFAULT_TIMEZONE = 'UTC'; // Changed to UTC for better compatibility
+const DEFAULT_TIMEZONE = 'UTC'; // Using UTC for better compatibility
 
 export const leadProsperApi = {
   // Get credentials for Lead Prosper API
@@ -518,19 +517,22 @@ export const leadProsperApi = {
 
       console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length})`);
       
-      // Use UTC timezone format by default - more widely supported
-      const timezone = DEFAULT_TIMEZONE;
-      console.log(`Using timezone: ${timezone}`);
-      
+      // Use optimized approach with reduced parameters
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
         body: { 
           apiKey,
-          timezone
+          timezone: DEFAULT_TIMEZONE
         },
       });
 
       if (error) {
         console.error('Error calling lead-prosper-fetch-today function:', error);
+        
+        // Specific handling for rate limit errors
+        if (error.message?.includes('429') || error.message?.includes('Too Many Attempts')) {
+          throw new Error('Lead Prosper API rate limit exceeded. Please try again later.');
+        }
+        
         throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
       }
 
@@ -555,9 +557,19 @@ export const leadProsperApi = {
         // Check for errors or partial success
         if (!data.success) {
           result.error = data.error || (
-            data.results?.find((r: any) => r.status === 'error')?.error || 
+            data.results?.find((r: any) => r.status === 'error' || r.status === 'rate_limited')?.error || 
             "Failed to fetch today's leads"
           );
+          
+          // Check if any campaign had a rate limit issue
+          const hasRateLimit = data.results?.some((r: any) => 
+            r.status === 'rate_limited' || 
+            (r.error && (r.error.includes('429') || r.error.includes('Too Many Attempts')))
+          );
+          
+          if (hasRateLimit) {
+            result.error = 'Rate limit exceeded. The system will automatically use optimized requests next time.';
+          }
           
           // Check if the error is related to timezone issues
           const isTimezoneError = 
@@ -589,6 +601,22 @@ export const leadProsperApi = {
       };
     } catch (error) {
       console.error('Error in fetchTodaysLeads:', error);
+      
+      // Special handling for rate limit errors
+      if (error instanceof Error && (
+          error.message.includes('429') || 
+          error.message.includes('Too Many Attempts') ||
+          error.message.includes('rate limit')
+      )) {
+        return {
+          success: false,
+          total_leads: 0,
+          campaigns_processed: 0,
+          error: 'Lead Prosper API rate limit exceeded. Please try again in a few minutes.',
+          endpoint_used: 'error'
+        };
+      }
+      
       return {
         success: false,
         total_leads: 0,
@@ -598,7 +626,7 @@ export const leadProsperApi = {
       };
     }
   },
-
+  
   // Get list of leads from database with filtering
   async getLeadsList(params: LeadListParams = {}): Promise<LeadResponse> {
     try {

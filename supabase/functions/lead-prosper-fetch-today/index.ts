@@ -17,53 +17,131 @@ const handleCors = (req: Request): Response | null => {
   return null;
 };
 
-// Try different timezone formats to find one that works
-async function fetchTodayLeadsWithTimezoneOptions(
+// Configuration for API requests
+const API_CONFIG = {
+  // Only try the most common timezone formats (reduced from 15+ to 3)
+  TIMEZONE_FORMATS: [
+    { format: null, description: "No timezone parameter (using campaign default)" },
+    { format: "UTC", description: "UTC timezone" },
+    { format: "America/Denver", description: "America/Denver timezone" }
+  ],
+  // Add delay between requests to avoid rate limiting
+  REQUEST_DELAY_MS: 1000,
+  // Maximum number of retries for rate-limited requests
+  MAX_RETRIES: 3,
+  // Starting delay for exponential backoff (in milliseconds)
+  INITIAL_RETRY_DELAY_MS: 2000
+};
+
+// Cache successful timezone formats to reuse
+const successfulTimezoneCache = new Map<number, string | null>();
+
+// Sleep function for adding delays
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Exponential backoff implementation for retries
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries: number = API_CONFIG.MAX_RETRIES,
+  initialDelay: number = API_CONFIG.INITIAL_RETRY_DELAY_MS
+): Promise<Response> {
+  let retries = 0;
+  let delay = initialDelay;
+  
+  while (true) {
+    try {
+      const response = await fetch(url, options);
+      
+      // If we get a rate limit error, retry with backoff
+      if (response.status === 429 && retries < maxRetries) {
+        // Get retry-after header if available or use calculated delay
+        const retryAfter = response.headers.get('Retry-After');
+        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay;
+        
+        console.log(`Rate limited (429). Retrying in ${waitTime}ms. Attempt ${retries + 1} of ${maxRetries}`);
+        await sleep(waitTime);
+        
+        // Increase delay for next attempt with exponential backoff
+        retries++;
+        delay *= 2;
+        
+        // Continue to retry
+        continue;
+      }
+      
+      // Return the response for any other status
+      return response;
+    } catch (error) {
+      if (retries < maxRetries) {
+        console.log(`Network error. Retrying in ${delay}ms. Attempt ${retries + 1} of ${maxRetries}`);
+        await sleep(delay);
+        
+        retries++;
+        delay *= 2;
+      } else {
+        throw error; // Rethrow if we've exhausted retries
+      }
+    }
+  }
+}
+
+// Try to fetch leads with optimized timezone handling
+async function fetchLeadsWithOptimizedTimezone(
   apiKey: string,
   campaignId: number,
-  requestedTimezone: string = 'America/Denver',
-  maxRetries: number = 3
+  date: string
 ): Promise<any> {
-  // Format today's date
-  const today = format(new Date(), 'yyyy-MM-dd');
-  console.log(`Attempting to fetch leads for campaign ${campaignId} for date ${today}`);
+  // First check if we have a successful format cached for this campaign
+  const cachedFormat = successfulTimezoneCache.get(campaignId);
   
-  // Define different timezone formats to try with the /leads endpoint
-  const timezoneFormats = [
-    { format: null, description: "No timezone parameter (using campaign default)" },
-    { format: requestedTimezone, description: `IANA timezone name (${requestedTimezone})` },
-    { format: "UTC", description: "UTC timezone" },
-    { format: "US/Mountain", description: "US/Mountain timezone" },
-    { format: "-07:00", description: "UTC offset format" },
-    { format: "MST", description: "Mountain Standard Time abbreviation" },
-    // Additional formats to try
-    { format: "America/Los_Angeles", description: "America/Los_Angeles timezone" },
-    { format: "America/New_York", description: "America/New_York timezone" },
-    { format: "GMT", description: "GMT timezone" },
-    { format: "EST", description: "EST abbreviation" },
-    { format: "CST", description: "CST abbreviation" },
-    { format: "PST", description: "PST abbreviation" },
-    { format: "EDT", description: "EDT abbreviation" },
-    { format: "CDT", description: "CDT abbreviation" },
-    { format: "PDT", description: "PDT abbreviation" },
-  ];
+  if (cachedFormat !== undefined) {
+    console.log(`Using cached timezone format for campaign ${campaignId}: ${cachedFormat || "default"}`);
+    
+    // Build URL - only include timezone if format is provided
+    let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
+    if (cachedFormat !== null) {
+      url += `&timezone=${encodeURIComponent(cachedFormat)}`;
+    }
+    
+    // Make the API call with retry logic
+    const response = await fetchWithRetry(url, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Check if successful
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`Success using cached format for campaign ${campaignId}! Received ${data.data?.length || 0} leads`);
+      return { ...data, endpoint: 'leads' };
+    }
+    
+    // If cached format failed, clear it and try other formats
+    console.warn(`Cached timezone format failed for campaign ${campaignId}. Clearing cache and trying other formats.`);
+    successfulTimezoneCache.delete(campaignId);
+  }
   
-  // Try each timezone format with /leads endpoint
+  // Try each of our reduced set of timezone formats
   const leadsErrors = [];
   
-  // Try all formats, not just the first few
-  for (const { format, description } of timezoneFormats) {
+  for (const { format, description } of API_CONFIG.TIMEZONE_FORMATS) {
     try {
-      console.log(`Trying ${description} with /leads endpoint`);
+      console.log(`Trying ${description} with /leads endpoint for campaign ${campaignId}`);
       
       // Build URL - only include timezone if format is provided
-      let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${today}&end_date=${today}`;
+      let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
       if (format !== null) {
         url += `&timezone=${encodeURIComponent(format)}`;
       }
       
-      // Make the API call
-      const response = await fetch(url, {
+      // Add delay between requests to avoid rate limiting
+      await sleep(API_CONFIG.REQUEST_DELAY_MS);
+      
+      // Make the API call with retry logic
+      const response = await fetchWithRetry(url, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
@@ -74,6 +152,10 @@ async function fetchTodayLeadsWithTimezoneOptions(
       if (response.ok) {
         const data = await response.json();
         console.log(`Success using ${description} with /leads endpoint! Received ${data.data?.length || 0} leads`);
+        
+        // Cache the successful format for future requests
+        successfulTimezoneCache.set(campaignId, format);
+        
         return { ...data, endpoint: 'leads' };
       }
       
@@ -101,76 +183,54 @@ async function fetchTodayLeadsWithTimezoneOptions(
   }
 
   // If /leads endpoint failed with all formats, try the /stats endpoint as fallback
-  console.log("All /leads endpoint attempts failed. Trying /stats endpoint...");
+  console.log("All /leads endpoint attempts failed for campaign ${campaignId}. Trying /stats endpoint...");
   
   try {
-    // Try different date formats for /stats endpoint
-    const dateFormats = [
-      { startDate: today, endDate: today, description: "Same day" },
-      { 
-        startDate: format(new Date(Date.now() - 86400000), 'yyyy-MM-dd'), // Yesterday
-        endDate: today, 
-        description: "Yesterday and today" 
-      },
-      {
-        startDate: today,
-        endDate: format(new Date(Date.now() + 86400000), 'yyyy-MM-dd'), // Tomorrow
-        description: "Today and tomorrow"
-      }
-    ];
+    // Add delay before trying stats endpoint
+    await sleep(API_CONFIG.REQUEST_DELAY_MS);
     
-    // Try each date range
-    for (const { startDate, endDate, description } of dateFormats) {
-      // Build URL for /stats endpoint
-      const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${startDate}&end_date=${endDate}`;
-      
-      console.log(`Trying /stats endpoint with date range ${description} (${startDate} to ${endDate})`);
-      
-      // Make the API call to stats endpoint
-      const statsResponse = await fetch(statsUrl, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    // Build URL for /stats endpoint - using only today's date to reduce complexity
+    const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
+    
+    console.log(`Trying /stats endpoint for campaign ${campaignId} with date ${date}`);
+    
+    // Make the API call to stats endpoint with retry logic
+    const statsResponse = await fetchWithRetry(statsUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        console.log(`Success with /stats endpoint using ${description}! Processing stats data instead.`);
-        
-        // Filter to only include today's stats
-        const todayStats = statsData.data?.filter((item: any) => 
-          item.date?.split('T')[0] === today
-        ) || [];
-        
-        console.log(`Found ${todayStats.length} stats entries for today (${today})`);
-        
-        // Format stats data to match expected structure for leads processing
-        return {
-          success: true,
-          data: [], // No leads data, but we'll record the stats
-          stats: todayStats,
-          endpoint: 'stats'
-        };
-      }
+    if (statsResponse.ok) {
+      const statsData = await statsResponse.json();
+      console.log(`Success with /stats endpoint for campaign ${campaignId}! Processing stats data instead.`);
       
-      // Log error but continue trying other date ranges
-      const statsErrorText = await statsResponse.text();
-      const statsStatusCode = statsResponse.status;
-      console.error(`Failed with /stats endpoint using ${description}: ${statsStatusCode} - ${statsErrorText}`);
+      // Format stats data to match expected structure for leads processing
+      return {
+        success: true,
+        data: [], // No leads data, but we'll record the stats
+        stats: statsData.data || [],
+        endpoint: 'stats'
+      };
     }
     
-    // If all stats attempts failed, report detailed error
+    // Log error but continue trying other campaigns
+    const statsErrorText = await statsResponse.text();
+    const statsStatusCode = statsResponse.status;
+    console.error(`Failed with /stats endpoint for campaign ${campaignId}: ${statsStatusCode} - ${statsErrorText}`);
+    
+    // Format error details
     const errorDetails = JSON.stringify({
+      campaign_id: campaignId,
       leads_attempts: leadsErrors,
-      date_formats_tried: dateFormats.map(df => df.description)
+      stats_attempt: { status: statsStatusCode, error: statsErrorText }
     }, null, 2);
     
-    throw new Error(`Failed to fetch data using any endpoint, timezone format, or date range. Details: ${errorDetails}`);
-    
-  } catch (finalError) {
-    console.error("All API attempts failed:", finalError);
-    throw finalError;
+    throw new Error(`Failed to fetch data using any endpoint for campaign ${campaignId}. Details: ${errorDetails}`);
+  } catch (error) {
+    console.error(`All API attempts failed for campaign ${campaignId}:`, error);
+    throw error;
   }
 }
 
@@ -298,7 +358,7 @@ serve(async (req) => {
 
     // Get parameters from the request
     let apiKey;
-    let requestedTimezone = 'UTC'; // Default changed to UTC for better compatibility
+    let requestedTimezone = 'UTC'; // Default to UTC for better compatibility
     
     try {
       const body = await req.json();
@@ -307,6 +367,14 @@ serve(async (req) => {
       // Extract timezone from the request body if provided
       if (body.timezone && typeof body.timezone === 'string') {
         requestedTimezone = body.timezone;
+        
+        // If user requested a specific timezone, add it to our formats to try
+        if (!API_CONFIG.TIMEZONE_FORMATS.some(tf => tf.format === requestedTimezone)) {
+          API_CONFIG.TIMEZONE_FORMATS.unshift({ 
+            format: requestedTimezone, 
+            description: `User requested timezone (${requestedTimezone})` 
+          });
+        }
       }
       
       if (!apiKey) {
@@ -366,8 +434,9 @@ serve(async (req) => {
     let errorCount = 0;
     const results = [];
     let debugInfo = [];
+    const today = format(new Date(), 'yyyy-MM-dd');
 
-    // Process each campaign mapping
+    // Process each campaign mapping SEQUENTIALLY (not in parallel)
     for (const mapping of mappings) {
       if (!mapping.lp_campaign || !mapping.lp_campaign.lp_campaign_id) {
         console.warn(`Mapping ${mapping.id}: Missing LP campaign ID for mapping to ${mapping.ts_campaign_id}`);
@@ -386,13 +455,19 @@ serve(async (req) => {
       try {
         console.log(`Processing mapping ${mapping.id}: LP Campaign ${lpCampaignId} -> TS Campaign ${mapping.ts_campaign_id}`);
         
-        // Try to fetch leads using different timezone formats or fallback to stats
-        const apiResponse = await fetchTodayLeadsWithTimezoneOptions(
-          apiKey, 
-          lpCampaignId, 
-          requestedTimezone
+        // Add delay between processing campaigns
+        if (results.length > 0) {
+          await sleep(API_CONFIG.REQUEST_DELAY_MS * 2);
+        }
+        
+        // Try to fetch leads with optimized timezone handling
+        const apiResponse = await fetchLeadsWithOptimizedTimezone(
+          apiKey,
+          lpCampaignId,
+          today
         );
         
+        // Record debug info for each campaign
         const campaignDebugInfo = {
           campaign_id: lpCampaignId,
           endpoint_used: apiResponse.endpoint || 'unknown',
@@ -402,9 +477,8 @@ serve(async (req) => {
         
         debugInfo.push(campaignDebugInfo);
         
-        // Check if we got leads data
+        // Process leads if available
         if (apiResponse.data && apiResponse.data.length > 0) {
-          // Process the leads
           await processLeadsAndUpdateMetrics(supabaseClient, apiResponse.data, {
             ts_campaign_id: mapping.ts_campaign_id
           });
@@ -422,9 +496,8 @@ serve(async (req) => {
             status: 'success'
           });
         } 
-        // Check if we got stats data instead
+        // Process stats if we have them instead
         else if (apiResponse.stats && apiResponse.stats.length > 0) {
-          // Process the stats data
           await processStatsAndUpdateMetrics(supabaseClient, apiResponse.stats, {
             ts_campaign_id: mapping.ts_campaign_id
           });
@@ -464,13 +537,24 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Error processing campaign ${lpCampaignId}:`, error);
         errorCount++;
+        
+        // More detailed error classification
+        let errorStatus = 'error';
+        let errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Check for common error types
+        if (errorMessage.includes('429') || errorMessage.includes('Too Many Attempts')) {
+          errorStatus = 'rate_limited';
+          errorMessage = 'Rate limit exceeded. Try again later.';
+        }
+        
         results.push({
           mapping_id: mapping.id,
           campaign_id: lpCampaignId,
           ts_campaign_id: mapping.ts_campaign_id,
           campaign_name: mapping.lp_campaign?.name || 'Unknown',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error'
+          error: errorMessage,
+          status: errorStatus
         });
       }
     }

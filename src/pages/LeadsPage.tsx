@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -141,7 +140,7 @@ export default function LeadsPage() {
     }
   };
   
-  // Refresh today's leads
+  // Refresh today's leads with improved error handling
   const refreshTodaysLeads = async () => {
     try {
       setRefreshing(true);
@@ -155,7 +154,7 @@ export default function LeadsPage() {
         throw new Error('No Lead Prosper API key found. Please connect your account first.');
       }
       
-      // Call the edge function to fetch today's leads
+      // Call the edge function to fetch today's leads - now optimized for rate limiting
       const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
       
       // Store debug info for troubleshooting
@@ -190,14 +189,23 @@ export default function LeadsPage() {
         // Reload the leads list to show the new data
         await loadLeads();
       } else {
+        // Special handling for rate limit errors
+        const isRateLimitError = result.error?.includes('rate limit') || result.error?.includes('429');
+        
         // Check for timezone-specific issues
         const isTimezoneError = result.timezone_error || false;
         
         const errorMessage = result.error || 'Failed to refresh leads';
         setRefreshError(errorMessage);
         
+        if (isRateLimitError) {
+          toast.error('API Rate Limit Exceeded', {
+            description: 'The Lead Prosper API is rate limited. Please wait a few minutes and try again.',
+            duration: 8000,
+          });
+        } 
         // Show more specific message for timezone errors
-        if (isTimezoneError) {
+        else if (isTimezoneError) {
           toast.error('Timezone configuration issue', {
             description: 'There was a problem with the timezone format. We tried multiple formats including both /leads and /stats endpoints but none were accepted.',
             duration: 8000,
@@ -214,10 +222,18 @@ export default function LeadsPage() {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setRefreshError(errorMessage);
       
-      toast.error('Error refreshing leads', {
-        description: errorMessage,
-        duration: 5000,
-      });
+      // Special handling for rate limit errors
+      if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+        toast.error('API Rate Limit Exceeded', {
+          description: 'Please wait a few minutes before trying again.',
+          duration: 8000,
+        });
+      } else {
+        toast.error('Error refreshing leads', {
+          description: errorMessage,
+          duration: 5000,
+        });
+      }
     } finally {
       setRefreshing(false);
     }
