@@ -1,3 +1,4 @@
+
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -526,7 +527,8 @@ export const leadProsperApi = {
       
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
         body: { 
-          apiKey
+          apiKey,
+          timezone: DEFAULT_TIMEZONE // Always include the timezone parameter
         },
       });
 

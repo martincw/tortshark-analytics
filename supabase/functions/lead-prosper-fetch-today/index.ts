@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
 import { format } from "https://esm.sh/date-fns@2.30.0";
@@ -20,15 +21,16 @@ const handleCors = (req: Request): Response | null => {
 async function fetchTodayLeads(
   apiKey: string,
   campaignId: number,
+  timezone: string = 'America/Denver',
   maxRetries: number = 3
 ): Promise<any> {
   // Use today's date without specifying timezone in the request
   const today = format(new Date(), 'yyyy-MM-dd');
   
-  console.log(`Fetching today's leads (${today}) for campaign ${campaignId}`);
+  console.log(`Fetching today's leads (${today}) for campaign ${campaignId} with timezone ${timezone}`);
   
-  // Don't include timezone parameter in the URL
-  const url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${today}&end_date=${today}`;
+  // Always include timezone parameter in the URL
+  const url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${today}&end_date=${today}&timezone=${timezone}`;
   
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -45,6 +47,13 @@ async function fetchTodayLeads(
       if (!response.ok) {
         const errorText = await response.text();
         const statusCode = response.status;
+        
+        // Check if this is a timezone-related error
+        if (errorText.includes("timezone") || errorText.toLowerCase().includes("cannot assign null")) {
+          console.error(`Timezone error detected for campaign ${campaignId}: ${errorText}`);
+          throw new Error(`API timezone error: ${errorText}. Please try using a different timezone format.`);
+        }
+        
         console.error(`Failed response (${statusCode}) for campaign ${campaignId} (attempt ${attempt}/${maxRetries}): ${errorText}`);
         
         // If this is our last retry, throw the error
@@ -63,6 +72,11 @@ async function fetchTodayLeads(
     } catch (error) {
       lastError = error;
       console.error(`Error in attempt ${attempt} for campaign ${campaignId}:`, error);
+      
+      // If this is a timezone error, fail fast
+      if (error instanceof Error && error.message.includes("timezone")) {
+        throw error;
+      }
       
       // If this is our last retry, we'll throw the error after the loop
       if (attempt < maxRetries) {
@@ -152,10 +166,16 @@ serve(async (req) => {
 
     // Get parameters from the request
     let apiKey;
+    let timezone = 'America/Denver'; // Default timezone
     
     try {
       const body = await req.json();
       apiKey = body.apiKey;
+      
+      // Extract timezone from the request body if provided
+      if (body.timezone && typeof body.timezone === 'string') {
+        timezone = body.timezone;
+      }
       
       if (!apiKey) {
         console.error("Missing API key in request body");
@@ -166,6 +186,7 @@ serve(async (req) => {
       }
       
       console.log("API key received, length:", apiKey.length);
+      console.log("Using timezone:", timezone);
     } catch (error) {
       console.error("Failed to parse request body:", error);
       return new Response(
@@ -232,8 +253,8 @@ serve(async (req) => {
       try {
         console.log(`Processing mapping ${mapping.id}: LP Campaign ${lpCampaignId} -> TS Campaign ${mapping.ts_campaign_id}`);
         
-        // Fetch today's leads for this campaign without timezone parameter
-        const leadsData = await fetchTodayLeads(apiKey, lpCampaignId);
+        // Fetch today's leads for this campaign with timezone parameter
+        const leadsData = await fetchTodayLeads(apiKey, lpCampaignId, timezone);
         
         if (leadsData.data && leadsData.data.length > 0) {
           // Process the leads
