@@ -76,7 +76,7 @@ export interface DailyLeadMetrics {
   updated_at: string;
 }
 
-// New interface for the Lead Prosper sync result
+// Update the interface for the Lead Prosper sync result
 export interface LeadProsperSyncResult {
   success: boolean;
   total_leads: number;
@@ -87,4 +87,5 @@ export interface LeadProsperSyncResult {
   endpoint_used?: string;
   timezone_error?: boolean;
   used_stats_fallback?: boolean;
+  debug_info?: any[]; // Add the debug_info property
 }
