@@ -80,24 +80,38 @@ export default function LeadProsperMappingDialog({
         return;
       }
       
-      setConnection({
-        id: connectionData.credentials.id,
-        name: connectionData.credentials.name,
-        platform: 'leadprosper',
-        isConnected: connectionData.credentials.is_connected,
-        lastSynced: connectionData.credentials.last_synced,
-        apiKey: '',
-        credentials: connectionData.credentials.credentials || {}
-      });
+      if (connectionData.credentials) {
+        setConnection({
+          id: connectionData.credentials.id,
+          name: connectionData.credentials.name,
+          platform: 'leadprosper',
+          isConnected: connectionData.credentials.is_connected,
+          lastSynced: connectionData.credentials.last_synced,
+          apiKey: connectionData.apiKey || '',
+          credentials: {
+            apiKey: connectionData.apiKey || '',
+          }
+        });
+      } else {
+        setConnection({
+          id: '',
+          name: 'Lead Prosper',
+          platform: 'leadprosper',
+          isConnected: connectionData.isConnected,
+          lastSynced: null,
+          apiKey: connectionData.apiKey || '',
+          credentials: {
+            apiKey: connectionData.apiKey || '',
+          }
+        });
+      }
       
       // Get campaign mappings for this TortShark campaign
-      const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
+      const mappingsData = await leadProsperApi.getMappedCampaigns(campaignId);
       setMappings(mappingsData);
       
       // Get external campaigns from Lead Prosper
-      const lp_campaigns = await leadProsperApi.getCampaigns(
-        connectionData.credentials.credentials?.apiKey
-      );
+      const lp_campaigns = await leadProsperApi.fetchCampaigns();
       setCampaigns(lp_campaigns);
       setFilteredCampaigns(lp_campaigns);
       
@@ -119,23 +133,25 @@ export default function LeadProsperMappingDialog({
       setIsSubmitting(true);
       
       // Map the campaign
-      await leadProsperApi.mapCampaign(campaignId, selectedCampaign.toString());
+      await leadProsperApi.mapCampaign(campaignId, selectedCampaign);
       
       // Reload mappings
-      const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
+      const mappingsData = await leadProsperApi.getMappedCampaigns(campaignId);
       setMappings(mappingsData);
       
       // Trigger backfill for the last 90 days
       const today = new Date();
       const ninetyDaysAgo = subDays(today, 90);
       
-      await leadProsperApi.backfillLeads(
-        connection?.credentials?.apiKey || '',
-        selectedCampaign,
-        campaignId,
-        format(ninetyDaysAgo, 'yyyy-MM-dd'),
-        format(today, 'yyyy-MM-dd')
-      );
+      if (connection?.credentials?.apiKey) {
+        await leadProsperApi.backfillLeads(
+          connection.credentials.apiKey,
+          selectedCampaign,
+          campaignId,
+          format(ninetyDaysAgo, 'yyyy-MM-dd'),
+          format(today, 'yyyy-MM-dd')
+        );
+      }
       
       toast.success('Campaign mapped and data backfill initiated');
       onMappingUpdated();
@@ -157,7 +173,7 @@ export default function LeadProsperMappingDialog({
       await leadProsperApi.unmapCampaign(mappingId);
       
       // Reload mappings
-      const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
+      const mappingsData = await leadProsperApi.getMappedCampaigns(campaignId);
       setMappings(mappingsData);
       
       toast.success('Campaign unmapped successfully');
@@ -173,10 +189,6 @@ export default function LeadProsperMappingDialog({
   
   const getActiveMappings = () => {
     return mappings.filter(mapping => mapping.active);
-  };
-  
-  const getCampaignById = (id: number) => {
-    return campaigns.find(campaign => campaign.id === id);
   };
   
   return (

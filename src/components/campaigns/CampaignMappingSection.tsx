@@ -47,6 +47,13 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
     }
   }, [campaignId, campaigns, availableAccounts]);
 
+  useEffect(() => {
+    if (campaignId) {
+      fetchGoogleMappings();
+      fetchLeadProsperMappings();
+    }
+  }, [campaignId]);
+
   const fetchGoogleMappings = async () => {
     setIsLoadingGoogle(true);
     try {
@@ -71,7 +78,7 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   const fetchLeadProsperMappings = async () => {
     setIsLoadingLP(true);
     try {
-      const mappings = await leadProsperApi.getCampaignMappings(campaignId);
+      const mappings = await leadProsperApi.getMappedCampaigns(campaignId);
       setLeadProsperMappings(mappings || []);
     } catch (error) {
       console.error('Error fetching Lead Prosper mappings:', error);
@@ -80,13 +87,11 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
       setIsLoadingLP(false);
     }
   };
-
-  useEffect(() => {
-    if (campaignId && user) {
-      fetchGoogleMappings();
-      fetchLeadProsperMappings();
-    }
-  }, [campaignId, user]);
+  
+  const handleMappingUpdated = () => {
+    fetchGoogleMappings();
+    fetchLeadProsperMappings();
+  };
 
   return (
     <Card>

@@ -30,6 +30,22 @@ export interface LeadProsperConnection {
   };
 }
 
+export interface LeadProsperCredentials {
+  apiKey?: string;
+  isConnected: boolean;
+  error?: string;
+  credentials?: {
+    id: string;
+    name: string;
+    is_connected: boolean;
+    last_synced: string | null;
+    credentials: {
+      apiKey: string;
+      [key: string]: any;
+    } | string;
+  };
+}
+
 export interface LeadProsperMapping {
   id: string;
   ts_campaign_id: string;

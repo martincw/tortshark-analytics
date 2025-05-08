@@ -27,7 +27,6 @@ import {
   Wand2, 
   Hash, 
   Link, 
-  ExternalLink, 
   Plus,
   FilePlus
 } from "lucide-react";
@@ -52,8 +51,8 @@ export function AddTortCoverageForm({
   existingCoverages 
 }: AddTortCoverageFormProps) {
   const { addBuyerTortCoverage } = useBuyers();
-  const { addCampaign } = useCampaign();
-  const [campaigns, setCampaigns] = useState<{ id: string; name: string; }[]>([]);
+  const { addCampaign, campaigns } = useCampaign();
+  const [availableCampaigns, setAvailableCampaigns] = useState<{ id: string; name: string; }[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [selectedCampaignName, setSelectedCampaignName] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
@@ -93,7 +92,7 @@ export function AddTortCoverageForm({
 
       // If it's a duplicate, suggest a label
       if (duplicate) {
-        const campaignName = campaigns.find(c => c.id === selectedCampaign)?.name || "";
+        const campaignName = availableCampaigns.find(c => c.id === selectedCampaign)?.name || "";
         const existingCount = existingCoverages.filter(c => c.campaign_id === selectedCampaign).length;
         setLabel(`${campaignName} - Option ${existingCount + 1}`);
       } else {
@@ -101,7 +100,7 @@ export function AddTortCoverageForm({
       }
       
       // Save the selected campaign name
-      const campaign = campaigns.find(c => c.id === selectedCampaign);
+      const campaign = availableCampaigns.find(c => c.id === selectedCampaign);
       if (campaign) {
         setSelectedCampaignName(campaign.name);
         setCampaignId(campaign.id); // Set the campaign ID display field
@@ -112,7 +111,7 @@ export function AddTortCoverageForm({
       setSelectedCampaignName("");
       setCampaignId("");
     }
-  }, [selectedCampaign, existingCoverages, campaigns]);
+  }, [selectedCampaign, existingCoverages, availableCampaigns]);
 
   const fetchCampaigns = async () => {
     setLoadingCampaigns(true);
@@ -123,7 +122,7 @@ export function AddTortCoverageForm({
         .order("name");
 
       if (error) throw error;
-      setCampaigns(data || []);
+      setAvailableCampaigns(data || []);
     } catch (error) {
       console.error("Error fetching campaigns:", error);
     } finally {
@@ -140,16 +139,33 @@ export function AddTortCoverageForm({
     setCreatingCampaign(true);
     
     try {
-      const newCampaign = await addCampaign({
-        name: newCampaignName.trim(),
-        platform: newCampaignPlatform,
-        accountId: "manual",
-        accountName: "Manual Entry",
-      });
+      // Get current user ID for campaign creation
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      // Create campaign directly with supabase
+      const { data: newCampaign, error: createError } = await supabase
+        .from("campaigns")
+        .insert({
+          name: newCampaignName.trim(),
+          platform: newCampaignPlatform,
+          account_id: "manual",
+          account_name: "Manual Entry",
+          user_id: userData.user.id,
+          is_active: true
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        throw createError;
+      }
       
       if (newCampaign) {
         // Update campaigns list
-        setCampaigns([...campaigns, { id: newCampaign.id, name: newCampaign.name }]);
+        setAvailableCampaigns([...availableCampaigns, { id: newCampaign.id, name: newCampaign.name }]);
         
         // Select the newly created campaign
         setSelectedCampaign(newCampaign.id);
@@ -200,7 +216,7 @@ export function AddTortCoverageForm({
       
       if (newCoverage) {
         // Get the campaign details to include in the updated coverage
-        const campaign = campaigns.find(c => c.id === selectedCampaign);
+        const campaign = availableCampaigns.find(c => c.id === selectedCampaign);
         
         // Create a full coverage object for the UI update
         const fullCoverage: BuyerTortCoverage = {
