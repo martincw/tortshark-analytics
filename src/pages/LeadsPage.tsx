@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -605,7 +604,7 @@ export default function LeadsPage() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={refreshTodaysLeads} 
+                  onClick={refreshYesterdaysLeads} 
                   className="ml-2"
                   disabled={refreshing}
                 >
