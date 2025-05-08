@@ -20,6 +20,12 @@ const handleCors = (req: Request): Response | null => {
 async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
   try {
     console.log('Fetching Lead Prosper campaigns with provided API key');
+    
+    // Basic validation
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10) {
+      throw new Error('Invalid API key format');
+    }
+    
     const response = await fetch('https://api.leadprosper.io/public/campaigns', {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -34,9 +40,14 @@ async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
       throw new Error(`Lead Prosper API returned ${status}: ${errorText}`);
     }
 
-    const data = await response.json();
-    console.log(`Successfully fetched ${data.data?.length || 0} campaigns from Lead Prosper`);
-    return data;
+    try {
+      const data = await response.json();
+      console.log(`Successfully fetched ${data.data?.length || 0} campaigns from Lead Prosper`);
+      return data;
+    } catch (parseError) {
+      console.error('Error parsing Lead Prosper API response:', parseError);
+      throw new Error('Failed to parse Lead Prosper API response');
+    }
   } catch (error) {
     console.error('Error in fetchLeadProsperCampaigns:', error);
     throw error;
@@ -49,6 +60,8 @@ serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
+    console.log('Lead Prosper campaigns function called');
+    
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -143,10 +156,16 @@ serve(async (req) => {
     if (campaigns && campaigns.data && Array.isArray(campaigns.data)) {
       try {
         for (const campaign of campaigns.data) {
+          // Validate campaign data
+          if (!campaign.id) {
+            console.warn('Skipping campaign with missing ID:', campaign);
+            continue;
+          }
+          
           // Upsert the campaign
           await supabaseClient.from('external_lp_campaigns').upsert({
             lp_campaign_id: campaign.id,
-            name: campaign.name,
+            name: campaign.name || `Campaign ${campaign.id}`,
             status: campaign.status || 'active',
             updated_at: new Date().toISOString(),
           }, {
@@ -158,11 +177,13 @@ serve(async (req) => {
         console.error('Error storing campaigns in database:', dbError);
         // Continue to return campaigns even if storage fails
       }
+    } else {
+      console.warn('Invalid or empty campaigns data received from Lead Prosper API');
     }
 
     // Return the campaigns
     return new Response(
-      JSON.stringify({ campaigns: campaigns.data || [] }),
+      JSON.stringify({ campaigns: campaigns?.data || [] }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

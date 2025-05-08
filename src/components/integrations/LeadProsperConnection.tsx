@@ -29,7 +29,16 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ExternalLink, Key, RefreshCw, Loader2, Check, X, AlertCircle } from 'lucide-react';
+import { 
+  ExternalLink, 
+  Key, 
+  RefreshCw, 
+  Loader2, 
+  Check, 
+  X, 
+  AlertCircle,
+  RotateCcw
+} from 'lucide-react';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { LeadProsperConnection as LeadProsperConnectionType } from '@/integrations/leadprosper/types';
 
@@ -39,6 +48,7 @@ export default function LeadProsperConnection() {
   const [connection, setConnection] = useState<LeadProsperConnectionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [connectionName, setConnectionName] = useState('Lead Prosper');
@@ -59,11 +69,11 @@ export default function LeadProsperConnection() {
     }
   }, []);
 
-  const checkConnection = async () => {
+  const checkConnection = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
-      const data = await leadProsperApi.checkConnection();
+      const data = await leadProsperApi.checkConnection(forceRefresh);
       
       if (data.error) {
         console.error('Connection check returned error:', data.error);
@@ -229,6 +239,11 @@ export default function LeadProsperConnection() {
       
       setIsConnected(true);
       setShowDialog(false);
+      
+      // Force refresh connection status
+      setTimeout(() => {
+        checkConnection(true);
+      }, 1000);
     } catch (error) {
       console.error('Connection error:', error);
       setErrorMessage(error.message || 'Failed to connect to Lead Prosper');
@@ -253,6 +268,28 @@ export default function LeadProsperConnection() {
       toast.error('Failed to disconnect from Lead Prosper');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+  
+  const handleResetAuth = async () => {
+    try {
+      setIsResetting(true);
+      
+      // Reset API state
+      leadProsperApi.resetAuth();
+      
+      // Reset UI state
+      setApiKey('');
+      
+      // Force refresh connection status
+      await checkConnection(true);
+      
+      toast.success('Lead Prosper authentication reset successfully');
+    } catch (error) {
+      console.error('Error resetting authentication:', error);
+      toast.error('Failed to reset authentication state');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -284,6 +321,15 @@ export default function LeadProsperConnection() {
                     : 'Never'}
                 </p>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => checkConnection(true)}
+                disabled={isSubmitting}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isSubmitting ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
             
             <Accordion type="single" collapsible className="w-full">
@@ -319,6 +365,34 @@ export default function LeadProsperConnection() {
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Configure in Lead Prosper
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="troubleshoot">
+                <AccordionTrigger>Troubleshooting</AccordionTrigger>
+                <AccordionContent>
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Connection Issues?</AlertTitle>
+                    <AlertDescription className="mt-2">
+                      <p className="mb-2">
+                        If you're experiencing connection issues, try resetting the authentication state.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={handleResetAuth}
+                        disabled={isResetting}
+                      >
+                        {isResetting ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                        )}
+                        Reset Authentication State
                       </Button>
                     </AlertDescription>
                   </Alert>

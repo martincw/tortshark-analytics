@@ -16,12 +16,29 @@ const handleCors = (req: Request): Response | null => {
   return null;
 };
 
+// Safe parse function to handle JSON strings or objects consistently
+const safeParseCredentials = (credentials: any): any => {
+  if (!credentials) return null;
+  
+  if (typeof credentials === 'string') {
+    try {
+      return JSON.parse(credentials);
+    } catch (error) {
+      console.error('Failed to parse credentials string:', error);
+      return null;
+    }
+  }
+  return credentials; // Already an object
+};
+
 serve(async (req) => {
   // Handle CORS
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
   try {
+    console.log('Lead Prosper Auth check initiated');
+    
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -97,7 +114,7 @@ serve(async (req) => {
 
     // Check if the user has stored credentials for Lead Prosper
     // Note: We've changed from .single() to .order() and .limit() to handle multiple connections
-    const { data: credentials, error: credentialsError } = await supabaseClient
+    const { data: connections, error: credentialsError } = await supabaseClient
       .from('account_connections')
       .select('*')
       .eq('user_id', user.id)
@@ -119,7 +136,7 @@ serve(async (req) => {
     }
 
     // Check if we have any active connections
-    if (!credentials || credentials.length === 0) {
+    if (!connections || connections.length === 0) {
       console.log('No Lead Prosper credentials found for user:', user.id);
       return new Response(
         JSON.stringify({
@@ -130,8 +147,21 @@ serve(async (req) => {
       );
     }
 
-    // Return the most recent connection
-    const mostRecentConnection = credentials[0];
+    // Get the most recent connection
+    const mostRecentConnection = connections[0];
+    
+    // Parse credentials to ensure consistent format
+    if (mostRecentConnection.credentials) {
+      const parsedCredentials = safeParseCredentials(mostRecentConnection.credentials);
+      
+      if (parsedCredentials) {
+        mostRecentConnection.credentials = parsedCredentials;
+      } else {
+        console.error('Failed to parse connection credentials');
+      }
+    }
+    
+    console.log(`Found active Lead Prosper connection for user: ${user.id}, connection ID: ${mostRecentConnection.id}`);
     
     // Return the connection status
     return new Response(

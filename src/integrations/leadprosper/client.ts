@@ -1,9 +1,10 @@
+
 import { supabase, SUPABASE_PROJECT_URL } from '../supabase/client';
 
 // Cache for storing API key temporarily
 let cachedApiKey: string | null = null;
 let connectionStatusCache: { isConnected: boolean, timestamp: number, credentials: any } | null = null;
-const CONNECTION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CONNECTION_CACHE_TTL = 3 * 60 * 1000; // 3 minutes (reduced from 5 minutes)
 
 export const leadProsperApi = {
   // Get cached API key if available
@@ -21,12 +22,21 @@ export const leadProsperApi = {
     }
   },
 
-  async checkConnection() {
+  // Reset all Lead Prosper authentication state
+  resetAuth(): void {
+    console.log('Resetting Lead Prosper authentication state');
+    cachedApiKey = null;
+    connectionStatusCache = null;
+    localStorage.removeItem('lp_api_key');
+  },
+
+  async checkConnection(forceRefresh = false) {
     try {
       console.log('Checking Lead Prosper connection...');
       
-      // First try to use cache if it exists and is not expired
-      if (connectionStatusCache && 
+      // First try to use cache if it exists and is not expired and forceRefresh is false
+      if (!forceRefresh && 
+          connectionStatusCache && 
           (Date.now() - connectionStatusCache.timestamp) < CONNECTION_CACHE_TTL) {
         console.log('Using cached connection status');
         return {
@@ -40,11 +50,13 @@ export const leadProsperApi = {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         console.error('No active session found');
+        this.resetAuth(); // Reset auth state if no session
         return { isConnected: false, error: 'Authentication required' };
       }
 
       // Try to fetch connection status from edge function
       try {
+        console.log('Fetching connection status from edge function');
         const { data, error } = await supabase.functions.invoke('lead-prosper-auth', {
           headers: {
             Authorization: `Bearer ${session.access_token}`
@@ -54,7 +66,7 @@ export const leadProsperApi = {
         if (error) {
           console.error('Error checking Lead Prosper connection (edge function):', error);
           // Don't throw, continue with fallback below
-        } else {
+        } else if (data) {
           // Update cache with edge function response
           connectionStatusCache = {
             isConnected: data.isConnected,
@@ -98,11 +110,15 @@ export const leadProsperApi = {
 
       if (!connections || connections.length === 0) {
         console.log('No active Lead Prosper connections found');
+        // Clear cached API key since no connections found
+        this.resetAuth();
+        
         connectionStatusCache = {
           isConnected: false,
           credentials: null,
           timestamp: Date.now()
         };
+        
         return {
           isConnected: false,
           credentials: null,
@@ -122,12 +138,17 @@ export const leadProsperApi = {
       // Extract and cache API key if available
       if (mostRecentConnection.credentials) {
         // Handle credentials stored as a string or as a JSON object
-        const credentialsObj = typeof mostRecentConnection.credentials === 'string' 
-          ? JSON.parse(mostRecentConnection.credentials) 
-          : mostRecentConnection.credentials;
-          
-        if (credentialsObj && typeof credentialsObj === 'object' && 'apiKey' in credentialsObj) {
-          this.setCachedApiKey(credentialsObj.apiKey);
+        let credentialsObj;
+        try {
+          credentialsObj = typeof mostRecentConnection.credentials === 'string' 
+            ? JSON.parse(mostRecentConnection.credentials) 
+            : mostRecentConnection.credentials;
+            
+          if (credentialsObj && typeof credentialsObj === 'object' && 'apiKey' in credentialsObj) {
+            this.setCachedApiKey(credentialsObj.apiKey);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse credentials:', parseError);
         }
       }
       
@@ -225,6 +246,9 @@ export const leadProsperApi = {
       // Cache the API key immediately
       this.setCachedApiKey(apiKey);
       
+      // Clear any existing connection cache
+      connectionStatusCache = null;
+      
       const { data, error } = await supabase
         .from('account_connections')
         .insert([
@@ -244,13 +268,11 @@ export const leadProsperApi = {
         throw error;
       }
       
-      // Clear connection cache to force refresh on next check
-      connectionStatusCache = null;
-      
       console.log('Lead Prosper connection created successfully');
       return data;
     } catch (error) {
       console.error('Error in createConnection:', error);
+      this.resetAuth(); // Reset on error
       throw new Error(`Failed to create Lead Prosper connection: ${error.message}`);
     }
   },
@@ -261,6 +283,9 @@ export const leadProsperApi = {
       
       // Cache the API key immediately
       this.setCachedApiKey(apiKey);
+      
+      // Clear connection cache
+      connectionStatusCache = null;
       
       const { data, error } = await supabase
         .from('account_connections')
@@ -277,9 +302,6 @@ export const leadProsperApi = {
         console.error('Error updating Lead Prosper connection:', error);
         throw error;
       }
-      
-      // Clear connection cache to force refresh on next check
-      connectionStatusCache = null;
       
       console.log('Lead Prosper connection updated successfully');
       return data;
@@ -303,9 +325,8 @@ export const leadProsperApi = {
         throw error;
       }
       
-      // Clear API key and connection cache
-      this.setCachedApiKey(null);
-      connectionStatusCache = null;
+      // Reset auth state
+      this.resetAuth();
       
       console.log('Lead Prosper connection deleted successfully');
       return true;
