@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { 
@@ -120,7 +119,8 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
       try {
         const success = await removeBuyerTortCoverage(coverageId);
         if (success) {
-          setCoverages(coverages.filter(c => c.id !== coverageId));
+          // Reload all coverages to ensure UI is in sync
+          await fetchBuyerData();
           toast.success("Coverage removed successfully");
         }
       } catch (error) {
@@ -152,6 +152,7 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
       await updateBuyerTortCoverage(coverageId, amount);
       setEditingCoverageId(null);
       toast.success("Coverage amount updated");
+      // Reload coverage data to ensure UI is in sync
       await fetchBuyerData();
     } catch (error) {
       console.error("Error updating coverage:", error);
@@ -162,9 +163,9 @@ export function BuyerCoverageDialog({ buyerId, isOpen, onClose }: BuyerCoverageD
   const handleToggleActive = async (coverageId: string, currentActive: boolean) => {
     try {
       await toggleTortCoverageActive(coverageId, !currentActive);
-      setCoverages(coverages.map(c => 
-        c.id === coverageId ? { ...c, is_active: !currentActive } : c
-      ));
+      // Reload all coverages after toggle instead of just updating local state
+      await fetchBuyerData();
+      toast.success(`Tort coverage ${!currentActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error("Error toggling coverage status:", error);
       toast.error("Failed to update coverage status");

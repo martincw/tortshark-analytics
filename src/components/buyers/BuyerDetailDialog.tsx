@@ -163,7 +163,8 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       try {
         const success = await removeBuyerTortCoverage(coverageId);
         if (success) {
-          setCoverages(coverages.filter(c => c.id !== coverageId));
+          // Instead of just updating local state, reload all coverages
+          await loadBuyerData();
           toast.success("Coverage removed successfully");
         }
       } catch (error) {
@@ -189,7 +190,8 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
       await updateBuyerTortCoverage(coverageId, amount);
       setEditingCoverageId(null);
       toast.success("Coverage amount updated");
-      loadBuyerData();
+      // Reload coverage data to ensure UI is in sync
+      await loadBuyerData();
     } catch (error) {
       console.error("Error updating coverage:", error);
       toast.error("Failed to update coverage");
@@ -200,10 +202,8 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
   const handleToggleActive = async (coverageId: string, currentActive: boolean) => {
     try {
       await toggleTortCoverageActive(coverageId, !currentActive);
-      // Update local state to reflect the change
-      setCoverages(coverages.map(c => 
-        c.id === coverageId ? { ...c, is_active: !currentActive } : c
-      ));
+      // Reload all coverages after toggle
+      await loadBuyerData();
       toast.success(`Tort coverage ${!currentActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error("Error toggling coverage status:", error);

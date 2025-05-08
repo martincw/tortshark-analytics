@@ -41,9 +41,10 @@ export function LeadProsper() {
         })
         .catch(err => {
           console.error('Connection check failed:', err);
+          toast.error('Connection check failed. Please try again or reconnect your account.');
         });
     }
-  }, []);
+  }, [defaultTab]);
   
   return (
     <Tabs defaultValue={defaultTab} onValueChange={handleTabChange}>

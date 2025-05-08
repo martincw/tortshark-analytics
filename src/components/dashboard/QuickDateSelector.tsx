@@ -78,6 +78,12 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         // Start date is 7 days before end date
         start = subDays(end, 6);
         break;
+      case 'Last14Days':
+        // New option: Last 14 days
+        end = yesterday;
+        // Start date is 14 days before end date
+        start = subDays(end, 13);
+        break;
       case 'MonthToDate':
         start = getStartOfMonth(today);
         end = now;
@@ -157,6 +163,14 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         return (
           format(startDate, "yyyy-MM-dd") === format(last7Start, "yyyy-MM-dd") &&
           format(endDate, "yyyy-MM-dd") === format(last7End, "yyyy-MM-dd")
+        );
+      case 'Last14Days':
+        // Add check for Last14Days
+        const last14End = new Date(yesterday);
+        const last14Start = subDays(last14End, 13);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last14Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last14End, "yyyy-MM-dd")
         );
       case 'Last30Days':
         // Update the check for Last30Days
@@ -277,6 +291,15 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         >
           <Clock className="mr-2 h-4 w-4" />
           Last 7 Days
+        </Button>
+        <Button 
+          variant={isSelected('Last14Days') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('Last14Days')}
+          className="w-full justify-start"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Last 14 Days
         </Button>
         <Button 
           variant={isSelected('Last30Days') ? "default" : "outline"} 
