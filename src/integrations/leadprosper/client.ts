@@ -554,6 +554,11 @@ export const leadProsperApi = {
           result.last_synced = data.last_synced;
         }
         
+        // Add the date for which data was fetched
+        if (data.date_fetched) {
+          result.date_fetched = data.date_fetched;
+        }
+        
         // Check for errors or partial success
         if (!data.success) {
           result.error = data.error || (

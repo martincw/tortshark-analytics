@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
-import { format } from "https://esm.sh/date-fns@2.30.0";
+import { format, subDays } from "https://esm.sh/date-fns@2.30.0";
 
 // Set up CORS headers
 const corsHeaders = {
@@ -434,7 +434,10 @@ serve(async (req) => {
     let errorCount = 0;
     const results = [];
     let debugInfo = [];
-    const today = format(new Date(), 'yyyy-MM-dd');
+    
+    // Change from today to yesterday
+    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    console.log(`Using yesterday's date for API calls: ${yesterday}`);
 
     // Process each campaign mapping SEQUENTIALLY (not in parallel)
     for (const mapping of mappings) {
@@ -460,11 +463,11 @@ serve(async (req) => {
           await sleep(API_CONFIG.REQUEST_DELAY_MS * 2);
         }
         
-        // Try to fetch leads with optimized timezone handling
+        // Try to fetch leads with optimized timezone handling - use yesterday instead of today
         const apiResponse = await fetchLeadsWithOptimizedTimezone(
           apiKey,
           lpCampaignId,
-          today
+          yesterday
         );
         
         // Record debug info for each campaign
@@ -522,7 +525,7 @@ serve(async (req) => {
           });
         }
         else {
-          console.log(`No leads or stats found today for campaign ${lpCampaignId}`);
+          console.log(`No leads or stats found for yesterday (${yesterday}) for campaign ${lpCampaignId}`);
           results.push({
             mapping_id: mapping.id,
             campaign_id: lpCampaignId,
@@ -571,6 +574,7 @@ serve(async (req) => {
         error_count: errorCount,
         results,
         debug_info: debugInfo,
+        date_fetched: yesterday,
         last_synced: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

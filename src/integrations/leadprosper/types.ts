@@ -76,16 +76,17 @@ export interface DailyLeadMetrics {
   updated_at: string;
 }
 
-// Update the interface for the Lead Prosper sync result
+// Updated interface for the Lead Prosper sync result to include date_fetched
 export interface LeadProsperSyncResult {
   success: boolean;
   total_leads: number;
   campaigns_processed: number;
   last_synced?: string;
+  date_fetched?: string; // New property to indicate the date for which data was fetched
   results?: any[];
   error?: string;
   endpoint_used?: string;
   timezone_error?: boolean;
   used_stats_fallback?: boolean;
-  debug_info?: any[]; // Add the debug_info property
+  debug_info?: any[];
 }

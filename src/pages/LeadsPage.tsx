@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -69,8 +70,9 @@ export default function LeadsPage() {
   // Filter popover state
   const [filtersOpen, setFiltersOpen] = useState(false);
   
-  // Last synced timestamp
+  // Last synced timestamp and date fetched
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [dateFetched, setDateFetched] = useState<string | null>(null);
   
   // Update URL when filters change
   useEffect(() => {
@@ -140,8 +142,8 @@ export default function LeadsPage() {
     }
   };
   
-  // Refresh today's leads with improved error handling
-  const refreshTodaysLeads = async () => {
+  // Refresh yesterday's leads with improved error handling
+  const refreshYesterdaysLeads = async () => {
     try {
       setRefreshing(true);
       setRefreshError(null);
@@ -154,12 +156,17 @@ export default function LeadsPage() {
         throw new Error('No Lead Prosper API key found. Please connect your account first.');
       }
       
-      // Call the edge function to fetch today's leads - now optimized for rate limiting
+      // Call the edge function to fetch yesterday's leads - optimized for rate limiting
       const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
       
       // Store debug info for troubleshooting
       if (result.debug_info) {
         setDebugInfo(result.debug_info);
+      }
+      
+      // Store date fetched
+      if (result.date_fetched) {
+        setDateFetched(result.date_fetched);
       }
       
       if (result.success) {
@@ -181,7 +188,7 @@ export default function LeadsPage() {
           });
         } else {
           toast.info(`No new leads found`, {
-            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no new leads for today`,
+            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no new leads for yesterday`,
             duration: 4000,
           });
         }
@@ -292,11 +299,11 @@ export default function LeadsPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={refreshTodaysLeads}
+            onClick={refreshYesterdaysLeads}
             disabled={refreshing}
           >
             <RefreshCcw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
-            {refreshing ? "Refreshing..." : "Refresh Today's Leads"}
+            {refreshing ? "Refreshing..." : "Refresh Yesterday's Leads"}
           </Button>
         </div>
       </div>
@@ -304,6 +311,7 @@ export default function LeadsPage() {
       {lastSynced && (
         <div className="text-sm text-muted-foreground">
           Last synchronized: {formatDate(lastSynced)}
+          {dateFetched && <span> • Data for: {format(new Date(dateFetched), 'MMM d, yyyy')}</span>}
         </div>
       )}
       
@@ -315,7 +323,7 @@ export default function LeadsPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={refreshTodaysLeads} 
+              onClick={refreshYesterdaysLeads} 
               className="ml-2"
               disabled={refreshing}
             >
