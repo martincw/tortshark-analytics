@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -169,13 +168,22 @@ export default function LeadsPage() {
         // Reload the leads list to show the new data
         await loadLeads();
       } else {
+        const isTimezoneError = result.error?.toLowerCase().includes('timezone');
         const errorMessage = result.error || 'Failed to refresh leads';
         setRefreshError(errorMessage);
         
-        toast.error('Lead refresh failed', {
-          description: errorMessage,
-          duration: 5000,
-        });
+        // Show more specific message for timezone errors
+        if (isTimezoneError) {
+          toast.error('Timezone configuration error', {
+            description: 'The Lead Prosper API rejected our timezone format. We\'ve implemented automatic format detection which will try multiple formats.',
+            duration: 8000,
+          });
+        } else {
+          toast.error('Lead refresh failed', {
+            description: errorMessage,
+            duration: 5000,
+          });
+        }
       }
     } catch (error) {
       console.error('Error refreshing leads:', error);

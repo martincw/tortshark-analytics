@@ -525,10 +525,13 @@ export const leadProsperApi = {
 
       console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length})`);
       
+      // Use UTC timezone format as default instead of IANA timezone name
+      const DEFAULT_TIMEZONE = "UTC";
+      
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
         body: { 
           apiKey,
-          timezone: DEFAULT_TIMEZONE // Always include the timezone parameter
+          timezone: DEFAULT_TIMEZONE // Use UTC as it's more widely supported
         },
       });
 
