@@ -1,4 +1,3 @@
-
 import { supabase } from '../supabase/client';
 
 // Create a simplified API client for Lead Prosper
@@ -679,6 +678,145 @@ export const leadProsperApi = {
         success: false, 
         error: error.message || 'An unexpected error occurred during backfill'
       };
+    }
+  },
+  
+  // New method to fetch today's leads for all mapped campaigns
+  async fetchTodayLeads(): Promise<{ success: boolean; total_leads: number; campaigns_processed: number; results: any[]; error?: string }> {
+    try {
+      console.log('Fetching today\'s leads for all mapped campaigns');
+      
+      // Get API key
+      const apiKey = this.getCachedApiKey();
+      if (!apiKey) {
+        const connectionData = await this.checkConnection();
+        if (!connectionData.isConnected) {
+          throw new Error('No active Lead Prosper connection found');
+        }
+        
+        if (connectionData.credentials?.credentials) {
+          const credentials = typeof connectionData.credentials.credentials === 'string' 
+            ? JSON.parse(connectionData.credentials.credentials) 
+            : connectionData.credentials.credentials;
+            
+          if (!credentials?.apiKey) {
+            throw new Error('API key not found in connection credentials');
+          }
+        }
+      }
+      
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Call the fetch-today edge function with the API key
+      const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
+        body: { apiKey: apiKey },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : undefined
+      });
+      
+      if (error) {
+        console.error('Error fetching today\'s leads:', error);
+        return { 
+          success: false, 
+          total_leads: 0,
+          campaigns_processed: 0,
+          results: [],
+          error: error.message
+        };
+      }
+      
+      console.log(`Successfully fetched ${data.total_leads} leads from ${data.campaigns_processed} campaigns`);
+      return data;
+      
+    } catch (error) {
+      console.error('Error in fetchTodayLeads:', error);
+      return { 
+        success: false, 
+        total_leads: 0,
+        campaigns_processed: 0,
+        results: [],
+        error: error.message
+      };
+    }
+  },
+  
+  // Fetch detailed leads with pagination and filtering
+  async getLeadsList(options: {
+    page?: number;
+    pageSize?: number;
+    startDate?: string;
+    endDate?: string;
+    ts_campaign_id?: string;
+    status?: string;
+  } = {}): Promise<{
+    leads: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    try {
+      const {
+        page = 1,
+        pageSize = 20,
+        startDate,
+        endDate,
+        ts_campaign_id,
+        status
+      } = options;
+      
+      let query = supabase
+        .from('lp_leads_raw')
+        .select('*, campaign:ts_campaign_id(id, name)', { count: 'exact' });
+      
+      // Apply filters
+      if (ts_campaign_id) {
+        query = query.eq('ts_campaign_id', ts_campaign_id);
+      }
+      
+      if (status) {
+        query = query.eq('status', status);
+      }
+      
+      if (startDate) {
+        // Convert lead_date_ms to date for comparison
+        const startTimestamp = new Date(startDate).getTime();
+        query = query.gte('lead_date_ms', startTimestamp);
+      }
+      
+      if (endDate) {
+        // Add one day to include the end date fully
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endTimestamp = endDateObj.getTime();
+        query = query.lt('lead_date_ms', endTimestamp);
+      }
+      
+      // Apply pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      query = query
+        .order('lead_date_ms', { ascending: false })
+        .range(from, to);
+      
+      const { data, error, count } = await query;
+      
+      if (error) {
+        console.error('Error fetching leads:', error);
+        throw error;
+      }
+      
+      return {
+        leads: data || [],
+        total: count || 0,
+        page,
+        pageSize
+      };
+    } catch (error) {
+      console.error('Error in getLeadsList:', error);
+      throw error;
     }
   }
 };

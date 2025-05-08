@@ -22,6 +22,7 @@ import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
+import LeadsPage from "./pages/LeadsPage"; // Add import for the new LeadsPage
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ const App = () => (
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/buyers" element={<BuyersPage />} />
+                <Route path="/leads" element={<LeadsPage />} /> {/* Add the new LeadsPage route */}
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
