@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
+import { LeadProsperSyncResult } from '@/integrations/leadprosper/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -152,7 +153,7 @@ export default function LeadsPage() {
       }
       
       // Call the edge function to fetch today's leads
-      const result = await leadProsperApi.fetchTodayLeads();
+      const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
       
       if (result.success) {
         // Store the last synced timestamp

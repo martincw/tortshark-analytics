@@ -75,3 +75,16 @@ export interface DailyLeadMetrics {
   created_at: string;
   updated_at: string;
 }
+
+// New interface for the Lead Prosper sync result
+export interface LeadProsperSyncResult {
+  success: boolean;
+  total_leads: number;
+  campaigns_processed: number;
+  last_synced?: string;
+  results?: any[];
+  error?: string;
+  endpoint_used?: string;
+  timezone_error?: boolean;
+  used_stats_fallback?: boolean;
+}

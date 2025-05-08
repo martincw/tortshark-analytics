@@ -7,6 +7,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { supabase } from "@/integrations/supabase/client";
+import { LeadProsperSyncResult } from '@/integrations/leadprosper/types';
 
 export function LeadProsper() {
   const location = useLocation();
@@ -64,7 +65,7 @@ export function LeadProsper() {
     
     try {
       toast.info('Testing Lead Prosper connection by syncing today\'s data...');
-      const result = await leadProsperApi.fetchTodayLeads();
+      const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
       
       if (result.success) {
         toast.success('Successfully synchronized with Lead Prosper', {

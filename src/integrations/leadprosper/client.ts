@@ -1,8 +1,7 @@
-
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { LeadProsperCredentials } from './types';
+import { LeadProsperCredentials, LeadProsperSyncResult } from './types';
 
 export interface LeadListParams {
   page?: number;
@@ -505,15 +504,7 @@ export const leadProsperApi = {
   },
 
   // Fetch today's leads from Lead Prosper
-  async fetchTodayLeads(): Promise<{
-    success: boolean;
-    total_leads: number;
-    campaigns_processed: number;
-    last_synced?: string;
-    results?: any[];
-    error?: string;
-    endpoint_used?: string;
-  }> {
+  async fetchTodayLeads(): Promise<LeadProsperSyncResult> {
     try {
       console.log("Fetching today's leads from Lead Prosper");
       
