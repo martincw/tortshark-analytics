@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { 
   Card, 
   CardContent, 
@@ -27,6 +27,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Search, 
   Loader2, 
@@ -34,16 +48,19 @@ import {
   HelpCircle,
   Link as LinkIcon,
   ExternalLink,
-  RotateCcw
+  RotateCcw,
+  MapPin
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 
 export default function LeadProsperCampaigns() {
   const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const { campaigns } = useCampaign();
+  const [lpCampaigns, setLpCampaigns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMappingLoading, setIsMappingLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<{ isConnected: boolean, error?: string }>({
     isConnected: false
@@ -51,6 +68,12 @@ export default function LeadProsperCampaigns() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [apiResponseDetails, setApiResponseDetails] = useState<string | null>(null);
+  
+  // Campaign mapping dialog states
+  const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+  const [selectedLpCampaignId, setSelectedLpCampaignId] = useState<number | null>(null);
+  const [selectedLpCampaignName, setSelectedLpCampaignName] = useState<string>('');
+  const [selectedTsCampaignId, setSelectedTsCampaignId] = useState<string>('');
   
   // Quick retry logic for transient errors
   const MAX_RETRIES = 2;
@@ -112,35 +135,9 @@ export default function LeadProsperCampaigns() {
       setConnectionStatus({ isConnected: true });
       console.log('Connection confirmed, fetching campaigns...');
       
-      // Get the API key
-      let apiKey;
-      try {
-        // Try to get API key from credentials first
-        if (connectionData.credentials?.credentials) {
-          const credentials = typeof connectionData.credentials.credentials === 'string' 
-            ? JSON.parse(connectionData.credentials.credentials) 
-            : connectionData.credentials.credentials;
-            
-          apiKey = credentials?.apiKey;
-        }
-        
-        // If not found in credentials, try to get from cache
-        if (!apiKey) {
-          apiKey = leadProsperApi.getCachedApiKey();
-        }
-        
-        if (!apiKey) {
-          throw new Error('API key not found');
-        }
-      } catch (error) {
-        console.error('Error extracting API key:', error);
-        setErrorMessage('API key not found or invalid. Please reconnect your Lead Prosper account.');
-        return;
-      }
-      
       // Get campaigns
       try {
-        const campaignsData = await leadProsperApi.getCampaigns(apiKey);
+        const campaignsData = await leadProsperApi.fetchCampaigns();
         
         // Debug: Inspect the campaigns data structure
         if (campaignsData) {
@@ -157,10 +154,10 @@ export default function LeadProsperCampaigns() {
         }
         
         if (Array.isArray(campaignsData)) {
-          setCampaigns(campaignsData);
+          setLpCampaigns(campaignsData);
         } else {
           // Handle non-array response
-          setCampaigns([]);
+          setLpCampaigns([]);
           setErrorMessage('Unexpected API response format. Expected an array of campaigns.');
           setApiResponseDetails(`Got: ${typeof campaignsData}. Raw data: ${JSON.stringify(campaignsData).substring(0, 100)}...`);
         }
@@ -248,7 +245,44 @@ export default function LeadProsperCampaigns() {
     }
   };
 
-  const filteredCampaigns = campaigns.filter(campaign => 
+  const handleOpenMappingDialog = (campaignId: number, campaignName: string) => {
+    setSelectedLpCampaignId(campaignId);
+    setSelectedLpCampaignName(campaignName || `Campaign ${campaignId}`);
+    setIsMappingDialogOpen(true);
+  };
+
+  const handleMapCampaign = async () => {
+    if (!selectedLpCampaignId || !selectedTsCampaignId) {
+      toast.error("Please select both a Lead Prosper campaign and a Tortshark campaign");
+      return;
+    }
+    
+    try {
+      setIsMappingLoading(true);
+      
+      // Call the API to map the campaign
+      await leadProsperApi.mapCampaign(selectedTsCampaignId, selectedLpCampaignId);
+      
+      // Show success message
+      toast.success(`Campaign ${selectedLpCampaignName} mapped successfully`);
+      
+      // Close the dialog
+      setIsMappingDialogOpen(false);
+      
+      // Reset states
+      setSelectedLpCampaignId(null);
+      setSelectedLpCampaignName('');
+      setSelectedTsCampaignId('');
+      
+    } catch (error) {
+      console.error('Error mapping campaign:', error);
+      toast.error(`Failed to map campaign: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsMappingLoading(false);
+    }
+  };
+
+  const filteredCampaigns = lpCampaigns.filter(campaign => 
     campaign.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     campaign.id?.toString().includes(searchTerm)
   );
@@ -348,7 +382,7 @@ export default function LeadProsperCampaigns() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              View or manage campaign in Lead Prosper
+                              View or map campaign to Tortshark
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -366,15 +400,26 @@ export default function LeadProsperCampaigns() {
                           <Badge variant="outline">{campaign.status || 'Unknown'}</Badge>
                         </TableCell>
                         <TableCell>
-                          <a
-                            href={`https://app.leadprosper.io/campaigns/${campaign.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-blue-500 hover:text-blue-700"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            View
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`https://app.leadprosper.io/campaigns/${campaign.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-blue-500 hover:text-blue-700"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              View
+                            </a>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => handleOpenMappingDialog(campaign.id, campaign.name)}
+                            >
+                              <MapPin className="h-3 w-3 mr-1" />
+                              Map
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -383,7 +428,7 @@ export default function LeadProsperCampaigns() {
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                         {searchTerm ? (
                           <>No campaigns match your search</>
-                        ) : campaigns.length === 0 ? (
+                        ) : lpCampaigns.length === 0 ? (
                           <>No campaigns found in your Lead Prosper account</>
                         ) : (
                           <>No campaigns found</>
@@ -400,9 +445,71 @@ export default function LeadProsperCampaigns() {
       
       <CardFooter className="flex justify-between">
         <p className="text-sm text-muted-foreground">
-          {campaigns.length} campaigns found
+          {lpCampaigns.length} campaigns found
         </p>
       </CardFooter>
+      
+      {/* Campaign mapping dialog */}
+      <Dialog open={isMappingDialogOpen} onOpenChange={setIsMappingDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Map Lead Prosper Campaign</DialogTitle>
+            <DialogDescription>
+              Map Lead Prosper campaign "{selectedLpCampaignName}" to a Tortshark campaign for data import.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="ts-campaign">
+                Select Tortshark Campaign
+              </label>
+              <Select
+                value={selectedTsCampaignId}
+                onValueChange={setSelectedTsCampaignId}
+              >
+                <SelectTrigger id="ts-campaign">
+                  <SelectValue placeholder="Select a campaign" />
+                </SelectTrigger>
+                <SelectContent>
+                  {campaigns && campaigns.length > 0 ? (
+                    campaigns.map(campaign => (
+                      <SelectItem key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem disabled value="none">
+                      No campaigns available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {(!campaigns || campaigns.length === 0) && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  No campaigns available. Please create a campaign first.
+                </p>
+              )}
+            </div>
+            
+            <div className="flex justify-between mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsMappingDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleMapCampaign}
+                disabled={!selectedTsCampaignId || isMappingLoading}
+              >
+                {isMappingLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Map Campaign
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
 import { format } from "https://esm.sh/date-fns@2.30.0";
@@ -32,6 +33,8 @@ async function fetchTodayLeads(
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`API call attempt ${attempt} for campaign ${campaignId}`);
+      
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -40,12 +43,13 @@ async function fetchTodayLeads(
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.error(`Failed to fetch leads for campaign ${campaignId} (attempt ${attempt}/${maxRetries}): ${error}`);
+        const errorText = await response.text();
+        const statusCode = response.status;
+        console.error(`Failed response (${statusCode}) for campaign ${campaignId} (attempt ${attempt}/${maxRetries}): ${errorText}`);
         
         // If this is our last retry, throw the error
         if (attempt === maxRetries) {
-          throw new Error(`Failed to fetch leads: ${error}`);
+          throw new Error(`API returned status ${statusCode}: ${errorText}`);
         }
         
         // Otherwise wait before retrying (exponential backoff)
@@ -58,6 +62,7 @@ async function fetchTodayLeads(
       return data;
     } catch (error) {
       lastError = error;
+      console.error(`Error in attempt ${attempt} for campaign ${campaignId}:`, error);
       
       // If this is our last retry, we'll throw the error after the loop
       if (attempt < maxRetries) {
@@ -122,9 +127,12 @@ serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
+    console.log("Lead Prosper fetch-today function called");
+    
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error("No authorization header provided");
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -147,7 +155,18 @@ serve(async (req) => {
     try {
       const body = await req.json();
       apiKey = body.apiKey;
+      
+      if (!apiKey) {
+        console.error("Missing API key in request body");
+        return new Response(
+          JSON.stringify({ error: 'Missing API key' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log("API key received, length:", apiKey.length);
     } catch (error) {
+      console.error("Failed to parse request body:", error);
       return new Response(
         JSON.stringify({ 
           error: 'Failed to parse request body',
@@ -157,17 +176,11 @@ serve(async (req) => {
       );
     }
 
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Missing API key' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Get all active campaign mappings
     const { data: mappings, error: mappingsError } = await supabaseClient
       .from('lp_to_ts_map')
       .select(`
+        id,
         ts_campaign_id,
         lp_campaign:external_lp_campaigns(id, lp_campaign_id, name)
       `)
@@ -176,12 +189,16 @@ serve(async (req) => {
     if (mappingsError) {
       console.error('Error fetching campaign mappings:', mappingsError);
       return new Response(
-        JSON.stringify({ error: mappingsError.message }),
+        JSON.stringify({ 
+          error: mappingsError.message,
+          details: 'Failed to fetch active campaign mappings'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!mappings || mappings.length === 0) {
+      console.log('No active campaign mappings found');
       return new Response(
         JSON.stringify({ message: 'No active campaign mappings found', count: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -198,8 +215,9 @@ serve(async (req) => {
     // Process each campaign mapping
     for (const mapping of mappings) {
       if (!mapping.lp_campaign || !mapping.lp_campaign.lp_campaign_id) {
-        console.warn(`Missing LP campaign ID for mapping to ${mapping.ts_campaign_id}`);
+        console.warn(`Mapping ${mapping.id}: Missing LP campaign ID for mapping to ${mapping.ts_campaign_id}`);
         results.push({
+          mapping_id: mapping.id,
           ts_campaign_id: mapping.ts_campaign_id,
           error: 'Missing Lead Prosper campaign ID',
           status: 'skipped'
@@ -211,6 +229,8 @@ serve(async (req) => {
       const lpCampaignId = mapping.lp_campaign.lp_campaign_id;
       
       try {
+        console.log(`Processing mapping ${mapping.id}: LP Campaign ${lpCampaignId} -> TS Campaign ${mapping.ts_campaign_id}`);
+        
         // Fetch today's leads for this campaign
         const leadsData = await fetchTodayLeads(apiKey, lpCampaignId);
         
@@ -224,6 +244,7 @@ serve(async (req) => {
           successCount++;
           
           results.push({
+            mapping_id: mapping.id,
             campaign_id: lpCampaignId,
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
@@ -231,7 +252,9 @@ serve(async (req) => {
             status: 'success'
           });
         } else {
+          console.log(`No leads found today for campaign ${lpCampaignId}`);
           results.push({
+            mapping_id: mapping.id,
             campaign_id: lpCampaignId,
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
@@ -244,6 +267,7 @@ serve(async (req) => {
         console.error(`Error processing campaign ${lpCampaignId}:`, error);
         errorCount++;
         results.push({
+          mapping_id: mapping.id,
           campaign_id: lpCampaignId,
           ts_campaign_id: mapping.ts_campaign_id,
           campaign_name: mapping.lp_campaign?.name || 'Unknown',
@@ -253,6 +277,8 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Completed processing. Total leads: ${totalLeads}, Success: ${successCount}, Errors: ${errorCount}`);
+    
     // Return success with summary
     return new Response(
       JSON.stringify({ 

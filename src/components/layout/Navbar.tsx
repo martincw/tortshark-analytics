@@ -18,6 +18,7 @@ import {
   CalendarIcon,
   CreditCard,
   Users,
+  ListFilter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/leads", label: "Leads", icon: <ListFilter className="h-4 w-4 mr-2" /> },
 ];
 
 // External links that will only appear in sidebar

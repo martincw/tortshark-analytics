@@ -1,4 +1,3 @@
-
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -479,27 +478,42 @@ export const leadProsperApi = {
     error?: string;
   }> {
     try {
+      console.log("Fetching today's leads from Lead Prosper");
+      
       const { apiKey, isConnected } = await this.getApiCredentials();
 
       if (!isConnected || !apiKey) {
+        console.error("Lead Prosper not connected or missing API key");
         throw new Error('Not connected to Lead Prosper. Please add your API key first.');
       }
 
+      console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length})`);
+      
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
         body: { apiKey },
       });
 
       if (error) {
-        console.error('Error calling lead-prosper-fetch-today function:', error);
-        throw error;
+        console.error('Error calling lead-prossp-fetch-today function:', error);
+        throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
       }
 
+      console.log('Response from lead-prosper-fetch-today:', data);
+      
       if (!data.success) {
+        const errorDetails = data.error || (
+          data.results?.find(r => r.status === 'error')?.error || 
+          "Failed to fetch today's leads"
+        );
+        
+        console.error('Lead Prosper fetch failed:', errorDetails);
+        
         return {
           success: false,
           total_leads: 0,
           campaigns_processed: 0,
-          error: data.error || "Failed to fetch today's leads",
+          error: errorDetails,
+          results: data.results || [],
         };
       }
 
