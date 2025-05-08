@@ -41,9 +41,18 @@ async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
     }
 
     try {
-      const data = await response.json();
-      console.log(`Successfully fetched ${data.data?.length || 0} campaigns from Lead Prosper`);
-      return data;
+      // Parse the direct array response - no nested data structure expected
+      const campaigns = await response.json();
+      
+      // Log the structure and count of campaigns
+      console.log(`Successfully fetched ${Array.isArray(campaigns) ? campaigns.length : 0} campaigns from Lead Prosper`);
+      if (Array.isArray(campaigns) && campaigns.length > 0) {
+        console.log('First campaign structure:', JSON.stringify(campaigns[0], null, 2).substring(0, 200) + '...');
+      } else if (campaigns && typeof campaigns === 'object') {
+        console.log('Response structure:', Object.keys(campaigns));
+      }
+      
+      return campaigns; // Return the campaigns array directly
     } catch (parseError) {
       console.error('Error parsing Lead Prosper API response:', parseError);
       throw new Error('Failed to parse Lead Prosper API response');
@@ -177,9 +186,11 @@ serve(async (req) => {
     }
 
     // Store the campaigns in the external_lp_campaigns table
-    if (campaigns && campaigns.data && Array.isArray(campaigns.data)) {
+    if (campaigns && Array.isArray(campaigns)) {
       try {
-        for (const campaign of campaigns.data) {
+        console.log(`Processing ${campaigns.length} campaigns for storage`);
+        
+        for (const campaign of campaigns) {
           // Validate campaign data
           if (!campaign.id) {
             console.warn('Skipping campaign with missing ID:', campaign);
@@ -196,7 +207,7 @@ serve(async (req) => {
             onConflict: 'lp_campaign_id',
           });
         }
-        console.log(`Successfully stored ${campaigns.data.length} campaigns in database`);
+        console.log(`Successfully stored ${campaigns.length} campaigns in database`);
       } catch (dbError) {
         console.error('Error storing campaigns in database:', dbError);
         // Continue to return campaigns even if storage fails
@@ -205,10 +216,10 @@ serve(async (req) => {
       console.warn('Invalid or empty campaigns data received from Lead Prosper API');
     }
 
-    // Return the campaigns with successful authentication status
+    // Return the campaigns with successful authentication status 
     return new Response(
       JSON.stringify({ 
-        campaigns: campaigns?.data || [],
+        campaigns: campaigns && Array.isArray(campaigns) ? campaigns : [],
         authenticated: true
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

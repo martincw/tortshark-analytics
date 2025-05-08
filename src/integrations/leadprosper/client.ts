@@ -424,24 +424,45 @@ export const leadProsperApi = {
         throw new Error(`Failed to fetch campaigns: ${error.message}`);
       }
       
-      if (!data || !data.campaigns) {
-        console.error('Invalid response format from Lead Prosper API');
+      // Check if data exists and contains campaigns property
+      if (!data) {
+        console.error('Invalid response format: missing data');
         
-        // Again try using cached data as fallback
+        // Try using cached data as fallback
         if (this._cache.campaigns) {
           console.log('Using cached campaigns data as fallback after invalid response');
           return this._cache.campaigns;
         }
         
-        throw new Error('Invalid response format from Lead Prosper API');
+        throw new Error('Invalid response format: missing data');
+      }
+      
+      // Handle both the direct array format (expected from API) and the wrapped format from our edge function
+      let campaignsData;
+      if (Array.isArray(data)) {
+        console.log('Direct array response detected');
+        campaignsData = data;
+      } else if (data.campaigns && Array.isArray(data.campaigns)) {
+        console.log('Wrapped campaigns property detected');
+        campaignsData = data.campaigns;
+      } else {
+        console.error('Invalid response format: missing or invalid campaigns data');
+        
+        // Try using cached data as fallback
+        if (this._cache.campaigns) {
+          console.log('Using cached campaigns data as fallback after invalid format');
+          return this._cache.campaigns;
+        }
+        
+        throw new Error('Invalid response format: missing or invalid campaigns data');
       }
       
       // Update cache
-      this._cache.campaigns = data.campaigns;
+      this._cache.campaigns = campaignsData;
       this._cache.campaignsTimestamp = Date.now();
       
-      console.log(`Retrieved ${data.campaigns.length} campaigns`);
-      return data.campaigns;
+      console.log(`Retrieved ${campaignsData.length} campaigns`);
+      return campaignsData;
     } catch (error) {
       console.error('Error in getCampaigns:', error);
       

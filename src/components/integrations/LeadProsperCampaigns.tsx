@@ -50,6 +50,7 @@ export default function LeadProsperCampaigns() {
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [apiResponseDetails, setApiResponseDetails] = useState<string | null>(null);
   
   // Quick retry logic for transient errors
   const MAX_RETRIES = 2;
@@ -89,6 +90,7 @@ export default function LeadProsperCampaigns() {
     try {
       setIsLoading(true);
       setErrorMessage(null);
+      setApiResponseDetails(null);
       
       // Check if the user is connected to Lead Prosper
       console.log('Checking Lead Prosper connection status...');
@@ -139,7 +141,29 @@ export default function LeadProsperCampaigns() {
       // Get campaigns
       try {
         const campaignsData = await leadProsperApi.getCampaigns(apiKey);
-        setCampaigns(campaignsData || []);
+        
+        // Debug: Inspect the campaigns data structure
+        if (campaignsData) {
+          console.log(`Campaigns data type: ${typeof campaignsData}`);
+          console.log(`Is array: ${Array.isArray(campaignsData)}`);
+          console.log(`Length: ${Array.isArray(campaignsData) ? campaignsData.length : 'N/A'}`);
+          
+          if (Array.isArray(campaignsData) && campaignsData.length > 0) {
+            console.log('First campaign sample:', campaignsData[0]);
+          } else if (!Array.isArray(campaignsData)) {
+            console.log('Campaigns keys:', Object.keys(campaignsData));
+            setApiResponseDetails(`Response format: ${JSON.stringify(campaignsData).substring(0, 100)}...`);
+          }
+        }
+        
+        if (Array.isArray(campaignsData)) {
+          setCampaigns(campaignsData);
+        } else {
+          // Handle non-array response
+          setCampaigns([]);
+          setErrorMessage('Unexpected API response format. Expected an array of campaigns.');
+          setApiResponseDetails(`Got: ${typeof campaignsData}. Raw data: ${JSON.stringify(campaignsData).substring(0, 100)}...`);
+        }
       } catch (error) {
         console.error('Error fetching campaigns:', error);
         
@@ -206,8 +230,15 @@ export default function LeadProsperCampaigns() {
       
       // Get campaigns with force refresh
       const campaignsData = await leadProsperApi.getCampaigns(apiKey);
-      setCampaigns(campaignsData || []);
-      toast.success('Campaigns refreshed successfully');
+      
+      if (Array.isArray(campaignsData)) {
+        setCampaigns(campaignsData);
+        toast.success(`Successfully fetched ${campaignsData.length} campaigns`);
+      } else {
+        setCampaigns([]);
+        toast.error('Unexpected API response format');
+        setApiResponseDetails(`Got: ${typeof campaignsData}. Raw data: ${JSON.stringify(campaignsData).substring(0, 100)}...`);
+      }
     } catch (error) {
       console.error('Error refreshing campaigns:', error);
       toast.error(`Failed to refresh campaigns: ${error.message}`);
@@ -247,6 +278,12 @@ export default function LeadProsperCampaigns() {
             <AlertTitle>Connection Error</AlertTitle>
             <AlertDescription className="space-y-4">
               <p>{errorMessage}</p>
+              
+              {apiResponseDetails && (
+                <div className="p-2 bg-muted/50 rounded text-xs font-mono overflow-auto">
+                  {apiResponseDetails}
+                </div>
+              )}
               
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button 
@@ -346,6 +383,8 @@ export default function LeadProsperCampaigns() {
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                         {searchTerm ? (
                           <>No campaigns match your search</>
+                        ) : campaigns.length === 0 ? (
+                          <>No campaigns found in your Lead Prosper account</>
                         ) : (
                           <>No campaigns found</>
                         )}
