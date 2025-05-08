@@ -90,6 +90,7 @@ export const leadProsperApi = {
           last_synced: connection.updated_at,
           credentials: { apiKey: connection.access_token }
         },
+        fromCache: !forceRefresh
       };
     } catch (error) {
       console.error('Error checking Lead Prosper connection:', error);
@@ -218,6 +219,11 @@ export const leadProsperApi = {
       console.error('Error getting mapped Lead Prosper campaigns:', error);
       throw error;
     }
+  },
+
+  // Alias for getCampaignMappings for backward compatibility
+  getMappedCampaigns(tsCampaignId: string): Promise<any[]> {
+    return this.getCampaignMappings(tsCampaignId);
   },
 
   // Map Lead Prosper campaign to Tortshark campaign

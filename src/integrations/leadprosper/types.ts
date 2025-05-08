@@ -34,6 +34,7 @@ export interface LeadProsperCredentials {
   apiKey?: string;
   isConnected: boolean;
   error?: string;
+  fromCache?: boolean;
   credentials?: {
     id: string;
     name: string;

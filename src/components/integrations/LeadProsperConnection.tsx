@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -61,9 +60,9 @@ export default function LeadProsperConnection() {
   // First load - check connection and get webhook URL
   useEffect(() => {
     checkConnection();
-    leadProsperApi.getLeadProsperWebhookUrl().then(url => {
-      setWebhookUrl(url);
-    });
+    // Get webhook URL directly
+    const url = leadProsperApi.getLeadProsperWebhookUrl();
+    setWebhookUrl(url);
     
     // Try to restore API key from cache
     const cachedApiKey = leadProsperApi.getCachedApiKey();
@@ -99,36 +98,35 @@ export default function LeadProsperConnection() {
             credentialsData = JSON.parse(credentialsData);
           } catch (e) {
             console.error('Failed to parse credentials JSON:', e);
-            credentialsData = {};
+            credentialsData = { apiKey: data.apiKey || '' };
           }
         }
         
-        // Make sure credentialsData is an object
-        if (credentialsData && typeof credentialsData === 'object') {
-          setConnection({
-            id: data.credentials.id,
-            name: data.credentials.name,
-            platform: 'leadprosper',
-            isConnected: data.credentials.is_connected,
-            lastSynced: data.credentials.last_synced,
-            apiKey: credentialsData.apiKey || '',
-            credentials: {
-              apiKey: credentialsData.apiKey || '',
-              ...credentialsData
-            }
-          });
-          
-          // Update the API key state and cache
-          if (credentialsData.apiKey) {
-            setApiKey(credentialsData.apiKey);
-            leadProsperApi.setCachedApiKey(credentialsData.apiKey);
-          }
-          
-          setConnectionName(data.credentials.name);
-        } else {
-          console.error('Invalid credentials format:', credentialsData);
-          setErrorMessage('Invalid credentials format in connection data');
+        // Make sure credentialsData is an object with the required apiKey
+        if (!credentialsData || typeof credentialsData !== 'object') {
+          credentialsData = { apiKey: data.apiKey || '' };
         }
+        
+        setConnection({
+          id: data.credentials.id,
+          name: data.credentials.name,
+          platform: 'leadprosper',
+          isConnected: data.credentials.is_connected,
+          lastSynced: data.credentials.last_synced,
+          apiKey: credentialsData.apiKey || '',
+          credentials: {
+            apiKey: credentialsData.apiKey || '',
+            ...credentialsData
+          }
+        });
+        
+        // Update the API key state and cache
+        if (credentialsData.apiKey) {
+          setApiKey(credentialsData.apiKey);
+          leadProsperApi.setCachedApiKey(credentialsData.apiKey);
+        }
+        
+        setConnectionName(data.credentials.name);
       }
       
       if (data.isConnected && !data.fromCache) {

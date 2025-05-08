@@ -107,7 +107,7 @@ export default function LeadProsperMappingDialog({
       }
       
       // Get campaign mappings for this TortShark campaign
-      const mappingsData = await leadProsperApi.getMappedCampaigns(campaignId);
+      const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
       setMappings(mappingsData);
       
       // Get external campaigns from Lead Prosper
@@ -136,7 +136,7 @@ export default function LeadProsperMappingDialog({
       await leadProsperApi.mapCampaign(campaignId, selectedCampaign);
       
       // Reload mappings
-      const mappingsData = await leadProsperApi.getMappedCampaigns(campaignId);
+      const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
       setMappings(mappingsData);
       
       // Trigger backfill for the last 90 days
@@ -173,7 +173,7 @@ export default function LeadProsperMappingDialog({
       await leadProsperApi.unmapCampaign(mappingId);
       
       // Reload mappings
-      const mappingsData = await leadProsperApi.getMappedCampaigns(campaignId);
+      const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
       setMappings(mappingsData);
       
       toast.success('Campaign unmapped successfully');
