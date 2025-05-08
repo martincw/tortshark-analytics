@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountConnection } from "@/types/campaign";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Link } from "lucide-react";
+import { Link, LinkIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ConnectedAccountsProps {
   accountConnections: AccountConnection[];
@@ -25,6 +26,56 @@ export const ConnectedAccounts = ({
 }: ConnectedAccountsProps) => {
   const navigate = useNavigate();
   
+  const renderMapButton = (account: AccountConnection) => {
+    if (!account.isConnected || !onMapCampaigns || !campaigns.length) return null;
+    
+    // Platform-specific mapping buttons
+    switch (account.platform) {
+      case 'google':
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMapCampaigns(account.id);
+            }}
+            className="px-3 py-1.5 text-sm border rounded hover:bg-muted flex items-center gap-2"
+          >
+            <Link className="h-4 w-4" />
+            Map Google Campaigns
+          </button>
+        );
+        
+      case 'leadprosper':
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/campaigns`); // Navigate to campaigns page where they can map Lead Prosper campaigns
+            }}
+          >
+            <LinkIcon className="h-4 w-4 mr-2" />
+            Map Lead Prosper Campaigns
+          </Button>
+        );
+          
+      default:
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMapCampaigns(account.id);
+            }}
+            className="px-3 py-1.5 text-sm border rounded hover:bg-muted flex items-center gap-2"
+          >
+            <Link className="h-4 w-4" />
+            Map Campaigns
+          </button>
+        );
+    }
+  };
+  
   return (
     <Card>
       <CardHeader>
@@ -39,7 +90,7 @@ export const ConnectedAccounts = ({
           <div className="text-center py-8 space-y-4 text-muted-foreground border border-dashed rounded-lg">
             <p>No accounts connected yet</p>
             <p className="text-sm">
-              Go to Integrations to connect your Google Ads account
+              Go to Integrations to connect your accounts
             </p>
           </div>
         ) : (
@@ -69,18 +120,7 @@ export const ConnectedAccounts = ({
                     </span>
                   )}
                 </div>
-                {account.isConnected && onMapCampaigns && campaigns.length > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMapCampaigns(account.id);
-                    }}
-                    className="px-3 py-1.5 text-sm border rounded hover:bg-muted flex items-center gap-2"
-                  >
-                    <Link className="h-4 w-4" />
-                    Map Campaigns
-                  </button>
-                )}
+                {renderMapButton(account)}
               </div>
             ))}
           </div>

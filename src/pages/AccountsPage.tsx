@@ -9,6 +9,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { leadProsperApi } from "@/integrations/leadprosper/client";
 
 const AccountsPage = () => {
   const { user } = useAuth();
@@ -16,7 +17,8 @@ const AccountsPage = () => {
     accountConnections, 
     fetchGoogleAdsAccounts,
     campaigns,
-    isLoading 
+    isLoading,
+    addAccountConnection
   } = useCampaign();
   
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ const AccountsPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
   const [mappingAccountId, setMappingAccountId] = useState<string>("");
+  const [allAccountConnections, setAllAccountConnections] = useState([...accountConnections]);
 
   useEffect(() => {
     if (!user) {
@@ -32,24 +35,56 @@ const AccountsPage = () => {
       return;
     }
 
-    const checkGoogleAuth = async () => {
-      const { isGoogleAuthValid } = await import("@/services/googleAdsService");
-      const isValid = await isGoogleAuthValid();
-      setIsGoogleConnected(isValid);
-      
-      if (isValid && accountConnections.length === 0) {
-        refreshAccounts();
+    const loadAllConnections = async () => {
+      try {
+        setIsRefreshing(true);
+        
+        // Check Google Auth status
+        const { isGoogleAuthValid } = await import("@/services/googleAdsService");
+        const isValid = await isGoogleAuthValid();
+        setIsGoogleConnected(isValid);
+        
+        // Fetch Google accounts
+        await fetchGoogleAdsAccounts();
+        
+        // Get Lead Prosper connections 
+        const lpConnections = await leadProsperApi.getAccountConnections();
+        
+        // Add Lead Prosper connections to the account connections
+        lpConnections.forEach(conn => {
+          addAccountConnection(conn);
+        });
+        
+      } catch (error) {
+        console.error("Error loading connections:", error);
+      } finally {
+        setIsRefreshing(false);
       }
     };
     
-    checkGoogleAuth();
-  }, [user, navigate, accountConnections.length]);
+    loadAllConnections();
+  }, [user, navigate]);
+  
+  // Update local state when accountConnections changes
+  useEffect(() => {
+    setAllAccountConnections(accountConnections);
+  }, [accountConnections]);
   
   const refreshAccounts = async () => {
     setIsRefreshing(true);
     try {
+      // Fetch Google accounts
       await fetchGoogleAdsAccounts();
-      toast.success("Google Ads accounts refreshed");
+      
+      // Get Lead Prosper connections
+      const lpConnections = await leadProsperApi.getAccountConnections();
+      
+      // Add Lead Prosper connections to the account connections
+      lpConnections.forEach(conn => {
+        addAccountConnection(conn);
+      });
+      
+      toast.success("All platform connections refreshed");
     } catch (error) {
       console.error("Error refreshing accounts:", error);
       toast.error("Failed to refresh accounts");
@@ -79,7 +114,7 @@ const AccountsPage = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Google Ads Accounts</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Connected Accounts</h1>
           <p className="text-muted-foreground mt-1">
             Select an account to create campaigns and track performance
           </p>
@@ -88,7 +123,7 @@ const AccountsPage = () => {
         <Button 
           variant="outline"
           onClick={refreshAccounts}
-          disabled={isRefreshing || !isGoogleConnected}
+          disabled={isRefreshing}
         >
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           {isRefreshing ? 'Refreshing...' : 'Refresh Accounts'}
@@ -99,7 +134,7 @@ const AccountsPage = () => {
         <Alert className="mb-4 bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-500" />
           <AlertDescription className="text-amber-800 flex justify-between items-center">
-            <span>Connect your Google Ads account to start importing campaigns</span>
+            <span>Connect your Google Ads account to import campaigns</span>
             <Button 
               variant="outline" 
               size="sm" 
@@ -113,7 +148,7 @@ const AccountsPage = () => {
       )}
       
       <ConnectedAccounts
-        accountConnections={accountConnections}
+        accountConnections={allAccountConnections}
         isLoading={isLoading || isRefreshing}
         selectedAccountId={selectedAccountId}
         onSelectAccount={handleSelectAccount}
@@ -121,7 +156,7 @@ const AccountsPage = () => {
         campaigns={campaigns}
       />
 
-      {isGoogleConnected && accountConnections.length > 0 && (
+      {allAccountConnections.length > 0 && (
         <div className="flex justify-center pt-4">
           <Button 
             onClick={handleCreateCampaign}

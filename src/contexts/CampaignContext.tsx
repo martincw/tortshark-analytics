@@ -6,6 +6,7 @@ import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO, subWeeks } 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { leadProsperApi } from "@/integrations/leadprosper/client";
 
 interface CampaignContextType {
   campaigns: Campaign[];
@@ -282,7 +283,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         return {
           id: conn.id,
           name: conn.name,
-          platform: conn.platform as "google" | "facebook" | "linkedin",
+          platform: conn.platform as "google" | "facebook" | "linkedin" | "leadprosper",
           isConnected: conn.is_connected,
           lastSynced: conn.last_synced,
           customerId: conn.customer_id,
@@ -290,11 +291,27 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         };
       });
       
+      // Get Lead Prosper connections
+      try {
+        const lpConnections = await leadProsperApi.getAccountConnections();
+        
+        // Add LP connections if they don't exist already
+        lpConnections.forEach(lpConn => {
+          const exists = connections.some(conn => conn.platform === 'leadprosper');
+          if (!exists) {
+            connections.push(lpConn);
+          }
+        });
+      } catch (lpError) {
+        console.error("Error fetching Lead Prosper connections:", lpError);
+        // Continue even if Lead Prosper fails
+      }
+      
       setAccountConnections(connections);
       return connections;
     } catch (error) {
       console.error("Error in fetchGoogleAdsAccounts:", error);
-      toast.error("Failed to fetch Google Ads accounts");
+      toast.error("Failed to fetch accounts");
       return [];
     } finally {
       setIsLoading(false);
@@ -303,10 +320,39 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   
   const addAccountConnection = (connection: AccountConnection) => {
     setAccountConnections(prev => {
-      const exists = prev.some(conn => conn.id === connection.id);
-      if (exists) {
-        return prev.map(conn => conn.id === connection.id ? connection : conn);
+      // Check if connection already exists by id or (platform + customerId)
+      const connectionKey = connection.platform === 'leadprosper' ? 
+        connection.platform : // For Lead Prosper, use only the platform as key
+        `${connection.platform}-${connection.customerId || connection.id}`; 
+
+      const existingIndex = prev.findIndex(conn => {
+        if (conn.platform === 'leadprosper' && connection.platform === 'leadprosper') {
+          return true; // Match on platform for Lead Prosper
+        }
+        
+        if (conn.id === connection.id) {
+          return true; // Match on id
+        }
+        
+        if (conn.platform === connection.platform && conn.customerId === connection.customerId) {
+          return true; // Match on platform + customerId
+        }
+        
+        return false;
+      });
+      
+      if (existingIndex >= 0) {
+        // Update existing connection
+        const newConnections = [...prev];
+        newConnections[existingIndex] = {
+          ...newConnections[existingIndex],
+          ...connection,
+          // Preserve the original ID if we're matching on platform + customerId
+          id: newConnections[existingIndex].id,
+        };
+        return newConnections;
       } else {
+        // Add new connection
         return [...prev, connection];
       }
     });
@@ -651,7 +697,28 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   return (
-    <CampaignContext.Provider value={value}>
+    <CampaignContext.Provider value={{
+      campaigns,
+      isLoading,
+      error,
+      selectedCampaignId,
+      dateRange,
+      setDateRange: handleSetDateRange,
+      setSelectedCampaignId,
+      addCampaign,
+      updateCampaign,
+      deleteCampaign,
+      addStatHistoryEntry,
+      updateStatHistoryEntry,
+      deleteStatHistoryEntry,
+      deleteStatHistoryEntries,
+      fetchCampaigns,
+      accountConnections,
+      fetchGoogleAdsAccounts,
+      addAccountConnection,
+      selectedCampaignIds,
+      setSelectedCampaignIds: handleSetSelectedCampaignIds,
+    }}>
       {children}
     </CampaignContext.Provider>
   );

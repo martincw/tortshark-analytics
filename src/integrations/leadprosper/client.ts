@@ -107,16 +107,46 @@ export const leadProsperApi = {
         throw new Error('User not authenticated');
       }
 
-      const { error } = await supabase
+      // First, check if we already have a record
+      const { data: existingToken, error: checkError } = await supabase
         .from('user_oauth_tokens')
-        .upsert({
-          user_id: user.user.id,
-          provider: 'lead_prosper',
-          access_token: apiKey,
-          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year expiration
-        });
+        .select('id')
+        .eq('provider', 'lead_prosper')
+        .maybeSingle();
 
-      if (error) throw error;
+      if (checkError) {
+        console.error('Error checking existing token:', checkError);
+      }
+
+      let operation;
+      if (existingToken) {
+        // Update existing record
+        operation = supabase
+          .from('user_oauth_tokens')
+          .update({
+            access_token: apiKey,
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year expiration
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingToken.id);
+      } else {
+        // Insert new record
+        operation = supabase
+          .from('user_oauth_tokens')
+          .insert({
+            user_id: user.user.id,
+            provider: 'lead_prosper',
+            access_token: apiKey,
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year expiration
+          });
+      }
+
+      const { error } = await operation;
+
+      if (error) {
+        console.error('Error storing Lead Prosper credentials:', error);
+        throw error;
+      }
       
       // Update cache
       cachedApiKey = apiKey;
@@ -344,27 +374,60 @@ export const leadProsperApi = {
   // Save connection information
   async saveConnection(apiKey: string, name: string, userId: string): Promise<any> {
     try {
-      const { data, error } = await supabase
+      // First, check if we already have a record
+      const { data: existingToken, error: checkError } = await supabase
         .from('user_oauth_tokens')
-        .upsert({
-          user_id: userId,
-          provider: 'lead_prosper',
-          access_token: apiKey,
-          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-        .select()
-        .single();
+        .select('id')
+        .eq('provider', 'lead_prosper')
+        .maybeSingle();
 
-      if (error) throw error;
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing token:', checkError);
+        throw checkError;
+      }
+
+      let result;
+      if (existingToken) {
+        // Update existing record
+        const { data: updatedData, error: updateError } = await supabase
+          .from('user_oauth_tokens')
+          .update({
+            user_id: userId,
+            access_token: apiKey,
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingToken.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        result = updatedData;
+      } else {
+        // Insert new record
+        const { data: insertedData, error: insertError } = await supabase
+          .from('user_oauth_tokens')
+          .insert({
+            user_id: userId,
+            provider: 'lead_prosper',
+            access_token: apiKey,
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        result = insertedData;
+      }
       
       // Update cache
       cachedApiKey = apiKey;
       
       return {
-        id: data.id,
+        id: result.id,
         name: name || 'Lead Prosper',
         is_connected: true,
-        last_synced: data.updated_at,
+        last_synced: result.updated_at,
         credentials: { apiKey }
       };
     } catch (error) {
@@ -376,6 +439,35 @@ export const leadProsperApi = {
   // Delete connection
   async deleteConnection(id: string): Promise<boolean> {
     return this.removeCredentials();
+  },
+
+  // Get all account connections, including Lead Prosper
+  async getAccountConnections(): Promise<any[]> {
+    try {
+      // Get Lead Prosper connection
+      const lpConnection = await this.checkConnection();
+      
+      const connections = [];
+      
+      if (lpConnection.isConnected) {
+        connections.push({
+          id: lpConnection.credentials?.id || 'leadprosper',
+          name: 'Lead Prosper',
+          platform: 'leadprosper',
+          isConnected: true,
+          lastSynced: lpConnection.credentials?.last_synced || null,
+          customerId: null,
+          credentials: {
+            apiKey: lpConnection.apiKey || '',
+          }
+        });
+      }
+      
+      return connections;
+    } catch (error) {
+      console.error('Error getting account connections:', error);
+      return [];
+    }
   },
 
   // Fetch today's leads from Lead Prosper
