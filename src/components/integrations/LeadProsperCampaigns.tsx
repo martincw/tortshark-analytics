@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -277,7 +276,14 @@ export default function LeadProsperCampaigns() {
       
     } catch (error) {
       console.error('Error mapping campaign:', error);
-      toast.error(`Failed to map campaign: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Display a more informative error message
+      let errorMessage = 'Failed to map campaign';
+      if (error instanceof Error) {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsMappingLoading(false);
     }
@@ -514,4 +520,3 @@ export default function LeadProsperCampaigns() {
     </Card>
   );
 }
-

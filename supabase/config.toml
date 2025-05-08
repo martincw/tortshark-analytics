@@ -2,12 +2,51 @@
 project_id = "msgqsgftjwpbnqenhfmc"
 
 [api]
-enabled = true
 port = 54321
 schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[[api.functions]]
+name = "google-oauth"
+verify_jwt = true
+
+[[api.functions]]
+name = "lead-prosper-auth"
+verify_jwt = true
+
+[[api.functions]]
+name = "lead-prosper-campaigns"
+verify_jwt = true
+
+[[api.functions]]
+name = "lead-prosper-fetch-today"
+verify_jwt = true
+
+[[api.functions]]
+name = "lead-prosper-sync"
+verify_jwt = true
+
+[[api.functions]]
+name = "lead-prosper-verify"
+verify_jwt = true
+
+[[api.functions]]
+name = "lead-prosper-webhook"
+verify_jwt = false
+
+[[api.functions]]
+name = "update-lp-campaigns-users"
+verify_jwt = true
 
 [db]
 port = 54322
+major_version = 15
+
+[db.pooler]
+port = 54329
+enabled = false
+connection_string = "postgresql://postgres:postgres@localhost:54322/postgres"
 
 [studio]
 enabled = true
@@ -17,34 +56,63 @@ api_url = "http://localhost"
 [inbucket]
 enabled = true
 port = 54324
+smtp_port = 54325
+pop3_port = 54326
 
 [storage]
 enabled = true
+file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "https://tortshark.lovable.app"
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.external.apple]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+url = ""
+
+[auth.external.github]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+url = ""
+
+[auth.external.gitlab]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+url = ""
+
+[auth.external.google]
+enabled = true
+client_id = "825745491152-3sqvo53g01sp5tmcj22m2jckfalrqu2p.apps.googleusercontent.com"
+secret = "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"
+redirect_uri = "https://msgqsgftjwpbnqenhfmc.functions.supabase.co/google-oauth"
+url = "https://api.google.com"
+
+[auth.external.facebook]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+url = "https://graph.facebook.com/v17.0"
 
 [analytics]
-enabled = true
-
-[functions.lead-prosper-campaigns]
-verify_jwt = true
-
-[functions.lead-prosper-auth]
-verify_jwt = true
-
-[functions.lead-prosper-sync]
-verify_jwt = true
-
-[functions.lead-prosper-fetch-today]
-verify_jwt = true
-
-[functions.lead-prosper-verify]
-verify_jwt = true
-
-[functions.lead-prosper-webhook]
-verify_jwt = false
-
-[functions.extract-tort-coverage]
-verify_jwt = true
+enabled = false
+port = 54327
+vector_port = 54328
+backend = "postgres"

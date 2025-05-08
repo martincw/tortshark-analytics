@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
+import { supabase } from "@/integrations/supabase/client";
 
 export function LeadProsper() {
   const location = useLocation();
@@ -27,6 +28,11 @@ export function LeadProsper() {
       '',
       `${window.location.pathname}?${newParams.toString()}`
     );
+    
+    // If navigating to campaigns tab, call the update function
+    if (value === 'campaigns') {
+      updateExistingCampaigns();
+    }
   };
   
   // Check connection on initial load
@@ -37,6 +43,9 @@ export function LeadProsper() {
         .then(connectionData => {
           if (!connectionData.isConnected) {
             toast.warning('No active Lead Prosper connection found. Please connect your account first.');
+          } else {
+            // Also update campaign user IDs when loading campaigns tab
+            updateExistingCampaigns();
           }
         })
         .catch(err => {
@@ -45,6 +54,19 @@ export function LeadProsper() {
         });
     }
   }, [defaultTab]);
+  
+  // Function to update existing campaigns with the current user's ID
+  const updateExistingCampaigns = async () => {
+    try {
+      await supabase.functions.invoke('update-lp-campaigns-users', {
+        body: {},
+      });
+      // No need for user notification, this happens silently in the background
+    } catch (error) {
+      // Just log errors, don't notify the user as this is a background task
+      console.error('Error updating campaign user IDs:', error);
+    }
+  };
   
   return (
     <Tabs defaultValue={defaultTab} onValueChange={handleTabChange}>

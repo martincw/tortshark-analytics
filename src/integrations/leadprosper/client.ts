@@ -1,3 +1,4 @@
+
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -258,6 +259,20 @@ export const leadProsperApi = {
   // Map Lead Prosper campaign to Tortshark campaign
   async mapCampaign(tsCampaignId: string, lpCampaignId: number): Promise<boolean> {
     try {
+      // First get the current user's ID
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting user', userError);
+        throw new Error(`Authentication error: ${userError.message}`);
+      }
+      
+      if (!userData?.user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
+      const userId = userData.user.id;
+      
       // First we need to check if we already have this LP campaign in our system
       const { data: existingLpCampaign, error: fetchError } = await supabase
         .from('external_lp_campaigns')
@@ -266,7 +281,8 @@ export const leadProsperApi = {
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
+        console.error('Error checking existing campaign:', fetchError);
+        throw new Error(`Database error: ${fetchError.message}`);
       }
 
       let lpCampaignUuid = existingLpCampaign?.id;
@@ -280,18 +296,23 @@ export const leadProsperApi = {
           throw new Error(`Campaign with ID ${lpCampaignId} not found`);
         }
 
-        // Insert the campaign into our database
+        // Insert the campaign into our database with user_id
         const { data: newCampaign, error: insertError } = await supabase
           .from('external_lp_campaigns')
           .insert({
             lp_campaign_id: lpCampaignId,
             name: campaign.name,
             status: campaign.status,
+            user_id: userId // Add the user_id to associate this campaign with the current user
           })
           .select()
           .single();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting campaign:', insertError);
+          throw new Error(`Failed to save campaign: ${insertError.message}`);
+        }
+        
         lpCampaignUuid = newCampaign.id;
       }
 
@@ -303,11 +324,22 @@ export const leadProsperApi = {
           ts_campaign_id: tsCampaignId,
         });
 
-      if (mappingError) throw mappingError;
+      if (mappingError) {
+        console.error('Error creating mapping:', mappingError);
+        throw new Error(`Failed to create campaign mapping: ${mappingError.message}`);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error mapping Lead Prosper campaign:', error);
-      throw error;
+      
+      // Provide a more specific error message based on the error type
+      if (error instanceof Error) {
+        // Re-throw with the original message to preserve the error context
+        throw error;
+      } else {
+        throw new Error('An unknown error occurred while mapping the campaign');
+      }
     }
   },
 
