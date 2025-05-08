@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -229,10 +230,10 @@ export default function LeadProsperCampaigns() {
       const campaignsData = await leadProsperApi.getCampaigns(apiKey);
       
       if (Array.isArray(campaignsData)) {
-        setCampaigns(campaignsData);
+        setLpCampaigns(campaignsData);
         toast.success(`Successfully fetched ${campaignsData.length} campaigns`);
       } else {
-        setCampaigns([]);
+        setLpCampaigns([]);
         toast.error('Unexpected API response format');
         setApiResponseDetails(`Got: ${typeof campaignsData}. Raw data: ${JSON.stringify(campaignsData).substring(0, 100)}...`);
       }
@@ -513,3 +514,4 @@ export default function LeadProsperCampaigns() {
     </Card>
   );
 }
+
