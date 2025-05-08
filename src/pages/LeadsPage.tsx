@@ -160,22 +160,38 @@ export default function LeadsPage() {
           setLastSynced(result.last_synced);
         }
         
-        toast.success(`Lead refresh succeeded`, {
-          description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaigns`,
-          duration: 5000,
-        });
+        // Provide additional info if we used stats endpoint as fallback
+        if (result.used_stats_fallback) {
+          toast.success(`Lead refresh succeeded using stats data`, {
+            description: `Unable to fetch detailed leads directly, but successfully retrieved metrics data for ${result.campaigns_processed} campaigns`,
+            duration: 6000,
+          });
+        } else {
+          toast.success(`Lead refresh succeeded`, {
+            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaigns`,
+            duration: 5000,
+          });
+        }
         
         // Reload the leads list to show the new data
         await loadLeads();
       } else {
-        const isTimezoneError = result.error?.toLowerCase().includes('timezone');
+        // Check for timezone-specific issues
+        const isTimezoneError = 
+          result.timezone_error || 
+          (result.error && (
+            result.error.toLowerCase().includes('timezone') ||
+            result.error.includes('valid zone') ||
+            result.error.toLowerCase().includes('cannot assign null')
+          ));
+        
         const errorMessage = result.error || 'Failed to refresh leads';
         setRefreshError(errorMessage);
         
         // Show more specific message for timezone errors
         if (isTimezoneError) {
-          toast.error('Timezone configuration error', {
-            description: 'The Lead Prosper API rejected our timezone format. We\'ve implemented automatic format detection which will try multiple formats.',
+          toast.error('Timezone configuration issue', {
+            description: 'There was a problem with the timezone format. We tried multiple formats including both /leads and /stats endpoints but none were accepted.',
             duration: 8000,
           });
         } else {

@@ -512,6 +512,7 @@ export const leadProsperApi = {
     last_synced?: string;
     results?: any[];
     error?: string;
+    endpoint_used?: string;
   }> {
     try {
       console.log("Fetching today's leads from Lead Prosper");
@@ -525,13 +526,13 @@ export const leadProsperApi = {
 
       console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length})`);
       
-      // Use UTC timezone format as default instead of IANA timezone name
+      // Use UTC timezone format by default - more widely supported
       const DEFAULT_TIMEZONE = "UTC";
       
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
         body: { 
           apiKey,
-          timezone: DEFAULT_TIMEZONE // Use UTC as it's more widely supported
+          timezone: DEFAULT_TIMEZONE
         },
       });
 
@@ -550,21 +551,50 @@ export const leadProsperApi = {
         
         console.error('Lead Prosper fetch failed:', errorDetails);
         
+        // Check if the error is related to timezone issues
+        const isTimezoneError = 
+          (typeof errorDetails === 'string' && 
+           (errorDetails.includes('timezone') || 
+            errorDetails.includes('valid zone') || 
+            errorDetails.toLowerCase().includes('cannot assign null')));
+        
+        // Determine which endpoints were tried
+        let endpointInfo = '';
+        if (data.results) {
+          const endpoints = Array.from(new Set(
+            data.results
+              .filter(r => r.endpoint_used)
+              .map(r => r.endpoint_used)
+          ));
+          
+          if (endpoints.length > 0) {
+            endpointInfo = ` Attempted endpoints: ${endpoints.join(', ')}.`;
+          }
+        }
+        
         return {
           success: false,
           total_leads: 0,
           campaigns_processed: 0,
           error: errorDetails,
           results: data.results || [],
+          endpoint_used: data.endpoint_used || 'unknown',
+          timezone_error: isTimezoneError
         };
       }
 
+      // Check for partial success - some campaigns succeeded with stats instead of leads
+      const statsOnlyCampaigns = data.results?.filter(r => r.status === 'success_stats_only') || [];
+      const usedStatsEndpoint = statsOnlyCampaigns.length > 0;
+      
       return {
         success: true,
         total_leads: data.total_leads || 0,
         campaigns_processed: data.campaigns_processed || 0,
         results: data.results || [],
         last_synced: data.last_synced || new Date().toISOString(),
+        endpoint_used: usedStatsEndpoint ? 'stats' : 'leads',
+        used_stats_fallback: usedStatsEndpoint,
       };
     } catch (error) {
       console.error('Error in fetchTodaysLeads:', error);
@@ -573,6 +603,7 @@ export const leadProsperApi = {
         total_leads: 0,
         campaigns_processed: 0,
         error: error instanceof Error ? error.message : 'An unknown error occurred',
+        endpoint_used: 'error'
       };
     }
   },

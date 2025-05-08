@@ -46,6 +46,9 @@ export function LeadProsper() {
           } else {
             // Also update campaign user IDs when loading campaigns tab
             updateExistingCampaigns();
+            
+            // Try a test refresh if connected
+            trySyncToday(connectionData.apiKey);
           }
         })
         .catch(err => {
@@ -54,6 +57,29 @@ export function LeadProsper() {
         });
     }
   }, [defaultTab]);
+  
+  // Function to test syncing today's leads when connection is established
+  const trySyncToday = async (apiKey: string | undefined) => {
+    if (!apiKey) return;
+    
+    try {
+      toast.info('Testing Lead Prosper connection by syncing today\'s data...');
+      const result = await leadProsperApi.fetchTodayLeads();
+      
+      if (result.success) {
+        toast.success('Successfully synchronized with Lead Prosper', {
+          description: `Retrieved data for ${result.campaigns_processed} campaigns using ${result.endpoint_used || 'leads'} endpoint`,
+        });
+      } else if (result.timezone_error) {
+        toast.warning('Connected, but timezone issues were detected', {
+          description: 'The connection works, but there may be timezone compatibility issues. Visit the Leads page to see detailed status.',
+        });
+      }
+    } catch (error) {
+      console.error('Error testing Lead Prosper sync:', error);
+      // Don't show error toast as this is just a background test
+    }
+  };
   
   // Function to update existing campaigns with the current user's ID
   const updateExistingCampaigns = async () => {

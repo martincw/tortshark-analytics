@@ -21,13 +21,13 @@ async function fetchTodayLeadsWithTimezoneOptions(
   apiKey: string,
   campaignId: number,
   requestedTimezone: string = 'America/Denver',
-  maxRetries: number = 2
+  maxRetries: number = 3
 ): Promise<any> {
   // Format today's date
   const today = format(new Date(), 'yyyy-MM-dd');
   console.log(`Attempting to fetch leads for campaign ${campaignId} for date ${today}`);
   
-  // Define different timezone formats to try
+  // Define different timezone formats to try with the /leads endpoint
   const timezoneFormats = [
     { format: null, description: "No timezone parameter (using campaign default)" },
     { format: requestedTimezone, description: `IANA timezone name (${requestedTimezone})` },
@@ -35,14 +35,24 @@ async function fetchTodayLeadsWithTimezoneOptions(
     { format: "US/Mountain", description: "US/Mountain timezone" },
     { format: "-07:00", description: "UTC offset format" },
     { format: "MST", description: "Mountain Standard Time abbreviation" },
+    // Additional formats to try
+    { format: "America/Los_Angeles", description: "America/Los_Angeles timezone" },
+    { format: "America/New_York", description: "America/New_York timezone" },
+    { format: "GMT", description: "GMT timezone" },
+    { format: "EST", description: "EST abbreviation" },
+    { format: "CST", description: "CST abbreviation" },
+    { format: "PST", description: "PST abbreviation" },
+    { format: "EDT", description: "EDT abbreviation" },
+    { format: "CDT", description: "CDT abbreviation" },
+    { format: "PDT", description: "PDT abbreviation" },
   ];
   
-  // Try each timezone format
-  const errors = [];
+  // Try each timezone format with /leads endpoint
+  const leadsErrors = [];
   
-  for (const { format, description } of timezoneFormats) {
+  for (const { format, description } of timezoneFormats.slice(0, 5)) { // Try first 5 formats with /leads endpoint
     try {
-      console.log(`Trying ${description}`);
+      console.log(`Trying ${description} with /leads endpoint`);
       
       // Build URL - only include timezone if format is provided
       let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${today}&end_date=${today}`;
@@ -61,32 +71,83 @@ async function fetchTodayLeadsWithTimezoneOptions(
       // Check if successful
       if (response.ok) {
         const data = await response.json();
-        console.log(`Success using ${description}! Received ${data.data?.length || 0} leads`);
+        console.log(`Success using ${description} with /leads endpoint! Received ${data.data?.length || 0} leads`);
         return data;
       }
       
       // If not successful, capture the error
       const errorText = await response.text();
       const statusCode = response.status;
-      console.error(`Failed with ${description}: ${statusCode} - ${errorText}`);
-      errors.push({ format: description, error: errorText, status: statusCode });
+      console.error(`Failed with ${description} on /leads endpoint: ${statusCode} - ${errorText}`);
+      leadsErrors.push({ format: description, error: errorText, status: statusCode });
       
       // If this isn't a timezone error, we should stop and report the actual error
       if (!errorText.includes("timezone") && 
-          !errorText.toLowerCase().includes("cannot assign null")) {
+          !errorText.toLowerCase().includes("cannot assign null") &&
+          !errorText.includes("must be a valid zone")) {
         throw new Error(`API returned status ${statusCode}: ${errorText}`);
       }
       
       // Otherwise continue trying other formats
     } catch (error) {
-      console.error(`Error with ${description}:`, error);
-      errors.push({ format: description, error: error instanceof Error ? error.message : String(error) });
+      if (error instanceof Error && error.message.startsWith('API returned status')) {
+        throw error; // Re-throw non-timezone related errors
+      }
+      console.error(`Error with ${description} on /leads endpoint:`, error);
+      leadsErrors.push({ format: description, error: error instanceof Error ? error.message : String(error) });
     }
   }
+
+  // If /leads endpoint failed with all formats, try the /stats endpoint as fallback
+  console.log("All /leads endpoint attempts failed. Trying /stats endpoint...");
   
-  // If we've tried all formats and none worked, report detailed error
-  const errorDetails = JSON.stringify(errors, null, 2);
-  throw new Error(`Failed to fetch leads using any timezone format. Details: ${errorDetails}`);
+  try {
+    // Build URL for /stats endpoint - this endpoint might be more tolerant with timezone formats
+    const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${today}&end_date=${today}`;
+    
+    console.log(`Trying /stats endpoint without timezone parameter`);
+    
+    // Make the API call to stats endpoint
+    const statsResponse = await fetch(statsUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (statsResponse.ok) {
+      const statsData = await statsResponse.json();
+      console.log(`Success with /stats endpoint! Processing stats data instead.`);
+      
+      // Format stats data to match expected structure for leads processing
+      return {
+        success: true,
+        data: [], // No leads data, but we'll record the stats
+        stats: statsData.data || [],
+        endpoint: 'stats'
+      };
+    }
+    
+    // If stats endpoint also failed, capture error
+    const statsErrorText = await statsResponse.text();
+    const statsStatusCode = statsResponse.status;
+    console.error(`Failed with /stats endpoint: ${statsStatusCode} - ${statsErrorText}`);
+    
+    // If we've tried all formats and endpoints and none worked, report detailed error
+    const errorDetails = JSON.stringify({
+      leads_attempts: leadsErrors,
+      stats_attempt: { 
+        error: statsErrorText,
+        status: statsStatusCode
+      }
+    }, null, 2);
+    
+    throw new Error(`Failed to fetch data using any endpoint or timezone format. Details: ${errorDetails}`);
+    
+  } catch (finalError) {
+    console.error("All API attempts failed:", finalError);
+    throw finalError;
+  }
 }
 
 // Process leads and update metrics
@@ -134,6 +195,54 @@ async function processLeadsAndUpdateMetrics(
   }
 }
 
+// Process stats data and update metrics
+async function processStatsAndUpdateMetrics(
+  supabaseClient: any,
+  statsData: any[],
+  campaignMapping: any
+): Promise<void> {
+  // If we have stats data but no leads, we'll just update the metrics for the day
+  if (!statsData || statsData.length === 0) {
+    console.log('No stats data available to process');
+    return;
+  }
+  
+  console.log(`Processing ${statsData.length} stats entries`);
+  
+  for (const stat of statsData) {
+    // Make sure we have a valid date from the stats
+    if (!stat.date) {
+      console.warn('Stats entry missing date, skipping:', stat);
+      continue;
+    }
+    
+    // Parse the date from the stats entry
+    const dateString = stat.date.split('T')[0]; // YYYY-MM-DD format
+    
+    // Calculate metrics from stats
+    const leadCount = stat.leads || 0;
+    const accepted = stat.accepted || 0;
+    const duplicated = stat.duplicates || 0;
+    const failed = (stat.rejected || 0) + (stat.failed || 0);
+    const cost = stat.cost || 0;
+    const revenue = stat.revenue || 0;
+    
+    console.log(`Updating metrics for date ${dateString}: leads=${leadCount}, accepted=${accepted}, duplicated=${duplicated}, failed=${failed}, cost=${cost}, revenue=${revenue}`);
+    
+    // Upsert into daily metrics
+    await supabaseClient.rpc('upsert_daily_lead_metrics', {
+      p_ts_campaign_id: campaignMapping.ts_campaign_id,
+      p_date: dateString,
+      p_lead_count: leadCount,
+      p_accepted: accepted,
+      p_duplicated: duplicated,
+      p_failed: failed,
+      p_cost: cost,
+      p_revenue: revenue
+    });
+  }
+}
+
 serve(async (req) => {
   // Handle CORS
   const corsResponse = handleCors(req);
@@ -165,7 +274,7 @@ serve(async (req) => {
 
     // Get parameters from the request
     let apiKey;
-    let requestedTimezone = 'America/Denver'; // Default timezone
+    let requestedTimezone = 'UTC'; // Default changed to UTC for better compatibility
     
     try {
       const body = await req.json();
@@ -252,20 +361,21 @@ serve(async (req) => {
       try {
         console.log(`Processing mapping ${mapping.id}: LP Campaign ${lpCampaignId} -> TS Campaign ${mapping.ts_campaign_id}`);
         
-        // Try to fetch leads using different timezone formats
-        const leadsData = await fetchTodayLeadsWithTimezoneOptions(
+        // Try to fetch leads using different timezone formats or fallback to stats
+        const apiResponse = await fetchTodayLeadsWithTimezoneOptions(
           apiKey, 
           lpCampaignId, 
           requestedTimezone
         );
         
-        if (leadsData.data && leadsData.data.length > 0) {
+        // Check if we got leads data
+        if (apiResponse.data && apiResponse.data.length > 0) {
           // Process the leads
-          await processLeadsAndUpdateMetrics(supabaseClient, leadsData.data, {
+          await processLeadsAndUpdateMetrics(supabaseClient, apiResponse.data, {
             ts_campaign_id: mapping.ts_campaign_id
           });
           
-          totalLeads += leadsData.data.length;
+          totalLeads += apiResponse.data.length;
           successCount++;
           
           results.push({
@@ -273,18 +383,41 @@ serve(async (req) => {
             campaign_id: lpCampaignId,
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
-            leads_count: leadsData.data.length,
+            leads_count: apiResponse.data.length,
+            endpoint_used: apiResponse.endpoint || 'leads',
             status: 'success'
           });
-        } else {
-          console.log(`No leads found today for campaign ${lpCampaignId}`);
+        } 
+        // Check if we got stats data instead
+        else if (apiResponse.stats && apiResponse.stats.length > 0) {
+          // Process the stats data
+          await processStatsAndUpdateMetrics(supabaseClient, apiResponse.stats, {
+            ts_campaign_id: mapping.ts_campaign_id
+          });
+          
+          // Still count this as a success even though we used stats instead of leads
+          successCount++;
+          
+          results.push({
+            mapping_id: mapping.id,
+            campaign_id: lpCampaignId,
+            ts_campaign_id: mapping.ts_campaign_id,
+            campaign_name: mapping.lp_campaign.name,
+            stats_count: apiResponse.stats.length,
+            endpoint_used: 'stats',
+            status: 'success_stats_only'
+          });
+        }
+        else {
+          console.log(`No leads or stats found today for campaign ${lpCampaignId}`);
           results.push({
             mapping_id: mapping.id,
             campaign_id: lpCampaignId,
             ts_campaign_id: mapping.ts_campaign_id,
             campaign_name: mapping.lp_campaign.name,
             leads_count: 0,
-            status: 'success'
+            endpoint_used: apiResponse.endpoint || 'unknown',
+            status: 'success_no_data'
           });
           successCount++;
         }
