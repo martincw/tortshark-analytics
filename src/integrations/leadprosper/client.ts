@@ -1,4 +1,3 @@
-
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -505,10 +504,11 @@ export const leadProsperApi = {
   },
 
   // Fetch today's leads from Lead Prosper
-  async fetchTodayLeads(timezone: string = DEFAULT_TIMEZONE): Promise<{
+  async fetchTodayLeads(): Promise<{
     success: boolean;
     total_leads: number;
     campaigns_processed: number;
+    last_synced?: string;
     results?: any[];
     error?: string;
   }> {
@@ -522,17 +522,16 @@ export const leadProsperApi = {
         throw new Error('Not connected to Lead Prosper. Please add your API key first.');
       }
 
-      console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length}) and timezone: ${timezone}`);
+      console.log(`Calling lead-prosper-fetch-today function with API key (length: ${apiKey.length})`);
       
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
         body: { 
-          apiKey,
-          timezone // Pass timezone parameter to the edge function
+          apiKey
         },
       });
 
       if (error) {
-        console.error('Error calling lead-prossp-fetch-today function:', error);
+        console.error('Error calling lead-prosper-fetch-today function:', error);
         throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
       }
 
@@ -560,6 +559,7 @@ export const leadProsperApi = {
         total_leads: data.total_leads || 0,
         campaigns_processed: data.campaigns_processed || 0,
         results: data.results || [],
+        last_synced: data.last_synced || new Date().toISOString(),
       };
     } catch (error) {
       console.error('Error in fetchTodaysLeads:', error);
