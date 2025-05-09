@@ -79,6 +79,18 @@ verify_jwt = true
 [functions.hyros-leads]
 verify_jwt = true
 
+[functions.google-ads]
+verify_jwt = true
+
+[functions.google-oauth]
+verify_jwt = true
+
+[functions.google-ads-data]
+verify_jwt = true
+
+[functions.google-ads-manager]
+verify_jwt = true
+
 [analytics]
 enabled = false
 port = 54327

@@ -15,6 +15,7 @@ export interface Campaign {
   stats?: CampaignStats;
   is_active?: boolean;
   _metrics?: import('./metrics').CampaignMetrics; // Cache for pre-calculated metrics
+  googleAdsMetrics?: GoogleAdsMetricsResponse[]; // Added Google Ads metrics
 }
 
 export interface ManualStats {
@@ -75,4 +76,34 @@ export interface AccountConnection {
   lastSynced?: string;
   isConnected: boolean;
   credentials?: Record<string, any>; // Added credentials property to fix TypeScript error
+}
+
+// Google Ads specific interfaces
+export interface GoogleAdsMetrics {
+  impressions: number;
+  clicks: number;
+  adSpend: number;
+  ctr: number;
+  cpc: number;
+  averageCpc: number;
+  cost: number;
+  conversionRate: number;
+  date: string;
+  conversions?: number;
+}
+
+export interface GoogleAdsMetricsResponse {
+  impressions: number;
+  clicks: number;
+  adSpend: number;
+  ctr: number;
+  cpc: number;
+  cpl?: number;
+  date: string;
+  conversions?: number;
+}
+
+export interface DateRange {
+  startDate: string;
+  endDate: string;
 }

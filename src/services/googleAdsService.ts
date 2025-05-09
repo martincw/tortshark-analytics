@@ -32,28 +32,18 @@ interface GoogleAdsMetricsResponse {
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     console.log("Checking Google Ads authentication validity...");
-    const { data: tokenData, error } = await supabase
-      .from('google_ads_tokens')
-      .select('access_token, expires_at')
-      .single();
+    
+    // Use the edge function to validate token instead of directly querying the database
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
+      body: { action: "validate" }
+    });
     
     if (error) {
-      console.error("Error fetching Google Ads token:", error);
+      console.error("Error validating Google auth:", error);
       return false;
     }
     
-    if (!tokenData?.access_token) {
-      console.log("No access token found");
-      return false;
-    }
-    
-    const isExpired = new Date(tokenData.expires_at) <= new Date();
-    if (isExpired) {
-      console.log("Token is expired, attempting refresh");
-      return await refreshGoogleToken();
-    }
-    
-    return true;
+    return data?.valid || false;
   } catch (error) {
     console.error('Google Ads authentication validation failed:', {
       errorMessage: error.message,
@@ -74,7 +64,7 @@ export const initiateGoogleAuth = async (): Promise<{ url: string }> => {
 
     console.log("Starting Google Auth process with valid session");
     
-    const { data, error } = await supabase.functions.invoke('google-ads', {
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { 
         action: "auth",
         timestamp: new Date().toISOString()
@@ -112,7 +102,7 @@ export const handleOAuthCallback = async (
       return false;
     }
 
-    const { data, error } = await supabase.functions.invoke('google-ads', {
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { 
         action: "callback",
         code,
@@ -139,18 +129,18 @@ export const handleOAuthCallback = async (
 
 export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | null> => {
   try {
-    const { data, error } = await supabase
-      .from('google_ads_tokens')
-      .select('refresh_token, access_token, email')
-      .maybeSingle();
+    // Use the edge function to get credential info instead of direct database access
+    const { data: userData, error: userError } = await supabase.functions.invoke('google-ads', {
+      body: { action: "get-credentials" }
+    });
       
-    if (error || !data) {
-      console.error("Error getting Google Ads credentials:", error);
+    if (userError || !userData) {
+      console.error("Error getting Google Ads credentials:", userError);
       return null;
     }
     
-    if (!data.access_token) {
-      console.error("No access token found in database");
+    if (!userData.access_token) {
+      console.error("No access token found");
       return null;
     }
 
@@ -166,7 +156,7 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
     return {
       customerId: "", // Initially empty, will be set when user selects an account
       developerToken: tokenData.developerToken,
-      userEmail: data.email
+      userEmail: userData.email
     };
   } catch (error) {
     console.error("Error in getGoogleAdsCredentials:", error);
@@ -176,7 +166,7 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
 
 export const validateGoogleToken = async (): Promise<boolean> => {
   try {
-    const { data, error } = await supabase.functions.invoke('google-ads', {
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { action: "validate" }
     });
     
@@ -194,7 +184,7 @@ export const validateGoogleToken = async (): Promise<boolean> => {
 
 export const refreshGoogleToken = async (): Promise<boolean> => {
   try {
-    const { data, error } = await supabase.functions.invoke('google-ads', {
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { action: "refresh" }
     });
     
@@ -214,7 +204,7 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
   try {
     console.log("Revoking Google access");
     
-    const { data, error } = await supabase.functions.invoke('google-ads', {
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
       body: { action: "revoke" }
     });
     
@@ -223,18 +213,8 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
       throw error;
     }
     
-    const { error: deleteError } = await supabase
-      .from('google_ads_tokens')
-      .delete()
-      .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '');
-      
-    if (deleteError) {
-      console.error("Error deleting token from database:", deleteError);
-      throw deleteError;
-    }
-    
     console.log("Successfully revoked Google access");
-    return true;
+    return data?.success || false;
   } catch (error) {
     console.error("Error in revokeGoogleAccess:", error);
     return false;

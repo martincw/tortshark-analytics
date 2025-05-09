@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 const corsHeaders = {
@@ -12,6 +13,7 @@ const corsHeaders = {
 };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -59,13 +61,39 @@ serve(async (req) => {
       );
     }
     
+    // Action to get credentials
+    if (action === "get-credentials") {
+      // Use the admin client to get tokens (bypassing RLS)
+      const { data: tokenData, error: tokenError } = await adminClient
+        .from("google_ads_tokens")
+        .select("access_token, refresh_token, expires_at, email")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (tokenError || !tokenData) {
+        console.error("Error fetching token data:", tokenError);
+        return new Response(
+          JSON.stringify({ error: "Failed to retrieve credentials" }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify(tokenData),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     // Action to list Google Ads accounts
     if (action === "accounts") {
       console.log("Fetching Google Ads accounts for user:", user.id);
       
       try {
         // Get the user's Google Ads token from the database
-        const { data: tokenData, error: tokenError } = await supabase
+        const { data: tokenData, error: tokenError } = await adminClient
           .from("google_ads_tokens")
           .select("access_token, refresh_token, expires_at")
           .eq("user_id", user.id)
@@ -181,7 +209,7 @@ serve(async (req) => {
       console.log("Validating token for user:", user.id);
       
       try {
-        const { data: tokenData, error: tokenError } = await supabase
+        const { data: tokenData, error: tokenError } = await adminClient
           .from("google_ads_tokens")
           .select("access_token, expires_at")
           .eq("user_id", user.id)
@@ -208,7 +236,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ valid: false, error: `Token validation failed: ${error.message}` }),
           { 
-            status: 500, 
+            status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );

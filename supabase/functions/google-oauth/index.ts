@@ -123,7 +123,7 @@ serve(async (req) => {
 
         const tokens = await tokenResponse.json();
         
-        // Use admin client to store tokens
+        // Use admin client to store tokens in google_ads_tokens table
         const { error: dbError } = await supabaseAdmin
           .from("google_ads_tokens")
           .upsert({
@@ -131,6 +131,7 @@ serve(async (req) => {
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+            scope: tokens.scope
           });
 
         if (dbError) {
@@ -151,7 +152,7 @@ serve(async (req) => {
       }
     }
 
-    // Handle validation
+    // Handle token validation
     if (action === "validate") {
       try {
         const { data: tokens, error: tokensError } = await supabaseAdmin
@@ -183,6 +184,137 @@ serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: error instanceof Error ? error.message : "Failed to validate tokens"
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+    }
+    
+    // Handle token refresh
+    if (action === "refresh") {
+      try {
+        // Get the current refresh token
+        const { data: tokenData, error: tokenError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .select("refresh_token")
+          .eq("user_id", user.id)
+          .single();
+          
+        if (tokenError || !tokenData?.refresh_token) {
+          console.error("Error getting refresh token:", tokenError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "No refresh token available"
+            }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            }
+          );
+        }
+          
+        // Request a new access token
+        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: Deno.env.get("GOOGLE_CLIENT_ID") || "",
+            client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET") || "",
+            refresh_token: tokenData.refresh_token,
+            grant_type: "refresh_token",
+          }),
+        });
+        
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error("Token refresh failed:", errorText);
+          throw new Error(`Token refresh failed: ${errorText}`);
+        }
+        
+        const tokens = await tokenResponse.json();
+        
+        // Update the tokens in the database
+        const { error: updateError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .update({
+            access_token: tokens.access_token,
+            expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq("user_id", user.id);
+          
+        if (updateError) {
+          console.error("Error updating tokens:", updateError);
+          throw new Error(`Failed to update tokens: ${updateError.message}`);
+        }
+        
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Token refresh error:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error instanceof Error ? error.message : "Failed to refresh token"
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+    }
+    
+    // Handle token revocation
+    if (action === "revoke") {
+      try {
+        // Get the current access token
+        const { data: tokenData, error: tokenError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .select("access_token")
+          .eq("user_id", user.id)
+          .single();
+          
+        if (!tokenError && tokenData?.access_token) {
+          // Revoke the token at Google
+          try {
+            await fetch(`https://oauth2.googleapis.com/revoke?token=${tokenData.access_token}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            });
+          } catch (revokeError) {
+            console.error("Error revoking token at Google:", revokeError);
+            // Continue anyway to delete the local token
+          }
+        }
+        
+        // Delete the token from our database
+        const { error: deleteError } = await supabaseAdmin
+          .from("google_ads_tokens")
+          .delete()
+          .eq("user_id", user.id);
+          
+        if (deleteError) {
+          console.error("Error deleting token:", deleteError);
+          throw new Error(`Failed to delete token: ${deleteError.message}`);
+        }
+        
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Token revocation error:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error instanceof Error ? error.message : "Failed to revoke token"
           }),
           { 
             status: 500,
