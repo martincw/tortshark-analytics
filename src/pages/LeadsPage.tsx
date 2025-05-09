@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -31,8 +32,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCampaign } from '@/contexts/CampaignContext';
-import { leadProsperApi } from '@/integrations/leadprosper/client';
-import { LeadProsperSyncResult } from '@/integrations/leadprosper/types';
+import { hyrosApi } from '@/integrations/hyros/client';
+import { HyrosSyncResult } from '@/integrations/hyros/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -93,13 +94,12 @@ export default function LeadsPage() {
       setLoading(true);
       setRefreshError(null);
       
-      const result = await leadProsperApi.getLeadsList({
+      const result = await hyrosApi.getLeadsList({
         page,
         pageSize,
         startDate: filters.startDate,
         endDate: filters.endDate,
-        ts_campaign_id: filters.campaignId || undefined,
-        status: filters.status || undefined,
+        tsCampaignId: filters.campaignId || undefined,
         searchTerm: filters.searchTerm || undefined,
       });
       
@@ -148,15 +148,15 @@ export default function LeadsPage() {
       setRefreshError(null);
       setDebugInfo([]);
       
-      // Get the Lead Prosper API Key
-      const apiKeyResponse = await leadProsperApi.getApiCredentials();
+      // Get the HYROS API Key
+      const apiKeyResponse = await hyrosApi.getApiCredentials();
       
       if (!apiKeyResponse?.apiKey) {
-        throw new Error('No Lead Prosper API key found. Please connect your account first.');
+        throw new Error('No HYROS API key found. Please connect your account first.');
       }
       
-      // Call the edge function to fetch yesterday's leads - optimized for rate limiting
-      const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
+      // Call the edge function to fetch yesterday's leads
+      const result: HyrosSyncResult = await hyrosApi.fetchYesterdayStats();
       
       // Store debug info for troubleshooting
       if (result.debug_info) {
@@ -174,13 +174,7 @@ export default function LeadsPage() {
           setLastSynced(result.last_synced);
         }
         
-        // Provide additional info if we used stats endpoint as fallback
-        if (result.used_stats_fallback) {
-          toast.success(`Lead refresh succeeded using stats data`, {
-            description: `Retrieved metrics data for ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
-            duration: 6000,
-          });
-        } else if (result.total_leads > 0) {
+        if (result.total_leads && result.total_leads > 0) {
           toast.success(`Lead refresh succeeded`, {
             description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
             duration: 5000,
@@ -198,22 +192,12 @@ export default function LeadsPage() {
         // Special handling for rate limit errors
         const isRateLimitError = result.error?.includes('rate limit') || result.error?.includes('429');
         
-        // Check for timezone-specific issues
-        const isTimezoneError = result.timezone_error || false;
-        
         const errorMessage = result.error || 'Failed to refresh leads';
         setRefreshError(errorMessage);
         
         if (isRateLimitError) {
           toast.error('API Rate Limit Exceeded', {
-            description: 'The Lead Prosper API is rate limited. Please wait a few minutes and try again.',
-            duration: 8000,
-          });
-        } 
-        // Show more specific message for timezone errors
-        else if (isTimezoneError) {
-          toast.error('Timezone configuration issue', {
-            description: 'There was a problem with the timezone format. We tried multiple formats including both /leads and /stats endpoints but none were accepted.',
+            description: 'The HYROS API is rate limited. Please wait a few minutes and try again.',
             duration: 8000,
           });
         } else {
@@ -246,27 +230,12 @@ export default function LeadsPage() {
   };
   
   // Helper to format lead date
-  const formatLeadDate = (timestamp: number) => {
+  const formatLeadDate = (date: string) => {
     try {
-      return format(new Date(timestamp), 'MMM d, yyyy h:mm a');
+      return format(new Date(date), 'MMM d, yyyy');
     } catch (error) {
       return 'Invalid date';
     }
-  };
-  
-  // Get status badge variant
-  const getStatusBadge = (status: string) => {
-    const statusLower = status?.toLowerCase() || '';
-    
-    if (statusLower === 'accepted') {
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">{status}</Badge>;
-    } else if (statusLower === 'duplicate') {
-      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">{status}</Badge>;
-    } else if (statusLower === 'rejected' || statusLower === 'failed') {
-      return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">{status}</Badge>;
-    }
-    
-    return <Badge variant="outline">{status || 'Unknown'}</Badge>;
   };
   
   // Clear all filters
@@ -289,9 +258,9 @@ export default function LeadsPage() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Lead Prosper Leads</h1>
+          <h1 className="text-2xl font-semibold">HYROS Leads</h1>
           <p className="text-muted-foreground">
-            View and manage leads from Lead Prosper campaigns
+            View and manage leads from HYROS campaigns
           </p>
         </div>
         
@@ -357,7 +326,7 @@ export default function LeadsPage() {
         <CardHeader className="pb-3">
           <CardTitle>Leads</CardTitle>
           <CardDescription>
-            Leads imported from Lead Prosper campaigns
+            Leads imported from HYROS campaigns
           </CardDescription>
         </CardHeader>
         
@@ -407,28 +376,6 @@ export default function LeadsPage() {
                               {campaign.name}
                             </SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Status</h4>
-                      <Select 
-                        value={filters.status} 
-                        onValueChange={(value) => {
-                          setFilters({...filters, status: value});
-                          setPage(1);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All Statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">All Statuses</SelectItem>
-                          <SelectItem value="ACCEPTED">Accepted</SelectItem>
-                          <SelectItem value="DUPLICATE">Duplicate</SelectItem>
-                          <SelectItem value="REJECTED">Rejected</SelectItem>
-                          <SelectItem value="FAILED">Failed</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -509,7 +456,8 @@ export default function LeadsPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Leads</TableHead>
+                  <TableHead>Sales</TableHead>
                   <TableHead>Cost</TableHead>
                   <TableHead>Revenue</TableHead>
                 </TableRow>
@@ -521,30 +469,35 @@ export default function LeadsPage() {
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     </TableRow>
                   ))
                 ) : leads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                       No leads found. Try adjusting your filters.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  leads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell>{formatLeadDate(lead.lead_date_ms)}</TableCell>
-                      <TableCell>
-                        {lead.campaign?.name || 'Unknown Campaign'}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(lead.status)}
-                      </TableCell>
-                      <TableCell>${lead.cost?.toFixed(2) || '0.00'}</TableCell>
-                      <TableCell>${lead.revenue?.toFixed(2) || '0.00'}</TableCell>
-                    </TableRow>
-                  ))
+                  leads.map((lead) => {
+                    // Find campaign name
+                    const campaign = campaigns?.find(c => c.id === lead.tsCampaignId);
+                    
+                    return (
+                      <TableRow key={lead.id}>
+                        <TableCell>{formatLeadDate(lead.date)}</TableCell>
+                        <TableCell>
+                          {campaign?.name || 'Unknown Campaign'}
+                        </TableCell>
+                        <TableCell>{lead.leads || 0}</TableCell>
+                        <TableCell>{lead.sales || 0}</TableCell>
+                        <TableCell>${lead.adSpend?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>${lead.revenue?.toFixed(2) || '0.00'}</TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

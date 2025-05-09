@@ -514,11 +514,11 @@ export type Database = {
         }
         Relationships: []
       }
-      external_lp_campaigns: {
+      hyros_campaigns: {
         Row: {
           created_at: string | null
+          hyros_campaign_id: string
           id: string
-          lp_campaign_id: number
           name: string
           status: string | null
           updated_at: string | null
@@ -526,8 +526,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          hyros_campaign_id: string
           id?: string
-          lp_campaign_id: number
           name: string
           status?: string | null
           updated_at?: string | null
@@ -535,8 +535,8 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          hyros_campaign_id?: string
           id?: string
-          lp_campaign_id?: number
           name?: string
           status?: string | null
           updated_at?: string | null
@@ -544,76 +544,52 @@ export type Database = {
         }
         Relationships: []
       }
-      google_ads_tokens: {
+      hyros_stats_raw: {
         Row: {
-          access_token: string
+          ad_spend: number | null
+          clicks: number | null
           created_at: string | null
-          email: string | null
-          expires_at: string
+          date: string
+          hyros_campaign_id: string
           id: string
-          refresh_token: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          access_token: string
-          created_at?: string | null
-          email?: string | null
-          expires_at: string
-          id?: string
-          refresh_token?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          access_token?: string
-          created_at?: string | null
-          email?: string | null
-          expires_at?: string
-          id?: string
-          refresh_token?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      lp_leads_raw: {
-        Row: {
-          cost: number | null
-          created_at: string | null
-          id: string
+          impressions: number | null
           json_payload: Json | null
-          lead_date_ms: number | null
-          lp_campaign_id: number
+          leads: number | null
           revenue: number | null
-          status: string | null
+          sales: number | null
           ts_campaign_id: string | null
         }
         Insert: {
-          cost?: number | null
+          ad_spend?: number | null
+          clicks?: number | null
           created_at?: string | null
-          id: string
+          date: string
+          hyros_campaign_id: string
+          id?: string
+          impressions?: number | null
           json_payload?: Json | null
-          lead_date_ms?: number | null
-          lp_campaign_id: number
+          leads?: number | null
           revenue?: number | null
-          status?: string | null
+          sales?: number | null
           ts_campaign_id?: string | null
         }
         Update: {
-          cost?: number | null
+          ad_spend?: number | null
+          clicks?: number | null
           created_at?: string | null
+          date?: string
+          hyros_campaign_id?: string
           id?: string
+          impressions?: number | null
           json_payload?: Json | null
-          lead_date_ms?: number | null
-          lp_campaign_id?: number
+          leads?: number | null
           revenue?: number | null
-          status?: string | null
+          sales?: number | null
           ts_campaign_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "lp_leads_raw_ts_campaign_id_fkey"
+            foreignKeyName: "hyros_stats_raw_ts_campaign_id_fkey"
             columns: ["ts_campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
@@ -621,47 +597,70 @@ export type Database = {
           },
         ]
       }
-      lp_to_ts_map: {
+      hyros_to_ts_map: {
         Row: {
           active: boolean | null
+          hyros_campaign_id: string
           id: string
           linked_at: string | null
-          lp_campaign_id: string
           ts_campaign_id: string
           unlinked_at: string | null
         }
         Insert: {
           active?: boolean | null
+          hyros_campaign_id: string
           id?: string
           linked_at?: string | null
-          lp_campaign_id: string
           ts_campaign_id: string
           unlinked_at?: string | null
         }
         Update: {
           active?: boolean | null
+          hyros_campaign_id?: string
           id?: string
           linked_at?: string | null
-          lp_campaign_id?: string
           ts_campaign_id?: string
           unlinked_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "lp_to_ts_map_lp_campaign_id_fkey"
-            columns: ["lp_campaign_id"]
-            isOneToOne: false
-            referencedRelation: "external_lp_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lp_to_ts_map_ts_campaign_id_fkey"
+            foreignKeyName: "hyros_to_ts_map_ts_campaign_id_fkey"
             columns: ["ts_campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
+      }
+      hyros_tokens: {
+        Row: {
+          account_id: string | null
+          api_key: string
+          created_at: string | null
+          id: string
+          last_synced: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          api_key: string
+          created_at?: string | null
+          id?: string
+          last_synced?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          api_key?: string
+          created_at?: string | null
+          id?: string
+          last_synced?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       ts_daily_lead_metrics: {
         Row: {
@@ -764,6 +763,16 @@ export type Database = {
       migrate_campaigns_from_localstorage: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      upsert_hyros_daily_metrics: {
+        Args: {
+          p_ts_campaign_id: string
+          p_date: string
+          p_lead_count: number
+          p_cost: number
+          p_revenue: number
+        }
+        Returns: undefined
       }
     }
     Enums: {

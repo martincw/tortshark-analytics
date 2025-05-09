@@ -3,6 +3,7 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Google from "@/components/integrations/Google";
 import LeadProsper from "@/components/integrations/LeadProsper";
+import Hyros from "@/components/integrations/Hyros";
 
 export default function IntegrationsPage() {
   return (
@@ -12,11 +13,15 @@ export default function IntegrationsPage() {
         <p className="text-muted-foreground">Connect your external platforms</p>
       </header>
 
-      <Tabs defaultValue="google" className="w-full">
+      <Tabs defaultValue="hyros" className="w-full">
         <TabsList className="mb-6">
+          <TabsTrigger value="hyros">HYROS</TabsTrigger>
           <TabsTrigger value="google">Google Ads</TabsTrigger>
           <TabsTrigger value="leadprosper">Lead Prosper</TabsTrigger>
         </TabsList>
+        <TabsContent value="hyros">
+          <Hyros />
+        </TabsContent>
         <TabsContent value="google">
           <Google />
         </TabsContent>

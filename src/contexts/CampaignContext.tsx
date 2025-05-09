@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Campaign, DateRange, AccountConnection } from "@/types/campaign";
 import { v4 as uuidv4 } from 'uuid';
@@ -30,6 +29,7 @@ interface CampaignContextType {
   selectedCampaignIds: string[];
   setSelectedCampaignIds: (ids: string[]) => void;
   migrateFromLocalStorage?: () => Promise<void>;
+  fetchHyrosAccounts: () => Promise<any>;
 }
 
 export const CampaignContext = createContext<CampaignContextType>({
@@ -53,6 +53,7 @@ export const CampaignContext = createContext<CampaignContextType>({
   addAccountConnection: () => {},
   selectedCampaignIds: [],
   setSelectedCampaignIds: () => {},
+  fetchHyrosAccounts: async () => {},
 });
 
 export const useCampaign = () => useContext(CampaignContext);
@@ -250,6 +251,88 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [user]);
 
+  const fetchHyrosAccounts = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('account_connections')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('platform', 'hyros');
+        
+      if (error) {
+        console.error("Error fetching account connections:", error);
+        throw error;
+      }
+      
+      const connections: AccountConnection[] = data.map(conn => {
+        let processedCredentials: Record<string, any> = {};
+        
+        if (conn.credentials) {
+          if (typeof conn.credentials === 'string') {
+            try {
+              processedCredentials = JSON.parse(conn.credentials);
+            } catch (error) {
+              console.error("Error parsing credentials string:", error);
+              processedCredentials = {};
+            }
+          } else if (typeof conn.credentials === 'object') {
+            processedCredentials = conn.credentials as Record<string, any>;
+          }
+        }
+        
+        return {
+          id: conn.id,
+          name: conn.name,
+          platform: "hyros" as "google" | "facebook" | "linkedin" | "leadprosper" | "hyros",
+          isConnected: conn.is_connected,
+          lastSynced: conn.last_synced,
+          customerId: conn.customer_id,
+          credentials: processedCredentials
+        };
+      });
+      
+      // Get HYROS connections from tokens table
+      try {
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('hyros_tokens')
+          .select('*')
+          .eq('user_id', user?.id);
+        
+        if (!tokenError && tokenData && tokenData.length > 0) {
+          const exists = connections.some(conn => conn.platform === 'hyros');
+          if (!exists) {
+            connections.push({
+              id: tokenData[0].id,
+              name: 'HYROS',
+              platform: 'hyros' as "google" | "facebook" | "linkedin" | "leadprosper" | "hyros",
+              isConnected: true,
+              lastSynced: tokenData[0].last_synced,
+              customerId: tokenData[0].account_id,
+              credentials: {
+                apiKey: tokenData[0].api_key
+              }
+            });
+          }
+        }
+      } catch (tokenError) {
+        console.error("Error fetching HYROS connections:", tokenError);
+        // Continue even if HYROS token fetch fails
+      }
+      
+      setAccountConnections(connections);
+      return connections;
+    } catch (error) {
+      console.error("Error in fetchHyrosAccounts:", error);
+      toast.error("Failed to fetch accounts");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Modify the fetchGoogleAdsAccounts function to include HYROS connections
   const fetchGoogleAdsAccounts = async () => {
     try {
       setIsLoading(true);
@@ -283,7 +366,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         return {
           id: conn.id,
           name: conn.name,
-          platform: conn.platform as "google" | "facebook" | "linkedin" | "leadprosper",
+          platform: conn.platform as "google" | "facebook" | "linkedin" | "leadprosper" | "hyros",
           isConnected: conn.is_connected,
           lastSynced: conn.last_synced,
           customerId: conn.customer_id,
@@ -305,6 +388,34 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       } catch (lpError) {
         console.error("Error fetching Lead Prosper connections:", lpError);
         // Continue even if Lead Prosper fails
+      }
+      
+      // Get HYROS connections from tokens table
+      try {
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('hyros_tokens')
+          .select('*')
+          .eq('user_id', user?.id);
+        
+        if (!tokenError && tokenData && tokenData.length > 0) {
+          const exists = connections.some(conn => conn.platform === 'hyros');
+          if (!exists) {
+            connections.push({
+              id: tokenData[0].id,
+              name: 'HYROS',
+              platform: 'hyros' as "google" | "facebook" | "linkedin" | "leadprosper" | "hyros",
+              isConnected: true,
+              lastSynced: tokenData[0].last_synced,
+              customerId: tokenData[0].account_id,
+              credentials: {
+                apiKey: tokenData[0].api_key
+              }
+            });
+          }
+        }
+      } catch (hyrosError) {
+        console.error("Error fetching HYROS connections:", hyrosError);
+        // Continue even if HYROS fetch fails
       }
       
       setAccountConnections(connections);
@@ -693,32 +804,12 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     fetchGoogleAdsAccounts,
     addAccountConnection,
     selectedCampaignIds,
-    setSelectedCampaignIds: handleSetSelectedCampaignIds
+    setSelectedCampaignIds: handleSetSelectedCampaignIds,
+    fetchHyrosAccounts
   };
 
   return (
-    <CampaignContext.Provider value={{
-      campaigns,
-      isLoading,
-      error,
-      selectedCampaignId,
-      dateRange,
-      setDateRange: handleSetDateRange,
-      setSelectedCampaignId,
-      addCampaign,
-      updateCampaign,
-      deleteCampaign,
-      addStatHistoryEntry,
-      updateStatHistoryEntry,
-      deleteStatHistoryEntry,
-      deleteStatHistoryEntries,
-      fetchCampaigns,
-      accountConnections,
-      fetchGoogleAdsAccounts,
-      addAccountConnection,
-      selectedCampaignIds,
-      setSelectedCampaignIds: handleSetSelectedCampaignIds,
-    }}>
+    <CampaignContext.Provider value={value}>
       {children}
     </CampaignContext.Provider>
   );
