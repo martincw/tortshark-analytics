@@ -1,3 +1,4 @@
+
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,8 +22,8 @@ export interface LeadResponse {
 // Cache for API keys to avoid repeated database lookups
 let cachedApiKey: string | null = null;
 
-// Default timezone for Lead Prosper API calls
-const DEFAULT_TIMEZONE = 'UTC'; // Using UTC for better compatibility
+// Default timezone for Lead Prosper API calls - changed to America/Denver per support recommendation
+const DEFAULT_TIMEZONE = 'America/Denver';
 
 export const leadProsperApi = {
   // Get credentials for Lead Prosper API

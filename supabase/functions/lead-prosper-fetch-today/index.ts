@@ -22,8 +22,8 @@ const API_CONFIG = {
   // Only try the most common timezone formats (reduced from 15+ to 3)
   TIMEZONE_FORMATS: [
     { format: null, description: "No timezone parameter (using campaign default)" },
-    { format: "UTC", description: "UTC timezone" },
-    { format: "America/Denver", description: "America/Denver timezone" }
+    { format: "America/Denver", description: "America/Denver timezone (recommended)" },
+    { format: "UTC", description: "UTC timezone (fallback)" }
   ],
   // Add delay between requests to avoid rate limiting
   REQUEST_DELAY_MS: 1000,
@@ -51,6 +51,18 @@ async function fetchWithRetry(
   
   while (true) {
     try {
+      // IMPORTANT: Make sure we're using HTTPS URL
+      if (!url.startsWith("https://")) {
+        url = url.replace("http://", "https://");
+      }
+      
+      // Remove Content-Type header as requested by Lead Prosper support
+      if (options.headers) {
+        const headers = new Headers(options.headers);
+        headers.delete('Content-Type');
+        options.headers = headers;
+      }
+      
       const response = await fetch(url, options);
       
       // If we get a rate limit error, retry with backoff
@@ -104,11 +116,10 @@ async function fetchLeadsWithOptimizedTimezone(
       url += `&timezone=${encodeURIComponent(cachedFormat)}`;
     }
     
-    // Make the API call with retry logic
+    // Make the API call with retry logic - NO Content-Type header
     const response = await fetchWithRetry(url, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
     });
 
@@ -140,11 +151,10 @@ async function fetchLeadsWithOptimizedTimezone(
       // Add delay between requests to avoid rate limiting
       await sleep(API_CONFIG.REQUEST_DELAY_MS);
       
-      // Make the API call with retry logic
+      // Make the API call with retry logic - NO Content-Type header
       const response = await fetchWithRetry(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
         },
       });
 
@@ -194,11 +204,10 @@ async function fetchLeadsWithOptimizedTimezone(
     
     console.log(`Trying /stats endpoint for campaign ${campaignId} with date ${date}`);
     
-    // Make the API call to stats endpoint with retry logic
+    // Make the API call to stats endpoint with retry logic - NO Content-Type header
     const statsResponse = await fetchWithRetry(statsUrl, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
     });
 
@@ -358,7 +367,8 @@ serve(async (req) => {
 
     // Get parameters from the request
     let apiKey;
-    let requestedTimezone = 'UTC'; // Default to UTC for better compatibility
+    // Default to America/Denver as recommended by Lead Prosper support
+    let requestedTimezone = 'America/Denver';
     
     try {
       const body = await req.json();
