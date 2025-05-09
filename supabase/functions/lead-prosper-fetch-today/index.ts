@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
 import { format, subDays } from "https://esm.sh/date-fns@2.30.0";
@@ -56,14 +55,20 @@ async function fetchWithRetry(
         url = url.replace("http://", "https://");
       }
       
-      // Remove Content-Type header as requested by Lead Prosper support
-      if (options.headers) {
-        const headers = new Headers(options.headers);
-        headers.delete('Content-Type');
-        options.headers = headers;
-      }
+      // SUPER SIMPLIFIED REQUEST:
+      // 1. Create a completely new options object with minimal properties
+      // 2. Only keep the Authorization header, remove everything else
+      const minimalOptions: RequestInit = {
+        method: options.method || 'GET',
+        headers: {
+          'Authorization': `Bearer ${(options.headers as any)?.Authorization || ''}`
+        }
+      };
       
-      const response = await fetch(url, options);
+      console.log(`Attempting request to: ${url}`);
+      console.log("Using minimal request options (no Content-Type header)");
+      
+      const response = await fetch(url, minimalOptions);
       
       // If we get a rate limit error, retry with backoff
       if (response.status === 429 && retries < maxRetries) {
@@ -98,25 +103,20 @@ async function fetchWithRetry(
   }
 }
 
-// Try to fetch leads with optimized timezone handling
+// Try to fetch leads with simplified approach
 async function fetchLeadsWithOptimizedTimezone(
   apiKey: string,
   campaignId: number,
   date: string
 ): Promise<any> {
-  // First check if we have a successful format cached for this campaign
-  const cachedFormat = successfulTimezoneCache.get(campaignId);
-  
-  if (cachedFormat !== undefined) {
-    console.log(`Using cached timezone format for campaign ${campaignId}: ${cachedFormat || "default"}`);
-    
-    // Build URL - only include timezone if format is provided
+  try {
+    // Build the simplest possible URL
     let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
-    if (cachedFormat !== null) {
-      url += `&timezone=${encodeURIComponent(cachedFormat)}`;
-    }
     
-    // Make the API call with retry logic - NO Content-Type header
+    // Log attempt
+    console.log(`Trying simplified approach for campaign ${campaignId}`);
+    
+    // Create the most minimal request possible
     const response = await fetchWithRetry(url, {
       headers: {
         'Authorization': `Bearer ${apiKey}`
@@ -126,85 +126,19 @@ async function fetchLeadsWithOptimizedTimezone(
     // Check if successful
     if (response.ok) {
       const data = await response.json();
-      console.log(`Success using cached format for campaign ${campaignId}! Received ${data.data?.length || 0} leads`);
+      console.log(`Success using simplified approach! Received ${data.data?.length || 0} leads`);
       return { ...data, endpoint: 'leads' };
     }
     
-    // If cached format failed, clear it and try other formats
-    console.warn(`Cached timezone format failed for campaign ${campaignId}. Clearing cache and trying other formats.`);
-    successfulTimezoneCache.delete(campaignId);
-  }
-  
-  // Try each of our reduced set of timezone formats
-  const leadsErrors = [];
-  
-  for (const { format, description } of API_CONFIG.TIMEZONE_FORMATS) {
-    try {
-      console.log(`Trying ${description} with /leads endpoint for campaign ${campaignId}`);
-      
-      // Build URL - only include timezone if format is provided
-      let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
-      if (format !== null) {
-        url += `&timezone=${encodeURIComponent(format)}`;
-      }
-      
-      // Add delay between requests to avoid rate limiting
-      await sleep(API_CONFIG.REQUEST_DELAY_MS);
-      
-      // Make the API call with retry logic - NO Content-Type header
-      const response = await fetchWithRetry(url, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        },
-      });
-
-      // Check if successful
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`Success using ${description} with /leads endpoint! Received ${data.data?.length || 0} leads`);
-        
-        // Cache the successful format for future requests
-        successfulTimezoneCache.set(campaignId, format);
-        
-        return { ...data, endpoint: 'leads' };
-      }
-      
-      // If not successful, capture the error
-      const errorText = await response.text();
-      const statusCode = response.status;
-      console.error(`Failed with ${description} on /leads endpoint: ${statusCode} - ${errorText}`);
-      leadsErrors.push({ format: description, error: errorText, status: statusCode });
-      
-      // If this isn't a timezone error, we should stop and report the actual error
-      if (!errorText.includes("timezone") && 
-          !errorText.toLowerCase().includes("cannot assign null") &&
-          !errorText.includes("must be a valid zone")) {
-        throw new Error(`API returned status ${statusCode}: ${errorText}`);
-      }
-      
-      // Otherwise continue trying other formats
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('API returned status')) {
-        throw error; // Re-throw non-timezone related errors
-      }
-      console.error(`Error with ${description} on /leads endpoint:`, error);
-      leadsErrors.push({ format: description, error: error instanceof Error ? error.message : String(error) });
-    }
-  }
-
-  // If /leads endpoint failed with all formats, try the /stats endpoint as fallback
-  console.log("All /leads endpoint attempts failed for campaign ${campaignId}. Trying /stats endpoint...");
-  
-  try {
-    // Add delay before trying stats endpoint
-    await sleep(API_CONFIG.REQUEST_DELAY_MS);
+    const statusCode = response.status;
+    const errorText = await response.text();
+    console.error(`Failed with simplified approach: ${statusCode} - ${errorText}`);
     
-    // Build URL for /stats endpoint - using only today's date to reduce complexity
+    // Try backup approach with stats endpoint
+    console.log("Trying stats endpoint as backup...");
     const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
     
-    console.log(`Trying /stats endpoint for campaign ${campaignId} with date ${date}`);
-    
-    // Make the API call to stats endpoint with retry logic - NO Content-Type header
+    // Make the API call to stats endpoint with minimal options
     const statsResponse = await fetchWithRetry(statsUrl, {
       headers: {
         'Authorization': `Bearer ${apiKey}`
@@ -213,9 +147,8 @@ async function fetchLeadsWithOptimizedTimezone(
 
     if (statsResponse.ok) {
       const statsData = await statsResponse.json();
-      console.log(`Success with /stats endpoint for campaign ${campaignId}! Processing stats data instead.`);
+      console.log(`Success with stats endpoint! Processing stats data instead.`);
       
-      // Format stats data to match expected structure for leads processing
       return {
         success: true,
         data: [], // No leads data, but we'll record the stats
@@ -227,18 +160,12 @@ async function fetchLeadsWithOptimizedTimezone(
     // Log error but continue trying other campaigns
     const statsErrorText = await statsResponse.text();
     const statsStatusCode = statsResponse.status;
-    console.error(`Failed with /stats endpoint for campaign ${campaignId}: ${statsStatusCode} - ${statsErrorText}`);
+    console.error(`Failed with stats endpoint: ${statsStatusCode} - ${statsErrorText}`);
     
     // Format error details
-    const errorDetails = JSON.stringify({
-      campaign_id: campaignId,
-      leads_attempts: leadsErrors,
-      stats_attempt: { status: statsStatusCode, error: statsErrorText }
-    }, null, 2);
-    
-    throw new Error(`Failed to fetch data using any endpoint for campaign ${campaignId}. Details: ${errorDetails}`);
+    throw new Error(`All API attempts failed for campaign ${campaignId}. Status: ${statusCode}, Error: ${errorText}`);
   } catch (error) {
-    console.error(`All API attempts failed for campaign ${campaignId}:`, error);
+    console.error(`API error for campaign ${campaignId}:`, error);
     throw error;
   }
 }
@@ -377,14 +304,6 @@ serve(async (req) => {
       // Extract timezone from the request body if provided
       if (body.timezone && typeof body.timezone === 'string') {
         requestedTimezone = body.timezone;
-        
-        // If user requested a specific timezone, add it to our formats to try
-        if (!API_CONFIG.TIMEZONE_FORMATS.some(tf => tf.format === requestedTimezone)) {
-          API_CONFIG.TIMEZONE_FORMATS.unshift({ 
-            format: requestedTimezone, 
-            description: `User requested timezone (${requestedTimezone})` 
-          });
-        }
       }
       
       if (!apiKey) {
@@ -396,7 +315,7 @@ serve(async (req) => {
       }
       
       console.log("API key received, length:", apiKey.length);
-      console.log("User requested timezone:", requestedTimezone);
+      console.log("Using simplified request approach with minimal parameters");
     } catch (error) {
       console.error("Failed to parse request body:", error);
       return new Response(
@@ -473,7 +392,7 @@ serve(async (req) => {
           await sleep(API_CONFIG.REQUEST_DELAY_MS * 2);
         }
         
-        // Try to fetch leads with optimized timezone handling - use yesterday instead of today
+        // Try to fetch leads with extremely simplified approach
         const apiResponse = await fetchLeadsWithOptimizedTimezone(
           apiKey,
           lpCampaignId,
