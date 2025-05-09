@@ -1,4 +1,7 @@
 
+import { GoogleAdsMetrics, GoogleAdsMetricsResponse } from './metrics';
+import { DateRange } from './common';
+
 export interface Campaign {
   id: string;
   name: string;
@@ -78,32 +81,5 @@ export interface AccountConnection {
   credentials?: Record<string, any>; // Added credentials property to fix TypeScript error
 }
 
-// Google Ads specific interfaces
-export interface GoogleAdsMetrics {
-  impressions: number;
-  clicks: number;
-  adSpend: number;
-  ctr: number;
-  cpc: number;
-  averageCpc: number;
-  cost: number;
-  conversionRate: number;
-  date: string;
-  conversions?: number;
-}
-
-export interface GoogleAdsMetricsResponse {
-  impressions: number;
-  clicks: number;
-  adSpend: number;
-  ctr: number;
-  cpc: number;
-  cpl?: number;
-  date: string;
-  conversions?: number;
-}
-
-export interface DateRange {
-  startDate: string;
-  endDate: string;
-}
+// Re-export the types from metrics.ts and common.ts for backward compatibility
+export { GoogleAdsMetrics, GoogleAdsMetricsResponse, DateRange };

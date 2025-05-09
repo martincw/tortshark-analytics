@@ -35,7 +35,9 @@ export interface GoogleAdsMetricsResponse {
   adSpend: number; 
   ctr: number;
   cpc: number;
+  cpl?: number;
   date: string;
+  conversions?: number;
 }
 
 export interface TrendData {

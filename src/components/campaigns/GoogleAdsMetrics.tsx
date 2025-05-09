@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
-import type { Campaign, GoogleAdsMetrics as GoogleAdsMetricsType, GoogleAdsMetricsResponse } from "@/types/campaign";
+import type { Campaign } from "@/types/campaign-base";
+import type { GoogleAdsMetrics as GoogleAdsMetricsType, GoogleAdsMetricsResponse } from "@/types/metrics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, TrendingUp } from "lucide-react";
