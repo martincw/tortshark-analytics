@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DateRange } from "@/types/common";
@@ -16,17 +15,6 @@ interface GoogleAdsAccount {
   name: string;
   customerId: string;
   status?: string;
-}
-
-interface GoogleAdsMetricsResponse {
-  impressions: number;
-  clicks: number;
-  adSpend: number;
-  ctr: number;
-  cpc: number;
-  cpl: number; 
-  date: string;
-  conversions?: number;
 }
 
 // Authentication functions

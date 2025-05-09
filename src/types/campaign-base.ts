@@ -82,4 +82,4 @@ export interface AccountConnection {
 }
 
 // Re-export the types from metrics.ts and common.ts for backward compatibility
-export { GoogleAdsMetrics, GoogleAdsMetricsResponse, DateRange };
+export type { GoogleAdsMetrics, GoogleAdsMetricsResponse, DateRange };
