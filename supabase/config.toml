@@ -76,6 +76,9 @@ verify_jwt = true
 [functions.hyros-fetch-stats]
 verify_jwt = true
 
+[functions.hyros-leads]
+verify_jwt = true
+
 [analytics]
 enabled = false
 port = 54327

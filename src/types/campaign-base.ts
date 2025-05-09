@@ -74,4 +74,5 @@ export interface AccountConnection {
   customerId?: string;
   lastSynced?: string;
   isConnected: boolean;
+  credentials?: Record<string, any>; // Added credentials property to fix TypeScript error
 }
