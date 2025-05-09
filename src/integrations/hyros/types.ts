@@ -51,6 +51,7 @@ export interface HyrosSyncResult {
   total_leads?: number;
   date_fetched?: string;
   last_synced?: string;
+  debug_info?: any[];
 }
 
 export interface HyrosAuthResult {
@@ -58,4 +59,43 @@ export interface HyrosAuthResult {
   error?: string;
   apiKey?: string;
   accountId?: string;
+}
+
+// HYROS API Lead Response Types
+export interface HyrosLeadResponse {
+  result: HyrosLead[];
+  nextPageId?: string;
+  request_id: string;
+}
+
+export interface HyrosLead {
+  email: string;
+  id: string;
+  creationDate: string;
+  tags?: string[];
+  ips?: string[];
+  phoneNumbers?: string[];
+  provider?: {
+    id: string;
+    integration?: {
+      name: string;
+      type: string;
+      id: string;
+    };
+  };
+}
+
+export interface HyrosLeadListParams {
+  ids?: string[];
+  emails?: string[];
+  fromDate?: string;
+  toDate?: string;
+  pageSize?: number;
+  pageId?: string;
+}
+
+export interface HyrosLeadsListResponse {
+  leads: HyrosLead[];
+  nextPageId?: string;
+  total: number;
 }

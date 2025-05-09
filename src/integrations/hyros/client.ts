@@ -1,6 +1,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import type { HyrosToken, HyrosCampaign, HyrosMapping, HyrosStatsRaw, HyrosSyncResult, HyrosAuthResult } from './types';
+import type { 
+  HyrosToken, 
+  HyrosCampaign, 
+  HyrosMapping, 
+  HyrosStatsRaw, 
+  HyrosSyncResult, 
+  HyrosAuthResult,
+  HyrosLeadResponse,
+  HyrosLeadsListResponse,
+  HyrosLeadListParams,
+  HyrosLead
+} from './types';
 
 export const hyrosApi = {
   // API Key Management
@@ -10,6 +21,7 @@ export const hyrosApi = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
         },
         body: JSON.stringify({ apiKey }),
       });
@@ -30,6 +42,7 @@ export const hyrosApi = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
         },
         body: JSON.stringify({ apiKey }),
       });
@@ -78,6 +91,7 @@ export const hyrosApi = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
         },
       });
 
@@ -175,6 +189,7 @@ export const hyrosApi = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
         },
       });
 
@@ -188,23 +203,69 @@ export const hyrosApi = {
     }
   },
 
-  async fetchStatsForDateRange(startDate: string, endDate: string): Promise<HyrosStatsRaw[]> {
+  async fetchLeadsForDateRange(params: HyrosLeadListParams): Promise<HyrosLeadsListResponse> {
     try {
+      const { fromDate, toDate, pageSize, pageId, emails } = params;
+      
       const response = await fetch('/api/hyros-fetch-stats', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
         },
-        body: JSON.stringify({ startDate, endDate }),
+        body: JSON.stringify({ 
+          startDate: fromDate, 
+          endDate: toDate,
+          pageSize: pageSize || 100,
+          pageId,
+          emails
+        }),
       });
 
       const result = await response.json();
       
       if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch stats for date range');
+        throw new Error(result.error || 'Failed to fetch leads for date range');
       }
 
-      return result.stats || [];
+      return {
+        leads: result.leads || [],
+        nextPageId: result.nextPageId,
+        total: result.total || 0
+      };
+    } catch (error) {
+      console.error('Error fetching leads for date range:', error);
+      throw error;
+    }
+  },
+
+  async getStatsForDateRange(startDate: string, endDate: string): Promise<HyrosStatsRaw[]> {
+    try {
+      const { data, error } = await supabase
+        .from('hyros_stats_raw')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return data.map(item => ({
+        id: item.id,
+        hyrosCampaignId: item.hyros_campaign_id,
+        tsCampaignId: item.ts_campaign_id,
+        date: item.date,
+        adSpend: item.ad_spend,
+        clicks: item.clicks,
+        impressions: item.impressions,
+        leads: item.leads,
+        sales: item.sales,
+        revenue: item.revenue,
+        jsonPayload: item.json_payload,
+        createdAt: item.created_at
+      }));
     } catch (error) {
       console.error('Error fetching stats for date range:', error);
       throw error;

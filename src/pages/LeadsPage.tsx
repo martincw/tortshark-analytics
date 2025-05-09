@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Search, Filter, RefreshCcw, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Search, Filter, RefreshCcw, AlertCircle, BarChart3, List } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,16 +31,21 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { hyrosApi } from '@/integrations/hyros/client';
 import { HyrosSyncResult } from '@/integrations/hyros/types';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import HyrosLeadsList from '@/components/leads/HyrosLeadsList';
 
 export default function LeadsPage() {
   const { campaigns } = useCampaign();
   const { toast: uiToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // View mode (aggregate or individual leads)
+  const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>(searchParams.get('viewMode') as any || 'aggregate');
   
   // Get filters from URL params or set defaults
   const [filters, setFilters] = useState({
@@ -78,6 +83,7 @@ export default function LeadsPage() {
   useEffect(() => {
     const params = new URLSearchParams();
     
+    params.set('viewMode', viewMode);
     if (filters.campaignId) params.set('campaignId', filters.campaignId);
     if (filters.status) params.set('status', filters.status);
     if (filters.startDate) params.set('startDate', filters.startDate);
@@ -86,42 +92,46 @@ export default function LeadsPage() {
     if (page > 1) params.set('page', page.toString());
     
     setSearchParams(params);
-  }, [filters, page, setSearchParams]);
+  }, [filters, page, viewMode, setSearchParams]);
   
   // Load leads based on current filters
   const loadLeads = async () => {
-    try {
-      setLoading(true);
-      setRefreshError(null);
-      
-      const result = await hyrosApi.getLeadsList({
-        page,
-        pageSize,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        tsCampaignId: filters.campaignId || undefined,
-        searchTerm: filters.searchTerm || undefined,
-      });
-      
-      setLeads(result.leads);
-      setTotalLeads(result.total);
-      
-    } catch (error) {
-      console.error('Error loading leads:', error);
-      uiToast({
-        title: 'Error loading leads',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+    if (viewMode === 'aggregate') {
+      try {
+        setLoading(true);
+        setRefreshError(null);
+        
+        const result = await hyrosApi.getLeadsList({
+          page,
+          pageSize,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          tsCampaignId: filters.campaignId || undefined,
+          searchTerm: filters.searchTerm || undefined,
+        });
+        
+        setLeads(result.leads);
+        setTotalLeads(result.total);
+        
+      } catch (error) {
+        console.error('Error loading leads:', error);
+        uiToast({
+          title: 'Error loading leads',
+          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
   
   // Initial load and reload when filters change
   useEffect(() => {
-    loadLeads();
-  }, [filters.campaignId, filters.status, filters.startDate, filters.endDate, page]);
+    if (viewMode === 'aggregate') {
+      loadLeads();
+    }
+  }, [filters.campaignId, filters.status, filters.startDate, filters.endDate, page, viewMode]);
   
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
@@ -324,9 +334,25 @@ export default function LeadsPage() {
       
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Leads</CardTitle>
+          <CardTitle className="flex justify-between items-center">
+            <span>Leads</span>
+            <div className="flex items-center space-x-2">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'aggregate' | 'individual')} className="w-auto">
+                <TabsList>
+                  <TabsTrigger value="aggregate" className="flex items-center">
+                    <BarChart3 className="w-4 h-4 mr-1" /> Aggregate
+                  </TabsTrigger>
+                  <TabsTrigger value="individual" className="flex items-center">
+                    <List className="w-4 h-4 mr-1" /> Individual
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardTitle>
           <CardDescription>
-            Leads imported from HYROS campaigns
+            {viewMode === 'aggregate' 
+              ? 'Aggregated leads imported from HYROS campaigns' 
+              : 'Individual leads from HYROS API'}
           </CardDescription>
         </CardHeader>
         
@@ -339,7 +365,7 @@ export default function LeadsPage() {
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Search leads..."
+                    placeholder={viewMode === 'aggregate' ? "Search leads..." : "Search by email..."}
                     className="pl-8"
                     value={filters.searchTerm}
                     onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
@@ -449,62 +475,74 @@ export default function LeadsPage() {
             </div>
           </div>
           
-          {/* Leads Table */}
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Leads</TableHead>
-                  <TableHead>Sales</TableHead>
-                  <TableHead>Cost</TableHead>
-                  <TableHead>Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : leads.length === 0 ? (
+          {/* Content based on view mode */}
+          {viewMode === 'aggregate' ? (
+            /* Aggregated Leads Table */
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                      No leads found. Try adjusting your filters.
-                    </TableCell>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Campaign</TableHead>
+                    <TableHead>Leads</TableHead>
+                    <TableHead>Sales</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Revenue</TableHead>
                   </TableRow>
-                ) : (
-                  leads.map((lead) => {
-                    // Find campaign name
-                    const campaign = campaigns?.find(c => c.id === lead.tsCampaignId);
-                    
-                    return (
-                      <TableRow key={lead.id}>
-                        <TableCell>{formatLeadDate(lead.date)}</TableCell>
-                        <TableCell>
-                          {campaign?.name || 'Unknown Campaign'}
-                        </TableCell>
-                        <TableCell>{lead.leads || 0}</TableCell>
-                        <TableCell>{lead.sales || 0}</TableCell>
-                        <TableCell>${lead.adSpend?.toFixed(2) || '0.00'}</TableCell>
-                        <TableCell>${lead.revenue?.toFixed(2) || '0.00'}</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                    ))
+                  ) : leads.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        No leads found. Try adjusting your filters.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    leads.map((lead) => {
+                      // Find campaign name
+                      const campaign = campaigns?.find(c => c.id === lead.tsCampaignId);
+                      
+                      return (
+                        <TableRow key={lead.id}>
+                          <TableCell>{formatLeadDate(lead.date)}</TableCell>
+                          <TableCell>
+                            {campaign?.name || 'Unknown Campaign'}
+                          </TableCell>
+                          <TableCell>{lead.leads || 0}</TableCell>
+                          <TableCell>{lead.sales || 0}</TableCell>
+                          <TableCell>${lead.adSpend?.toFixed(2) || '0.00'}</TableCell>
+                          <TableCell>${lead.revenue?.toFixed(2) || '0.00'}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            /* Individual Leads List */
+            <HyrosLeadsList 
+              startDate={filters.startDate}
+              endDate={filters.endDate}
+              campaignId={filters.campaignId}
+              searchTerm={filters.searchTerm}
+              pageSize={pageSize}
+            />
+          )}
           
-          {/* Pagination */}
-          {showPagination && (
+          {/* Pagination for aggregate view */}
+          {viewMode === 'aggregate' && showPagination && (
             <div className="flex justify-between items-center">
               <div className="text-sm text-muted-foreground">
                 Showing {Math.min((page - 1) * pageSize + 1, totalLeads)} to {Math.min(page * pageSize, totalLeads)} of {totalLeads} leads
