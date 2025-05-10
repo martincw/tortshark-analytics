@@ -101,6 +101,15 @@ Deno.serve(async (req) => {
       console.log(`Fetched ads from HYROS API. Count: ${data.data?.length || 0}`);
       console.log(`Data sample: ${JSON.stringify(data.data?.slice(0, 2) || 'No data')}`);
       
+      // Create debug info object
+      const debugInfo = {
+        rawDataCount: data.data?.length || 0,
+        endpoint: adsEndpoint,
+        dateRange: { from: startDateStr, to: endDateStr },
+        firstAd: data.data?.length > 0 ? data.data[0] : null,
+        hasData: !!data.data && data.data.length > 0
+      };
+      
       // Extract unique campaigns from ads data with flexible field name handling
       const campaigns = [];
       const uniqueCampaignIds = new Set();
@@ -108,7 +117,7 @@ Deno.serve(async (req) => {
       if (data.data && Array.isArray(data.data)) {
         // Extract unique campaigns from ads
         data.data.forEach(ad => {
-          // Handle different possible field naming conventions
+          // Handle different possible field naming conventions (improvement #3)
           const campaignId = ad.campaign_id || ad.campaignId;
           const campaignName = ad.campaign_name || ad.campaignName;
           const adPlatform = ad.platform || ad.adPlatform || 'unknown';
@@ -129,10 +138,12 @@ Deno.serve(async (req) => {
       }
       
       console.log(`Extracted ${campaigns.length} unique campaigns from ads`);
+      debugInfo.extractedCampaigns = campaigns.length;
       
       // Bulk upsert campaigns to the database
+      let upsertResult = null;
       if (campaigns.length > 0) {
-        const { error: upsertError } = await supabase
+        const { data: upsertData, error: upsertError } = await supabase
           .from('hyros_campaigns')
           .upsert(campaigns, {
             onConflict: 'hyros_campaign_id, user_id',
@@ -141,15 +152,22 @@ Deno.serve(async (req) => {
           
         if (upsertError) {
           console.error("Error upserting campaigns:", upsertError);
+          debugInfo.upsertError = upsertError.message;
+          
           return new Response(
             JSON.stringify({ 
               success: false, 
               error: `Failed to save campaigns: ${upsertError.message}`,
-              campaigns: campaigns
+              campaigns: campaigns,
+              debugInfo: debugInfo // Include debug info in error response
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
           );
         }
+        upsertResult = upsertData;
+        debugInfo.upsertResult = upsertResult;
+      } else {
+        debugInfo.noCampaignsExtracted = true;
       }
       
       // Update the last_synced timestamp in the HYROS token record
@@ -162,6 +180,7 @@ Deno.serve(async (req) => {
         
       if (updateError) {
         console.error("Error updating last_synced timestamp:", updateError);
+        debugInfo.lastSyncedUpdateError = updateError.message;
       }
       
       // Fetch the updated campaigns from the database to return to the client
@@ -172,12 +191,19 @@ Deno.serve(async (req) => {
         
       if (fetchError) {
         console.error("Error fetching updated campaigns:", fetchError);
+        debugInfo.fetchUpdatedCampaignsError = fetchError.message;
+        
         return new Response(
-          JSON.stringify({ success: false, error: "Failed to fetch updated campaigns" }),
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to fetch updated campaigns", 
+            debugInfo: debugInfo 
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
       
+      // Include debug info in the successful response
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -187,7 +213,8 @@ Deno.serve(async (req) => {
           dateRange: {
             from: startDateStr,
             to: endDateStr
-          }
+          },
+          debugInfo: debugInfo // Add debug info to response (improvement #4)
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -198,7 +225,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: `Error connecting to HYROS API: ${fetchError.message}`,
-          apiEndpoint: adsEndpoint
+          apiEndpoint: adsEndpoint,
+          debugInfo: { // Add debug info to error response
+            error: fetchError.message,
+            stack: fetchError.stack,
+            endpoint: adsEndpoint,
+            dateRange: { from: startDateStr, to: endDateStr }
+          }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
@@ -210,7 +243,11 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: false, 
         error: error.message || "Unknown error occurred",
-        stack: error.stack 
+        stack: error.stack,
+        debugInfo: { // Add debug info to error response
+          errorMessage: error.message,
+          errorStack: error.stack
+        }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );

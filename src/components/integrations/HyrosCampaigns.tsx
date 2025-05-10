@@ -246,6 +246,7 @@ export default function HyrosCampaigns() {
                     <li>Check that there are ads/campaigns in your HYROS account in the last 90 days</li>
                     <li>Check for any restrictions in your HYROS account settings</li>
                     <li>Try logging into the HYROS dashboard to verify your account status</li>
+                    <li>Try using the "Sync with HYROS" button (force sync) to refresh data</li>
                   </ul>
                 </div>
                 
