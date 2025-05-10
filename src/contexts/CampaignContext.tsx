@@ -139,6 +139,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     try {
+      console.log("Fetching campaigns for user:", user.id);
+      
       const { data, error } = await supabase
         .from('campaigns')
         .select(`
@@ -153,10 +155,14 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       if (error) {
         console.error("Error fetching campaigns:", error);
         setError(error.message);
+        setCampaigns([]);
+        setIsLoading(false);
+        return;
       }
 
       if (data) {
         const typedCampaigns: Campaign[] = data.map(campaign => {
+          // Initialize with default empty objects to prevent null/undefined errors
           const stats = campaign.campaign_stats && campaign.campaign_stats.length > 0
             ? {
               adSpend: campaign.campaign_stats[0].ad_spend || 0,
@@ -186,28 +192,28 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             : { leads: 0, cases: 0, retainers: 0, revenue: 0, date: '' };
 
           const statsHistory = campaign.campaign_stats_history?.map(entry => ({
-            id: entry.id,
-            campaignId: entry.campaign_id,
-            date: entry.date,
-            leads: entry.leads,
-            cases: entry.cases,
-            revenue: entry.revenue,
-            adSpend: entry.ad_spend,
-            createdAt: entry.created_at,
-            updatedAt: undefined
+            id: entry.id || '',
+            campaignId: entry.campaign_id || '',
+            date: entry.date || '',
+            leads: entry.leads || 0,
+            cases: entry.cases || 0,
+            revenue: entry.revenue || 0,
+            adSpend: entry.ad_spend || 0,
+            createdAt: entry.created_at || '',
+            updatedAt: entry.updated_at || undefined
           })) || [];
 
           const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
             ? {
-              monthlySpend: campaign.campaign_targets[0].monthly_spend,
-              casePayoutAmount: campaign.campaign_targets[0].case_payout_amount,
-              monthlyRetainers: campaign.campaign_targets[0].monthly_retainers,
-              monthlyProfit: campaign.campaign_targets[0].target_profit,
-              roas: campaign.campaign_targets[0].target_roas,
-              monthlyRevenue: campaign.campaign_targets[0].monthly_income,
-              monthlyIncome: campaign.campaign_targets[0].monthly_income,
-              targetProfit: campaign.campaign_targets[0].target_profit,
-              targetROAS: campaign.campaign_targets[0].target_roas
+              monthlySpend: campaign.campaign_targets[0].monthly_spend || 0,
+              casePayoutAmount: campaign.campaign_targets[0].case_payout_amount || 0,
+              monthlyRetainers: campaign.campaign_targets[0].monthly_retainers || 0,
+              monthlyProfit: campaign.campaign_targets[0].target_profit || 0,
+              roas: campaign.campaign_targets[0].target_roas || 0,
+              monthlyRevenue: campaign.campaign_targets[0].monthly_income || 0,
+              monthlyIncome: campaign.campaign_targets[0].monthly_income || 0,
+              targetProfit: campaign.campaign_targets[0].target_profit || 0, 
+              targetROAS: campaign.campaign_targets[0].target_roas || 0
             }
             : {
               monthlySpend: 0,
@@ -222,30 +228,33 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             };
 
           return {
-            id: campaign.id,
-            name: campaign.name,
-            userId: campaign.user_id,
-            platform: campaign.platform,
-            accountId: campaign.account_id,
-            accountName: campaign.account_name,
-            createdAt: campaign.created_at,
-            updatedAt: campaign.updated_at,
-            is_active: campaign.is_active, // Properly include the is_active field
+            id: campaign.id || '',
+            name: campaign.name || '',
+            userId: campaign.user_id || '',
+            platform: campaign.platform || '',
+            accountId: campaign.account_id || undefined,
+            accountName: campaign.account_name || undefined,
+            createdAt: campaign.created_at || '',
+            updatedAt: campaign.updated_at || '',
+            is_active: campaign.is_active === undefined ? true : campaign.is_active,
             stats,
             manualStats,
-            statsHistory,
+            statsHistory: statsHistory || [],
             targets,
             buyerStack: []
           };
         });
 
+        console.log(`Successfully fetched ${typedCampaigns.length} campaigns`);
         setCampaigns(typedCampaigns);
       } else {
+        console.log("No campaign data returned");
         setCampaigns([]);
       }
     } catch (err) {
       console.error("Error in fetchCampaigns:", err);
       setError('Failed to fetch campaigns. Please try again.');
+      setCampaigns([]);
     } finally {
       setIsLoading(false);
     }

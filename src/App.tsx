@@ -8,6 +8,7 @@ import { CampaignProvider } from "./contexts/CampaignContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { MainLayout } from "./components/layout/MainLayout";
 import { useAuth } from "./contexts/AuthContext";
+import { useState, useEffect } from "react";
 
 // Pages
 import Index from "./pages/Index";
@@ -36,9 +37,19 @@ const queryClient = new QueryClient({
 // Protected route component that redirects to auth page if not authenticated
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, authError } = useAuth();
+  const [isChecking, setIsChecking] = useState(true);
+  
+  useEffect(() => {
+    // Add a short timeout to ensure auth check completes
+    const timer = setTimeout(() => {
+      setIsChecking(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [user, isLoading]);
   
   // While checking authentication status, show a simple loading indicator
-  if (isLoading) {
+  if (isLoading || isChecking) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
@@ -52,8 +63,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   // If not authenticated, redirect to auth page
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    console.log("User not authenticated, redirecting to auth page");
+    return <Navigate to="/auth" replace />;
+  }
   
+  console.log("User authenticated, rendering protected route");
   // If authenticated, render the children
   return <>{children}</>;
 };

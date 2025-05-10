@@ -9,10 +9,14 @@ import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CampaignFilters } from "@/components/dashboard/CampaignFilters";
 import { useCampaignGridData } from "@/hooks/useCampaignGridData";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RefreshCw, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const { dateRange, selectedCampaignIds, campaigns } = useCampaign();
+  const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Filter campaigns by selected IDs if any are selected
   const filteredCampaigns = selectedCampaignIds.length > 0
@@ -39,20 +43,79 @@ const Index = () => {
 
   // Store active tab in localStorage when it changes
   useEffect(() => {
-    localStorage.setItem("dashboardActiveTab", activeTab);
+    try {
+      localStorage.setItem("dashboardActiveTab", activeTab);
+    } catch (e) {
+      console.error("Error saving active tab to localStorage:", e);
+    }
   }, [activeTab]);
 
   // Initialize active tab from localStorage on component mount
   useEffect(() => {
-    const savedTab = localStorage.getItem("dashboardActiveTab");
-    if (savedTab) {
-      setActiveTab(savedTab);
+    try {
+      const savedTab = localStorage.getItem("dashboardActiveTab");
+      if (savedTab) {
+        setActiveTab(savedTab);
+      }
+    } catch (e) {
+      console.error("Error loading active tab from localStorage:", e);
     }
   }, []);
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchCampaigns();
+    } catch (e) {
+      console.error("Error refreshing campaigns:", e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
+  // Show loading state
+  if (isLoading && campaigns.length === 0) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader />
+        <div className="flex flex-col items-center justify-center p-12">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
+          <p className="text-lg font-medium">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error && !isLoading && campaigns.length === 0) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader />
+        <Alert variant="destructive" className="mt-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="flex flex-col gap-4">
+              <p>Error loading campaigns: {error}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh} 
+                disabled={isRefreshing}
+                className="w-fit"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
