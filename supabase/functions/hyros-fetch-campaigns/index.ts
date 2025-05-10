@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
     const apiKey = hyrosToken.api_key;
     
     // Fetch ads from HYROS API using the correct endpoint
-    console.log("Fetching ads from HYROS API");
     const adsEndpoint = `${HYROS_BASE_URL}/ads?page=1&size=500`;
+    console.log(`Fetching ads from HYROS API: ${adsEndpoint}`);
     
     try {
       const response = await fetch(adsEndpoint, {
@@ -92,20 +92,28 @@ Deno.serve(async (req) => {
       const data = await response.json();
       console.log(`Fetched ads from HYROS API. Count: ${data.data?.length || 0}`);
       
-      // Normalize ads into campaigns using campaign_id and campaign_name
+      // Extract unique campaigns from ads data with flexible field name handling
       const campaigns = [];
       const uniqueCampaignIds = new Set();
       
       if (data.data && Array.isArray(data.data)) {
         // Extract unique campaigns from ads
         data.data.forEach(ad => {
-          if (ad.campaign_id && !uniqueCampaignIds.has(ad.campaign_id)) {
-            uniqueCampaignIds.add(ad.campaign_id);
+          // Handle different possible field naming conventions
+          const campaignId = ad.campaign_id || ad.campaignId;
+          const campaignName = ad.campaign_name || ad.campaignName;
+          const adPlatform = ad.platform || ad.adPlatform || 'unknown';
+          const adStatus = ad.status || ad.adStatus || 'active';
+          
+          if (campaignId && !uniqueCampaignIds.has(campaignId)) {
+            uniqueCampaignIds.add(campaignId);
             campaigns.push({
-              hyros_campaign_id: ad.campaign_id,
-              name: ad.campaign_name || `Campaign ${ad.campaign_id}`,
-              status: 'active',
-              platform: ad.platform || 'unknown'
+              hyros_campaign_id: campaignId.toString(),
+              name: campaignName || `Campaign ${campaignId}`,
+              status: adStatus,
+              platform: adPlatform,
+              updated_at: new Date().toISOString(),
+              user_id: user.id
             });
           }
         });
@@ -113,24 +121,25 @@ Deno.serve(async (req) => {
       
       console.log(`Extracted ${campaigns.length} unique campaigns from ads`);
       
-      // Store campaigns in the database
-      for (const campaign of campaigns) {
-        // Upsert the campaign into the database
+      // Bulk upsert campaigns to the database
+      if (campaigns.length > 0) {
         const { error: upsertError } = await supabase
           .from('hyros_campaigns')
-          .upsert({
-            hyros_campaign_id: campaign.hyros_campaign_id.toString(),
-            name: campaign.name,
-            status: campaign.status,
-            user_id: user.id,
-            updated_at: new Date().toISOString()
-          }, {
+          .upsert(campaigns, {
             onConflict: 'hyros_campaign_id, user_id',
             ignoreDuplicates: false
           });
           
         if (upsertError) {
-          console.error("Error upserting campaign:", campaign.hyros_campaign_id, upsertError);
+          console.error("Error upserting campaigns:", upsertError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to save campaigns: ${upsertError.message}`,
+              campaigns: campaigns
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+          );
         }
       }
       

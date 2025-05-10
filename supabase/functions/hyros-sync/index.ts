@@ -13,11 +13,16 @@ interface HyrosLead {
   email: string;
   created_at: string;
   campaign_id?: string;
+  campaignId?: string;
   campaign_name?: string;
+  campaignName?: string;
   platform?: string;
   purchase_amount?: number;
+  purchaseAmount?: number;
   is_purchase?: boolean;
+  isPurchase?: boolean;
   is_sale?: boolean;
+  isSale?: boolean;
   tags?: string[];
   [key: string]: any; // Allow for additional properties
 }
@@ -116,20 +121,28 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Create a map for quick lookup of TS campaign IDs by HYROS campaign ID
+    const campaignMapping: Record<string, string> = {};
+    mappings.forEach(mapping => {
+      campaignMapping[mapping.hyros_campaign_id] = mapping.ts_campaign_id;
+    });
+
     // Fetch all leads for the date range in one call
     const fetchLeadsUrl = `${HYROS_BASE_URL}/leads?from=${fromDate}&to=${toDate}&size=500`;
     console.log(`Fetching all leads from: ${fetchLeadsUrl}`);
     
     // Fetch and aggregate all leads with pagination
     let allLeads: HyrosLead[] = [];
-    let nextPage: number | null = 1;
+    let nextPage: number | string | null = 1;
     let pageCount = 0;
     let totalLeads = 0;
     const debugInfo: any[] = [];
     
     do {
       pageCount++;
-      const pageUrl = `${HYROS_BASE_URL}/leads?from=${fromDate}&to=${toDate}&size=500&page=${nextPage}`;
+      // Handle both numeric pages and string token pagination
+      const pageParam = typeof nextPage === 'number' ? `page=${nextPage}` : `pageId=${nextPage}`;
+      const pageUrl = `${HYROS_BASE_URL}/leads?from=${fromDate}&to=${toDate}&size=500&${pageParam}`;
       
       try {
         const response = await fetch(pageUrl, {
@@ -140,11 +153,13 @@ Deno.serve(async (req) => {
           }
         });
         
-        if (response.status === 200) {
+        if (response.ok) {
           const data = await response.json();
           const leads = data.data || [];
           allLeads = [...allLeads, ...leads];
           totalLeads += leads.length;
+          
+          // Determine next page based on pagination info
           nextPage = data.pagination?.next_page || null;
           
           debugInfo.push({
@@ -157,7 +172,7 @@ Deno.serve(async (req) => {
           console.log(`Retrieved page ${pageCount} with ${leads.length} leads. Next page: ${nextPage ? nextPage : 'no'}`);
         } else {
           const errorText = await response.text();
-          console.error(`Error fetching leads: ${response.status}`, errorText);
+          console.error(`Error fetching leads: ${response.status} ${errorText}`);
           
           debugInfo.push({
             page: pageCount,
@@ -180,18 +195,21 @@ Deno.serve(async (req) => {
       }
     } while (nextPage !== null && pageCount < 10); // Limit to 10 pages for safety
     
-    // Group leads by campaign_id
+    // Group leads by campaign_id 
     const byCampaignId: Record<string, HyrosLead[]> = {};
     
-    // Initialize the map with empty arrays for each mapping's hyros_campaign_id
-    mappings.forEach(mapping => {
-      byCampaignId[mapping.hyros_campaign_id] = [];
-    });
-    
-    // Group leads by their campaign_id
+    // Process all leads and group by campaign ID
     allLeads.forEach(lead => {
-      const campaignId = lead.campaign_id;
-      if (campaignId && byCampaignId[campaignId]) {
+      // Handle different possible field naming for campaign ID
+      const campaignId = lead.campaign_id || lead.campaignId;
+      
+      if (campaignId) {
+        // Initialize the array for this campaign if it doesn't exist
+        if (!byCampaignId[campaignId]) {
+          byCampaignId[campaignId] = [];
+        }
+        
+        // Add the lead to the campaign's array
         byCampaignId[campaignId].push(lead);
       }
     });
@@ -208,12 +226,13 @@ Deno.serve(async (req) => {
       
       // Calculate sales and revenue
       campaignLeads.forEach(lead => {
-        // Check if this is a sale/conversion
-        if (lead.is_purchase || lead.is_sale) {
+        // Check if this is a sale/conversion using flexible field naming
+        const isPurchase = lead.is_purchase || lead.isPurchase || lead.is_sale || lead.isSale;
+        if (isPurchase) {
           salesCount++;
           
           // Add revenue if available
-          const revenue = parseFloat(lead.purchase_amount?.toString() || '0');
+          const revenue = parseFloat((lead.purchase_amount || lead.purchaseAmount || 0).toString());
           if (!isNaN(revenue) && revenue > 0) {
             revenueTotal += revenue;
           }

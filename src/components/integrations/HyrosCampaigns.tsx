@@ -48,7 +48,7 @@ export default function HyrosCampaigns() {
       // Fetch HYROS campaigns with optional force sync
       const result = await hyrosApi.fetchHyrosCampaigns(forceSync);
       
-      if (result.campaigns) {
+      if (result.campaigns && result.campaigns.length > 0) {
         setHyrosCampaigns(result.campaigns);
         
         // Save the API endpoint that worked
@@ -263,6 +263,7 @@ export default function HyrosCampaigns() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Campaign Name</TableHead>
+                  <TableHead>Platform</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Mapped To</TableHead>
                   <TableHead className="w-[100px] text-right">Action</TableHead>
@@ -274,13 +275,14 @@ export default function HyrosCampaigns() {
                     <TableRow key={i}>
                       <TableCell><Skeleton className="h-5 w-[200px]" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-[80px]" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-[150px]" /></TableCell>
                       <TableCell className="text-right"><Skeleton className="h-9 w-[80px] ml-auto" /></TableCell>
                     </TableRow>
                   ))
                 ) : hyrosCampaigns.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                       {syncing ? (
                         <div className="flex flex-col items-center gap-2">
                           <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -307,6 +309,11 @@ export default function HyrosCampaigns() {
                     return (
                       <TableRow key={campaign.id}>
                         <TableCell>{campaign.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {campaign.platform || 'Unknown'}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge 
                             variant={campaign.status === 'active' ? 'default' : 'secondary'}

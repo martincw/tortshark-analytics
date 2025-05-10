@@ -15,6 +15,7 @@ export interface HyrosCampaign {
   hyrosCampaignId: string;
   name: string;
   status?: string;
+  platform?: string; // Added platform field
   userId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -87,9 +88,17 @@ export interface HyrosLead {
   email: string;
   id: string;
   creationDate: string;
+  campaign_id?: string;
+  campaignId?: string;
   tags?: string[];
   ips?: string[];
   phoneNumbers?: string[];
+  purchase_amount?: number;
+  purchaseAmount?: number;
+  is_purchase?: boolean;
+  isPurchase?: boolean;
+  is_sale?: boolean;
+  isSale?: boolean;
   provider?: {
     id: string;
     integration?: {
@@ -107,6 +116,7 @@ export interface HyrosLeadListParams {
   toDate?: string;
   pageSize?: number;
   pageId?: string;
+  campaignId?: string; // Campaign ID parameter
 }
 
 export interface HyrosLeadsListResponse {
