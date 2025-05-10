@@ -15,7 +15,7 @@ export interface HyrosCampaign {
   hyrosCampaignId: string;
   name: string;
   status?: string;
-  platform?: string; // Added platform field
+  platform?: string; // Platform field is now properly included
   userId?: string;
   createdAt?: string;
   updatedAt?: string;

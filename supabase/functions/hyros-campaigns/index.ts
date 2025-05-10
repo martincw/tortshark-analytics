@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     // Get the API key from the database
     const { data: tokenData, error: tokenError } = await supabase
       .from('hyros_tokens')
-      .select('api_key')
+      .select('api_key, last_synced') // Also get last_synced to check auto-refresh
       .eq('user_id', user.id)
       .single();
       
@@ -66,6 +66,15 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
+
+    // Check if we should auto-refresh based on last_synced timestamp
+    const lastSynced = tokenData.last_synced ? new Date(tokenData.last_synced) : null;
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    
+    // Force sync if last sync was more than a day ago or never done
+    const shouldAutoRefresh = !lastSynced || lastSynced < oneDayAgo;
+    forceSync = forceSync || shouldAutoRefresh;
     
     // Fetch campaigns from hyros_campaigns table
     const { data: campaigns, error: campaignsError } = await supabase
@@ -110,7 +119,16 @@ Deno.serve(async (req) => {
           return new Response(
             JSON.stringify({ 
               success: true,
-              campaigns: campaigns,
+              campaigns: campaigns.map(campaign => ({
+                id: campaign.id,
+                hyrosCampaignId: campaign.hyros_campaign_id,
+                name: campaign.name,
+                status: campaign.status || 'active',
+                platform: campaign.platform || 'unknown', // Include platform in response
+                userId: campaign.user_id,
+                createdAt: campaign.created_at,
+                updatedAt: campaign.updated_at
+              })),
               syncError: errorMessage
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -133,6 +151,7 @@ Deno.serve(async (req) => {
           hyrosCampaignId: campaign.hyros_campaign_id,
           name: campaign.name,
           status: campaign.status || 'active',
+          platform: campaign.platform || 'unknown', // Include platform in response
           userId: campaign.user_id,
           createdAt: campaign.created_at,
           updatedAt: campaign.updated_at
@@ -142,7 +161,9 @@ Deno.serve(async (req) => {
           JSON.stringify({ 
             success: true,
             campaigns: formattedCampaigns,
-            importCount: syncResult.importCount || formattedCampaigns.length
+            importCount: syncResult.importCount || formattedCampaigns.length,
+            dateRange: syncResult.dateRange,
+            apiEndpoint: syncResult.apiEndpoint
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -155,6 +176,7 @@ Deno.serve(async (req) => {
             hyrosCampaignId: campaign.hyros_campaign_id,
             name: campaign.name,
             status: campaign.status || 'active',
+            platform: campaign.platform || 'unknown', // Include platform in response
             userId: campaign.user_id,
             createdAt: campaign.created_at,
             updatedAt: campaign.updated_at
@@ -183,6 +205,7 @@ Deno.serve(async (req) => {
       hyrosCampaignId: campaign.hyros_campaign_id,
       name: campaign.name,
       status: campaign.status || 'active',
+      platform: campaign.platform || 'unknown', // Include platform in response
       userId: campaign.user_id,
       createdAt: campaign.created_at,
       updatedAt: campaign.updated_at

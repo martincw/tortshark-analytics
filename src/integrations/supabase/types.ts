@@ -556,6 +556,7 @@ export type Database = {
           hyros_campaign_id: string
           id: string
           name: string
+          platform: string | null
           status: string | null
           updated_at: string | null
           user_id: string | null
@@ -565,6 +566,7 @@ export type Database = {
           hyros_campaign_id: string
           id?: string
           name: string
+          platform?: string | null
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -574,6 +576,7 @@ export type Database = {
           hyros_campaign_id?: string
           id?: string
           name?: string
+          platform?: string | null
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
