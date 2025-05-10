@@ -79,6 +79,7 @@ export default function HyrosCampaigns() {
       // Save any debug info
       if (result.debugInfo) {
         setDebugInfo(result.debugInfo);
+        console.log("Debug info from HYROS:", result.debugInfo);
       }
       
       // Fetch existing mappings

@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       if (data.data && Array.isArray(data.data)) {
         // Extract unique campaigns from ads
         data.data.forEach(ad => {
-          // Handle different possible field naming conventions (improvement #3)
+          // Handle different possible field naming conventions
           const campaignId = ad.campaign_id || ad.campaignId;
           const campaignName = ad.campaign_name || ad.campaignName;
           const adPlatform = ad.platform || ad.adPlatform || 'unknown';
@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
             from: startDateStr,
             to: endDateStr
           },
-          debugInfo: debugInfo // Add debug info to response (improvement #4)
+          debugInfo: debugInfo
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
           success: false, 
           error: `Error connecting to HYROS API: ${fetchError.message}`,
           apiEndpoint: adsEndpoint,
-          debugInfo: { // Add debug info to error response
+          debugInfo: {
             error: fetchError.message,
             stack: fetchError.stack,
             endpoint: adsEndpoint,
@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
         success: false, 
         error: error.message || "Unknown error occurred",
         stack: error.stack,
-        debugInfo: { // Add debug info to error response
+        debugInfo: {
           errorMessage: error.message,
           errorStack: error.stack
         }

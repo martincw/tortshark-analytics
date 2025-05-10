@@ -105,10 +105,12 @@ Deno.serve(async (req) => {
       if (!syncResponse.ok) {
         console.error("Error calling hyros-fetch-campaigns:", syncResponse.status);
         let errorMessage = "Failed to sync campaigns from HYROS";
+        let debugInfo = null;
         
         try {
           const errorData = await syncResponse.json();
           errorMessage = errorData.error || errorMessage;
+          debugInfo = errorData.debugInfo || null;
         } catch (e) {
           // If parsing fails, use default error message
           console.error("Error parsing sync error response:", e);
@@ -124,19 +126,24 @@ Deno.serve(async (req) => {
                 hyrosCampaignId: campaign.hyros_campaign_id,
                 name: campaign.name,
                 status: campaign.status || 'active',
-                platform: campaign.platform || 'unknown', // Include platform in response
+                platform: campaign.platform || 'unknown',
                 userId: campaign.user_id,
                 createdAt: campaign.created_at,
                 updatedAt: campaign.updated_at
               })),
-              syncError: errorMessage
+              syncError: errorMessage,
+              debugInfo: debugInfo
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         
         return new Response(
-          JSON.stringify({ success: false, error: errorMessage }),
+          JSON.stringify({ 
+            success: false, 
+            error: errorMessage,
+            debugInfo: debugInfo
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
@@ -151,7 +158,7 @@ Deno.serve(async (req) => {
           hyrosCampaignId: campaign.hyros_campaign_id,
           name: campaign.name,
           status: campaign.status || 'active',
-          platform: campaign.platform || 'unknown', // Include platform in response
+          platform: campaign.platform || 'unknown',
           userId: campaign.user_id,
           createdAt: campaign.created_at,
           updatedAt: campaign.updated_at
@@ -163,7 +170,8 @@ Deno.serve(async (req) => {
             campaigns: formattedCampaigns,
             importCount: syncResult.importCount || formattedCampaigns.length,
             dateRange: syncResult.dateRange,
-            apiEndpoint: syncResult.apiEndpoint
+            apiEndpoint: syncResult.apiEndpoint,
+            debugInfo: syncResult.debugInfo
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -176,7 +184,7 @@ Deno.serve(async (req) => {
             hyrosCampaignId: campaign.hyros_campaign_id,
             name: campaign.name,
             status: campaign.status || 'active',
-            platform: campaign.platform || 'unknown', // Include platform in response
+            platform: campaign.platform || 'unknown',
             userId: campaign.user_id,
             createdAt: campaign.created_at,
             updatedAt: campaign.updated_at
@@ -186,14 +194,19 @@ Deno.serve(async (req) => {
             JSON.stringify({ 
               success: true,
               campaigns: formattedCampaigns,
-              syncError: syncResult.error || "Unknown sync error"
+              syncError: syncResult.error || "Unknown sync error",
+              debugInfo: syncResult.debugInfo
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         
         return new Response(
-          JSON.stringify({ success: false, error: syncResult.error || "Failed to sync campaigns" }),
+          JSON.stringify({ 
+            success: false, 
+            error: syncResult.error || "Failed to sync campaigns",
+            debugInfo: syncResult.debugInfo 
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
@@ -205,7 +218,7 @@ Deno.serve(async (req) => {
       hyrosCampaignId: campaign.hyros_campaign_id,
       name: campaign.name,
       status: campaign.status || 'active',
-      platform: campaign.platform || 'unknown', // Include platform in response
+      platform: campaign.platform || 'unknown',
       userId: campaign.user_id,
       createdAt: campaign.created_at,
       updatedAt: campaign.updated_at
@@ -222,7 +235,11 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error in hyros-campaigns function:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message || "Unknown error occurred" }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || "Unknown error occurred",
+        stack: error.stack
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
