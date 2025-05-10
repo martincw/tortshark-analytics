@@ -59,7 +59,21 @@ export interface HyrosAuthResult {
   error?: string;
   apiKey?: string;
   accountId?: string;
-  statusCode?: number;  // Added statusCode property
+  statusCode?: number;
+}
+
+// New response type for campaigns fetch
+export interface HyrosCampaignsResponse {
+  success: boolean;
+  campaigns?: HyrosCampaign[];
+  error?: string;
+  importCount?: number;
+  apiEndpoint?: string;
+  triedEndpoints?: string[];
+  errors?: any[];
+  syncError?: string;
+  debugInfo?: any;
+  documentation?: string;
 }
 
 // HYROS API Lead Response Types

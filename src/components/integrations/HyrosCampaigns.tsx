@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, LinkIcon, RefreshCw, AlertCircle, Info } from 'lucide-react';
+import { Loader2, LinkIcon, RefreshCw, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -33,12 +33,17 @@ export default function HyrosCampaigns() {
   const [error, setError] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any | null>(null);
+  const [apiEndpoint, setApiEndpoint] = useState<string | null>(null);
+  const [triedEndpoints, setTriedEndpoints] = useState<string[]>([]);
+  const [endpointErrors, setEndpointErrors] = useState<any[]>([]);
   
   const loadData = async (forceSync = false) => {
     try {
       setLoading(true);
       setError(null);
       setDebugInfo(null);
+      setTriedEndpoints([]);
+      setEndpointErrors([]);
       
       if (forceSync) {
         setSyncing(true);
@@ -51,10 +56,15 @@ export default function HyrosCampaigns() {
       if (result.campaigns) {
         setHyrosCampaigns(result.campaigns);
         
+        // Save the API endpoint that worked
+        if (result.apiEndpoint) {
+          setApiEndpoint(result.apiEndpoint);
+        }
+        
         // If we got campaigns, show success message for sync
         if (forceSync) {
           setSyncMessage(`Successfully synced ${result.campaigns.length} campaigns from HYROS${result.apiEndpoint ? ` using endpoint ${result.apiEndpoint}` : ''}`);
-          setTimeout(() => setSyncMessage(null), 5000); // Clear message after 5 seconds
+          setTimeout(() => setSyncMessage(null), 8000); // Clear message after 8 seconds
         }
       } else {
         // If no campaigns, show appropriate message
@@ -65,6 +75,14 @@ export default function HyrosCampaigns() {
       }
       
       // Save any debug info
+      if (result.errors) {
+        setEndpointErrors(result.errors);
+      }
+      
+      if (result.triedEndpoints) {
+        setTriedEndpoints(result.triedEndpoints);
+      }
+      
       if (result.debugInfo) {
         setDebugInfo(result.debugInfo);
       }
@@ -74,10 +92,11 @@ export default function HyrosCampaigns() {
       setMappings(mappings);
     } catch (error) {
       console.error("Error loading HYROS campaigns and mappings:", error);
-      setError(error instanceof Error ? error.message : "Failed to load HYROS campaigns and mappings");
+      const errorMessage = error instanceof Error ? error.message : "Failed to load HYROS campaigns and mappings";
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to load HYROS campaigns and mappings.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -188,6 +207,16 @@ export default function HyrosCampaigns() {
         </CardHeader>
         
         <CardContent>
+          {apiEndpoint && (
+            <Alert className="mb-4 bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800">API Information</AlertTitle>
+              <AlertDescription className="text-blue-700">
+                Using HYROS API endpoint: <code className="bg-blue-100 px-1 py-0.5 rounded">{apiEndpoint}</code>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {syncMessage && (
             <Alert className="mb-4 bg-green-50 border-green-200">
               <RefreshCw className="h-4 w-4 text-green-600" />
@@ -205,6 +234,18 @@ export default function HyrosCampaigns() {
               <AlertDescription className="space-y-2">
                 <p>{error}</p>
                 
+                {/* Display attempted endpoints */}
+                {triedEndpoints.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium">Attempted API endpoints:</p>
+                    <ul className="text-xs list-disc pl-5 space-y-1 mt-1">
+                      {triedEndpoints.map((endpoint, index) => (
+                        <li key={index}>{endpoint}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
                 {/* Display troubleshooting suggestions */}
                 <div className="mt-2 text-sm">
                   <p className="font-semibold">Troubleshooting suggestions:</p>
@@ -215,6 +256,32 @@ export default function HyrosCampaigns() {
                     <li>Contact HYROS support to verify the correct API endpoint</li>
                   </ul>
                 </div>
+                
+                <div className="mt-2 flex items-center justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs" 
+                    onClick={() => window.open('https://hyros.com/support', '_blank')}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" /> Contact HYROS Support
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {endpointErrors.length > 0 && (
+            <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+              <Info className="h-4 w-4 text-yellow-600" />
+              <AlertTitle className="text-yellow-800">API Response Details</AlertTitle>
+              <AlertDescription className="text-yellow-700">
+                <details className="text-sm">
+                  <summary className="cursor-pointer font-medium">Show API error details</summary>
+                  <div className="mt-2 overflow-auto max-h-60 p-2 bg-yellow-100/50 rounded text-xs">
+                    <pre>{JSON.stringify(endpointErrors, null, 2)}</pre>
+                  </div>
+                </details>
               </AlertDescription>
             </Alert>
           )}

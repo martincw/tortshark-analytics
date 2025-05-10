@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_PROJECT_URL } from '@/integrations/supabase/client';
 import type { 
@@ -10,7 +11,8 @@ import type {
   HyrosLeadResponse,
   HyrosLeadsListResponse,
   HyrosLeadListParams,
-  HyrosLead
+  HyrosLead,
+  HyrosCampaignsResponse
 } from './types';
 
 export const hyrosApi = {
@@ -87,7 +89,7 @@ export const hyrosApi = {
   },
 
   // Campaign Management
-  async fetchHyrosCampaigns(forceSync: boolean = false): Promise<any> {
+  async fetchHyrosCampaigns(forceSync: boolean = false): Promise<HyrosCampaignsResponse> {
     try {
       const method = forceSync ? 'POST' : 'GET';
       const options: RequestInit = {
