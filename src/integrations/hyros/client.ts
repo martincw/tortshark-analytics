@@ -87,7 +87,7 @@ export const hyrosApi = {
   },
 
   // Campaign Management
-  async fetchHyrosCampaigns(forceSync: boolean = false): Promise<HyrosCampaign[]> {
+  async fetchHyrosCampaigns(forceSync: boolean = false): Promise<any> {
     try {
       const method = forceSync ? 'POST' : 'GET';
       const options: RequestInit = {
@@ -122,7 +122,8 @@ export const hyrosApi = {
         console.warn('HYROS campaign sync warning:', result.syncError);
       }
 
-      return result.campaigns || [];
+      // Return the full result instead of just campaigns, to include apiEndpoint and debug info
+      return result;
     } catch (error) {
       console.error('Error fetching HYROS campaigns:', error);
       throw error;

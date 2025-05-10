@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, LinkIcon, RefreshCw, AlertCircle } from 'lucide-react';
+import { Loader2, LinkIcon, RefreshCw, AlertCircle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,11 +32,13 @@ export default function HyrosCampaigns() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any | null>(null);
   
   const loadData = async (forceSync = false) => {
     try {
       setLoading(true);
       setError(null);
+      setDebugInfo(null);
       
       if (forceSync) {
         setSyncing(true);
@@ -44,13 +46,14 @@ export default function HyrosCampaigns() {
       }
       
       // Fetch HYROS campaigns with optional force sync
-      const campaigns = await hyrosApi.fetchHyrosCampaigns(forceSync);
-      setHyrosCampaigns(campaigns);
+      const result = await hyrosApi.fetchHyrosCampaigns(forceSync);
       
-      if (campaigns.length > 0) {
+      if (result.campaigns) {
+        setHyrosCampaigns(result.campaigns);
+        
         // If we got campaigns, show success message for sync
         if (forceSync) {
-          setSyncMessage(`Successfully synced ${campaigns.length} campaigns from HYROS`);
+          setSyncMessage(`Successfully synced ${result.campaigns.length} campaigns from HYROS${result.apiEndpoint ? ` using endpoint ${result.apiEndpoint}` : ''}`);
           setTimeout(() => setSyncMessage(null), 5000); // Clear message after 5 seconds
         }
       } else {
@@ -59,6 +62,11 @@ export default function HyrosCampaigns() {
           "No campaigns found in your HYROS account. Please check your HYROS account and try again." : 
           "No campaigns found. Try syncing with the HYROS API using the refresh button."
         );
+      }
+      
+      // Save any debug info
+      if (result.debugInfo) {
+        setDebugInfo(result.debugInfo);
       }
       
       // Fetch existing mappings
@@ -194,7 +202,32 @@ export default function HyrosCampaigns() {
             <Alert className="mb-4" variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription className="space-y-2">
+                <p>{error}</p>
+                
+                {/* Display troubleshooting suggestions */}
+                <div className="mt-2 text-sm">
+                  <p className="font-semibold">Troubleshooting suggestions:</p>
+                  <ul className="list-disc pl-5 space-y-1 mt-1">
+                    <li>Verify your HYROS API key has permission to access campaigns</li>
+                    <li>Check for any restrictions in your HYROS account settings</li>
+                    <li>Try logging into the HYROS dashboard to verify your account status</li>
+                    <li>Contact HYROS support to verify the correct API endpoint</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {debugInfo && (
+            <Alert className="mb-4 bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800">Debug Information</AlertTitle>
+              <AlertDescription className="text-blue-700 text-sm">
+                <pre className="overflow-auto max-h-40 p-2 bg-blue-100 rounded">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </AlertDescription>
             </Alert>
           )}
           

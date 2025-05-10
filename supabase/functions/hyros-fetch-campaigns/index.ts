@@ -61,59 +61,88 @@ Deno.serve(async (req) => {
     // Fetch campaigns from HYROS API
     console.log("Fetching campaigns from HYROS API");
     
-    // Note: Updated HYROS API endpoint - according to the error logs, this endpoint might be incorrect
-    // The API call is returning a 404. Let's try a different endpoint format
-    // Original: https://api.hyros.com/v1/api/v1.0/campaigns
-    // Updated to use the more common v1 API structure
-    const hyrosResponse = await fetch('https://api.hyros.com/v1/campaigns', {
-      method: 'GET',
-      headers: {
-        'API-Key': apiKey,
-        'Content-Type': 'application/json',
-      }
-    });
+    // Let's try multiple possible endpoints for the HYROS API
+    const possibleEndpoints = [
+      'https://api.hyros.com/v1/campaigns',
+      'https://api.hyros.com/campaigns',
+      'https://api.hyros.com/api/v1/campaigns',
+      'https://api.hyros.com/api/campaigns'
+    ];
     
-    if (!hyrosResponse.ok) {
-      const statusCode = hyrosResponse.status;
-      console.error("Error response from HYROS API:", statusCode);
-      let errorMessage = `Failed to fetch campaigns from HYROS API (status: ${statusCode})`;
+    let hyrosResponse = null;
+    let successfulEndpoint = '';
+    
+    // Try each endpoint until one works
+    for (const endpoint of possibleEndpoints) {
+      console.log(`Attempting to fetch campaigns from endpoint: ${endpoint}`);
       
       try {
-        const errorData = await hyrosResponse.text();
-        console.error("Error data from HYROS API:", errorData);
-        try {
-          const parsedError = JSON.parse(errorData);
-          errorMessage = parsedError.message || parsedError.error || errorMessage;
-        } catch (parseError) {
-          // If not JSON, just use the text response
-          errorMessage = errorData || errorMessage;
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'API-Key': apiKey,
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          hyrosResponse = response;
+          successfulEndpoint = endpoint;
+          console.log(`Successfully fetched campaigns from endpoint: ${endpoint}`);
+          break;
+        } else {
+          console.error(`Endpoint ${endpoint} returned status: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`Error from ${endpoint}:`, errorText);
         }
-      } catch (e) {
-        console.error("Error parsing error response:", e);
+      } catch (fetchError) {
+        console.error(`Error fetching from ${endpoint}:`, fetchError.message);
       }
-      
+    }
+    
+    if (!hyrosResponse) {
+      console.error("All HYROS API endpoints failed");
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: errorMessage,
-          statusCode,
+          error: "Failed to fetch campaigns from HYROS API. All endpoints failed.",
+          triedEndpoints: possibleEndpoints
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
     
     const hyrosCampaignsData = await hyrosResponse.json();
-    console.log("Fetched campaigns from HYROS API:", JSON.stringify(hyrosCampaignsData).substring(0, 200) + "...");
+    console.log(`Fetched campaigns from HYROS API using endpoint ${successfulEndpoint}:`, 
+      JSON.stringify(hyrosCampaignsData).substring(0, 200) + "...");
     
-    // Extract campaigns from the API response
-    // Note: The exact structure depends on the HYROS API response format
-    // This is a best guess based on common API patterns
-    const campaigns = hyrosCampaignsData.data || hyrosCampaignsData.campaigns || [];
+    // Extract campaigns from the API response based on the response structure
+    // HYROS might return data in different formats, so we need to handle various structures
+    let campaigns = [];
     
-    if (!Array.isArray(campaigns)) {
-      console.error("Unexpected campaigns data format:", typeof campaigns);
+    if (Array.isArray(hyrosCampaignsData)) {
+      // If the response is directly an array
+      campaigns = hyrosCampaignsData;
+    } else if (hyrosCampaignsData.data && Array.isArray(hyrosCampaignsData.data)) {
+      // If the response has a data property that is an array
+      campaigns = hyrosCampaignsData.data;
+    } else if (hyrosCampaignsData.campaigns && Array.isArray(hyrosCampaignsData.campaigns)) {
+      // If the response has a campaigns property that is an array
+      campaigns = hyrosCampaignsData.campaigns;
+    } else if (hyrosCampaignsData.results && Array.isArray(hyrosCampaignsData.results)) {
+      // If the response has a results property that is an array
+      campaigns = hyrosCampaignsData.results;
+    } else {
+      console.error("Unexpected campaigns data format:", typeof hyrosCampaignsData);
       return new Response(
-        JSON.stringify({ success: false, error: "Unexpected data format from HYROS API" }),
+        JSON.stringify({ 
+          success: false, 
+          error: "Unexpected data format from HYROS API",
+          dataFormat: typeof hyrosCampaignsData,
+          hasDataProperty: !!hyrosCampaignsData.data,
+          hasCampaignsProperty: !!hyrosCampaignsData.campaigns,
+          responseExcerpt: JSON.stringify(hyrosCampaignsData).substring(0, 500)
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
@@ -124,8 +153,8 @@ Deno.serve(async (req) => {
     for (const campaign of campaigns) {
       // We need to adapt this based on the actual structure of the HYROS API response
       const hyrosCampaignId = campaign.id || campaign.campaign_id;
-      const name = campaign.name || campaign.campaign_name;
-      const status = campaign.status || campaign.campaignStatus || 'active';
+      const name = campaign.name || campaign.campaign_name || campaign.title;
+      const status = campaign.status || campaign.campaignStatus || campaign.state || 'active';
       
       if (hyrosCampaignId && name) {
         // Upsert the campaign into the database
@@ -145,6 +174,8 @@ Deno.serve(async (req) => {
         if (upsertError) {
           console.error("Error upserting campaign:", hyrosCampaignId, upsertError);
         }
+      } else {
+        console.warn("Skipping campaign with missing ID or name:", campaign);
       }
     }
     
@@ -178,7 +209,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         campaigns: updatedCampaigns,
-        importCount: campaigns.length
+        importCount: campaigns.length,
+        apiEndpoint: successfulEndpoint
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
