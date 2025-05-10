@@ -113,16 +113,24 @@ Deno.serve(async (req) => {
         hasData: leads.length > 0
       };
       
-      // Extract unique campaigns from lead data with flexible field name handling
+      // Extract unique campaigns from lead data
       const uniqueCampaigns: Record<string, any> = {};
       
       if (leads.length > 0) {
         // Extract unique campaigns from leads
         leads.forEach(lead => {
-          // Handle different possible field naming conventions
-          const campaignId = lead.campaign_id ?? lead.campaignId;
-          const campaignName = lead.campaign_name ?? lead.campaignName;
-          const platform = lead.ad_platform ?? lead.platform ?? 'unknown';
+          // Try to get source data from firstSource or lastSource
+          const source = lead.firstSource || lead.lastSource || null;
+          if (!source) return;
+          
+          // Extract campaign information from source data
+          const ad = source.sourceLinkAd;
+          const adSource = source.adSource;
+          
+          // Get campaign ID, name, and platform
+          const campaignId = ad?.adSourceId || source.sourceLinkId || null;
+          const campaignName = ad?.name || source.name || null;
+          const platform = adSource?.platform || 'unknown';
           
           if (campaignId && !uniqueCampaigns[campaignId]) {
             uniqueCampaigns[campaignId] = {
