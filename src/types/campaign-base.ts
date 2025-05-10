@@ -38,7 +38,7 @@ export interface StatHistoryEntry {
   revenue: number;
   adSpend?: number;
   createdAt?: string;
-  updatedAt?: string;
+  // updatedAt property removed as it doesn't exist in the database
 }
 
 export interface CampaignBasic {

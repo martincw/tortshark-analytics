@@ -257,7 +257,8 @@ const isDateInRange = (dateStr: string, startDateStr: string, endDateStr: string
       end: adjustedEndDate
     });
   } catch (error) {
-    console.error(`Error checking date range: ${dateStr} in ${startDateStr} to ${endDateStr}`, error);
+    // Reduce verbose logging to improve performance
+    console.error(`Error in isDateInRange: Invalid date format or comparison`);
     return false;
   }
 };

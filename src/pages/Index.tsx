@@ -1,4 +1,3 @@
-
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
@@ -39,6 +38,15 @@ const Index = () => {
   useEffect(() => {
     console.log("Index component - date range updated:", dateRange);
     console.log(`Filtered campaigns count: ${filteredCampaigns.length}`);
+    
+    // Add more detailed logging about the campaigns to help debug
+    if (filteredCampaigns.length > 0) {
+      console.log("First campaign sample:", {
+        id: filteredCampaigns[0].id,
+        name: filteredCampaigns[0].name,
+        statsHistory: filteredCampaigns[0].statsHistory.length
+      });
+    }
   }, [dateRange, filteredCampaigns.length]);
 
   // Store active tab in localStorage when it changes
@@ -66,12 +74,15 @@ const Index = () => {
     setActiveTab(value);
   };
   
+  // Improve the refresh handler with proper loading states and error handling
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       await fetchCampaigns();
+      toast.success("Data refreshed successfully");
     } catch (e) {
       console.error("Error refreshing campaigns:", e);
+      toast.error("Failed to refresh data");
     } finally {
       setIsRefreshing(false);
     }
@@ -90,7 +101,7 @@ const Index = () => {
     );
   }
   
-  // Show error state
+  // Show error state with improved error messaging and recovery options
   if (error && !isLoading && campaigns.length === 0) {
     return (
       <div className="space-y-6">
@@ -100,6 +111,14 @@ const Index = () => {
           <AlertDescription>
             <div className="flex flex-col gap-4">
               <p>Error loading campaigns: {error}</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm">Try these solutions:</p>
+                <ul className="list-disc list-inside text-sm ml-2">
+                  <li>Check your internet connection</li>
+                  <li>Log out and log back in</li>
+                  <li>Clear your browser cache</li>
+                </ul>
+              </div>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -117,10 +136,27 @@ const Index = () => {
     );
   }
   
+  // Regular render state with proper fallbacks for empty data
   return (
     <div className="space-y-6">
       {/* Keep the DashboardHeader at the top across all tabs */}
       <DashboardHeader />
+      
+      {/* Add refresh button for easy data refresh without error state */}
+      {!isLoading && (
+        <div className="flex justify-end">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+            className="w-fit"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
+        </div>
+      )}
       
       {/* Tabbed Interface */}
       <Tabs 

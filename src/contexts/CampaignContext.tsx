@@ -199,8 +199,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             cases: entry.cases || 0,
             revenue: entry.revenue || 0,
             adSpend: entry.ad_spend || 0,
-            createdAt: entry.created_at || '',
-            updatedAt: entry.updated_at || undefined
+            createdAt: entry.created_at || ''
           })) || [];
 
           const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
