@@ -59,6 +59,7 @@ export interface HyrosAuthResult {
   error?: string;
   apiKey?: string;
   accountId?: string;
+  statusCode?: number;  // Added statusCode property
 }
 
 // HYROS API Lead Response Types
