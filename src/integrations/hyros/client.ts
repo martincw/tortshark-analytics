@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_PROJECT_URL } from '@/integrations/supabase/client';
 import type { 
@@ -88,20 +87,39 @@ export const hyrosApi = {
   },
 
   // Campaign Management
-  async fetchHyrosCampaigns(): Promise<HyrosCampaign[]> {
+  async fetchHyrosCampaigns(forceSync: boolean = false): Promise<HyrosCampaign[]> {
     try {
-      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-campaigns`, {
-        method: 'GET',
+      const method = forceSync ? 'POST' : 'GET';
+      const options: RequestInit = {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
         },
-      });
+      };
+      
+      // Add body for POST requests (force sync)
+      if (forceSync) {
+        options.body = JSON.stringify({ forceSync: true });
+      }
+      
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-campaigns`, options);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('HYROS campaigns fetch failed:', response.status, errorText);
+        throw new Error(`Failed to fetch HYROS campaigns: ${errorText}`);
+      }
 
       const result = await response.json();
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch HYROS campaigns');
+      }
+
+      // If there was a sync error but we still got campaigns, log the error
+      if (result.syncError) {
+        console.warn('HYROS campaign sync warning:', result.syncError);
       }
 
       return result.campaigns || [];

@@ -85,14 +85,36 @@ export default function Hyros() {
         // Refresh campaigns in case there are new ones from HYROS
         await fetchCampaigns();
       } else {
-        setError(result.error || "Failed to connect to HYROS. Please check your API key.");
+        // Handle specific error cases
+        let errorMessage = result.error || "Failed to connect to HYROS. Please check your API key.";
+        
+        if (result.statusCode === 401 || result.statusCode === 403) {
+          errorMessage = "Invalid API key. Please check and try again.";
+        } else if (result.statusCode === 429) {
+          errorMessage = "Too many requests to HYROS API. Please wait a moment and try again.";
+        }
+        
+        setError(errorMessage);
       }
     } catch (error) {
       console.error("Error connecting to HYROS:", error);
-      setError(error instanceof Error ? error.message : "An unexpected error occurred");
+      
+      // Provide more specific error message if possible
+      let errorMessage = "An unexpected error occurred";
+      if (error instanceof Error) {
+        if (error.message.includes("fetch") || error.message.includes("network")) {
+          errorMessage = "Network error connecting to HYROS. Please check your connection.";
+        } else if (error.message.includes("json")) {
+          errorMessage = "Unexpected response format from HYROS API. Please try again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
       toast({
         title: "Connection Error",
-        description: "Failed to connect to HYROS. Please check your network connection and try again.",
+        description: "Failed to connect to HYROS. Please check your API key and network connection.",
         variant: "destructive",
       });
     } finally {
@@ -113,7 +135,13 @@ export default function Hyros() {
           description: "Your HYROS API key is valid.",
         });
       } else {
-        setError(result.error || "Failed to verify API key. It may have expired or been revoked.");
+        let errorMessage = result.error || "Failed to verify API key. It may have expired or been revoked.";
+        
+        if (result.statusCode === 401 || result.statusCode === 403) {
+          errorMessage = "API key is no longer valid. Please reconnect with a new key.";
+        }
+        
+        setError(errorMessage);
         setIsConnected(false);
       }
     } catch (error) {

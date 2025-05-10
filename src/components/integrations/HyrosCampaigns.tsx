@@ -11,9 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, LinkIcon, RefreshCw } from 'lucide-react';
+import { Loader2, LinkIcon, RefreshCw, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { hyrosApi } from '@/integrations/hyros/client';
 import { useCampaign } from '@/contexts/CampaignContext';
 import HyrosMappingDialog from './HyrosMappingDialog';
@@ -23,25 +24,49 @@ export default function HyrosCampaigns() {
   const { toast } = useToast();
   const { campaigns } = useCampaign();
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hyrosCampaigns, setHyrosCampaigns] = useState<HyrosCampaign[]>([]);
   const [mappings, setMappings] = useState<HyrosMapping[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<HyrosCampaign | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   
-  const loadData = async () => {
+  const loadData = async (forceSync = false) => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Fetch HYROS campaigns
-      const campaigns = await hyrosApi.fetchHyrosCampaigns();
+      if (forceSync) {
+        setSyncing(true);
+        setSyncMessage("Synchronizing campaigns from HYROS...");
+      }
+      
+      // Fetch HYROS campaigns with optional force sync
+      const campaigns = await hyrosApi.fetchHyrosCampaigns(forceSync);
       setHyrosCampaigns(campaigns);
+      
+      if (campaigns.length > 0) {
+        // If we got campaigns, show success message for sync
+        if (forceSync) {
+          setSyncMessage(`Successfully synced ${campaigns.length} campaigns from HYROS`);
+          setTimeout(() => setSyncMessage(null), 5000); // Clear message after 5 seconds
+        }
+      } else {
+        // If no campaigns, show appropriate message
+        setError(forceSync ? 
+          "No campaigns found in your HYROS account. Please check your HYROS account and try again." : 
+          "No campaigns found. Try syncing with the HYROS API using the refresh button."
+        );
+      }
       
       // Fetch existing mappings
       const mappings = await hyrosApi.getCampaignMappings();
       setMappings(mappings);
     } catch (error) {
       console.error("Error loading HYROS campaigns and mappings:", error);
+      setError(error instanceof Error ? error.message : "Failed to load HYROS campaigns and mappings");
       toast({
         title: "Error",
         description: "Failed to load HYROS campaigns and mappings.",
@@ -49,6 +74,8 @@ export default function HyrosCampaigns() {
       });
     } finally {
       setLoading(false);
+      setSyncing(false);
+      setRefreshing(false);
     }
   };
   
@@ -59,7 +86,7 @@ export default function HyrosCampaigns() {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      await loadData();
+      await loadData(false); // Regular refresh without forcing sync
       toast({
         title: "Refreshed",
         description: "HYROS campaigns have been refreshed.",
@@ -73,6 +100,24 @@ export default function HyrosCampaigns() {
       });
     } finally {
       setRefreshing(false);
+    }
+  };
+  
+  const handleForceSync = async () => {
+    try {
+      setSyncing(true);
+      await loadData(true); // Force sync with HYROS API
+      toast({
+        title: "Sync Complete",
+        description: "HYROS campaigns have been synchronized.",
+      });
+    } catch (error) {
+      console.error("Error syncing campaigns:", error);
+      toast({
+        title: "Sync Error",
+        description: "Failed to synchronize campaigns from HYROS.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -113,17 +158,46 @@ export default function HyrosCampaigns() {
               Map HYROS campaigns to TortShark campaigns
             </CardDescription>
           </div>
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="secondary" 
+              onClick={handleForceSync}
+              disabled={syncing || refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync with HYROS'}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={handleRefresh}
+              disabled={syncing || refreshing}
+              title="Refresh campaign list"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </CardHeader>
         
         <CardContent>
+          {syncMessage && (
+            <Alert className="mb-4 bg-green-50 border-green-200">
+              <RefreshCw className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Sync Status</AlertTitle>
+              <AlertDescription className="text-green-700">
+                {syncMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {error && (
+            <Alert className="mb-4" variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           <div className="border rounded-md">
             <Table>
               <TableHeader>
@@ -147,7 +221,19 @@ export default function HyrosCampaigns() {
                 ) : hyrosCampaigns.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                      No HYROS campaigns found.
+                      {syncing ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          <span>Synchronizing with HYROS...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <p>No HYROS campaigns found.</p>
+                          <Button variant="outline" size="sm" onClick={handleForceSync}>
+                            <RefreshCw className="h-4 w-4 mr-2" /> Sync with HYROS API
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -166,14 +252,20 @@ export default function HyrosCampaigns() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {isAlreadyMapped ? mappedCampaignName : 'Not mapped'}
+                          {isAlreadyMapped ? (
+                            <span className="text-green-600 font-medium">
+                              {mappedCampaignName}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Not mapped</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleMapCampaign(campaign)}
-                            disabled={loading}
+                            disabled={loading || syncing}
                           >
                             <LinkIcon className="h-4 w-4 mr-1" />
                             {isAlreadyMapped ? 'Remap' : 'Map'}
