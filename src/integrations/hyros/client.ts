@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_PROJECT_URL } from '@/integrations/supabase/client';
 import type { 
@@ -117,11 +116,6 @@ export const hyrosApi = {
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch HYROS campaigns');
-      }
-
-      // If there was a sync error but we still got campaigns, log the error
-      if (result.syncError) {
-        console.warn('HYROS campaign sync warning:', result.syncError);
       }
 
       // Return the full result instead of just campaigns, to include apiEndpoint and debug info

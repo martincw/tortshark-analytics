@@ -1,5 +1,5 @@
 
-// This new edge function will handle fetching leads from the HYROS API with proper pagination
+// This function handles fetching leads from the HYROS API with proper pagination
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -14,6 +14,7 @@ interface HyrosLeadListParams {
   toDate?: string;
   pageSize?: number;
   pageId?: string;
+  campaignId?: string; // Added campaign ID parameter
 }
 
 Deno.serve(async (req) => {
@@ -34,8 +35,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Construct the HYROS API URL for leads
-    let url = 'https://api.hyros.com/v1/api/v1.0/leads?';
+    // Construct the HYROS API URL for leads using the correct endpoint
+    let url = 'https://api.hyros.com/api/v1.0/leads?';
     const queryParams: string[] = [];
 
     // Add parameters to the URL if they exist
@@ -62,6 +63,11 @@ Deno.serve(async (req) => {
       
       if (params.pageId) {
         queryParams.push(`pageId=${encodeURIComponent(params.pageId)}`);
+      }
+      
+      // Add campaign ID filter if provided
+      if (params.campaignId) {
+        queryParams.push(`campaignId=${encodeURIComponent(params.campaignId)}`);
       }
     }
     
@@ -96,7 +102,8 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: errorMessage 
+          error: errorMessage,
+          endpoint: url
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
       );
@@ -111,7 +118,8 @@ Deno.serve(async (req) => {
         success: true,
         leads: data.result || [],
         nextPageId: data.nextPageId,
-        request_id: data.request_id
+        request_id: data.request_id,
+        endpoint: url
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
