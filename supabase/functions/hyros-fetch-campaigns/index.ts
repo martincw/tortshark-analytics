@@ -59,12 +59,20 @@ Deno.serve(async (req) => {
     
     const apiKey = hyrosToken.api_key;
     
-    // Fetch ads from HYROS API - REMOVING the date parameters that were causing issues
-    const adsEndpoint = `${HYROS_BASE_URL}/ads?page=1&size=500`;
-    console.log(`Fetching ads from HYROS API: ${adsEndpoint}`);
+    // Set up date range for the last 30 days
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - 30);
+
+    const isoFrom = from.toISOString().split('T')[0];
+    const isoTo = to.toISOString().split('T')[0];
+
+    // Fetch leads from HYROS API to extract campaign data
+    const leadsEndpoint = `${HYROS_BASE_URL}/leads?from=${isoFrom}&to=${isoTo}&pageSize=200`;
+    console.log(`Fetching leads from HYROS API: ${leadsEndpoint}`);
     
     try {
-      const response = await fetch(adsEndpoint, {
+      const response = await fetch(leadsEndpoint, {
         method: 'GET',
         headers: {
           'API-Key': apiKey,
@@ -77,59 +85,63 @@ Deno.serve(async (req) => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Error fetching ads: ${response.status} ${errorText.substring(0, 500)}`);
+        console.error(`Error fetching leads: ${response.status} ${errorText.substring(0, 500)}`);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Failed to fetch ads: ${response.status}`,
+            error: `Failed to fetch leads: ${response.status}`,
             details: errorText.substring(0, 200),
-            endpoint: adsEndpoint
+            endpoint: leadsEndpoint
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
         );
       }
       
       const data = await response.json();
-      console.log(`Fetched ads from HYROS API. Count: ${data.data?.length || 0}`);
-      console.log(`Data sample: ${JSON.stringify(data.data?.slice(0, 2) || 'No data')}`);
+      const leads = data?.result || [];
+      console.log(`Fetched leads from HYROS API. Count: ${leads.length || 0}`);
+      if (leads.length > 0) {
+        console.log(`Lead sample: ${JSON.stringify(leads.slice(0, 1) || 'No leads')}`);
+      }
       
       // Create debug info object
       const debugInfo = {
-        rawDataCount: data.data?.length || 0,
-        endpoint: adsEndpoint,
-        firstAd: data.data?.length > 0 ? data.data[0] : null,
-        hasData: !!data.data && data.data.length > 0
+        endpoint: leadsEndpoint,
+        leadsFetched: leads.length,
+        dateRange: { from: isoFrom, to: isoTo },
+        firstLead: leads.length > 0 ? leads[0] : null,
+        hasData: leads.length > 0
       };
       
-      // Extract unique campaigns from ads data with flexible field name handling
-      const campaigns = [];
-      const uniqueCampaignIds = new Set();
+      // Extract unique campaigns from lead data with flexible field name handling
+      const uniqueCampaigns: Record<string, any> = {};
       
-      if (data.data && Array.isArray(data.data)) {
-        // Extract unique campaigns from ads
-        data.data.forEach(ad => {
+      if (leads.length > 0) {
+        // Extract unique campaigns from leads
+        leads.forEach(lead => {
           // Handle different possible field naming conventions
-          const campaignId = ad.campaign_id || ad.campaignId;
-          const campaignName = ad.campaign_name || ad.campaignName;
-          const adPlatform = ad.platform || ad.adPlatform || 'unknown';
-          const adStatus = ad.status || ad.adStatus || 'active';
+          const campaignId = lead.campaign_id ?? lead.campaignId;
+          const campaignName = lead.campaign_name ?? lead.campaignName;
+          const platform = lead.ad_platform ?? lead.platform ?? 'unknown';
           
-          if (campaignId && !uniqueCampaignIds.has(campaignId)) {
-            uniqueCampaignIds.add(campaignId);
-            campaigns.push({
-              hyros_campaign_id: campaignId.toString(),
+          if (campaignId && !uniqueCampaigns[campaignId]) {
+            uniqueCampaigns[campaignId] = {
+              hyros_campaign_id: String(campaignId),
               name: campaignName || `Campaign ${campaignId}`,
-              status: adStatus,
-              platform: adPlatform,
+              status: 'active',
+              platform,
               updated_at: new Date().toISOString(),
               user_id: user.id
-            });
+            };
           }
         });
       }
       
-      console.log(`Extracted ${campaigns.length} unique campaigns from ads`);
-      debugInfo.extractedCampaigns = campaigns.length;
+      const campaigns = Object.values(uniqueCampaigns);
+      
+      console.log(`Extracted ${campaigns.length} unique campaigns from leads`);
+      debugInfo.campaignsExtracted = campaigns.length;
+      debugInfo.firstCampaign = campaigns[0] || null;
       
       // Bulk upsert campaigns to the database
       let upsertResult = null;
@@ -150,7 +162,7 @@ Deno.serve(async (req) => {
               success: false, 
               error: `Failed to save campaigns: ${upsertError.message}`,
               campaigns: campaigns,
-              debugInfo: debugInfo // Include debug info in error response
+              debugInfo: debugInfo
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
           );
@@ -200,7 +212,7 @@ Deno.serve(async (req) => {
           success: true, 
           campaigns: updatedCampaigns,
           importCount: campaigns.length,
-          apiEndpoint: adsEndpoint,
+          endpoint: leadsEndpoint,
           debugInfo: debugInfo
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -212,11 +224,12 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: `Error connecting to HYROS API: ${fetchError.message}`,
-          apiEndpoint: adsEndpoint,
+          endpoint: leadsEndpoint,
           debugInfo: {
             error: fetchError.message,
             stack: fetchError.stack,
-            endpoint: adsEndpoint
+            endpoint: leadsEndpoint,
+            dateRange: { from: isoFrom, to: isoTo }
           }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
