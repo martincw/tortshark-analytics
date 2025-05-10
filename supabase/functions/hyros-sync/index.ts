@@ -5,7 +5,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 // Get environment variables
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const HYROS_BASE_URL = "https://api.hyros.com/api/v1.0";
+const HYROS_BASE_URL = "https://api.hyros.com/v1/api/v1.0";
 
 // Interface for HYROS lead data
 interface HyrosLead {

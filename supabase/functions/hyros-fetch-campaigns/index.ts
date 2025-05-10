@@ -5,7 +5,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 // Get environment variables
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const HYROS_BASE_URL = "https://api.hyros.com/api/v1.0";
+const HYROS_BASE_URL = "https://api.hyros.com/v1/api/v1.0";
 
 Deno.serve(async (req) => {
   console.log("hyros-fetch-campaigns function called");
