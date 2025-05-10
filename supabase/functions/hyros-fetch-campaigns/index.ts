@@ -61,9 +61,11 @@ Deno.serve(async (req) => {
     // Fetch campaigns from HYROS API
     console.log("Fetching campaigns from HYROS API");
     
-    // Make a request to the HYROS API to get campaigns
-    // According to documentation and common API patterns, we're assuming an endpoint for campaigns
-    const hyrosResponse = await fetch('https://api.hyros.com/v1/api/v1.0/campaigns', {
+    // Note: Updated HYROS API endpoint - according to the error logs, this endpoint might be incorrect
+    // The API call is returning a 404. Let's try a different endpoint format
+    // Original: https://api.hyros.com/v1/api/v1.0/campaigns
+    // Updated to use the more common v1 API structure
+    const hyrosResponse = await fetch('https://api.hyros.com/v1/campaigns', {
       method: 'GET',
       headers: {
         'API-Key': apiKey,
@@ -72,18 +74,30 @@ Deno.serve(async (req) => {
     });
     
     if (!hyrosResponse.ok) {
-      console.error("Error response from HYROS API:", hyrosResponse.status);
-      let errorMessage = "Failed to fetch campaigns from HYROS API";
+      const statusCode = hyrosResponse.status;
+      console.error("Error response from HYROS API:", statusCode);
+      let errorMessage = `Failed to fetch campaigns from HYROS API (status: ${statusCode})`;
       
       try {
-        const errorData = await hyrosResponse.json();
-        errorMessage = errorData.message || errorMessage;
+        const errorData = await hyrosResponse.text();
+        console.error("Error data from HYROS API:", errorData);
+        try {
+          const parsedError = JSON.parse(errorData);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch (parseError) {
+          // If not JSON, just use the text response
+          errorMessage = errorData || errorMessage;
+        }
       } catch (e) {
         console.error("Error parsing error response:", e);
       }
       
       return new Response(
-        JSON.stringify({ success: false, error: errorMessage }),
+        JSON.stringify({ 
+          success: false, 
+          error: errorMessage,
+          statusCode,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }

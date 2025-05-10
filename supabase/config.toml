@@ -79,6 +79,9 @@ verify_jwt = true
 [functions.hyros-leads]
 verify_jwt = true
 
+[functions.hyros-fetch-campaigns]
+verify_jwt = true
+
 [functions.google-ads]
 verify_jwt = true
 
