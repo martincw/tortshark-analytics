@@ -42,13 +42,18 @@ export default function Hyros() {
         }
       } catch (error) {
         console.error("Error loading HYROS connection:", error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to load HYROS connection details. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
     
     loadConnection();
-  }, []);
+  }, [toast]);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +67,9 @@ export default function Hyros() {
       setLoading(true);
       setError(null);
       
+      console.log("Connecting to HYROS with API key...");
       const result = await hyrosApi.connectHyros(apiKey);
+      console.log("HYROS connection result:", result);
       
       if (result.success) {
         setIsConnected(true);
@@ -83,6 +90,11 @@ export default function Hyros() {
     } catch (error) {
       console.error("Error connecting to HYROS:", error);
       setError(error instanceof Error ? error.message : "An unexpected error occurred");
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to HYROS. Please check your network connection and try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -107,6 +119,11 @@ export default function Hyros() {
     } catch (error) {
       console.error("Error verifying API key:", error);
       setError(error instanceof Error ? error.message : "An unexpected error occurred");
+      toast({
+        title: "Verification Error",
+        description: "Failed to verify API key. Please check your network connection and try again.",
+        variant: "destructive",
+      });
     } finally {
       setVerifying(false);
     }

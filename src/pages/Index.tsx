@@ -11,6 +11,7 @@ import { useCampaignGridData } from "@/hooks/useCampaignGridData";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();

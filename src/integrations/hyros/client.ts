@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_PROJECT_URL } from '@/integrations/supabase/client';
 import type { 
   HyrosToken, 
   HyrosCampaign, 
@@ -17,7 +18,7 @@ export const hyrosApi = {
   // API Key Management
   async connectHyros(apiKey: string): Promise<HyrosAuthResult> {
     try {
-      const response = await fetch('/api/hyros-auth', {
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-auth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,7 +27,9 @@ export const hyrosApi = {
         body: JSON.stringify({ apiKey }),
       });
 
-      return await response.json();
+      const data = await response.json();
+      console.log("HYROS connect response:", data);
+      return data;
     } catch (error) {
       console.error('Error connecting to HYROS:', error);
       return { 
@@ -38,7 +41,7 @@ export const hyrosApi = {
 
   async verifyApiKey(apiKey: string): Promise<HyrosAuthResult> {
     try {
-      const response = await fetch('/api/hyros-verify', {
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +90,7 @@ export const hyrosApi = {
   // Campaign Management
   async fetchHyrosCampaigns(): Promise<HyrosCampaign[]> {
     try {
-      const response = await fetch('/api/hyros-campaigns', {
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-campaigns`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -185,7 +188,7 @@ export const hyrosApi = {
   // Stats Fetching
   async fetchYesterdayStats(): Promise<HyrosSyncResult> {
     try {
-      const response = await fetch('/api/hyros-sync', {
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -207,7 +210,7 @@ export const hyrosApi = {
     try {
       const { fromDate, toDate, pageSize, pageId, emails } = params;
       
-      const response = await fetch('/api/hyros-fetch-stats', {
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/hyros-fetch-stats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
