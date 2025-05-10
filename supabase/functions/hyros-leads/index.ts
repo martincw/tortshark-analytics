@@ -6,6 +6,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 // Get environment variables
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const HYROS_BASE_URL = "https://api.hyros.com/api/v1.0";
 
 interface HyrosLeadListParams {
   ids?: string[];
@@ -14,7 +15,7 @@ interface HyrosLeadListParams {
   toDate?: string;
   pageSize?: number;
   pageId?: string;
-  campaignId?: string; // Added campaign ID parameter
+  campaignId?: string; // Campaign ID parameter
 }
 
 Deno.serve(async (req) => {
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
     }
 
     // Construct the HYROS API URL for leads using the correct endpoint
-    let url = 'https://api.hyros.com/api/v1.0/leads?';
+    let url = `${HYROS_BASE_URL}/leads?`;
     const queryParams: string[] = [];
 
     // Add parameters to the URL if they exist
@@ -50,24 +51,24 @@ Deno.serve(async (req) => {
       }
       
       if (params.fromDate) {
-        queryParams.push(`fromDate=${encodeURIComponent(params.fromDate)}`);
+        queryParams.push(`from=${encodeURIComponent(params.fromDate)}`);
       }
       
       if (params.toDate) {
-        queryParams.push(`toDate=${encodeURIComponent(params.toDate)}`);
+        queryParams.push(`to=${encodeURIComponent(params.toDate)}`);
       }
       
       if (params.pageSize) {
-        queryParams.push(`pageSize=${params.pageSize}`);
+        queryParams.push(`size=${params.pageSize}`);
       }
       
       if (params.pageId) {
-        queryParams.push(`pageId=${encodeURIComponent(params.pageId)}`);
+        queryParams.push(`page=${encodeURIComponent(params.pageId)}`);
       }
       
       // Add campaign ID filter if provided
       if (params.campaignId) {
-        queryParams.push(`campaignId=${encodeURIComponent(params.campaignId)}`);
+        queryParams.push(`campaign_id=${encodeURIComponent(params.campaignId)}`);
       }
     }
     
@@ -110,14 +111,14 @@ Deno.serve(async (req) => {
     }
     
     const data = await response.json();
-    console.log(`Successfully retrieved leads data. Count: ${data.result?.length || 0}, Next page: ${data.nextPageId ? 'available' : 'none'}`);
+    console.log(`Successfully retrieved leads data. Count: ${data.data?.length || 0}, Next page: ${data.pagination?.next_page ? 'available' : 'none'}`);
     
     // Return the HYROS API response with success flag
     return new Response(
       JSON.stringify({ 
         success: true,
-        leads: data.result || [],
-        nextPageId: data.nextPageId,
+        leads: data.data || [],
+        pagination: data.pagination || {},
         request_id: data.request_id,
         endpoint: url
       }),

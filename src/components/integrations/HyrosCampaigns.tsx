@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -33,16 +34,12 @@ export default function HyrosCampaigns() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any | null>(null);
   const [apiEndpoint, setApiEndpoint] = useState<string | null>(null);
-  const [triedEndpoints, setTriedEndpoints] = useState<string[]>([]);
-  const [endpointErrors, setEndpointErrors] = useState<any[]>([]);
   
   const loadData = async (forceSync = false) => {
     try {
       setLoading(true);
       setError(null);
       setDebugInfo(null);
-      setTriedEndpoints([]);
-      setEndpointErrors([]);
       
       if (forceSync) {
         setSyncing(true);
@@ -74,14 +71,6 @@ export default function HyrosCampaigns() {
       }
       
       // Save any debug info
-      if (result.errors) {
-        setEndpointErrors(result.errors);
-      }
-      
-      if (result.triedEndpoints) {
-        setTriedEndpoints(result.triedEndpoints);
-      }
-      
       if (result.debugInfo) {
         setDebugInfo(result.debugInfo);
       }
@@ -233,26 +222,14 @@ export default function HyrosCampaigns() {
               <AlertDescription className="space-y-2">
                 <p>{error}</p>
                 
-                {/* Display attempted endpoints */}
-                {triedEndpoints.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-medium">Attempted API endpoints:</p>
-                    <ul className="text-xs list-disc pl-5 space-y-1 mt-1">
-                      {triedEndpoints.map((endpoint, index) => (
-                        <li key={index}>{endpoint}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
                 {/* Display troubleshooting suggestions */}
                 <div className="mt-2 text-sm">
                   <p className="font-semibold">Troubleshooting suggestions:</p>
                   <ul className="list-disc pl-5 space-y-1 mt-1">
-                    <li>Verify your HYROS API key has permission to access campaigns</li>
+                    <li>HYROS does not expose a /campaigns endpoint directly. The integration now uses the /ads endpoint to extract campaign information.</li>
+                    <li>Verify your HYROS API key has permission to access the /ads endpoint</li>
                     <li>Check for any restrictions in your HYROS account settings</li>
                     <li>Try logging into the HYROS dashboard to verify your account status</li>
-                    <li>Contact HYROS support to verify the correct API endpoint</li>
                   </ul>
                 </div>
                 
@@ -266,21 +243,6 @@ export default function HyrosCampaigns() {
                     <ExternalLink className="h-3 w-3 mr-1" /> Contact HYROS Support
                   </Button>
                 </div>
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {endpointErrors.length > 0 && (
-            <Alert className="mb-4 bg-yellow-50 border-yellow-200">
-              <Info className="h-4 w-4 text-yellow-600" />
-              <AlertTitle className="text-yellow-800">API Response Details</AlertTitle>
-              <AlertDescription className="text-yellow-700">
-                <details className="text-sm">
-                  <summary className="cursor-pointer font-medium">Show API error details</summary>
-                  <div className="mt-2 overflow-auto max-h-60 p-2 bg-yellow-100/50 rounded text-xs">
-                    <pre>{JSON.stringify(endpointErrors, null, 2)}</pre>
-                  </div>
-                </details>
               </AlertDescription>
             </Alert>
           )}
@@ -328,6 +290,9 @@ export default function HyrosCampaigns() {
                       ) : (
                         <div className="flex flex-col items-center gap-2">
                           <p>No HYROS campaigns found.</p>
+                          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">
+                            HYROS campaigns are derived from ads in your HYROS account. To view campaigns here, make sure you have ads set up in your HYROS account.
+                          </p>
                           <Button variant="outline" size="sm" onClick={handleForceSync}>
                             <RefreshCw className="h-4 w-4 mr-2" /> Sync with HYROS API
                           </Button>

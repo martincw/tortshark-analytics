@@ -5,6 +5,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 // Get environment variables
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const HYROS_BASE_URL = "https://api.hyros.com/api/v1.0";
 
 Deno.serve(async (req) => {
   console.log("hyros-fetch-campaigns function called");
@@ -58,15 +59,12 @@ Deno.serve(async (req) => {
     
     const apiKey = hyrosToken.api_key;
     
-    // Fetch campaigns from HYROS API using the correct endpoint
-    console.log("Fetching campaigns from HYROS API");
-    
-    // Based on HYROS documentation, the correct API endpoint should be:
-    const hyrosApiEndpoint = 'https://api.hyros.com/api/v1.0/campaigns';
-    console.log(`Attempting to fetch campaigns from: ${hyrosApiEndpoint}`);
+    // Fetch ads from HYROS API using the correct endpoint
+    console.log("Fetching ads from HYROS API");
+    const adsEndpoint = `${HYROS_BASE_URL}/ads?page=1&size=500`;
     
     try {
-      const response = await fetch(hyrosApiEndpoint, {
+      const response = await fetch(adsEndpoint, {
         method: 'GET',
         headers: {
           'API-Key': apiKey,
@@ -77,152 +75,108 @@ Deno.serve(async (req) => {
       // Log response status for debugging
       console.log(`HYROS API response status: ${response.status}`);
       
-      // Get the response text regardless of status code for better debugging
-      const responseText = await response.text();
-      
       if (!response.ok) {
-        console.error(`Error fetching campaigns: ${response.status} ${responseText.substring(0, 500)}`);
+        const errorText = await response.text();
+        console.error(`Error fetching ads: ${response.status} ${errorText.substring(0, 500)}`);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Failed to fetch campaigns: ${response.status} ${responseText.substring(0, 200)}`,
-            apiEndpoint: hyrosApiEndpoint
+            error: `Failed to fetch ads: ${response.status}`,
+            details: errorText.substring(0, 200),
+            endpoint: adsEndpoint
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
         );
       }
       
-      try {
-        // Parse the response as JSON
-        const hyrosCampaignsData = JSON.parse(responseText);
-        console.log(`Fetched campaigns from HYROS API:`, 
-          JSON.stringify(hyrosCampaignsData).substring(0, 200) + "...");
-        
-        // Extract campaigns from the API response based on the response structure
-        let campaigns = [];
-        
-        // Handle different response structures
-        if (Array.isArray(hyrosCampaignsData)) {
-          // If the response is directly an array
-          campaigns = hyrosCampaignsData;
-        } else if (hyrosCampaignsData.data && Array.isArray(hyrosCampaignsData.data)) {
-          // If the response has a data property that is an array
-          campaigns = hyrosCampaignsData.data;
-        } else if (hyrosCampaignsData.campaigns && Array.isArray(hyrosCampaignsData.campaigns)) {
-          // If the response has a campaigns property that is an array
-          campaigns = hyrosCampaignsData.campaigns;
-        } else if (hyrosCampaignsData.results && Array.isArray(hyrosCampaignsData.results)) {
-          // If the response has a results property that is an array
-          campaigns = hyrosCampaignsData.results;
-        } else {
-          console.error("Unexpected campaigns data format:", typeof hyrosCampaignsData);
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: "Unexpected data format from HYROS API",
-              dataFormat: typeof hyrosCampaignsData,
-              hasDataProperty: !!hyrosCampaignsData.data,
-              hasCampaignsProperty: !!hyrosCampaignsData.campaigns,
-              responseExcerpt: JSON.stringify(hyrosCampaignsData).substring(0, 1000),
-              apiEndpoint: hyrosApiEndpoint,
-              documentation: "Please refer to HYROS API documentation for the correct response format."
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-          );
-        }
-        
-        console.log(`Processing ${campaigns.length} campaigns from HYROS API`);
-        
-        // If we got empty campaigns array but a successful response, log this but continue
-        if (campaigns.length === 0) {
-          console.warn("API returned successful response but no campaigns were found");
-        }
-        
-        // Store campaigns in the database
-        for (const campaign of campaigns) {
-          // Extract campaign fields based on the actual structure
-          const hyrosCampaignId = campaign.id || campaign.campaign_id || campaign.campaignId;
-          const name = campaign.name || campaign.campaign_name || campaign.title || campaign.campaignName;
-          const status = campaign.status || campaign.campaignStatus || campaign.state || 'active';
-          
-          if (hyrosCampaignId && name) {
-            // Upsert the campaign into the database
-            const { error: upsertError } = await supabase
-              .from('hyros_campaigns')
-              .upsert({
-                hyros_campaign_id: hyrosCampaignId.toString(),
-                name: name,
-                status: status,
-                user_id: user.id,
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'hyros_campaign_id, user_id',
-                ignoreDuplicates: false
-              });
-              
-            if (upsertError) {
-              console.error("Error upserting campaign:", hyrosCampaignId, upsertError);
-            }
-          } else {
-            console.warn("Skipping campaign with missing ID or name:", campaign);
+      const data = await response.json();
+      console.log(`Fetched ads from HYROS API. Count: ${data.data?.length || 0}`);
+      
+      // Normalize ads into campaigns using campaign_id and campaign_name
+      const campaigns = [];
+      const uniqueCampaignIds = new Set();
+      
+      if (data.data && Array.isArray(data.data)) {
+        // Extract unique campaigns from ads
+        data.data.forEach(ad => {
+          if (ad.campaign_id && !uniqueCampaignIds.has(ad.campaign_id)) {
+            uniqueCampaignIds.add(ad.campaign_id);
+            campaigns.push({
+              hyros_campaign_id: ad.campaign_id,
+              name: ad.campaign_name || `Campaign ${ad.campaign_id}`,
+              status: 'active',
+              platform: ad.platform || 'unknown'
+            });
           }
-        }
-        
-        // Update the last_synced timestamp in the HYROS token record
-        const { error: updateError } = await supabase
-          .from('hyros_tokens')
-          .update({ 
-            last_synced: new Date().toISOString() 
-          })
-          .eq('user_id', user.id);
-          
-        if (updateError) {
-          console.error("Error updating last_synced timestamp:", updateError);
-        }
-        
-        // Fetch the updated campaigns from the database to return to the client
-        const { data: updatedCampaigns, error: fetchError } = await supabase
+        });
+      }
+      
+      console.log(`Extracted ${campaigns.length} unique campaigns from ads`);
+      
+      // Store campaigns in the database
+      for (const campaign of campaigns) {
+        // Upsert the campaign into the database
+        const { error: upsertError } = await supabase
           .from('hyros_campaigns')
-          .select('*')
-          .eq('user_id', user.id);
+          .upsert({
+            hyros_campaign_id: campaign.hyros_campaign_id.toString(),
+            name: campaign.name,
+            status: campaign.status,
+            user_id: user.id,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'hyros_campaign_id, user_id',
+            ignoreDuplicates: false
+          });
           
-        if (fetchError) {
-          console.error("Error fetching updated campaigns:", fetchError);
-          return new Response(
-            JSON.stringify({ success: false, error: "Failed to fetch updated campaigns" }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-          );
+        if (upsertError) {
+          console.error("Error upserting campaign:", campaign.hyros_campaign_id, upsertError);
         }
+      }
+      
+      // Update the last_synced timestamp in the HYROS token record
+      const { error: updateError } = await supabase
+        .from('hyros_tokens')
+        .update({ 
+          last_synced: new Date().toISOString() 
+        })
+        .eq('user_id', user.id);
         
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            campaigns: updatedCampaigns,
-            importCount: campaigns.length,
-            apiEndpoint: hyrosApiEndpoint
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (updateError) {
+        console.error("Error updating last_synced timestamp:", updateError);
+      }
+      
+      // Fetch the updated campaigns from the database to return to the client
+      const { data: updatedCampaigns, error: fetchError } = await supabase
+        .from('hyros_campaigns')
+        .select('*')
+        .eq('user_id', user.id);
         
-      } catch (parseError) {
-        console.error(`Error parsing HYROS API response:`, parseError);
+      if (fetchError) {
+        console.error("Error fetching updated campaigns:", fetchError);
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Failed to parse HYROS API response: ${parseError.message}`,
-            responseExcerpt: responseText.substring(0, 500),
-            apiEndpoint: hyrosApiEndpoint
-          }),
+          JSON.stringify({ success: false, error: "Failed to fetch updated campaigns" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          campaigns: updatedCampaigns,
+          importCount: campaigns.length,
+          apiEndpoint: adsEndpoint
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+      
     } catch (fetchError) {
       console.error(`Error fetching from HYROS API:`, fetchError);
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: `Error connecting to HYROS API: ${fetchError.message}`,
-          apiEndpoint: hyrosApiEndpoint
+          apiEndpoint: adsEndpoint
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );

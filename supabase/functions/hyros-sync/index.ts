@@ -5,17 +5,19 @@ import { corsHeaders } from '../_shared/cors.ts'
 // Get environment variables
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const HYROS_BASE_URL = "https://api.hyros.com/api/v1.0";
 
 // Interface for HYROS lead data
 interface HyrosLead {
   id: string;
   email: string;
-  creationDate: string;
-  campaign?: string;
-  campaignId?: string;
-  source?: string;
-  revenue?: number;
-  sale?: boolean;
+  created_at: string;
+  campaign_id?: string;
+  campaign_name?: string;
+  platform?: string;
+  purchase_amount?: number;
+  is_purchase?: boolean;
+  is_sale?: boolean;
   tags?: string[];
   [key: string]: any; // Allow for additional properties
 }
@@ -115,21 +117,19 @@ Deno.serve(async (req) => {
     }
     
     // Fetch all leads for the date range in one call
-    const leadsApiUrl = `https://api.hyros.com/api/v1.0/leads?fromDate=${fromDate}&toDate=${toDate}&pageSize=100`;
-    console.log(`Fetching all leads from: ${leadsApiUrl}`);
+    const fetchLeadsUrl = `${HYROS_BASE_URL}/leads?from=${fromDate}&to=${toDate}&size=500`;
+    console.log(`Fetching all leads from: ${fetchLeadsUrl}`);
     
     // Fetch and aggregate all leads with pagination
     let allLeads: HyrosLead[] = [];
-    let nextPageId: string | undefined = undefined;
+    let nextPage: number | null = 1;
     let pageCount = 0;
     let totalLeads = 0;
     const debugInfo: any[] = [];
     
     do {
       pageCount++;
-      const pageUrl = nextPageId ? 
-        `${leadsApiUrl}&pageId=${encodeURIComponent(nextPageId)}` : 
-        leadsApiUrl;
+      const pageUrl = `${HYROS_BASE_URL}/leads?from=${fromDate}&to=${toDate}&size=500&page=${nextPage}`;
       
       try {
         const response = await fetch(pageUrl, {
@@ -142,19 +142,19 @@ Deno.serve(async (req) => {
         
         if (response.status === 200) {
           const data = await response.json();
-          const leads = data.result || [];
+          const leads = data.data || [];
           allLeads = [...allLeads, ...leads];
-          nextPageId = data.nextPageId;
           totalLeads += leads.length;
+          nextPage = data.pagination?.next_page || null;
           
           debugInfo.push({
             page: pageCount,
             url: pageUrl.replace(apiKey, "API_KEY_HIDDEN"), // Hide the API key in logs
             leads_count: leads.length,
-            has_next_page: !!nextPageId
+            has_next_page: !!nextPage
           });
           
-          console.log(`Retrieved page ${pageCount} with ${leads.length} leads. Next page: ${nextPageId ? 'yes' : 'no'}`);
+          console.log(`Retrieved page ${pageCount} with ${leads.length} leads. Next page: ${nextPage ? nextPage : 'no'}`);
         } else {
           const errorText = await response.text();
           console.error(`Error fetching leads: ${response.status}`, errorText);
@@ -178,95 +178,80 @@ Deno.serve(async (req) => {
         });
         break;
       }
-    } while (nextPageId && pageCount < 10); // Limit to 10 pages for safety
+    } while (nextPage !== null && pageCount < 10); // Limit to 10 pages for safety
     
-    // Process leads by campaign
-    const campaignStats: Record<string, { 
-      leads: number, 
-      sales: number, 
-      revenue: number,
-      leads_data: any[]
-    }> = {};
+    // Group leads by campaign_id
+    const byCampaignId: Record<string, HyrosLead[]> = {};
     
-    // Initialize stats for each campaign mapping
-    for (const mapping of mappings) {
-      campaignStats[mapping.hyros_campaign_id] = { 
-        leads: 0, 
-        sales: 0, 
-        revenue: 0,
-        leads_data: []
-      };
-    }
+    // Initialize the map with empty arrays for each mapping's hyros_campaign_id
+    mappings.forEach(mapping => {
+      byCampaignId[mapping.hyros_campaign_id] = [];
+    });
     
-    // Process each lead and attribute to campaigns
-    for (const lead of allLeads) {
-      // Extract campaign ID from lead data
-      // Note: we need to check various possible field names since the exact structure may vary
-      const leadCampaignId = lead.campaignId || lead.campaign_id || 
-                            (lead.campaign && typeof lead.campaign === 'string' ? lead.campaign : null) ||
-                            (lead.source && typeof lead.source === 'string' ? lead.source : null);
-      
-      if (leadCampaignId && campaignStats[leadCampaignId]) {
-        // Increment lead count
-        campaignStats[leadCampaignId].leads++;
-        
-        // Add lead to the campaign's leads data
-        campaignStats[leadCampaignId].leads_data.push(lead);
-        
-        // Check if this is a sale/conversion with revenue
-        if (lead.sale || lead.converted || lead.isConversion) {
-          campaignStats[leadCampaignId].sales++;
-          
-          // Add revenue if available
-          const revenue = parseFloat(lead.revenue) || 0;
-          if (!isNaN(revenue) && revenue > 0) {
-            campaignStats[leadCampaignId].revenue += revenue;
-          }
-        }
+    // Group leads by their campaign_id
+    allLeads.forEach(lead => {
+      const campaignId = lead.campaign_id;
+      if (campaignId && byCampaignId[campaignId]) {
+        byCampaignId[campaignId].push(lead);
       }
-    }
+    });
     
-    // Store aggregated stats for each campaign
+    // Process leads for each campaign mapping
     let processedCampaigns = 0;
     let totalProcessedLeads = 0;
     
     for (const mapping of mappings) {
-      const stats = campaignStats[mapping.hyros_campaign_id];
+      const campaignLeads = byCampaignId[mapping.hyros_campaign_id] || [];
+      const leadCount = campaignLeads.length;
+      let salesCount = 0;
+      let revenueTotal = 0;
       
-      if (stats) {
-        // Store raw stats
-        const { error: insertError } = await supabase
-          .from('hyros_stats_raw')
-          .upsert({
-            hyros_campaign_id: mapping.hyros_campaign_id,
-            ts_campaign_id: mapping.ts_campaign_id,
-            date: dateString,
-            leads: stats.leads,
-            sales: stats.sales,
-            revenue: stats.revenue,
-            json_payload: { 
-              leads_count: stats.leads,
-              sales_count: stats.sales,
-              revenue: stats.revenue,
-              leads_sample: stats.leads_data.slice(0, 5) // Store only a sample of leads to avoid huge payloads
-            }
-          }, { onConflict: 'hyros_campaign_id,date' });
-        
-        if (insertError) {
-          console.error(`Error inserting stats for campaign ${mapping.hyros_campaign_id}:`, insertError);
-        } else {
-          processedCampaigns++;
-          totalProcessedLeads += stats.leads;
+      // Calculate sales and revenue
+      campaignLeads.forEach(lead => {
+        // Check if this is a sale/conversion
+        if (lead.is_purchase || lead.is_sale) {
+          salesCount++;
           
-          // Update the TS daily lead metrics
-          await supabase.rpc('upsert_hyros_daily_metrics', {
-            p_ts_campaign_id: mapping.ts_campaign_id,
-            p_date: dateString,
-            p_lead_count: stats.leads,
-            p_cost: 0, // We don't have cost information from HYROS
-            p_revenue: stats.revenue // Use revenue from HYROS if available
-          });
+          // Add revenue if available
+          const revenue = parseFloat(lead.purchase_amount?.toString() || '0');
+          if (!isNaN(revenue) && revenue > 0) {
+            revenueTotal += revenue;
+          }
         }
+      });
+      
+      // Store stats for this campaign
+      const { error: insertError } = await supabase
+        .from('hyros_stats_raw')
+        .upsert({
+          hyros_campaign_id: mapping.hyros_campaign_id,
+          ts_campaign_id: mapping.ts_campaign_id,
+          date: dateString,
+          leads: leadCount,
+          sales: salesCount,
+          revenue: revenueTotal,
+          json_payload: { 
+            leads_count: leadCount,
+            sales_count: salesCount,
+            revenue: revenueTotal,
+            leads_sample: campaignLeads.slice(0, 5) // Store only a sample of leads to avoid huge payloads
+          }
+        }, { onConflict: 'hyros_campaign_id,date' });
+      
+      if (insertError) {
+        console.error(`Error inserting stats for campaign ${mapping.hyros_campaign_id}:`, insertError);
+      } else {
+        processedCampaigns++;
+        totalProcessedLeads += leadCount;
+        
+        // Update the TS daily lead metrics
+        await supabase.rpc('upsert_hyros_daily_metrics', {
+          p_ts_campaign_id: mapping.ts_campaign_id,
+          p_date: dateString,
+          p_lead_count: leadCount,
+          p_cost: 0, // We don't have cost information from HYROS
+          p_revenue: revenueTotal // Use revenue from HYROS
+        });
       }
     }
     
