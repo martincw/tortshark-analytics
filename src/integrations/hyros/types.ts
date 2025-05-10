@@ -70,6 +70,10 @@ export interface HyrosCampaignsResponse {
   error?: string;
   importCount?: number;
   apiEndpoint?: string;
+  dateRange?: {
+    from: string;
+    to: string;
+  };
   triedEndpoints?: string[];
   errors?: any[];
   syncError?: string;

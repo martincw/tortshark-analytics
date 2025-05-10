@@ -118,7 +118,7 @@ export const hyrosApi = {
         throw new Error(result.error || 'Failed to fetch HYROS campaigns');
       }
 
-      // Return the full result instead of just campaigns, to include apiEndpoint and debug info
+      // Return the full result instead of just campaigns, to include apiEndpoint, dateRange and debug info
       return result;
     } catch (error) {
       console.error('Error fetching HYROS campaigns:', error);

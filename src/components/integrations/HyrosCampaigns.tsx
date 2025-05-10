@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, LinkIcon, RefreshCw, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { Loader2, LinkIcon, RefreshCw, AlertCircle, Info, ExternalLink, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -33,6 +34,7 @@ export default function HyrosCampaigns() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any | null>(null);
   const [apiEndpoint, setApiEndpoint] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{from: string, to: string} | null>(null);
   
   const loadData = async (forceSync = false) => {
     try {
@@ -54,6 +56,11 @@ export default function HyrosCampaigns() {
         // Save the API endpoint that worked
         if (result.apiEndpoint) {
           setApiEndpoint(result.apiEndpoint);
+        }
+        
+        // Save the date range if available
+        if (result.dateRange) {
+          setDateRange(result.dateRange);
         }
         
         // If we got campaigns, show success message for sync
@@ -194,6 +201,16 @@ export default function HyrosCampaigns() {
         </CardHeader>
         
         <CardContent>
+          {dateRange && (
+            <Alert className="mb-4 bg-blue-50 border-blue-200">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800">Date Range</AlertTitle>
+              <AlertDescription className="text-blue-700">
+                Showing campaigns from {dateRange.from} to {dateRange.to}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {apiEndpoint && (
             <Alert className="mb-4 bg-blue-50 border-blue-200">
               <Info className="h-4 w-4 text-blue-600" />
@@ -225,8 +242,8 @@ export default function HyrosCampaigns() {
                 <div className="mt-2 text-sm">
                   <p className="font-semibold">Troubleshooting suggestions:</p>
                   <ul className="list-disc pl-5 space-y-1 mt-1">
-                    <li>HYROS does not expose a /campaigns endpoint directly. The integration now uses the /ads endpoint to extract campaign information.</li>
                     <li>Verify your HYROS API key has permission to access the /ads endpoint</li>
+                    <li>Check that there are ads/campaigns in your HYROS account in the last 90 days</li>
                     <li>Check for any restrictions in your HYROS account settings</li>
                     <li>Try logging into the HYROS dashboard to verify your account status</li>
                   </ul>
@@ -292,7 +309,7 @@ export default function HyrosCampaigns() {
                         <div className="flex flex-col items-center gap-2">
                           <p>No HYROS campaigns found.</p>
                           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">
-                            HYROS campaigns are derived from ads in your HYROS account. To view campaigns here, make sure you have ads set up in your HYROS account.
+                            HYROS campaigns are derived from ads in your HYROS account. To view campaigns here, make sure you have ads set up in your HYROS account within the last 90 days.
                           </p>
                           <Button variant="outline" size="sm" onClick={handleForceSync}>
                             <RefreshCw className="h-4 w-4 mr-2" /> Sync with HYROS API

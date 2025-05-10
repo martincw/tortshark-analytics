@@ -59,8 +59,16 @@ Deno.serve(async (req) => {
     
     const apiKey = hyrosToken.api_key;
     
-    // Fetch ads from HYROS API using the correct endpoint
-    const adsEndpoint = `${HYROS_BASE_URL}/ads?page=1&size=500`;
+    // Calculate a date range (last 90 days by default)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 90); // Get ads from the last 90 days
+    
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    // Fetch ads from HYROS API using the correct endpoint with date range
+    const adsEndpoint = `${HYROS_BASE_URL}/ads?page=1&size=500&from=${startDateStr}&to=${endDateStr}`;
     console.log(`Fetching ads from HYROS API: ${adsEndpoint}`);
     
     try {
@@ -91,6 +99,7 @@ Deno.serve(async (req) => {
       
       const data = await response.json();
       console.log(`Fetched ads from HYROS API. Count: ${data.data?.length || 0}`);
+      console.log(`Data sample: ${JSON.stringify(data.data?.slice(0, 2) || 'No data')}`);
       
       // Extract unique campaigns from ads data with flexible field name handling
       const campaigns = [];
@@ -174,7 +183,11 @@ Deno.serve(async (req) => {
           success: true, 
           campaigns: updatedCampaigns,
           importCount: campaigns.length,
-          apiEndpoint: adsEndpoint
+          apiEndpoint: adsEndpoint,
+          dateRange: {
+            from: startDateStr,
+            to: endDateStr
+          }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
