@@ -1,24 +1,12 @@
 
-// HYROS API types
-export interface HyrosToken {
-  id: string;
-  apiKey: string;
-  accountId?: string;
-  userId: string;
-  lastSynced?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export interface HyrosCampaign {
   id: string;
   hyrosCampaignId: string;
   name: string;
-  status?: string;
-  platform?: string; // Platform field is now properly included
-  userId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  platform: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface HyrosMapping {
@@ -26,105 +14,92 @@ export interface HyrosMapping {
   hyrosCampaignId: string;
   tsCampaignId: string;
   active: boolean;
-  linkedAt?: string;
-  unlinkedAt?: string;
+  linked_at: string;
+  unlinked_at?: string;
 }
 
 export interface HyrosStatsRaw {
   id: string;
-  hyrosCampaignId: string;
-  tsCampaignId?: string;
+  hyros_campaign_id: string;
+  ts_campaign_id?: string;
   date: string;
-  adSpend?: number;
-  clicks?: number;
-  impressions?: number;
-  leads?: number;
+  leads: number;
   sales?: number;
+  ad_spend: number;
   revenue?: number;
-  jsonPayload?: any;
-  createdAt?: string;
+  json_payload?: any;
 }
 
 export interface HyrosSyncResult {
   success: boolean;
-  error?: string;
   campaigns_processed?: number;
   total_leads?: number;
   date_fetched?: string;
   last_synced?: string;
-  debug_info?: any[];
+  error?: string;
+  debug_info?: any;
 }
 
 export interface HyrosAuthResult {
   success: boolean;
   error?: string;
-  apiKey?: string;
   accountId?: string;
   statusCode?: number;
 }
 
-// New response type for campaigns fetch
+export interface HyrosLeadListParams {
+  from: string;
+  to: string;
+  size?: number;
+  page?: number;
+  pageId?: string;
+}
+
+export interface HyrosLead {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  created_at?: string;
+  firstSource?: any;
+  lastSource?: any;
+  tags?: string[];
+  [key: string]: any;
+}
+
+export interface HyrosLeadsListResponse {
+  data: HyrosLead[];
+  search_after?: string;
+  total?: number;
+  page?: number;
+  size?: number;
+}
+
+export interface HyrosLeadResponse {
+  success: boolean;
+  lead?: HyrosLead;
+  error?: string;
+}
+
 export interface HyrosCampaignsResponse {
   success: boolean;
-  campaigns?: HyrosCampaign[];
-  error?: string;
+  campaigns: HyrosCampaign[];
   importCount?: number;
-  apiEndpoint?: string;
+  error?: string;
+  debugInfo?: any;
   dateRange?: {
     from: string;
     to: string;
   };
-  triedEndpoints?: string[];
-  errors?: any[];
-  syncError?: string;
-  debugInfo?: any;
-  documentation?: string;
+  apiEndpoint?: string;
 }
 
-// HYROS API Lead Response Types
-export interface HyrosLeadResponse {
-  result: HyrosLead[];
-  nextPageId?: string;
-  request_id: string;
-}
-
-export interface HyrosLead {
-  email: string;
+export interface HyrosToken {
   id: string;
-  creationDate: string;
-  campaign_id?: string;
-  campaignId?: string;
-  tags?: string[];
-  ips?: string[];
-  phoneNumbers?: string[];
-  purchase_amount?: number;
-  purchaseAmount?: number;
-  is_purchase?: boolean;
-  isPurchase?: boolean;
-  is_sale?: boolean;
-  isSale?: boolean;
-  provider?: {
-    id: string;
-    integration?: {
-      name: string;
-      type: string;
-      id: string;
-    };
-  };
-}
-
-export interface HyrosLeadListParams {
-  ids?: string[];
-  emails?: string[];
-  fromDate?: string;
-  toDate?: string;
-  pageSize?: number;
-  pageId?: string;
-  campaignId?: string; // Campaign ID parameter
-}
-
-export interface HyrosLeadsListResponse {
-  leads: HyrosLead[];
-  nextPageId?: string;
-  total: number;
+  user_id: string;
+  api_key: string;
+  account_id?: string;
+  last_synced?: string;
+  created_at?: string;
+  updated_at?: string;
 }
