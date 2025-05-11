@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { RefreshCcw, AlertCircle } from 'lucide-react';
@@ -54,7 +53,7 @@ export default function HyrosLeadsList({
       setLoading(true);
       setError(null);
 
-      const result: HyrosLeadsListResponse = await hyrosApi.fetchLeadsForDateRange({
+      const result = await hyrosApi.fetchLeadsForDateRange({
         fromDate: startDate,
         toDate: endDate,
         pageSize,

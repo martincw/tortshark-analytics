@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -161,12 +160,12 @@ export default function LeadsPage() {
       // Get the HYROS API Key
       const apiKeyResponse = await hyrosApi.getApiCredentials();
       
-      if (!apiKeyResponse?.apiKey) {
+      if (!apiKeyResponse?.api_key) {
         throw new Error('No HYROS API key found. Please connect your account first.');
       }
       
       // Call the edge function to fetch yesterday's leads
-      const result: HyrosSyncResult = await hyrosApi.fetchYesterdayStats();
+      const result = await hyrosApi.fetchYesterdayStats();
       
       // Store debug info for troubleshooting
       if (result.debug_info) {

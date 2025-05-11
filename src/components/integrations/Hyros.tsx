@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -35,9 +34,9 @@ export default function Hyros() {
         if (credentials) {
           setIsConnected(true);
           setConnectionDetails({
-            apiKey: credentials.apiKey,
-            accountId: credentials.accountId,
-            lastSynced: credentials.lastSynced
+            apiKey: credentials.api_key,
+            accountId: credentials.account_id,
+            lastSynced: credentials.last_synced
           });
         }
       } catch (error) {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -83,8 +82,8 @@ export default function HyrosCampaigns() {
       }
       
       // Fetch existing mappings
-      const mappings = await hyrosApi.getCampaignMappings();
-      setMappings(mappings);
+      const dbMappings = await hyrosApi.getCampaignMappings();
+      setMappings(dbMappings);
     } catch (error) {
       console.error("Error loading HYROS campaigns and mappings:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to load HYROS campaigns and mappings";

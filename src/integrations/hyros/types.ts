@@ -48,11 +48,11 @@ export interface HyrosAuthResult {
 }
 
 export interface HyrosLeadListParams {
-  from: string;
-  to: string;
-  size?: number;
-  page?: number;
+  fromDate: string;
+  toDate: string;
+  pageSize?: number;
   pageId?: string;
+  emails?: string[];
 }
 
 export interface HyrosLead {
@@ -60,7 +60,8 @@ export interface HyrosLead {
   email: string;
   firstName?: string;
   lastName?: string;
-  created_at?: string;
+  creationDate?: string;
+  phoneNumbers?: string[];
   firstSource?: any;
   lastSource?: any;
   tags?: string[];
@@ -68,8 +69,9 @@ export interface HyrosLead {
 }
 
 export interface HyrosLeadsListResponse {
-  data: HyrosLead[];
-  search_after?: string;
+  success: boolean;
+  leads: HyrosLead[];
+  nextPageId?: string;
   total?: number;
   page?: number;
   size?: number;
