@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
           user_id: user.id,
           hyros_campaign_id: c.hyros_campaign_id,
           leads: c.leads,
-          spend: c.spend,
+          ad_spend: c.spend, // FIXED: Changed 'spend' to 'ad_spend' to match database column
           date: isoTo
         }));
         

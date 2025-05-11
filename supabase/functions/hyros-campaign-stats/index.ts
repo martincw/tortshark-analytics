@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
         hyros_campaign_id,
         date,
         leads,
-        spend,
+        ad_spend,
         hyros_campaigns (
           name,
           platform
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       }
       
       campaignMap[id].totalLeads += row.leads;
-      campaignMap[id].totalSpend += row.spend;
+      campaignMap[id].totalSpend += row.ad_spend; // FIXED: Changed from 'spend' to 'ad_spend'
       
       if (row.date > campaignMap[id].lastDate) {
         campaignMap[id].lastDate = row.date;
