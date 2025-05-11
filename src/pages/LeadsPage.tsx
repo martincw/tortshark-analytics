@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -21,22 +22,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DatePicker } from '@/components/ui/date-picker';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { hyrosApi } from '@/integrations/hyros/client';
 import { HyrosSyncResult } from '@/integrations/hyros/types';
 import HyrosLeadsList from '@/components/leads/HyrosLeadsList';
+import { localDateToUTCNoon } from '@/lib/utils/ManualDateUtils';
 
 export default function LeadsPage() {
   const { campaigns } = useCampaign();
@@ -44,16 +41,27 @@ export default function LeadsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   // View mode (aggregate or individual leads)
-  const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>(searchParams.get('viewMode') as any || 'aggregate');
+  const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>(searchParams.get('viewMode') as any || 'individual');
+  
+  // Get today's date for default
+  const today = format(new Date(), 'yyyy-MM-dd');
   
   // Get filters from URL params or set defaults
   const [filters, setFilters] = useState({
     campaignId: searchParams.get('campaignId') || '',
     status: searchParams.get('status') || '',
-    startDate: searchParams.get('startDate') || format(new Date(new Date().setDate(new Date().getDate() - 7)), 'yyyy-MM-dd'),
-    endDate: searchParams.get('endDate') || format(new Date(), 'yyyy-MM-dd'),
+    startDate: searchParams.get('startDate') || today,
+    endDate: searchParams.get('endDate') || today,
     searchTerm: searchParams.get('search') || '',
   });
+  
+  // Selected dates for the date picker
+  const [selectedStartDate, setSelectedStartDate] = useState<Date | undefined>(
+    filters.startDate ? new Date(filters.startDate) : new Date()
+  );
+  const [selectedEndDate, setSelectedEndDate] = useState<Date | undefined>(
+    filters.endDate ? new Date(filters.endDate) : new Date()
+  );
   
   // Pagination
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1', 10));
@@ -66,10 +74,6 @@ export default function LeadsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any[]>([]);
-  
-  // Calendar states
-  const [startDateOpen, setStartDateOpen] = useState(false);
-  const [endDateOpen, setEndDateOpen] = useState(false);
   
   // Filter popover state
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -92,6 +96,23 @@ export default function LeadsPage() {
     
     setSearchParams(params);
   }, [filters, page, viewMode, setSearchParams]);
+  
+  // Handle date changes
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (date) {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      setSelectedStartDate(date);
+      setFilters({ ...filters, startDate: formattedDate });
+    }
+  };
+  
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (date) {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      setSelectedEndDate(date);
+      setFilters({ ...filters, endDate: formattedDate });
+    }
+  };
   
   // Load leads based on current filters
   const loadLeads = async () => {
@@ -252,10 +273,12 @@ export default function LeadsPage() {
     setFilters({
       campaignId: '',
       status: '',
-      startDate: format(new Date(new Date().setDate(new Date().getDate() - 7)), 'yyyy-MM-dd'),
-      endDate: format(new Date(), 'yyyy-MM-dd'),
+      startDate: today,
+      endDate: today,
       searchTerm: '',
     });
+    setSelectedStartDate(new Date());
+    setSelectedEndDate(new Date());
     setPage(1);
   };
   
@@ -283,6 +306,42 @@ export default function LeadsPage() {
             {refreshing ? "Refreshing..." : "Refresh Yesterday's Leads"}
           </Button>
         </div>
+      </div>
+      
+      {/* Date Selector at the top */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center p-4 border rounded-md bg-background">
+        <div className="font-medium">Date Range:</div>
+        <div className="flex gap-2 items-center">
+          <DatePicker
+            date={selectedStartDate}
+            onSelect={handleStartDateChange}
+            className="w-[180px]"
+          />
+          <span className="text-muted-foreground">to</span>
+          <DatePicker
+            date={selectedEndDate}
+            onSelect={handleEndDateChange}
+            className="w-[180px]"
+          />
+        </div>
+        <Button 
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const today = new Date();
+            handleStartDateChange(today);
+            handleEndDateChange(today);
+          }}
+        >
+          Today
+        </Button>
+        <Button 
+          variant="outline"
+          size="sm" 
+          onClick={clearFilters}
+        >
+          Clear All Filters
+        </Button>
       </div>
       
       {lastSynced && (
@@ -338,11 +397,11 @@ export default function LeadsPage() {
             <div className="flex items-center space-x-2">
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'aggregate' | 'individual')} className="w-auto">
                 <TabsList>
-                  <TabsTrigger value="aggregate" className="flex items-center">
-                    <BarChart3 className="w-4 h-4 mr-1" /> Aggregate
-                  </TabsTrigger>
                   <TabsTrigger value="individual" className="flex items-center">
                     <List className="w-4 h-4 mr-1" /> Individual
+                  </TabsTrigger>
+                  <TabsTrigger value="aggregate" className="flex items-center">
+                    <BarChart3 className="w-4 h-4 mr-1" /> Aggregate
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -373,106 +432,43 @@ export default function LeadsPage() {
                 <Button type="submit">Search</Button>
               </form>
               
-              <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline">
-                    <Filter className="mr-2 h-4 w-4" />
-                    Filters
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="end">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Campaign</h4>
-                      <Select 
-                        value={filters.campaignId} 
-                        onValueChange={(value) => {
-                          setFilters({...filters, campaignId: value});
-                          setPage(1);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All Campaigns" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">All Campaigns</SelectItem>
-                          {campaigns?.map((campaign) => (
-                            <SelectItem key={campaign.id} value={campaign.id}>
-                              {campaign.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Date Range</h4>
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-start text-left font-normal"
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {filters.startDate ? format(new Date(filters.startDate), 'PP') : 'Start date'}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={filters.startDate ? new Date(filters.startDate) : undefined}
-                                onSelect={(date) => {
-                                  if (date) {
-                                    setFilters({...filters, startDate: format(date, 'yyyy-MM-dd')});
-                                    setPage(1);
-                                  }
-                                  setStartDateOpen(false);
-                                }}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                        <div className="flex-1">
-                          <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-start text-left font-normal"
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {filters.endDate ? format(new Date(filters.endDate), 'PP') : 'End date'}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={filters.endDate ? new Date(filters.endDate) : undefined}
-                                onSelect={(date) => {
-                                  if (date) {
-                                    setFilters({...filters, endDate: format(date, 'yyyy-MM-dd')});
-                                    setPage(1);
-                                  }
-                                  setEndDateOpen(false);
-                                }}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <Button variant="outline" className="w-full" onClick={clearFilters}>
-                      Clear Filters
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Button
+                variant="outline"
+                onClick={() => setFiltersOpen(!filtersOpen)}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Campaigns
+              </Button>
             </div>
           </div>
+          
+          {/* Campaign Filter */}
+          {filtersOpen && (
+            <div className="p-3 border rounded-md mb-3">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Campaign</h4>
+                <Select 
+                  value={filters.campaignId} 
+                  onValueChange={(value) => {
+                    setFilters({...filters, campaignId: value});
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Campaigns" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Campaigns</SelectItem>
+                    {campaigns?.map((campaign) => (
+                      <SelectItem key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
           
           {/* Content based on view mode */}
           {viewMode === 'aggregate' ? (
