@@ -5,7 +5,6 @@ import { corsHeaders } from '../_shared/cors.ts'
 // Get environment variables
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const HYROS_BASE_URL = "https://api.hyros.com/v1/api/v1.0";
 
 Deno.serve(async (req) => {
   console.log("hyros-fetch-campaigns function called");
@@ -59,16 +58,16 @@ Deno.serve(async (req) => {
     
     const apiKey = hyrosToken.api_key;
     
-    // Set up date range for the last 30 days
+    // Set up date range for the last 90 days (increased from 30)
     const to = new Date();
     const from = new Date();
-    from.setDate(to.getDate() - 30);
+    from.setDate(to.getDate() - 90);
 
     const isoFrom = from.toISOString().split('T')[0];
     const isoTo = to.toISOString().split('T')[0];
 
     // Fetch leads from HYROS API
-    const leadsEndpoint = `${HYROS_BASE_URL}/leads?from=${isoFrom}&to=${isoTo}&pageSize=500`;
+    const leadsEndpoint = `https://api.hyros.com/v1/api/v1.0/leads?from=${isoFrom}&to=${isoTo}&pageSize=250`;
     console.log(`Fetching leads from HYROS API: ${leadsEndpoint}`);
     
     try {
@@ -80,7 +79,6 @@ Deno.serve(async (req) => {
         }
       });
       
-      // Log response status for debugging
       console.log(`HYROS API response status: ${response.status}`);
       
       if (!response.ok) {
@@ -114,21 +112,21 @@ Deno.serve(async (req) => {
       };
       
       // Process leads to extract campaigns and aggregate metrics
-      const campaignsById: Record<string, any> = {};
+      const campaignsBySource: Record<string, any> = {};
       
       if (leads.length > 0) {
-        // Extract unique campaigns from leads with metrics
+        // Extract unique campaigns from lead sources with metrics
         leads.forEach(lead => {
           const source = lead.firstSource || lead.lastSource;
           if (!source || !source.sourceLinkId) return;
           
           const id = source.sourceLinkId;
-          const name = source.name || `Campaign ${id}`;
+          const name = source.name || `HYROS Source ${id}`;
           const platform = source.adSource?.platform || 'unknown';
           const spend = parseFloat(source.spend ?? 0);
           
-          if (!campaignsById[id]) {
-            campaignsById[id] = {
+          if (!campaignsBySource[id]) {
+            campaignsBySource[id] = {
               hyros_campaign_id: id,
               name,
               platform,
@@ -140,12 +138,12 @@ Deno.serve(async (req) => {
             };
           }
           
-          campaignsById[id].leads += 1;
-          campaignsById[id].spend += spend;
+          campaignsBySource[id].leads += 1;
+          campaignsBySource[id].spend += spend;
         });
       }
       
-      const campaignList = Object.values(campaignsById);
+      const campaignList = Object.values(campaignsBySource);
       
       console.log(`Extracted ${campaignList.length} campaigns with metrics from leads`);
       debugInfo.campaignsExtracted = campaignList.length;
