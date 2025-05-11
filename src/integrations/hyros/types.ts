@@ -75,6 +75,7 @@ export interface HyrosLeadsListResponse {
   total?: number;
   page?: number;
   size?: number;
+  error?: string; // Added error property to match the implementation
 }
 
 export interface HyrosLeadResponse {
