@@ -67,8 +67,8 @@ Deno.serve(async (req) => {
     const isoFrom = from.toISOString().split('T')[0];
     const isoTo = to.toISOString().split('T')[0];
 
-    // Fetch leads from HYROS API to extract campaign data
-    const leadsEndpoint = `${HYROS_BASE_URL}/leads?from=${isoFrom}&to=${isoTo}&pageSize=200`;
+    // Fetch leads from HYROS API
+    const leadsEndpoint = `${HYROS_BASE_URL}/leads?from=${isoFrom}&to=${isoTo}&pageSize=500`;
     console.log(`Fetching leads from HYROS API: ${leadsEndpoint}`);
     
     try {
@@ -107,56 +107,62 @@ Deno.serve(async (req) => {
       // Create debug info object
       const debugInfo = {
         endpoint: leadsEndpoint,
-        leadsFetched: leads.length,
         dateRange: { from: isoFrom, to: isoTo },
+        leadsFetched: leads.length,
         firstLead: leads.length > 0 ? leads[0] : null,
         hasData: leads.length > 0
       };
       
-      // Extract unique campaigns from lead data
-      const uniqueCampaigns: Record<string, any> = {};
+      // Process leads to extract campaigns and aggregate metrics
+      const campaignsById: Record<string, any> = {};
       
       if (leads.length > 0) {
-        // Extract unique campaigns from leads
+        // Extract unique campaigns from leads with metrics
         leads.forEach(lead => {
-          // Try to get source data from firstSource or lastSource
-          const source = lead.firstSource || lead.lastSource || null;
-          if (!source) return;
+          const source = lead.firstSource || lead.lastSource;
+          if (!source || !source.sourceLinkId) return;
           
-          // Extract campaign information from source data
-          const ad = source.sourceLinkAd;
-          const adSource = source.adSource;
+          const id = source.sourceLinkId;
+          const name = source.name || `Campaign ${id}`;
+          const platform = source.adSource?.platform || 'unknown';
+          const spend = parseFloat(source.spend ?? 0);
           
-          // Get campaign ID, name, and platform
-          const campaignId = ad?.adSourceId || source.sourceLinkId || null;
-          const campaignName = ad?.name || source.name || null;
-          const platform = adSource?.platform || 'unknown';
-          
-          if (campaignId && !uniqueCampaigns[campaignId]) {
-            uniqueCampaigns[campaignId] = {
-              hyros_campaign_id: String(campaignId),
-              name: campaignName || `Campaign ${campaignId}`,
-              status: 'active',
+          if (!campaignsById[id]) {
+            campaignsById[id] = {
+              hyros_campaign_id: id,
+              name,
               platform,
+              status: 'active',
               updated_at: new Date().toISOString(),
-              user_id: user.id
+              user_id: user.id,
+              leads: 0,
+              spend: 0
             };
           }
+          
+          campaignsById[id].leads += 1;
+          campaignsById[id].spend += spend;
         });
       }
       
-      const campaigns = Object.values(uniqueCampaigns);
+      const campaignList = Object.values(campaignsById);
       
-      console.log(`Extracted ${campaigns.length} unique campaigns from leads`);
-      debugInfo.campaignsExtracted = campaigns.length;
-      debugInfo.firstCampaign = campaigns[0] || null;
+      console.log(`Extracted ${campaignList.length} campaigns with metrics from leads`);
+      debugInfo.campaignsExtracted = campaignList.length;
+      debugInfo.firstCampaign = campaignList[0] || null;
       
-      // Bulk upsert campaigns to the database
-      let upsertResult = null;
-      if (campaigns.length > 0) {
-        const { data: upsertData, error: upsertError } = await supabase
+      // Upsert campaigns to the hyros_campaigns table
+      if (campaignList.length > 0) {
+        const { error: upsertError } = await supabase
           .from('hyros_campaigns')
-          .upsert(campaigns, {
+          .upsert(campaignList.map(c => ({
+            hyros_campaign_id: c.hyros_campaign_id,
+            name: c.name,
+            platform: c.platform,
+            status: c.status,
+            updated_at: c.updated_at,
+            user_id: c.user_id
+          })), {
             onConflict: 'hyros_campaign_id, user_id',
             ignoreDuplicates: false
           });
@@ -169,16 +175,34 @@ Deno.serve(async (req) => {
             JSON.stringify({ 
               success: false, 
               error: `Failed to save campaigns: ${upsertError.message}`,
-              campaigns: campaigns,
+              campaigns: campaignList,
               debugInfo: debugInfo
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
           );
         }
-        upsertResult = upsertData;
-        debugInfo.upsertResult = upsertResult;
-      } else {
-        debugInfo.noCampaignsExtracted = true;
+      }
+      
+      // Save metrics per campaign to hyros_stats_raw table
+      if (campaignList.length > 0) {
+        const metricsRows = campaignList.map(c => ({
+          user_id: user.id,
+          hyros_campaign_id: c.hyros_campaign_id,
+          leads: c.leads,
+          spend: c.spend,
+          date: isoTo
+        }));
+        
+        const { error: statsError } = await supabase
+          .from('hyros_stats_raw')
+          .upsert(metricsRows, {
+            onConflict: 'user_id, hyros_campaign_id, date'
+          });
+          
+        if (statsError) {
+          console.error("Error upserting campaign stats:", statsError);
+          debugInfo.statsError = statsError.message;
+        }
       }
       
       // Update the last_synced timestamp in the HYROS token record
@@ -219,7 +243,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           campaigns: updatedCampaigns,
-          importCount: campaigns.length,
+          importCount: campaignList.length,
           endpoint: leadsEndpoint,
           debugInfo: debugInfo
         }),
