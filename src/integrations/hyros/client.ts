@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { 
   HyrosLeadListParams, 
@@ -180,9 +181,8 @@ export const hyrosApi = {
           toDate: params.toDate,
           pageSize: params.pageSize,
           pageId: params.pageId,
-          emails: params.emails
-          // Important: We're no longer passing campaignId here, to get ALL leads
-          // Client-side filtering will be used instead
+          emails: params.emails,
+          campaignId: params.campaignId
         }
       };
 

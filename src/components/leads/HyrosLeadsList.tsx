@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { RefreshCcw, AlertCircle, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
@@ -84,15 +83,14 @@ export default function HyrosLeadsList({
       setLoading(true);
       setError(null);
 
-      // Call API to get all leads without campaign filtering
+      // Call API to get leads, passing campaignId directly to the API if provided
       const result = await hyrosApi.fetchLeadsForDateRange({
         fromDate: startDate,
         toDate: endDate,
         pageSize,
         pageId,
         emails: searchTerm ? [searchTerm] : undefined,
-        // Only pass campaignId if we're sure it's in the correct format for HYROS
-        // (usually starts with "slk-" or is a numeric ID)
+        campaignId: campaignId
       });
 
       if (!result.success) {
@@ -100,37 +98,9 @@ export default function HyrosLeadsList({
         setLeads([]);
         return;
       }
-
-      // Filter leads client-side if campaign ID is provided
-      let filteredLeads = result.leads || [];
-      if (campaignId && filteredLeads.length > 0) {
-        // Get HYROS campaign ID from mapping if available
-        const hyrosMappings = await hyrosApi.getCampaignMappings();
-        const hyrosCampaignIds = hyrosMappings
-          .filter(mapping => mapping.tsCampaignId === campaignId && mapping.active)
-          .map(mapping => mapping.hyrosCampaignId);
-        
-        if (hyrosCampaignIds.length > 0) {
-          // Filter leads by HYROS campaign IDs from our mappings
-          filteredLeads = filteredLeads.filter(lead => {
-            // Check firstSource for campaign/sourcelink ID
-            const firstSourceId = lead.firstSource?.sourceLinkId || 
-                                  lead.firstSource?.id || 
-                                  lead.firstSource?.campaignId;
-                                  
-            // Check lastSource for campaign/sourcelink ID
-            const lastSourceId = lead.lastSource?.sourceLinkId || 
-                                 lead.lastSource?.id || 
-                                 lead.lastSource?.campaignId;
-                                 
-            return hyrosCampaignIds.includes(firstSourceId) || 
-                   hyrosCampaignIds.includes(lastSourceId);
-          });
-        }
-      }
       
       // Sort leads by creation date
-      const sortedLeads = filteredLeads.sort((a, b) => {
+      const sortedLeads = (result.leads || []).sort((a, b) => {
         const dateA = new Date(a.creationDate || '').getTime();
         const dateB = new Date(b.creationDate || '').getTime();
         return sortDirection === 'desc' ? dateB - dateA : dateA - dateB;
