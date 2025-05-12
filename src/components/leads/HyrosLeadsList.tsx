@@ -56,6 +56,27 @@ export default function HyrosLeadsList({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [sourceLinkGroups, setSourceLinkGroups] = useState<{[key: string]: number}>({});
   const [expandedSourceLinks, setExpandedSourceLinks] = useState<{[key: string]: boolean}>({});
+  const [hyrosCampaigns, setHyrosCampaigns] = useState<{[id: string]: string}>({});
+
+  // Load HYROS campaign mappings on component mount
+  useEffect(() => {
+    const fetchHyrosCampaigns = async () => {
+      try {
+        const campaigns = await hyrosApi.fetchHyrosCampaigns();
+        if (campaigns.success && campaigns.campaigns) {
+          const campaignMap: {[id: string]: string} = {};
+          campaigns.campaigns.forEach(campaign => {
+            campaignMap[campaign.hyrosCampaignId] = campaign.name;
+          });
+          setHyrosCampaigns(campaignMap);
+        }
+      } catch (error) {
+        console.error('Error fetching HYROS campaigns:', error);
+      }
+    };
+    
+    fetchHyrosCampaigns();
+  }, []);
 
   // Load leads
   const loadLeads = async (pageId?: string) => {
@@ -63,13 +84,15 @@ export default function HyrosLeadsList({
       setLoading(true);
       setError(null);
 
+      // Call API to get all leads without campaign filtering
       const result = await hyrosApi.fetchLeadsForDateRange({
         fromDate: startDate,
         toDate: endDate,
         pageSize,
         pageId,
         emails: searchTerm ? [searchTerm] : undefined,
-        campaignId: campaignId // Pass the campaignId to the API
+        // Only pass campaignId if we're sure it's in the correct format for HYROS
+        // (usually starts with "slk-" or is a numeric ID)
       });
 
       if (!result.success) {
@@ -78,12 +101,40 @@ export default function HyrosLeadsList({
         return;
       }
 
+      // Filter leads client-side if campaign ID is provided
+      let filteredLeads = result.leads || [];
+      if (campaignId && filteredLeads.length > 0) {
+        // Get HYROS campaign ID from mapping if available
+        const hyrosMappings = await hyrosApi.getCampaignMappings();
+        const hyrosCampaignIds = hyrosMappings
+          .filter(mapping => mapping.tsCampaignId === campaignId && mapping.active)
+          .map(mapping => mapping.hyrosCampaignId);
+        
+        if (hyrosCampaignIds.length > 0) {
+          // Filter leads by HYROS campaign IDs from our mappings
+          filteredLeads = filteredLeads.filter(lead => {
+            // Check firstSource for campaign/sourcelink ID
+            const firstSourceId = lead.firstSource?.sourceLinkId || 
+                                  lead.firstSource?.id || 
+                                  lead.firstSource?.campaignId;
+                                  
+            // Check lastSource for campaign/sourcelink ID
+            const lastSourceId = lead.lastSource?.sourceLinkId || 
+                                 lead.lastSource?.id || 
+                                 lead.lastSource?.campaignId;
+                                 
+            return hyrosCampaignIds.includes(firstSourceId) || 
+                   hyrosCampaignIds.includes(lastSourceId);
+          });
+        }
+      }
+      
       // Sort leads by creation date
-      const sortedLeads = result.leads?.sort((a, b) => {
+      const sortedLeads = filteredLeads.sort((a, b) => {
         const dateA = new Date(a.creationDate || '').getTime();
         const dateB = new Date(b.creationDate || '').getTime();
         return sortDirection === 'desc' ? dateB - dateA : dateA - dateB;
-      }) || [];
+      });
       
       setLeads(sortedLeads);
       setNextPageId(result.nextPageId);
@@ -180,6 +231,14 @@ export default function HyrosLeadsList({
     }));
   };
 
+  // Function to get campaign name from source ID
+  const getCampaignNameFromSourceId = (sourceId: string): string => {
+    if (hyrosCampaigns[sourceId]) {
+      return hyrosCampaigns[sourceId];
+    }
+    return 'Unknown Campaign';
+  };
+
   return (
     <div className="space-y-4">
       {error && (
@@ -238,6 +297,9 @@ export default function HyrosLeadsList({
                         </Button>
                       </CollapsibleTrigger>
                       <span className="font-mono text-sm">{id}</span>
+                      <span className="text-sm text-muted-foreground ml-2">
+                        {getCampaignNameFromSourceId(id)}
+                      </span>
                     </div>
                     <Badge variant="secondary">{count} lead{count !== 1 ? 's' : ''}</Badge>
                   </div>

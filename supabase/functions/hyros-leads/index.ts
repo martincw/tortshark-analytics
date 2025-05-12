@@ -15,7 +15,7 @@ interface HyrosLeadListParams {
   toDate?: string;
   pageSize?: number;
   pageId?: string;
-  campaignId?: string; // Campaign ID parameter
+  campaignId?: string; // Campaign ID parameter (optional)
 }
 
 Deno.serve(async (req) => {
@@ -66,9 +66,15 @@ Deno.serve(async (req) => {
         queryParams.push(`page=${encodeURIComponent(params.pageId)}`);
       }
       
-      // Add campaign ID filter if provided
+      // Add campaign ID filter if provided AND it matches a known format
+      // (most HYROS campaign IDs start with "slk-" or are numeric)
       if (params.campaignId) {
-        queryParams.push(`campaign_id=${encodeURIComponent(params.campaignId)}`);
+        // Check if the campaign ID is in a valid format before adding to query
+        if (params.campaignId.startsWith('slk-') || /^\d+$/.test(params.campaignId)) {
+          queryParams.push(`campaign_id=${encodeURIComponent(params.campaignId)}`);
+        } else {
+          console.log(`Campaign ID ${params.campaignId} doesn't match expected format, not adding to query`);
+        }
       }
     }
     
