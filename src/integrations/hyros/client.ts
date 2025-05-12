@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { 
   HyrosLeadListParams, 
@@ -160,12 +161,52 @@ export const hyrosApi = {
   // Leads Management
   async fetchLeadsForDateRange(params: HyrosLeadListParams): Promise<HyrosLeadsListResponse> {
     try {
+      // First, get the API key from the database
+      const credentials = await this.getApiCredentials();
+      
+      if (!credentials || !credentials.api_key) {
+        console.error('No HYROS API key found');
+        return {
+          success: false,
+          leads: [],
+          error: 'No HYROS API key found. Please connect your HYROS account first.'
+        };
+      }
+
+      // Format the request body properly for the edge function
+      const requestBody = {
+        apiKey: credentials.api_key,
+        params: {
+          fromDate: params.fromDate,
+          toDate: params.toDate,
+          pageSize: params.pageSize,
+          pageId: params.pageId,
+          emails: params.emails,
+          campaignId: params.campaignId // Include the campaign ID if provided
+        }
+      };
+
       const { data, error } = await supabase.functions.invoke('hyros-leads', {
-        body: params
+        body: requestBody
       });
       
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error in edge function:', error);
+        throw error;
+      }
+
+      console.log('Leads response:', data);
+      
+      // Format the response to match the expected interface
+      return {
+        success: data.success || false,
+        leads: data.leads || [],
+        nextPageId: data.pagination?.next_page || undefined,
+        total: data.pagination?.total,
+        page: data.pagination?.page,
+        size: data.pagination?.size,
+        error: data.error
+      };
     } catch (error) {
       console.error('Error fetching leads:', error);
       return {

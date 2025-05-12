@@ -68,8 +68,15 @@ export default function HyrosLeadsList({
         toDate: endDate,
         pageSize,
         pageId,
-        emails: searchTerm ? [searchTerm] : undefined
+        emails: searchTerm ? [searchTerm] : undefined,
+        campaignId: campaignId // Pass the campaignId to the API
       });
+
+      if (!result.success) {
+        setError(result.error || 'Failed to fetch leads from HYROS');
+        setLeads([]);
+        return;
+      }
 
       // Sort leads by creation date
       const sortedLeads = result.leads?.sort((a, b) => {

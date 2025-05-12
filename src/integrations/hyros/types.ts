@@ -53,6 +53,7 @@ export interface HyrosLeadListParams {
   pageSize?: number;
   pageId?: string;
   emails?: string[];
+  campaignId?: string; // Added campaignId parameter
 }
 
 export interface HyrosLead {
