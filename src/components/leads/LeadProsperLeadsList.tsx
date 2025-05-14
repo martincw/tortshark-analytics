@@ -157,10 +157,16 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
     // Previous button
     pages.push(
       <PaginationItem key="prev">
-        <PaginationPrevious 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => handlePageChange(Math.max(1, page - 1))}
-          disabled={page === 1 || isLoading} 
-        />
+          disabled={page === 1 || isLoading}
+          className="h-8 w-8"
+          aria-label="Previous page"
+        >
+          <PaginationPrevious className="h-4 w-4" />
+        </Button>
       </PaginationItem>
     );
     
@@ -168,13 +174,16 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
     for (let i = startPage; i <= endPage; i++) {
       pages.push(
         <PaginationItem key={i}>
-          <PaginationLink 
+          <Button
+            variant={page === i ? "outline" : "ghost"}
+            size="icon"
             onClick={() => handlePageChange(i)}
-            isActive={page === i}
             disabled={isLoading}
+            className="h-8 w-8"
+            aria-label={`Page ${i}`}
           >
             {i}
-          </PaginationLink>
+          </Button>
         </PaginationItem>
       );
     }
@@ -182,10 +191,16 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
     // Next button
     pages.push(
       <PaginationItem key="next">
-        <PaginationNext 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
-          disabled={page === totalPages || totalPages === 0 || isLoading} 
-        />
+          disabled={page === totalPages || totalPages === 0 || isLoading}
+          className="h-8 w-8"
+          aria-label="Next page"
+        >
+          <PaginationNext className="h-4 w-4" />
+        </Button>
       </PaginationItem>
     );
     

@@ -27,7 +27,7 @@ export interface LeadProsperLeadRecord {
   cost: number;
   revenue: number;
   lead_date_ms: number;
-  json_payload?: Record<string, any>;
+  json_payload?: any; // Changed from Record<string, any> to any to accommodate both object and string formats
   created_at: string;
   updated_at: string;
 }

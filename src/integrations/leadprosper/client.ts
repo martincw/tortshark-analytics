@@ -856,16 +856,23 @@ export const leadProsperApi = {
           const dateStr = leadDate.toISOString().split('T')[0]; // YYYY-MM-DD
           
           // Call the upsert_daily_lead_metrics function
-          const { error: metricsError } = await supabase.rpc('upsert_daily_lead_metrics', {
-            p_ts_campaign_id: tsCampaignId,
-            p_date: dateStr,
-            p_lead_count: 1,
-            p_accepted: lead.status === 'sold' ? 1 : 0,
-            p_duplicated: lead.status === 'duplicate' ? 1 : 0,
-            p_failed: ['rejected', 'failed'].includes(lead.status || '') ? 1 : 0,
-            p_cost: lead.cost || 0,
-            p_revenue: lead.revenue || 0
-          });
+          const { error: metricsError } = await supabase.from('ts_daily_lead_metrics').upsert(
+            {
+              ts_campaign_id: tsCampaignId,
+              date: dateStr,
+              lead_count: 1, // Increment by 1 for this lead
+              accepted: lead.status === 'sold' ? 1 : 0,
+              duplicated: lead.status === 'duplicate' ? 1 : 0, 
+              failed: ['rejected', 'failed'].includes(lead.status || '') ? 1 : 0,
+              cost: lead.cost || 0,
+              revenue: lead.revenue || 0,
+              updated_at: new Date().toISOString()
+            },
+            {
+              onConflict: 'ts_campaign_id,date',
+              ignoreDuplicates: false
+            }
+          );
           
           if (metricsError) {
             console.error('Error updating metrics:', metricsError);

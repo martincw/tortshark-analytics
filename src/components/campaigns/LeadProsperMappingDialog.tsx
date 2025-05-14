@@ -22,14 +22,13 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, LinkIcon, UnlinkIcon, AlertCircle, CalendarIcon } from 'lucide-react';
+import { Loader2, Search, LinkIcon, UnlinkIcon, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { LeadProsperConnection, LeadProsperMapping } from '@/integrations/leadprosper/types';
 import { DatePicker } from '@/components/ui/date-picker';
 import { LeadProsperMappingRecord } from '@/types/common';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface LeadProsperMappingDialogProps {
   campaignId: string;
