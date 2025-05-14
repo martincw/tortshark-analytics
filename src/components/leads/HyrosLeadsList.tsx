@@ -1,6 +1,36 @@
+
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { hyrosApi } from '@/integrations/hyros/client';
 import { parseStoredDate, formatDateForStorage } from '@/lib/utils/ManualDateUtils';
+import { cn } from '@/lib/utils';
+import { HyrosLead } from '@/integrations/hyros/types';
+import { AlertCircle, ChevronDown, ChevronUp, RefreshCcw, ArrowUpDown } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem
+} from '@/components/ui/pagination';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
+import {
+  Alert,
+  AlertDescription
+} from '@/components/ui/alert';
 
 interface HyrosLeadsListProps {
   startDate: string;
