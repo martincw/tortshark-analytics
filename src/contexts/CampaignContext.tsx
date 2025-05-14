@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -10,7 +11,7 @@ import { BuyerStackEntry } from "@/types/buyer";
 
 // Define our context state
 interface CampaignContextState {
-  campaigns: Campaign[] | null;
+  campaigns: Campaign[];
   isLoading: boolean;
   error: Error | null;
   dateRange: DateRange;
@@ -42,7 +43,7 @@ interface CampaignProviderProps {
 // Create the provider component
 export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
   const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]); // Initialize as empty array, not null
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [accountConnections, setAccountConnections] = useState<ExternalPlatformConnection[]>([]);
@@ -561,7 +562,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
 
   // Prepare the context value
   const contextValue: CampaignContextState = {
-    campaigns,
+    campaigns, // Now campaigns will always be an array, never null
     isLoading,
     error,
     dateRange,

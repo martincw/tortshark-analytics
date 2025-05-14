@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { AddStatsDialog } from "./AddStatsDialog";
+import { toast } from "@/components/ui/use-toast";
 
 export function DashboardHeader() {
   const navigate = useNavigate();
-  const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
+  const { campaigns = [], selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
   const [isAddStatsDialogOpen, setIsAddStatsDialogOpen] = useState(false);
   // Add state for controlling dropdown open state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -51,7 +52,12 @@ export function DashboardHeader() {
     e.preventDefault();
     e.stopPropagation();
     
-    setSelectedCampaignIds(campaigns.map(campaign => campaign.id));
+    // Ensure campaigns is an array before mapping
+    if (campaigns && campaigns.length > 0) {
+      setSelectedCampaignIds(campaigns.map(campaign => campaign.id));
+    } else {
+      setSelectedCampaignIds([]);
+    }
   };
   
   const handleClearAll = (e: React.MouseEvent) => {
@@ -99,18 +105,25 @@ export function DashboardHeader() {
             <DropdownMenuLabel>Select Campaigns for Dashboard</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
-              {campaigns.map(campaign => (
-                <DropdownMenuCheckboxItem
-                  key={campaign.id}
-                  checked={selectedCampaignIds.includes(campaign.id)}
-                  // Fix: Make sure we're passing the correct event type
-                  onSelect={(e) => handleCampaignToggle(campaign.id, e as unknown as React.MouseEvent)}
-                >
-                  {campaign.name}
-                </DropdownMenuCheckboxItem>
-              ))}
+              {/* Add null check before mapping */}
+              {campaigns && campaigns.length > 0 ? (
+                campaigns.map(campaign => (
+                  <DropdownMenuCheckboxItem
+                    key={campaign.id}
+                    checked={selectedCampaignIds.includes(campaign.id)}
+                    // Fix: Make sure we're passing the correct event type
+                    onSelect={(e) => handleCampaignToggle(campaign.id, e as unknown as React.MouseEvent)}
+                  >
+                    {campaign.name}
+                  </DropdownMenuCheckboxItem>
+                ))
+              ) : (
+                <div className="p-3 text-center text-muted-foreground">
+                  No campaigns available
+                </div>
+              )}
             </DropdownMenuGroup>
-            {campaigns.length > 0 && (
+            {campaigns && campaigns.length > 0 && (
               <>
                 <DropdownMenuSeparator />
                 <div className="p-2 flex gap-2">

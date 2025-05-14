@@ -10,9 +10,10 @@ import { AlertCircle } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 
 const IndexPageContent = () => {
-  const { campaigns, isLoading, error, selectedCampaignIds } = useCampaign();
+  const { campaigns = [], isLoading, error, selectedCampaignIds } = useCampaign();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Add null check for campaigns before filtering
   const filteredCampaigns = campaigns
     ? campaigns.filter((campaign) => selectedCampaignIds.includes(campaign.id))
     : [];
