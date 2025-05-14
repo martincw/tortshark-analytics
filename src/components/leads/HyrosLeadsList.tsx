@@ -1,34 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { RefreshCcw, AlertCircle, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
-import { 
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { Badge } from '@/components/ui/badge';
 import { hyrosApi } from '@/integrations/hyros/client';
-import { HyrosLeadsListResponse, HyrosLead } from '@/integrations/hyros/types';
-import { cn } from '@/lib/utils';
+import { parseStoredDate, formatDateForStorage } from '@/lib/utils/ManualDateUtils';
 
 interface HyrosLeadsListProps {
   startDate: string;
@@ -45,7 +17,6 @@ export default function HyrosLeadsList({
   searchTerm,
   pageSize = 20
 }: HyrosLeadsListProps) {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<HyrosLead[]>([]);
   const [nextPageId, setNextPageId] = useState<string | undefined>(undefined);
@@ -168,17 +139,8 @@ export default function HyrosLeadsList({
     try {
       setRefreshing(true);
       await loadLeads();
-      toast({
-        title: "Refreshed",
-        description: "Lead data has been refreshed.",
-      });
     } catch (error) {
       console.error("Error refreshing leads:", error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh leads.",
-        variant: "destructive",
-      });
     } finally {
       setRefreshing(false);
     }

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Search, Filter, RefreshCcw, AlertCircle, BarChart3, List } from 'lucide-react';
@@ -33,7 +33,8 @@ import { useCampaign } from '@/contexts/CampaignContext';
 import { hyrosApi } from '@/integrations/hyros/client';
 import { HyrosSyncResult } from '@/integrations/hyros/types';
 import HyrosLeadsList from '@/components/leads/HyrosLeadsList';
-import { localDateToUTCNoon } from '@/lib/utils/ManualDateUtils';
+import { localDateToUTCNoon, formatDateForStorage, parseStoredDate } from '@/lib/utils/ManualDateUtils';
+import { debounce } from '@/lib/utils';
 
 export default function LeadsPage() {
   const { campaigns } = useCampaign();
@@ -57,10 +58,10 @@ export default function LeadsPage() {
   
   // Selected dates for the date picker
   const [selectedStartDate, setSelectedStartDate] = useState<Date | undefined>(
-    filters.startDate ? new Date(filters.startDate) : new Date()
+    filters.startDate ? parseStoredDate(filters.startDate) : new Date()
   );
   const [selectedEndDate, setSelectedEndDate] = useState<Date | undefined>(
-    filters.endDate ? new Date(filters.endDate) : new Date()
+    filters.endDate ? parseStoredDate(filters.endDate) : new Date()
   );
   
   // Pagination
@@ -82,35 +83,54 @@ export default function LeadsPage() {
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [dateFetched, setDateFetched] = useState<string | null>(null);
   
+  // Create a debounced version of the URL params update
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const debouncedUpdateUrlParams = useCallback(
+    debounce((newFilters, newPage, newViewMode) => {
+      const params = new URLSearchParams();
+      
+      params.set('viewMode', newViewMode);
+      if (newFilters.campaignId) params.set('campaignId', newFilters.campaignId);
+      if (newFilters.status) params.set('status', newFilters.status);
+      if (newFilters.startDate) params.set('startDate', newFilters.startDate);
+      if (newFilters.endDate) params.set('endDate', newFilters.endDate);
+      if (newFilters.searchTerm) params.set('search', newFilters.searchTerm);
+      if (newPage > 1) params.set('page', newPage.toString());
+      
+      setSearchParams(params);
+    }, 400),
+    []
+  );
+  
   // Update URL when filters change
   useEffect(() => {
-    const params = new URLSearchParams();
-    
-    params.set('viewMode', viewMode);
-    if (filters.campaignId) params.set('campaignId', filters.campaignId);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.startDate) params.set('startDate', filters.startDate);
-    if (filters.endDate) params.set('endDate', filters.endDate);
-    if (filters.searchTerm) params.set('search', filters.searchTerm);
-    if (page > 1) params.set('page', page.toString());
-    
-    setSearchParams(params);
-  }, [filters, page, viewMode, setSearchParams]);
+    debouncedUpdateUrlParams(filters, page, viewMode);
+  }, [filters, page, viewMode, debouncedUpdateUrlParams]);
   
   // Handle date changes
   const handleStartDateChange = (date: Date | undefined) => {
-    if (date) {
-      const formattedDate = format(date, 'yyyy-MM-dd');
+    if (!date) return;
+    
+    // Format date for storage and update filters
+    const formattedDate = formatDateForStorage(date);
+    
+    // Only update if the formatted date is different
+    if (formattedDate !== filters.startDate) {
+      setFilters(prev => ({ ...prev, startDate: formattedDate }));
       setSelectedStartDate(date);
-      setFilters({ ...filters, startDate: formattedDate });
     }
   };
   
   const handleEndDateChange = (date: Date | undefined) => {
-    if (date) {
-      const formattedDate = format(date, 'yyyy-MM-dd');
+    if (!date) return;
+    
+    // Format date for storage and update filters
+    const formattedDate = formatDateForStorage(date);
+    
+    // Only update if the formatted date is different
+    if (formattedDate !== filters.endDate) {
+      setFilters(prev => ({ ...prev, endDate: formattedDate }));
       setSelectedEndDate(date);
-      setFilters({ ...filters, endDate: formattedDate });
     }
   };
   
@@ -270,15 +290,19 @@ export default function LeadsPage() {
   
   // Clear all filters
   const clearFilters = () => {
+    const today = new Date();
+    const formattedToday = formatDateForStorage(today);
+    
     setFilters({
       campaignId: '',
       status: '',
-      startDate: today,
-      endDate: today,
+      startDate: formattedToday,
+      endDate: formattedToday,
       searchTerm: '',
     });
-    setSelectedStartDate(new Date());
-    setSelectedEndDate(new Date());
+    
+    setSelectedStartDate(today);
+    setSelectedEndDate(today);
     setPage(1);
   };
   
@@ -314,13 +338,13 @@ export default function LeadsPage() {
         <div className="flex gap-2 items-center">
           <DatePicker
             date={selectedStartDate}
-            onSelect={handleStartDateChange}
+            setDate={handleStartDateChange}
             className="w-[180px]"
           />
           <span className="text-muted-foreground">to</span>
           <DatePicker
             date={selectedEndDate}
-            onSelect={handleEndDateChange}
+            setDate={handleEndDateChange}
             className="w-[180px]"
           />
         </div>
@@ -329,8 +353,15 @@ export default function LeadsPage() {
           size="sm"
           onClick={() => {
             const today = new Date();
-            handleStartDateChange(today);
-            handleEndDateChange(today);
+            const formattedToday = formatDateForStorage(today);
+            
+            setSelectedStartDate(today);
+            setSelectedEndDate(today);
+            setFilters(prev => ({
+              ...prev, 
+              startDate: formattedToday,
+              endDate: formattedToday
+            }));
           }}
         >
           Today

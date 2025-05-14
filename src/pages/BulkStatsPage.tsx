@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,7 +122,7 @@ const BulkStatsPage = () => {
           <div className="flex items-center gap-2">
             <DatePicker 
               date={startDate} 
-              onSelect={handleDateSelect} 
+              setDate={handleDateSelect} 
             />
             <Button
               variant="destructive"

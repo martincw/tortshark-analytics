@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -287,7 +286,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const { campaigns: contextCampaigns } = useCampaign();
   
-  const handleDateSelect = (date: Date | undefined) => {
+  const handleDateChange = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
       console.log("Selected date:", date);
@@ -391,8 +390,8 @@ const Dashboard: React.FC = () => {
         <div className="w-full md:w-auto">
           <DatePicker
             date={selectedDate}
-            onSelect={handleDateSelect}
-            className="w-full md:w-auto"
+            setDate={handleDateChange}
+            className="w-[180px]"
           />
         </div>
       </div>
