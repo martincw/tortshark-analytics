@@ -14,14 +14,16 @@ import { localDateToUTCNoon } from "@/lib/utils/ManualDateUtils";
 
 interface DatePickerProps {
   date: Date | undefined;
-  setDate: (date: Date | undefined) => void;
+  setDate?: (date: Date | undefined) => void;
+  onSelect?: (date: Date | undefined) => void;
   className?: string;
 }
 
-export function DatePicker({ date, setDate, className }: DatePickerProps) {
+export function DatePicker({ date, setDate, onSelect, className }: DatePickerProps) {
   const handleSelect = (selectedDate: Date | undefined) => {
     if (!selectedDate) {
-      setDate(undefined);
+      if (setDate) setDate(undefined);
+      if (onSelect) onSelect(undefined);
       return;
     }
     
@@ -30,7 +32,8 @@ export function DatePicker({ date, setDate, className }: DatePickerProps) {
     const utcNoonDate = localDateToUTCNoon(selectedDate);
     console.log(`DatePicker: Selected ${selectedDate.toISOString()}, converted to UTC noon: ${utcNoonDate.toISOString()}`);
     
-    setDate(utcNoonDate);
+    if (setDate) setDate(utcNoonDate);
+    if (onSelect) onSelect(utcNoonDate);
   };
 
   return (

@@ -36,7 +36,7 @@ export const StatsForm: React.FC<StatsFormProps> = ({
         <Label htmlFor="date">Date</Label>
         <DatePicker
           date={statsDate}
-          onSelect={(date) => date && setStatsDate(date)}
+          setDate={setStatsDate}
           className="w-full"
         />
         <p className="text-xs text-muted-foreground">

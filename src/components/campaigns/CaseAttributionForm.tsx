@@ -164,7 +164,7 @@ export const CaseAttributionForm = ({ campaignId, onAttributionAdded }: CaseAttr
             <Label>Date</Label>
             <DatePicker 
               date={date}
-              onSelect={(newDate) => newDate && setDate(newDate)}
+              setDate={setDate}
             />
           </div>
         </div>
