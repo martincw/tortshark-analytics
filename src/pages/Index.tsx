@@ -1,3 +1,4 @@
+
 import { useCampaign } from "@/contexts/CampaignContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
@@ -19,9 +20,9 @@ const Index = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Filter campaigns by selected IDs if any are selected
-  const filteredCampaigns = selectedCampaignIds.length > 0
+  const filteredCampaigns = selectedCampaignIds.length > 0 && campaigns
     ? campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id))
-    : campaigns;
+    : campaigns || [];
   
   // Use the campaign grid data hook for filtering and sorting
   const {
@@ -90,7 +91,7 @@ const Index = () => {
   };
   
   // Show loading state
-  if (isLoading && campaigns.length === 0) {
+  if (isLoading && (!campaigns || campaigns.length === 0)) {
     return (
       <div className="space-y-6">
         <DashboardHeader />
@@ -103,7 +104,7 @@ const Index = () => {
   }
   
   // Show error state with improved error messaging and recovery options
-  if (error && !isLoading && campaigns.length === 0) {
+  if (error && !isLoading && (!campaigns || campaigns.length === 0)) {
     return (
       <div className="space-y-6">
         <DashboardHeader />
@@ -111,7 +112,7 @@ const Index = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="flex flex-col gap-4">
-              <p>Error loading campaigns: {error}</p>
+              <p>Error loading campaigns: {error.message}</p>
               <div className="flex flex-col gap-2">
                 <p className="text-sm">Try these solutions:</p>
                 <ul className="list-disc list-inside text-sm ml-2">
