@@ -2,31 +2,22 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { ConnectedAccounts } from "@/components/accounts/ConnectedAccounts";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { leadProsperApi } from "@/integrations/leadprosper/client";
 
 const AccountsPage = () => {
   const { user } = useAuth();
   const { 
     accountConnections, 
-    fetchGoogleAdsAccounts,
     campaigns,
     isLoading,
-    addAccountConnection
   } = useCampaign();
   
   const navigate = useNavigate();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
-  const [mappingAccountId, setMappingAccountId] = useState<string>("");
   const [allAccountConnections, setAllAccountConnections] = useState([...accountConnections]);
 
   useEffect(() => {
@@ -34,72 +25,15 @@ const AccountsPage = () => {
       navigate("/auth");
       return;
     }
-
-    const loadAllConnections = async () => {
-      try {
-        setIsRefreshing(true);
-        
-        // Check Google Auth status
-        const { isGoogleAuthValid } = await import("@/services/googleAdsService");
-        const isValid = await isGoogleAuthValid();
-        setIsGoogleConnected(isValid);
-        
-        // Fetch Google accounts
-        await fetchGoogleAdsAccounts();
-        
-        // Get Lead Prosper connections 
-        const lpConnections = await leadProsperApi.getAccountConnections();
-        
-        // Add Lead Prosper connections to the account connections
-        lpConnections.forEach(conn => {
-          addAccountConnection(conn);
-        });
-        
-      } catch (error) {
-        console.error("Error loading connections:", error);
-      } finally {
-        setIsRefreshing(false);
-      }
-    };
-    
-    loadAllConnections();
   }, [user, navigate]);
   
   // Update local state when accountConnections changes
   useEffect(() => {
     setAllAccountConnections(accountConnections);
   }, [accountConnections]);
-  
-  const refreshAccounts = async () => {
-    setIsRefreshing(true);
-    try {
-      // Fetch Google accounts
-      await fetchGoogleAdsAccounts();
-      
-      // Get Lead Prosper connections
-      const lpConnections = await leadProsperApi.getAccountConnections();
-      
-      // Add Lead Prosper connections to the account connections
-      lpConnections.forEach(conn => {
-        addAccountConnection(conn);
-      });
-      
-      toast.success("All platform connections refreshed");
-    } catch (error) {
-      console.error("Error refreshing accounts:", error);
-      toast.error("Failed to refresh accounts");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const handleSelectAccount = (accountId: string) => {
     setSelectedAccountId(accountId);
-  };
-  
-  const handleOpenMappingDialog = (accountId: string) => {
-    setMappingAccountId(accountId);
-    setIsMappingDialogOpen(true);
   };
 
   const handleCreateCampaign = () => {
@@ -119,44 +53,16 @@ const AccountsPage = () => {
             Select an account to create campaigns and track performance
           </p>
         </div>
-        
-        <Button 
-          variant="outline"
-          onClick={refreshAccounts}
-          disabled={isRefreshing}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Refreshing...' : 'Refresh Accounts'}
-        </Button>
       </div>
       
-      {!isGoogleConnected && (
-        <Alert className="mb-4 bg-amber-50 border-amber-200">
-          <AlertCircle className="h-4 w-4 text-amber-500" />
-          <AlertDescription className="text-amber-800 flex justify-between items-center">
-            <span>Connect your Google Ads account to import campaigns</span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="ml-4 border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-              onClick={() => navigate("/integrations")}
-            >
-              Connect to Google
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert className="mb-4 bg-blue-50 border-blue-200">
+        <AlertCircle className="h-4 w-4 text-blue-500" />
+        <AlertDescription className="text-blue-800">
+          <span>We've removed all integrations. New integration functionality will be implemented soon.</span>
+        </AlertDescription>
+      </Alert>
       
-      <ConnectedAccounts
-        accountConnections={allAccountConnections}
-        isLoading={isLoading || isRefreshing}
-        selectedAccountId={selectedAccountId}
-        onSelectAccount={handleSelectAccount}
-        onMapCampaigns={handleOpenMappingDialog}
-        campaigns={campaigns}
-      />
-
-      {allAccountConnections.length > 0 && (
+      {allAccountConnections.length > 0 ? (
         <div className="flex justify-center pt-4">
           <Button 
             onClick={handleCreateCampaign}
@@ -166,14 +72,16 @@ const AccountsPage = () => {
             Create Campaign with Selected Account
           </Button>
         </div>
+      ) : (
+        <div className="flex justify-center py-8">
+          <div className="text-center max-w-md">
+            <h3 className="text-lg font-medium mb-2">No Connected Accounts</h3>
+            <p className="text-muted-foreground mb-4">
+              Account connections are being reimplemented. Check back later for the new integration experience.
+            </p>
+          </div>
+        </div>
       )}
-      
-      <CampaignMappingDialog 
-        isOpen={isMappingDialogOpen} 
-        onClose={() => setIsMappingDialogOpen(false)}
-        accountId={mappingAccountId}
-        campaigns={campaigns}
-      />
     </div>
   );
 };

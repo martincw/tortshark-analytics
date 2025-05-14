@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Table, FileText } from "lucide-react";
+import { ExternalLink, Table, FileText, Users } from "lucide-react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
 
