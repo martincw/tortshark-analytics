@@ -3,8 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { DateRange } from "@/types/common";
-import { Campaign } from "@/types/campaign-base";
-import { ExternalPlatformConnection } from "@/types/common";
+import { Campaign, StatHistoryEntry, ExternalPlatformConnection } from "@/types/campaign-base";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 
@@ -112,7 +111,17 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
             date: new Date().toISOString().split('T')[0]
           };
           
-          const statsHistory = statsHistoryData || [];
+          // Transform stats history to match our StatHistoryEntry interface
+          const statsHistory = statsHistoryData ? statsHistoryData.map(entry => ({
+            id: entry.id,
+            campaignId: entry.campaign_id,
+            date: entry.date,
+            leads: entry.leads,
+            cases: entry.cases,
+            revenue: entry.revenue,
+            adSpend: entry.ad_spend || 0,
+            createdAt: entry.created_at
+          })) : [];
           
           const targets = targetsData || { 
             monthlyRetainers: 0,
@@ -163,7 +172,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       );
       
       console.info("Successfully fetched", fullCampaigns.length, "campaigns");
-      setCampaigns(fullCampaigns as Campaign[]);
+      setCampaigns(fullCampaigns);
     } catch (err) {
       console.error("Error fetching campaigns:", err);
       setError(err instanceof Error ? err : new Error('Failed to fetch campaigns'));
@@ -365,9 +374,14 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
 
     try {
       const entryWithId = {
-        ...entry,
         id: uuidv4(),
-        campaign_id: campaignId
+        campaign_id: campaignId,
+        date: entry.date,
+        leads: entry.leads,
+        cases: entry.cases,
+        retainers: entry.retainers || entry.cases,
+        revenue: entry.revenue,
+        ad_spend: entry.adSpend || 0
       };
       
       // Insert the entry into Supabase
@@ -377,13 +391,25 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
         
       if (error) throw error;
       
+      // Create a transformed entry for our local state that matches the interface
+      const transformedEntry: StatHistoryEntry = {
+        id: entryWithId.id,
+        campaignId: entryWithId.campaign_id,
+        date: entryWithId.date,
+        leads: entryWithId.leads,
+        cases: entryWithId.cases,
+        revenue: entryWithId.revenue,
+        adSpend: entryWithId.ad_spend,
+        createdAt: new Date().toISOString()
+      };
+      
       // Update local state
       setCampaigns(prevCampaigns => 
         prevCampaigns?.map(campaign => 
           campaign.id === campaignId 
             ? { 
               ...campaign, 
-              statsHistory: [entryWithId, ...campaign.statsHistory] 
+              statsHistory: [transformedEntry, ...campaign.statsHistory] 
             } 
             : campaign
         ) || null
@@ -408,13 +434,25 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
           date: entry.date,
           leads: entry.leads,
           cases: entry.cases,
-          retainers: entry.retainers,
+          retainers: entry.retainers || entry.cases,
           revenue: entry.revenue,
           ad_spend: entry.adSpend
         })
         .eq('id', entry.id);
         
       if (error) throw error;
+      
+      // Create a transformed entry for our local state that matches the interface
+      const transformedEntry: StatHistoryEntry = {
+        id: entry.id,
+        campaignId: campaignId,
+        date: entry.date,
+        leads: entry.leads,
+        cases: entry.cases,
+        revenue: entry.revenue,
+        adSpend: entry.adSpend,
+        createdAt: entry.createdAt
+      };
       
       // Update local state
       setCampaigns(prevCampaigns => 
@@ -423,7 +461,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
             ? { 
               ...campaign, 
               statsHistory: campaign.statsHistory.map(item => 
-                item.id === entry.id ? entry : item
+                item.id === entry.id ? transformedEntry : item
               )
             } 
             : campaign

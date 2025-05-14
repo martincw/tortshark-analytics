@@ -1,220 +1,60 @@
-
-import { useCampaign } from "@/contexts/CampaignContext";
+import React, { useState, useEffect } from "react";
+import { CampaignCard } from "@/components/dashboard/CampaignCard";
+import { AddStatsDialog } from "@/components/dashboard/AddStatsDialog";
+import { CampaignProvider, useCampaign } from "@/contexts/CampaignContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { CampaignGrid } from "@/components/dashboard/CampaignGrid";
-import DashboardFinancialStats from "@/components/dashboard/DashboardFinancialStats";
-import { DailyAveragesSection } from "@/components/dashboard/DailyAveragesSection";
-import { CampaignLeaderboard } from "@/components/dashboard/CampaignLeaderboard";
-import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CampaignFilters } from "@/components/dashboard/CampaignFilters";
-import { useCampaignGridData } from "@/hooks/useCampaignGridData";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RefreshCw, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { CampaignCardSkeleton } from "@/components/dashboard/CampaignCardSkeleton";
+import { AlertCircle } from "lucide-react";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 
-const Index = () => {
-  const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();
-  const [activeTab, setActiveTab] = useState<string>("overview");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // Filter campaigns by selected IDs if any are selected
-  const filteredCampaigns = selectedCampaignIds.length > 0 && campaigns
-    ? campaigns.filter(campaign => selectedCampaignIds.includes(campaign.id))
-    : campaigns || [];
-  
-  // Use the campaign grid data hook for filtering and sorting
-  const {
-    searchTerm,
-    setSearchTerm,
-    sortBy,
-    setSortBy,
-    filterCampaign,
-    setFilterCampaign,
-    campaignTypes,
-    sortedAndFilteredCampaigns
-  } = useCampaignGridData(filteredCampaigns);
-  
-  // Log when date range or filtered campaigns change to help debug
-  useEffect(() => {
-    console.log("Index component - date range updated:", dateRange);
-    console.log(`Filtered campaigns count: ${filteredCampaigns.length}`);
-    
-    // Add more detailed logging about the campaigns to help debug
-    if (filteredCampaigns.length > 0) {
-      console.log("First campaign sample:", {
-        id: filteredCampaigns[0].id,
-        name: filteredCampaigns[0].name,
-        statsHistory: filteredCampaigns[0].statsHistory.length
-      });
-    }
-  }, [dateRange, filteredCampaigns.length]);
+const IndexPageContent = () => {
+  const { campaigns, isLoading, error, selectedCampaignIds } = useCampaign();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Store active tab in localStorage when it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem("dashboardActiveTab", activeTab);
-    } catch (e) {
-      console.error("Error saving active tab to localStorage:", e);
-    }
-  }, [activeTab]);
+  const filteredCampaigns = campaigns
+    ? campaigns.filter((campaign) => selectedCampaignIds.includes(campaign.id))
+    : [];
 
-  // Initialize active tab from localStorage on component mount
-  useEffect(() => {
-    try {
-      const savedTab = localStorage.getItem("dashboardActiveTab");
-      if (savedTab) {
-        setActiveTab(savedTab);
-      }
-    } catch (e) {
-      console.error("Error loading active tab from localStorage:", e);
-    }
-  }, []);
-  
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-  };
-  
-  // Improve the refresh handler with proper loading states and error handling
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await fetchCampaigns();
-      toast.success("Data refreshed successfully");
-    } catch (e) {
-      console.error("Error refreshing campaigns:", e);
-      toast.error("Failed to refresh data");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-  
-  // Show loading state
-  if (isLoading && (!campaigns || campaigns.length === 0)) {
-    return (
-      <div className="space-y-6">
-        <DashboardHeader />
-        <div className="flex flex-col items-center justify-center p-12">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
-          <p className="text-lg font-medium">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Show error state with improved error messaging and recovery options
-  if (error && !isLoading && (!campaigns || campaigns.length === 0)) {
-    return (
-      <div className="space-y-6">
-        <DashboardHeader />
-        <Alert variant="destructive" className="mt-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="flex flex-col gap-4">
-              <p>Error loading campaigns: {error.message}</p>
-              <div className="flex flex-col gap-2">
-                <p className="text-sm">Try these solutions:</p>
-                <ul className="list-disc list-inside text-sm ml-2">
-                  <li>Check your internet connection</li>
-                  <li>Log out and log back in</li>
-                  <li>Clear your browser cache</li>
-                </ul>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefresh} 
-                disabled={isRefreshing}
-                className="w-fit"
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-  
-  // Regular render state with proper fallbacks for empty data
+  // Fix the error message display
   return (
-    <div className="space-y-6">
-      {/* Keep the DashboardHeader at the top across all tabs */}
+    <div className="container mx-auto py-6">
       <DashboardHeader />
       
-      {/* Add refresh button for easy data refresh without error state */}
-      {!isLoading && (
-        <div className="flex justify-end">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh} 
-            disabled={isRefreshing}
-            className="w-fit"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
-          </Button>
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
+          {Array(8).fill(0).map((_, i) => (
+            <CampaignCardSkeleton key={i} />
+          ))}
         </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center h-64">
+          <AlertCircle className="h-12 w-12 text-error-DEFAULT mb-4" />
+          <h2 className="text-2xl font-semibold mb-2">Error loading campaigns</h2>
+          <p className="text-error-DEFAULT">{error.message}</p>
+        </div>
+      ) : filteredCampaigns.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
+          {filteredCampaigns.map((campaign) => (
+            <CampaignCard key={campaign.id} campaign={campaign} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState open={isDialogOpen} setOpen={setIsDialogOpen} />
       )}
-      
-      {/* Tabbed Interface */}
-      <Tabs 
-        defaultValue={activeTab} 
-        onValueChange={handleTabChange}
-        className="w-full"
-      >
-        <TabsList className="w-full border-b bg-background mb-4 h-12 rounded-none justify-start">
-          <TabsTrigger 
-            value="overview" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="leaderboard" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Leaderboard
-          </TabsTrigger>
-          <TabsTrigger 
-            value="campaigns" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Campaigns
-          </TabsTrigger>
-        </TabsList>
-        
-        {/* Overview Tab Content */}
-        <TabsContent value="overview" className="space-y-6 mt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <DashboardFinancialStats />
-            <DailyAveragesSection filteredCampaigns={filteredCampaigns} />
-          </div>
-        </TabsContent>
-        
-        {/* Leaderboard Tab Content */}
-        <TabsContent value="leaderboard" className="space-y-6 mt-0">
-          <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
-        </TabsContent>
-        
-        {/* Campaigns Tab Content */}
-        <TabsContent value="campaigns" className="space-y-6 mt-0">
-          <CampaignFilters
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            filterCampaign={filterCampaign}
-            setFilterCampaign={setFilterCampaign}
-            campaignTypes={campaignTypes}
-          />
-          <CampaignGrid filteredCampaigns={sortedAndFilteredCampaigns} />
-        </TabsContent>
-      </Tabs>
+
+      <AddStatsDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <AuthProvider>
+      <CampaignProvider>
+        <IndexPageContent />
+      </CampaignProvider>
+    </AuthProvider>
   );
 };
 

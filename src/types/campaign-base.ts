@@ -38,7 +38,6 @@ export interface StatHistoryEntry {
   revenue: number;
   adSpend?: number;
   createdAt?: string;
-  // updatedAt property removed as it doesn't exist in the database
 }
 
 export interface CampaignBasic {
@@ -78,7 +77,18 @@ export interface AccountConnection {
   customerId?: string;
   lastSynced?: string;
   isConnected: boolean;
-  credentials?: Record<string, any>; // Added credentials property to fix TypeScript error
+  credentials?: Record<string, any>;
+}
+
+// Define ExternalPlatformConnection type
+export interface ExternalPlatformConnection {
+  id: string;
+  name: string;
+  platform: string;
+  isConnected: boolean;
+  customerId?: string;
+  lastSynced?: string;
+  credentials?: Record<string, any>;
 }
 
 // Re-export the types from metrics.ts and common.ts for backward compatibility

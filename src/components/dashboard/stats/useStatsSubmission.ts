@@ -53,7 +53,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases, // Using cases as retainers
             revenue,
-            ad_spend: adSpend
+            ad_spend: adSpend // Make sure to use ad_spend for database column name
           })
           .eq('id', existingData.id);
           
@@ -74,7 +74,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases, // Using cases as retainers
             revenue,
-            ad_spend: adSpend
+            ad_spend: adSpend // Make sure to use ad_spend for database column name
           });
           
         if (insertError) {
