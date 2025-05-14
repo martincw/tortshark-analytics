@@ -1,4 +1,3 @@
-
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 import { addDays, subDays } from "date-fns";
@@ -140,25 +139,14 @@ export const getPreviousWeekStats = (campaign: Campaign, dateRange?: DateRange) 
   return getPeriodStats(campaign, previousDateRange);
 };
 
-// FIX: Add null check to formatCurrency to prevent "toLocaleString of undefined" errors
-export const formatCurrency = (value: number | undefined | null): string => {
-  // Return $0.00 for null, undefined, or NaN values
-  if (value === null || value === undefined || isNaN(value)) {
-    return "$0.00";
-  }
+export const formatCurrency = (value: number): string => {
   return `$${value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
 };
 
-// FIX: Add null check to formatCurrencyCompact to prevent "toLocaleString of undefined" errors
-export const formatCurrencyCompact = (value: number | undefined | null): string => {
-  // Return $0 for null, undefined, or NaN values
-  if (value === null || value === undefined || isNaN(value)) {
-    return "$0";
-  }
-  
+export const formatCurrencyCompact = (value: number): string => {
   if (Math.abs(value) >= 1000) {
     return `$${value.toLocaleString('en-US', {
       minimumFractionDigits: 0,
@@ -168,20 +156,11 @@ export const formatCurrencyCompact = (value: number | undefined | null): string 
   return formatCurrency(value);
 };
 
-// FIX: Add null check to formatPercent to prevent "toFixed of undefined" errors
-export const formatPercent = (value: number | undefined | null): string => {
-  if (value === null || value === undefined || isNaN(value)) {
-    return "0.0%";
-  }
+export const formatPercent = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// FIX: Add null check to formatNumber to prevent "toFixed of undefined" errors
-export const formatNumber = (value: number | undefined | null): string => {
-  if (value === null || value === undefined || isNaN(value)) {
-    return "0";
-  }
-  
+export const formatNumber = (value: number): string => {
   if (value >= 1000000) {
     return `${(value / 1000000).toFixed(1)}M`;
   }

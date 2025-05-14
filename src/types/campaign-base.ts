@@ -1,5 +1,6 @@
+
 import { GoogleAdsMetrics, GoogleAdsMetricsResponse } from './metrics';
-import type { DateRange, ExternalPlatformConnection } from './common';
+import { DateRange } from './common';
 
 export interface Campaign {
   id: string;
@@ -37,6 +38,7 @@ export interface StatHistoryEntry {
   revenue: number;
   adSpend?: number;
   createdAt?: string;
+  // updatedAt property removed as it doesn't exist in the database
 }
 
 export interface CampaignBasic {
@@ -76,7 +78,7 @@ export interface AccountConnection {
   customerId?: string;
   lastSynced?: string;
   isConnected: boolean;
-  credentials?: Record<string, any>;
+  credentials?: Record<string, any>; // Added credentials property to fix TypeScript error
 }
 
 // Re-export the types from metrics.ts and common.ts for backward compatibility
