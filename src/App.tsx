@@ -16,14 +16,12 @@ import CampaignDetail from "./pages/CampaignDetail";
 import CampaignsPage from "./pages/CampaignsPage";
 import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
-import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import BulkStatsPage from "./pages/BulkStatsPage";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
-import LeadsPage from "./pages/LeadsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -99,10 +97,8 @@ const App = () => (
                 <Route path="/bulk-stats" element={<BulkStatsPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts" element={<AccountsPage />} />
-                <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/buyers" element={<BuyersPage />} />
-                <Route path="/leads" element={<LeadsPage />} /> 
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
