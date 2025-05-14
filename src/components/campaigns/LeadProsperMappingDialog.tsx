@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,11 +22,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, LinkIcon, UnlinkIcon, AlertCircle } from 'lucide-react';
+import { Loader2, Search, LinkIcon, UnlinkIcon, AlertCircle, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { LeadProsperConnection, LeadProsperMapping } from '@/integrations/leadprosper/types';
+import { DatePicker } from '@/components/ui/date-picker';
+import { LeadProsperMappingRecord } from '@/types/common';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface LeadProsperMappingDialogProps {
   campaignId: string;
@@ -45,8 +49,17 @@ export default function LeadProsperMappingDialog({
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState<any[]>([]);
   const [connection, setConnection] = useState<LeadProsperConnection | null>(null);
-  const [mappings, setMappings] = useState<LeadProsperMapping[]>([]);
+  const [mappings, setMappings] = useState<LeadProsperMappingRecord[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
+  
+  // Backfill date range
+  const [backfillDateRange, setBackfillDateRange] = useState<{
+    startDate: Date;
+    endDate: Date;
+  }>({
+    startDate: subDays(new Date(), 90), // Default to 90 days ago
+    endDate: new Date() // Today
+  });
   
   useEffect(() => {
     if (open) {
@@ -138,21 +151,10 @@ export default function LeadProsperMappingDialog({
       const mappingsData = await leadProsperApi.getCampaignMappings(campaignId);
       setMappings(mappingsData);
       
-      // Trigger backfill for the last 90 days
-      const today = new Date();
-      const ninetyDaysAgo = subDays(today, 90);
+      // Trigger backfill for the date range
+      await handleBackfill(selectedCampaign);
       
-      if (connection?.credentials?.apiKey) {
-        await leadProsperApi.backfillLeads(
-          connection.credentials.apiKey,
-          selectedCampaign,
-          campaignId,
-          format(ninetyDaysAgo, 'yyyy-MM-dd'),
-          format(today, 'yyyy-MM-dd')
-        );
-      }
-      
-      toast.success('Campaign mapped and data backfill initiated');
+      toast.success('Campaign mapped successfully');
       onMappingUpdated();
       setSelectedCampaign(null);
       
@@ -183,6 +185,43 @@ export default function LeadProsperMappingDialog({
       toast.error('Failed to unmap campaign');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleBackfill = async (lpCampaignId: number) => {
+    if (!connection?.credentials?.apiKey) {
+      toast.error('Missing API credentials');
+      return false;
+    }
+
+    try {
+      const formattedStartDate = format(backfillDateRange.startDate, 'yyyy-MM-dd');
+      const formattedEndDate = format(backfillDateRange.endDate, 'yyyy-MM-dd');
+      
+      toast.loading('Backfilling historical lead data...', {
+        id: 'backfill',
+        duration: 30000
+      });
+      
+      const result = await leadProsperApi.backfillLeads(
+        connection.credentials.apiKey,
+        lpCampaignId,
+        campaignId,
+        formattedStartDate,
+        formattedEndDate
+      );
+      
+      if (result) {
+        toast.success('Lead data backfill initiated successfully');
+        return true;
+      } else {
+        toast.error('Failed to backfill lead data');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error during backfill:', error);
+      toast.error('Error during backfill process');
+      return false;
     }
   };
   
@@ -272,6 +311,31 @@ export default function LeadProsperMappingDialog({
                 </div>
               </div>
             )}
+            
+            {/* Backfill date range */}
+            <div className="border-t pt-4">
+              <h3 className="font-medium mb-2">Backfill Settings</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                When mapping a campaign, historical lead data will be imported for the date range below
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Start Date</label>
+                  <DatePicker
+                    date={backfillDateRange.startDate}
+                    setDate={(date) => date && setBackfillDateRange(prev => ({ ...prev, startDate: date }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">End Date</label>
+                  <DatePicker
+                    date={backfillDateRange.endDate}
+                    setDate={(date) => date && setBackfillDateRange(prev => ({ ...prev, endDate: date }))}
+                  />
+                </div>
+              </div>
+            </div>
             
             {/* Search and selection */}
             <div className="space-y-4 border-t pt-4">

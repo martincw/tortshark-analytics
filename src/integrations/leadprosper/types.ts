@@ -90,3 +90,10 @@ export interface LeadProsperSyncResult {
   used_stats_fallback?: boolean; // Flag indicating if stats API was used as fallback
   debug_info?: any[]; // Additional debug info for troubleshooting
 }
+
+export interface LeadProsperLeadProcessingResult {
+  success: boolean;
+  processed: number;
+  errors: number;
+  message?: string;
+}

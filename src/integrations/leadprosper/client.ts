@@ -1,7 +1,8 @@
 // Create a basic client for interacting with Lead Prosper API
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { LeadProsperCredentials, LeadProsperSyncResult } from './types';
+import { LeadProsperCredentials, LeadProsperSyncResult, LeadProsperMapping, DailyLeadMetrics } from './types';
+import { LeadProsperLeadRecord, LeadProsperMappingRecord } from '@/types/common';
 
 export interface LeadListParams {
   page?: number;
@@ -14,7 +15,7 @@ export interface LeadListParams {
 }
 
 export interface LeadResponse {
-  leads: any[];
+  leads: LeadProsperLeadRecord[];
   total: number;
 }
 
@@ -212,10 +213,72 @@ export const leadProsperApi = {
       });
 
       if (error) throw error;
+
+      // After fetching campaigns, store them in the database
+      if (data?.campaigns && Array.isArray(data.campaigns)) {
+        await this.storeCampaignsInDatabase(data.campaigns);
+      }
+
       return data?.campaigns || [];
     } catch (error) {
       console.error('Error fetching Lead Prosper campaigns:', error);
       throw error;
+    }
+  },
+
+  // Store Lead Prosper campaigns in the database
+  async storeCampaignsInDatabase(campaigns: any[]): Promise<void> {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      for (const campaign of campaigns) {
+        // Check if campaign already exists
+        const { data: existingCampaign, error: queryError } = await supabase
+          .from('external_lp_campaigns')
+          .select('id')
+          .eq('lp_campaign_id', campaign.id)
+          .maybeSingle();
+
+        if (queryError && queryError.code !== 'PGRST116') {
+          console.error('Error checking campaign:', queryError);
+          continue;
+        }
+
+        if (existingCampaign) {
+          // Update existing campaign
+          const { error: updateError } = await supabase
+            .from('external_lp_campaigns')
+            .update({
+              name: campaign.name,
+              status: campaign.status || 'active',
+              updated_at: new Date().toISOString(),
+              user_id: user.id
+            })
+            .eq('id', existingCampaign.id);
+
+          if (updateError) {
+            console.error('Error updating campaign:', updateError);
+          }
+        } else {
+          // Insert new campaign
+          const { error: insertError } = await supabase
+            .from('external_lp_campaigns')
+            .insert({
+              lp_campaign_id: campaign.id,
+              name: campaign.name,
+              status: campaign.status || 'active',
+              user_id: user.id
+            });
+
+          if (insertError) {
+            console.error('Error inserting campaign:', insertError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error storing campaigns in database:', error);
     }
   },
 
@@ -225,12 +288,42 @@ export const leadProsperApi = {
   },
 
   // Get campaign mappings for a specific Tortshark campaign
-  async getCampaignMappings(tsCampaignId: string): Promise<any[]> {
+  async getCampaignMappings(tsCampaignId: string): Promise<LeadProsperMappingRecord[]> {
     try {
-      // Since the lp_to_ts_map table doesn't exist, we'll return an empty array
-      // In a real implementation, you would use the appropriate table or migrate the data
-      console.log(`Fetching campaign mappings for TS campaign ${tsCampaignId} - table unavailable`);
-      return [];
+      const { data, error } = await supabase
+        .from('lp_to_ts_map')
+        .select(`
+          id,
+          ts_campaign_id,
+          lp_campaign_id,
+          active,
+          linked_at,
+          unlinked_at,
+          external_lp_campaigns(id, lp_campaign_id, name, status)
+        `)
+        .eq('ts_campaign_id', tsCampaignId)
+        .eq('active', true);
+
+      if (error) {
+        console.error('Error getting Lead Prosper campaign mappings:', error);
+        throw error;
+      }
+
+      // Transform the data to match the expected format
+      return (data || []).map(mapping => ({
+        id: mapping.id,
+        ts_campaign_id: mapping.ts_campaign_id,
+        lp_campaign_id: mapping.lp_campaign_id,
+        active: mapping.active,
+        linked_at: mapping.linked_at,
+        unlinked_at: mapping.unlinked_at,
+        lp_campaign: mapping.external_lp_campaigns ? {
+          id: mapping.external_lp_campaigns.id,
+          lp_campaign_id: mapping.external_lp_campaigns.lp_campaign_id,
+          name: mapping.external_lp_campaigns.name,
+          status: mapping.external_lp_campaigns.status
+        } : undefined
+      }));
     } catch (error) {
       console.error('Error getting mapped Lead Prosper campaigns:', error);
       throw error;
@@ -238,35 +331,93 @@ export const leadProsperApi = {
   },
 
   // Alias for getCampaignMappings for backward compatibility
-  getMappedCampaigns(tsCampaignId: string): Promise<any[]> {
+  getMappedCampaigns(tsCampaignId: string): Promise<LeadProsperMappingRecord[]> {
     return this.getCampaignMappings(tsCampaignId);
   },
 
   // Map Lead Prosper campaign to Tortshark campaign
   async mapCampaign(tsCampaignId: string, lpCampaignId: number): Promise<boolean> {
     try {
-      // Since the external_lp_campaigns and lp_to_ts_map tables don't exist,
-      // we'll use a workaround to track mappings in memory
-      console.log(`Mapping LP campaign ${lpCampaignId} to TS campaign ${tsCampaignId} - tables unavailable`);
-      
-      // Store the mapping information in localStorage temporarily for the session
-      // This is just a fallback since the tables don't exist
-      const mappingKey = `lp_campaign_mapping_${tsCampaignId}`;
-      const mappingData = {
-        ts_campaign_id: tsCampaignId,
-        lp_campaign_id: lpCampaignId,
-        mapped_at: new Date().toISOString()
-      };
-      
-      // In a real implementation, you would store this in the database
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(mappingKey, JSON.stringify(mappingData));
+      // First, get the external_lp_campaigns entry for this lpCampaignId
+      const { data: lpCampaign, error: lpCampaignError } = await supabase
+        .from('external_lp_campaigns')
+        .select('id')
+        .eq('lp_campaign_id', lpCampaignId)
+        .single();
+
+      if (lpCampaignError) {
+        console.error('Error finding LP campaign:', lpCampaignError);
+        throw new Error(`Lead Prosper campaign with ID ${lpCampaignId} not found`);
+      }
+
+      // Check if a mapping already exists and is active
+      const { data: existingMapping, error: checkError } = await supabase
+        .from('lp_to_ts_map')
+        .select('id')
+        .eq('ts_campaign_id', tsCampaignId)
+        .eq('lp_campaign_id', lpCampaign.id)
+        .eq('active', true)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing mapping:', checkError);
+        throw checkError;
+      }
+
+      if (existingMapping) {
+        // Mapping already exists and is active
+        return true;
+      }
+
+      // If there was a previous mapping that was deactivated, update it
+      const { data: oldMapping, error: oldMappingError } = await supabase
+        .from('lp_to_ts_map')
+        .select('id')
+        .eq('ts_campaign_id', tsCampaignId)
+        .eq('lp_campaign_id', lpCampaign.id)
+        .eq('active', false)
+        .maybeSingle();
+
+      if (oldMappingError && oldMappingError.code !== 'PGRST116') {
+        console.error('Error checking old mapping:', oldMappingError);
+        throw oldMappingError;
+      }
+
+      if (oldMapping) {
+        // Reactivate the old mapping
+        const { error: updateError } = await supabase
+          .from('lp_to_ts_map')
+          .update({
+            active: true,
+            linked_at: new Date().toISOString(),
+            unlinked_at: null
+          })
+          .eq('id', oldMapping.id);
+
+        if (updateError) {
+          console.error('Error reactivating mapping:', updateError);
+          throw updateError;
+        }
+      } else {
+        // Create a new mapping
+        const { error: insertError } = await supabase
+          .from('lp_to_ts_map')
+          .insert({
+            ts_campaign_id: tsCampaignId,
+            lp_campaign_id: lpCampaign.id,
+            active: true,
+            linked_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          console.error('Error creating mapping:', insertError);
+          throw insertError;
+        }
       }
       
       return true;
     } catch (error) {
       console.error('Error mapping Lead Prosper campaign:', error);
-      
       if (error instanceof Error) {
         throw error;
       } else {
@@ -278,11 +429,19 @@ export const leadProsperApi = {
   // Unmap Lead Prosper campaign from Tortshark campaign
   async unmapCampaign(mappingId: string): Promise<boolean> {
     try {
-      // Since the lp_to_ts_map table doesn't exist, we'll handle this in memory
-      console.log(`Unmapping campaign with mapping ID ${mappingId} - table unavailable`);
+      const { error } = await supabase
+        .from('lp_to_ts_map')
+        .update({
+          active: false,
+          unlinked_at: new Date().toISOString()
+        })
+        .eq('id', mappingId);
+
+      if (error) {
+        console.error('Error unmapping campaign:', error);
+        throw error;
+      }
       
-      // In a real implementation, you would delete the mapping from the database
-      // For now, just return success
       return true;
     } catch (error) {
       console.error('Error unmapping Lead Prosper campaign:', error);
@@ -299,12 +458,23 @@ export const leadProsperApi = {
     endDate: string
   ): Promise<boolean> {
     try {
-      // This is just a stub - in a real implementation, you'd call an edge function
-      // to trigger backfilling leads
-      console.log(`Backfilling leads for campaign ${lpCampaignId} from ${startDate} to ${endDate}`);
-      
-      // Simulate success
-      return true;
+      // Call the edge function to handle the backfill
+      const { data, error } = await supabase.functions.invoke('lead-prosper-backfill', {
+        body: {
+          apiKey,
+          lpCampaignId,
+          tsCampaignId,
+          startDate,
+          endDate
+        }
+      });
+
+      if (error) {
+        console.error('Error in backfill leads function:', error);
+        throw error;
+      }
+
+      return data?.success || false;
     } catch (error) {
       console.error('Error backfilling leads:', error);
       return false;
@@ -563,11 +733,53 @@ export const leadProsperApi = {
   // Get list of leads from database with filtering
   async getLeadsList(params: LeadListParams = {}): Promise<LeadResponse> {
     try {
-      // Since lp_leads_raw table doesn't exist, return an empty result
-      console.log('Getting leads list - table unavailable', params);
+      // Build the query
+      let query = supabase
+        .from('lp_leads_raw')
+        .select('*', { count: 'exact' });
+
+      // Apply filters
+      if (params.ts_campaign_id) {
+        query = query.eq('ts_campaign_id', params.ts_campaign_id);
+      }
+
+      if (params.status) {
+        query = query.eq('status', params.status);
+      }
+
+      // Handle date range filters
+      if (params.startDate && params.endDate) {
+        // Convert date strings to timestamps for comparison with lead_date_ms
+        const startDate = new Date(params.startDate).getTime();
+        const endDate = new Date(params.endDate).getTime() + (24 * 60 * 60 * 1000); // Add one day to include the end date
+        
+        query = query.gte('lead_date_ms', startDate).lte('lead_date_ms', endDate);
+      }
+
+      // Apply search if provided
+      if (params.searchTerm) {
+        // Search within the JSON payload for matching values
+        query = query.or(`json_payload.ilike.%${params.searchTerm}%`);
+      }
+
+      // Apply pagination
+      const page = params.page || 1;
+      const pageSize = params.pageSize || 10;
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      query = query.order('lead_date_ms', { ascending: false }).range(from, to);
+
+      // Execute the query
+      const { data, error, count } = await query;
+
+      if (error) {
+        throw error;
+      }
+
       return {
-        leads: [],
-        total: 0
+        leads: data || [],
+        total: count || 0
       };
     } catch (error) {
       console.error('Error fetching leads list:', error);
@@ -575,4 +787,108 @@ export const leadProsperApi = {
       throw error;
     }
   },
+
+  // Process lead data and update metrics
+  async processLeadsAndUpdateMetrics(
+    data: { leads: any[], campaign_id: number, ts_campaign_id: string }
+  ): Promise<{
+    success: boolean;
+    processed: number;
+    errors: number;
+  }> {
+    try {
+      if (!data.leads || !Array.isArray(data.leads) || data.leads.length === 0) {
+        return { success: true, processed: 0, errors: 0 };
+      }
+
+      const { campaign_id: lpCampaignId, ts_campaign_id: tsCampaignId } = data;
+
+      if (!lpCampaignId || !tsCampaignId) {
+        throw new Error('Missing campaign IDs for lead processing');
+      }
+
+      let processed = 0;
+      let errors = 0;
+
+      // Process each lead
+      for (const lead of data.leads) {
+        try {
+          // Check if lead already exists
+          const { data: existingLead, error: checkError } = await supabase
+            .from('lp_leads_raw')
+            .select('id')
+            .eq('id', lead.id)
+            .maybeSingle();
+
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Error checking existing lead:', checkError);
+            errors++;
+            continue;
+          }
+
+          if (existingLead) {
+            console.log(`Lead ${lead.id} already exists, skipping`);
+            continue;
+          }
+
+          // Insert new lead
+          const { error: insertError } = await supabase.from('lp_leads_raw').insert({
+            id: lead.id,
+            lp_campaign_id: lpCampaignId,
+            ts_campaign_id: tsCampaignId,
+            status: lead.status || 'unknown',
+            cost: lead.cost || 0,
+            revenue: lead.revenue || 0,
+            lead_date_ms: lead.created_at ? new Date(lead.created_at).getTime() : Date.now(),
+            json_payload: lead
+          });
+
+          if (insertError) {
+            console.error('Error inserting lead:', insertError);
+            errors++;
+            continue;
+          }
+
+          processed++;
+          
+          // Group leads by date for metrics aggregation
+          const leadDate = new Date(lead.created_at || Date.now());
+          const dateStr = leadDate.toISOString().split('T')[0]; // YYYY-MM-DD
+          
+          // Call the upsert_daily_lead_metrics function
+          const { error: metricsError } = await supabase.rpc('upsert_daily_lead_metrics', {
+            p_ts_campaign_id: tsCampaignId,
+            p_date: dateStr,
+            p_lead_count: 1,
+            p_accepted: lead.status === 'sold' ? 1 : 0,
+            p_duplicated: lead.status === 'duplicate' ? 1 : 0,
+            p_failed: ['rejected', 'failed'].includes(lead.status || '') ? 1 : 0,
+            p_cost: lead.cost || 0,
+            p_revenue: lead.revenue || 0
+          });
+          
+          if (metricsError) {
+            console.error('Error updating metrics:', metricsError);
+            // Don't count this as a lead processing error
+          }
+        } catch (err) {
+          console.error('Error processing lead:', err);
+          errors++;
+        }
+      }
+
+      return {
+        success: errors === 0,
+        processed,
+        errors
+      };
+    } catch (error) {
+      console.error('Error in processLeadsAndUpdateMetrics:', error);
+      return {
+        success: false,
+        processed: 0,
+        errors: data.leads?.length || 0
+      };
+    }
+  }
 };

@@ -514,6 +514,36 @@ export type Database = {
         }
         Relationships: []
       }
+      external_lp_campaigns: {
+        Row: {
+          created_at: string | null
+          id: string
+          lp_campaign_id: number
+          name: string
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lp_campaign_id: number
+          name: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lp_campaign_id?: number
+          name?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       google_ads_tokens: {
         Row: {
           access_token: string
@@ -700,6 +730,95 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      lp_leads_raw: {
+        Row: {
+          cost: number | null
+          created_at: string | null
+          id: string
+          json_payload: Json | null
+          lead_date_ms: number | null
+          lp_campaign_id: number
+          revenue: number | null
+          status: string | null
+          ts_campaign_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string | null
+          id: string
+          json_payload?: Json | null
+          lead_date_ms?: number | null
+          lp_campaign_id: number
+          revenue?: number | null
+          status?: string | null
+          ts_campaign_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string | null
+          id?: string
+          json_payload?: Json | null
+          lead_date_ms?: number | null
+          lp_campaign_id?: number
+          revenue?: number | null
+          status?: string | null
+          ts_campaign_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lp_leads_raw_ts_campaign_id_fkey"
+            columns: ["ts_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lp_to_ts_map: {
+        Row: {
+          active: boolean | null
+          id: string
+          linked_at: string | null
+          lp_campaign_id: string
+          ts_campaign_id: string
+          unlinked_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          id?: string
+          linked_at?: string | null
+          lp_campaign_id: string
+          ts_campaign_id: string
+          unlinked_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          id?: string
+          linked_at?: string | null
+          lp_campaign_id?: string
+          ts_campaign_id?: string
+          unlinked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lp_to_ts_map_lp_campaign_id_fkey"
+            columns: ["lp_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "external_lp_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lp_to_ts_map_ts_campaign_id_fkey"
+            columns: ["ts_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ts_daily_lead_metrics: {
         Row: {
