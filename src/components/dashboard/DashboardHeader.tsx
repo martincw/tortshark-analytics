@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { AddStatsDialog } from "./AddStatsDialog";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 export function DashboardHeader() {
   const navigate = useNavigate();

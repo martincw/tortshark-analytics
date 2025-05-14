@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -559,6 +558,21 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       fetchCampaigns();
     }
   }, [user]);
+
+  // New effect: Auto-select active campaigns when they're loaded
+  useEffect(() => {
+    if (campaigns.length > 0 && selectedCampaignIds.length === 0) {
+      // If we have campaigns but none are selected, select all active campaigns
+      const activeCampaignIds = campaigns
+        .filter(campaign => campaign.is_active)
+        .map(campaign => campaign.id);
+      
+      if (activeCampaignIds.length > 0) {
+        console.log("Auto-selecting active campaigns:", activeCampaignIds);
+        setSelectedCampaignIds(activeCampaignIds);
+      }
+    }
+  }, [campaigns, selectedCampaignIds]);
 
   // Prepare the context value
   const contextValue: CampaignContextState = {
