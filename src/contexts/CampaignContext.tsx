@@ -6,6 +6,7 @@ import { DateRange } from "@/types/common";
 import { Campaign, StatHistoryEntry, ExternalPlatformConnection } from "@/types/campaign-base";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
+import { BuyerStackEntry } from "@/types/buyer";
 
 // Define our context state
 interface CampaignContextState {
@@ -135,7 +136,15 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
             roas: 0,
           };
           
-          const buyerStack = buyerStackData || [];
+          // Transform buyer stack to match our BuyerStackEntry interface
+          const buyerStack: BuyerStackEntry[] = buyerStackData ? buyerStackData.map(item => ({
+            id: item.id,
+            campaignId: item.campaign_id,
+            buyerId: item.buyer_id,
+            priority: item.stack_order,
+            createdAt: item.created_at,
+            updatedAt: item.updated_at
+          })) : [];
           
           // Stats object for compatibility
           const stats = {
@@ -436,7 +445,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
           cases: entry.cases,
           retainers: entry.retainers || entry.cases,
           revenue: entry.revenue,
-          ad_spend: entry.adSpend
+          ad_spend: entry.adSpend || 0
         })
         .eq('id', entry.id);
         
@@ -450,7 +459,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
         leads: entry.leads,
         cases: entry.cases,
         revenue: entry.revenue,
-        adSpend: entry.adSpend,
+        adSpend: entry.adSpend || 0,
         createdAt: entry.createdAt
       };
       

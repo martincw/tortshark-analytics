@@ -1,6 +1,6 @@
 
 import { GoogleAdsMetrics, GoogleAdsMetricsResponse } from './metrics';
-import { DateRange } from './common';
+import { DateRange, ExternalPlatformConnection } from './common';
 
 export interface Campaign {
   id: string;
@@ -77,17 +77,6 @@ export interface AccountConnection {
   customerId?: string;
   lastSynced?: string;
   isConnected: boolean;
-  credentials?: Record<string, any>;
-}
-
-// Define ExternalPlatformConnection type
-export interface ExternalPlatformConnection {
-  id: string;
-  name: string;
-  platform: string;
-  isConnected: boolean;
-  customerId?: string;
-  lastSynced?: string;
   credentials?: Record<string, any>;
 }
 

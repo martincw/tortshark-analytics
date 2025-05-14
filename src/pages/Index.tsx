@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { CampaignCard } from "@/components/dashboard/CampaignCard";
 import { AddStatsDialog } from "@/components/dashboard/AddStatsDialog";
 import { CampaignProvider, useCampaign } from "@/contexts/CampaignContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { CampaignCardSkeleton } from "@/components/dashboard/CampaignCardSkeleton";
+import { CampaignCardSkeleton } from "@/components/dashboard/campaign-card/CampaignCardSkeleton";
 import { AlertCircle } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 
