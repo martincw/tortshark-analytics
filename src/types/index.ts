@@ -4,6 +4,6 @@ export * from './campaign-base';
 export * from './buyer';
 export * from './metrics';
 export * from './forecasting';
-export { ApiErrorResponse, DateRange } from './common';
+export type { ApiErrorResponse, DateRange } from './common';
 // Re-export ExternalPlatformConnection with a clear name to avoid ambiguity
-export { ExternalPlatformConnection as PlatformConnection } from './common';
+export type { ExternalPlatformConnection as PlatformConnection } from './common';

@@ -1,6 +1,5 @@
-
 import { GoogleAdsMetrics, GoogleAdsMetricsResponse } from './metrics';
-import { DateRange, ExternalPlatformConnection } from './common';
+import type { DateRange, ExternalPlatformConnection } from './common';
 
 export interface Campaign {
   id: string;
