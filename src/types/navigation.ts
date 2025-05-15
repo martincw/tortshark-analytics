@@ -8,4 +8,5 @@ export interface NavItem {
   priority?: boolean;
   external?: boolean;
   dropdown?: boolean;
+  isProtected?: boolean;
 }

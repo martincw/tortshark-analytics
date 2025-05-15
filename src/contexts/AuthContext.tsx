@@ -21,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("Setting up auth state listener");
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -71,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (window.localStorage) {
         localStorage.removeItem('lp_api_key');
       }
+      toast.success("Signed out successfully");
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Failed to sign out properly. Try clearing your browser cache.");
