@@ -33,6 +33,23 @@ const toast = (options: ToastOptions | string) => {
   return sonnerToast(title || description || "");
 };
 
+// Add convenience methods to match the original toast API
+toast.success = (message: string) => {
+  return sonnerToast.success(message);
+};
+
+toast.error = (message: string) => {
+  return sonnerToast.error(message);
+};
+
+toast.warning = (message: string) => {
+  return sonnerToast.warning(message);
+};
+
+toast.info = (message: string) => {
+  return sonnerToast.info(message);
+};
+
 export { toast };
 
 export const useToast = () => {
