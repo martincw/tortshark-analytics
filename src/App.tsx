@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,23 +33,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected route component that redirects to auth page if not authenticated
+// Protected route component with better handling of authentication state
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, authError } = useAuth();
-  const [isChecking, setIsChecking] = useState(true);
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   
-  useEffect(() => {
-    // Add a short timeout to ensure auth check completes
-    const timer = setTimeout(() => {
-      setIsChecking(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [user, isLoading]);
-  
-  // While checking authentication status, show a simple loading indicator
-  if (isLoading || isChecking) {
+  // Show loading indicator while checking authentication status
+  if (isLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
@@ -58,14 +47,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // If there's an auth error that's not just an expired session, log it
-  if (authError && !authError.includes("Invalid Refresh Token") && !authError.includes("not found")) {
-    console.error("Authentication error in protected route:", authError);
-  }
-  
   // If not authenticated, redirect to auth page with return path
-  if (!user) {
-    console.log("User not authenticated, redirecting to auth page with returnTo path:", location.pathname + location.search);
+  if (!isAuthenticated) {
+    console.log("User not authenticated, redirecting to auth with returnTo path:", location.pathname + location.search);
     return <Navigate to={`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   

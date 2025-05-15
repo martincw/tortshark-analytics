@@ -8,6 +8,7 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean; // New clear boolean to check auth state
   signOut: () => Promise<void>;
   authError: string | null;
 }
@@ -19,66 +20,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
     console.log("Setting up auth state listener");
     
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth state changed:", event);
+      (event, newSession) => {
+        console.log("Auth state changed:", event, newSession ? "Session found" : "No session");
+        
         if (event === 'TOKEN_REFRESHED') {
           console.log("Token refreshed successfully");
+        } else if (event === 'SIGNED_OUT') {
+          console.log("User signed out");
+          setIsAuthenticated(false);
+        } else if (event === 'SIGNED_IN' && newSession) {
+          console.log("User signed in");
+          setIsAuthenticated(true);
+        } else if (event === 'USER_UPDATED' && newSession) {
+          console.log("User updated");
+          setIsAuthenticated(true);
         }
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         
-        // Only set loading to false if this is not an initial loading
-        if (!isLoading) {
-          setAuthError(null);
-        }
+        // Clear auth error when session state changes
+        setAuthError(null);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
-        console.log("Initial session check complete", session ? "Session found" : "No session");
-        setSession(session);
-        setUser(session?.user ?? null);
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        console.log("Initial session check complete", initialSession ? "Session found" : "No session");
         
         if (error) {
           console.error("Session retrieval error:", error);
           setAuthError(error.message);
+          setIsAuthenticated(false);
+          
           // Toast only critical auth errors
           if (error.message !== "Invalid Refresh Token" && !error.message.includes("not found")) {
             toast.error(`Authentication error: ${error.message}`);
           }
+        } else {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          setIsAuthenticated(!!initialSession);
         }
-        
-        setIsLoading(false);
-      })
-      .catch((error) => {
+      } catch (error: any) {
         console.error("Unexpected error during session check:", error);
         setAuthError(error.message);
+        setIsAuthenticated(false);
+      } finally {
+        // Always end loading state
         setIsLoading(false);
-      });
+      }
+    };
+    
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Function to handle token refresh errors and retry
   const refreshSession = async () => {
     try {
+      console.log("Attempting to refresh session");
       const { data, error } = await supabase.auth.refreshSession();
+      
       if (error) {
         console.error("Failed to refresh session:", error);
+        setIsAuthenticated(false);
         return false;
       }
-      return true;
+      
+      setIsAuthenticated(!!data.session);
+      return !!data.session;
     } catch (error) {
       console.error("Error refreshing session:", error);
+      setIsAuthenticated(false);
       return false;
     }
   };
@@ -91,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (window.localStorage) {
         localStorage.removeItem('lp_api_key');
       }
+      setIsAuthenticated(false);
       toast.success("Signed out successfully");
     } catch (error) {
       console.error("Error signing out:", error);
@@ -104,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     user,
     isLoading,
+    isAuthenticated,
     signOut,
     authError,
   };

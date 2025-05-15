@@ -2,59 +2,43 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import LeadProsperIntegration from "@/components/data-sources/LeadProsperIntegration";
 import GoogleAdsIntegration from "@/components/data-sources/GoogleAdsIntegration";
 import ClickMagickIntegration from "@/components/data-sources/ClickMagickIntegration";
 
 export default function DataSourcesPage() {
-  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("leadprosper"); // Set default directly
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoading } = useAuth();
-  
-  // Use refs to track initialization state and prevent navigation loops
-  const isInitializedRef = useRef(false);
+  // Reference to prevent multiple navigation operations
   const isNavigatingRef = useRef(false);
   
-  // Process URL parameters ONLY on initial mount
+  // Process URL parameters on mount and when location changes
   useEffect(() => {
-    // Skip if auth is still loading
-    if (isLoading) return;
-    
-    // Skip if we've already initialized
-    if (isInitializedRef.current) return;
-    
-    // Mark as initialized immediately to prevent re-runs
-    isInitializedRef.current = true;
+    if (isNavigatingRef.current) return; // Skip if navigation is already in progress
     
     // Parse source from URL params
     const sourceParam = new URLSearchParams(location.search).get('source');
     
-    // Set the tab based on URL or default
     if (sourceParam && ['leadprosper', 'googleads', 'clickmagick'].includes(sourceParam.toLowerCase())) {
-      setActiveTab(sourceParam.toLowerCase());
-    } else {
-      setActiveTab('leadprosper');
-      
-      // Only update URL if needed and not currently navigating
-      if (!isNavigatingRef.current) {
-        isNavigatingRef.current = true;
-        
-        // Use replace to avoid navigation history build-up
-        navigate({
-          pathname: location.pathname,
-          search: '?source=leadprosper'
-        }, { replace: true });
-        
-        // Reset navigation flag after a delay
-        setTimeout(() => {
-          isNavigatingRef.current = false;
-        }, 500);
+      if (activeTab !== sourceParam.toLowerCase()) {
+        setActiveTab(sourceParam.toLowerCase());
       }
+    } else if (activeTab === 'leadprosper' && !sourceParam) {
+      // Update URL to match default tab without reload, but only if needed
+      isNavigatingRef.current = true;
+      navigate({
+        pathname: location.pathname,
+        search: '?source=leadprosper'
+      }, { replace: true });
+      
+      // Reset navigation flag after a delay
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 100);
     }
-  }, [isLoading]); // Only depend on isLoading - no URL or location deps
+  }, [location.search, navigate, activeTab, location.pathname]);
   
   // Handle tab changes from user interaction
   const handleTabChange = (value: string) => {
@@ -76,21 +60,8 @@ export default function DataSourcesPage() {
     // Reset navigation flag after a reasonable delay
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 500);
+    }, 100);
   };
-  
-  // Show loading until tab state is determined
-  if (!activeTab) {
-    return (
-      <div className="container mx-auto py-6 space-y-8 max-w-5xl">
-        <header>
-          <h1 className="text-3xl font-bold">Data Sources</h1>
-          <p className="text-muted-foreground">Loading...</p>
-        </header>
-        <div className="animate-pulse h-8 w-64 bg-muted rounded"></div>
-      </div>
-    );
-  }
   
   return (
     <div className="container mx-auto py-6 space-y-8 max-w-5xl">
