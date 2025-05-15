@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,56 +13,74 @@ export default function DataSourcesPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoading } = useAuth();
-  // Reference to prevent multiple navigation operations
-  const isNavigatingRef = React.useRef(false);
   
-  // Parse URL params on initial load and tab changes
+  // Use refs to track initialization state and prevent navigation loops
+  const isInitializedRef = useRef(false);
+  const isNavigatingRef = useRef(false);
+  
+  // Process URL parameters on initial mount only
   useEffect(() => {
+    // Skip if auth is still loading
     if (isLoading) return;
-    if (isNavigatingRef.current) return; // Skip if navigation is already in progress
     
+    // Skip if we've already set up the page
+    if (isInitializedRef.current) return;
+    
+    // Parse source from URL params
     const searchParams = new URLSearchParams(location.search);
     const sourceParam = searchParams.get('source');
     
+    // Determine initial active tab based on URL or default to 'leadprosper'
     if (sourceParam && ['leadprosper', 'googleads', 'clickmagick'].includes(sourceParam.toLowerCase())) {
-      if (activeTab !== sourceParam.toLowerCase()) {
-        setActiveTab(sourceParam.toLowerCase());
-      }
-    } else if (!activeTab) {
-      // Only set default if no tab is currently active
-      isNavigatingRef.current = true;
+      setActiveTab(sourceParam.toLowerCase());
+    } else {
       setActiveTab('leadprosper');
       
-      // Update URL to reflect current source tab without reload
-      const newParams = new URLSearchParams(location.search);
-      newParams.set('source', 'leadprosper');
-      navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
-      
-      // Reset navigation flag
-      setTimeout(() => {
-        isNavigatingRef.current = false;
-      }, 100);
+      // Only update URL if we need to (no source param or invalid source)
+      if (!isNavigatingRef.current) {
+        isNavigatingRef.current = true;
+        const newParams = new URLSearchParams(location.search);
+        newParams.set('source', 'leadprosper');
+        
+        // Use replace to avoid navigation history build-up
+        navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+        
+        // Reset navigation flag after a reasonable delay
+        setTimeout(() => {
+          isNavigatingRef.current = false;
+        }, 500);
+      }
     }
-  }, [location.search, navigate, isLoading, activeTab]);
-  
-  // Update URL when tab changes
-  const handleTabChange = (value: string) => {
-    if (value === activeTab || isNavigatingRef.current) return; // Prevent unnecessary updates
     
+    // Mark initialization as complete
+    isInitializedRef.current = true;
+  }, [location.pathname, isLoading]); // Remove activeTab and location.search from dependencies
+  
+  // Handle tab changes from user interaction
+  const handleTabChange = (value: string) => {
+    // Don't proceed if we're already on this tab or if we're in the middle of a navigation
+    if (value === activeTab || isNavigatingRef.current) return;
+    
+    // Set navigation flag to prevent double-updates
     isNavigatingRef.current = true;
+    
+    // Update local state immediately
     setActiveTab(value);
     
-    // Update URL to reflect current source tab
-    const searchParams = new URLSearchParams(location.search);
-    searchParams.set('source', value);
+    // Update URL params (only if needed)
+    const currentParams = new URLSearchParams(location.search);
+    if (currentParams.get('source') !== value) {
+      const newParams = new URLSearchParams(location.search);
+      newParams.set('source', value);
+      
+      // Use replace to avoid navigation stack buildup
+      navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+    }
     
-    // Update URL without reload
-    navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
-    
-    // Reset navigation flag
+    // Reset navigation flag after a reasonable delay
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 100);
+    }, 500);
   };
   
   // Show loading until tab state is determined
