@@ -1,6 +1,6 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -38,6 +38,7 @@ const queryClient = new QueryClient({
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, authError } = useAuth();
   const [isChecking, setIsChecking] = useState(true);
+  const location = useLocation();
   
   useEffect(() => {
     // Add a short timeout to ensure auth check completes
@@ -62,10 +63,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     console.error("Authentication error in protected route:", authError);
   }
   
-  // If not authenticated, redirect to auth page
+  // If not authenticated, redirect to auth page with return path
   if (!user) {
-    console.log("User not authenticated, redirecting to auth page");
-    return <Navigate to="/auth" replace />;
+    console.log("User not authenticated, redirecting to auth page with returnTo path:", location.pathname + location.search);
+    return <Navigate to={`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   
   console.log("User authenticated, rendering protected route");

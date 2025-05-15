@@ -22,16 +22,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log("Setting up auth state listener");
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log("Auth state changed:", event);
+        if (event === 'TOKEN_REFRESHED') {
+          console.log("Token refreshed successfully");
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoading(false);
-
-        // Reset error state when user signs in
-        if (session) {
+        
+        // Only set loading to false if this is not an initial loading
+        if (!isLoading) {
           setAuthError(null);
         }
       }
@@ -40,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // THEN check for existing session
     supabase.auth.getSession()
       .then(({ data: { session }, error }) => {
-        console.log("Initial session check complete");
+        console.log("Initial session check complete", session ? "Session found" : "No session");
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -64,11 +68,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // Function to handle token refresh errors and retry
+  const refreshSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) {
+        console.error("Failed to refresh session:", error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error refreshing session:", error);
+      return false;
+    }
+  };
+
   const signOut = async () => {
     try {
       setIsLoading(true);
       await supabase.auth.signOut();
-      // Clear any cached Lead Prosper API keys
+      // Clear any cached API keys
       if (window.localStorage) {
         localStorage.removeItem('lp_api_key');
       }

@@ -21,6 +21,13 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Get the returnTo path from URL query parameters
+  const getReturnToPath = () => {
+    const params = new URLSearchParams(location.search);
+    const returnTo = params.get('returnTo');
+    return returnTo || "/";
+  };
+  
   useEffect(() => {
     // Clear any stale error state
     setError(null);
@@ -40,8 +47,10 @@ const AuthPage = () => {
         }
         
         if (session) {
-          // Already signed in, redirect to home
-          navigate("/");
+          // Already signed in, redirect to the return path or home
+          const returnPath = getReturnToPath();
+          console.log("User already signed in, redirecting to:", returnPath);
+          navigate(returnPath);
         }
       } catch (err) {
         console.error("Auth check error:", err);
@@ -53,14 +62,16 @@ const AuthPage = () => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate("/");
+        const returnPath = getReturnToPath();
+        console.log("Auth state changed to SIGNED_IN, redirecting to:", returnPath);
+        navigate(returnPath);
       }
     });
     
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, location.search]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +99,9 @@ const AuthPage = () => {
       
       if (data.session) {
         toast.success("Signed in successfully");
-        navigate("/");
+        const returnPath = getReturnToPath();
+        console.log("Login successful, navigating to:", returnPath);
+        navigate(returnPath);
       }
     } catch (error: any) {
       console.error("Login error:", error);
