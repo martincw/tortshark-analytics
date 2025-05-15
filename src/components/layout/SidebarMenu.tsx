@@ -76,16 +76,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
       </div>
       
       <Link 
-        to="/leads" 
-        className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
-          isActive("/leads") ? "bg-secondary font-medium" : ""
-        }`}
-      >
-        <ListFilter className="h-4 w-4 mr-2" />
-        Leads
-      </Link>
-      
-      <Link 
         to="/bulk-stats" 
         className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
           isActive("/bulk-stats") ? "bg-secondary font-medium" : ""
@@ -96,13 +86,13 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
       </Link>
 
       <Link 
-        to="/integrations" 
+        to="/data-sources" 
         className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
-          isActive("/integrations") ? "bg-secondary font-medium" : ""
+          isActive("/data-sources") ? "bg-secondary font-medium" : ""
         }`}
       >
         <LinkIcon className="h-4 w-4 mr-2" />
-        Integrations
+        Data Sources
       </Link>
       
       <a 

@@ -17,3 +17,9 @@ export interface IntegrationTab {
   label: string;
   icon?: ReactNode;
 }
+
+export interface DataSourceTab {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+}

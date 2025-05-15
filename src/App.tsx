@@ -17,6 +17,7 @@ import CampaignsPage from "./pages/CampaignsPage";
 import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
+import DataSourcesPage from "./pages/DataSourcesPage";
 import SettingsPage from "./pages/SettingsPage";
 import BulkStatsPage from "./pages/BulkStatsPage";
 import Dashboard from "./pages/Dashboard";
@@ -99,7 +100,8 @@ const App = () => (
                 <Route path="/bulk-stats" element={<BulkStatsPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts" element={<AccountsPage />} />
-                <Route path="/integrations" element={<IntegrationsPage />} />
+                <Route path="/integrations" element={<DataSourcesPage />} />
+                <Route path="/data-sources" element={<DataSourcesPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/buyers" element={<BuyersPage />} />
                 <Route path="/leads" element={<LeadsPage />} /> 

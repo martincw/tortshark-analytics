@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +18,7 @@ import {
   CreditCard,
   Users,
   ListFilter,
+  Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
   { href: "/leads", label: "Leads", icon: <ListFilter className="h-4 w-4 mr-2" /> },
+  { href: "/data-sources", label: "Data Sources", icon: <LinkIcon className="h-4 w-4 mr-2" /> },
 ];
 
 // External links that will only appear in sidebar
