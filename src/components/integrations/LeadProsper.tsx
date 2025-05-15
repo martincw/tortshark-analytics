@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import LeadProsperConnection from './LeadProsperConnection';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { supabase } from "@/integrations/supabase/client";
@@ -11,12 +11,22 @@ import { LeadProsperSyncResult } from '@/integrations/leadprosper/types';
 
 export function LeadProsper() {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
+  
+  // Get the 'tab' parameter from URL, defaulting to 'connection' if not present
   const defaultTab = searchParams.get('tab') === 'campaigns' ? 'campaigns' : 'connection';
   
   // Handle tab navigation based on URL
   const handleTabChange = (value: string) => {
     const newParams = new URLSearchParams(location.search);
+    
+    // Update integration param if needed (preserve it from parent)
+    if (!newParams.has('integration')) {
+      newParams.set('integration', 'leadprosper');
+    }
+    
+    // Update the tab param
     if (value === 'connection') {
       newParams.delete('tab');
     } else {
@@ -24,11 +34,7 @@ export function LeadProsper() {
     }
     
     // Update URL without reload
-    window.history.replaceState(
-      {},
-      '',
-      `${window.location.pathname}?${newParams.toString()}`
-    );
+    navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
     
     // If navigating to campaigns tab, call the update function
     if (value === 'campaigns') {
@@ -44,6 +50,13 @@ export function LeadProsper() {
         .then(connectionData => {
           if (!connectionData.isConnected) {
             toast.warning('No active Lead Prosper connection found. Please connect your account first.');
+            
+            // Automatically redirect to connection tab if not connected
+            const newParams = new URLSearchParams(location.search);
+            if (newParams.has('integration')) {
+              newParams.delete('tab');
+              navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+            }
           } else {
             // Also update campaign user IDs when loading campaigns tab
             updateExistingCampaigns();
@@ -57,7 +70,7 @@ export function LeadProsper() {
           toast.error('Connection check failed. Please try again or reconnect your account.');
         });
     }
-  }, [defaultTab]);
+  }, [defaultTab, location.pathname]);
   
   // Function to test syncing today's leads when connection is established
   const trySyncToday = async (apiKey: string | undefined) => {
@@ -104,10 +117,14 @@ export function LeadProsper() {
   // Function to update existing campaigns with the current user's ID
   const updateExistingCampaigns = async () => {
     try {
-      await supabase.functions.invoke('update-lp-campaigns-users', {
-        body: {},
-      });
-      // No need for user notification, this happens silently in the background
+      const { data, error } = await supabase.functions.invoke('update-lp-campaigns-users');
+      
+      if (error) {
+        // Just log errors, don't notify the user as this is a background task
+        console.error('Error updating campaign user IDs:', error);
+      } else if (data && data.updated > 0) {
+        console.log(`Updated ${data.updated} campaigns with current user ID`);
+      }
     } catch (error) {
       // Just log errors, don't notify the user as this is a background task
       console.error('Error updating campaign user IDs:', error);
@@ -115,7 +132,7 @@ export function LeadProsper() {
   };
   
   return (
-    <Tabs defaultValue={defaultTab} onValueChange={handleTabChange}>
+    <Tabs value={defaultTab} onValueChange={handleTabChange}>
       <TabsList className="mb-4">
         <TabsTrigger value="connection">Connection</TabsTrigger>
         <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
