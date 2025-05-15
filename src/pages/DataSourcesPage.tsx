@@ -18,43 +18,43 @@ export default function DataSourcesPage() {
   const isInitializedRef = useRef(false);
   const isNavigatingRef = useRef(false);
   
-  // Process URL parameters on initial mount only
+  // Process URL parameters ONLY on initial mount
   useEffect(() => {
     // Skip if auth is still loading
     if (isLoading) return;
     
-    // Skip if we've already set up the page
+    // Skip if we've already initialized
     if (isInitializedRef.current) return;
     
-    // Parse source from URL params
-    const searchParams = new URLSearchParams(location.search);
-    const sourceParam = searchParams.get('source');
+    // Mark as initialized immediately to prevent re-runs
+    isInitializedRef.current = true;
     
-    // Determine initial active tab based on URL or default to 'leadprosper'
+    // Parse source from URL params
+    const sourceParam = new URLSearchParams(location.search).get('source');
+    
+    // Set the tab based on URL or default
     if (sourceParam && ['leadprosper', 'googleads', 'clickmagick'].includes(sourceParam.toLowerCase())) {
       setActiveTab(sourceParam.toLowerCase());
     } else {
       setActiveTab('leadprosper');
       
-      // Only update URL if we need to (no source param or invalid source)
+      // Only update URL if needed and not currently navigating
       if (!isNavigatingRef.current) {
         isNavigatingRef.current = true;
-        const newParams = new URLSearchParams(location.search);
-        newParams.set('source', 'leadprosper');
         
         // Use replace to avoid navigation history build-up
-        navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+        navigate({
+          pathname: location.pathname,
+          search: '?source=leadprosper'
+        }, { replace: true });
         
-        // Reset navigation flag after a reasonable delay
+        // Reset navigation flag after a delay
         setTimeout(() => {
           isNavigatingRef.current = false;
         }, 500);
       }
     }
-    
-    // Mark initialization as complete
-    isInitializedRef.current = true;
-  }, [location.pathname, isLoading]); // Remove activeTab and location.search from dependencies
+  }, [isLoading]); // Only depend on isLoading - no URL or location deps
   
   // Handle tab changes from user interaction
   const handleTabChange = (value: string) => {
@@ -67,15 +67,11 @@ export default function DataSourcesPage() {
     // Update local state immediately
     setActiveTab(value);
     
-    // Update URL params (only if needed)
-    const currentParams = new URLSearchParams(location.search);
-    if (currentParams.get('source') !== value) {
-      const newParams = new URLSearchParams(location.search);
-      newParams.set('source', value);
-      
-      // Use replace to avoid navigation stack buildup
-      navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
-    }
+    // Update URL params with replace to avoid building up navigation history
+    navigate({
+      pathname: location.pathname,
+      search: `?source=${value}`
+    }, { replace: true });
     
     // Reset navigation flag after a reasonable delay
     setTimeout(() => {

@@ -16,7 +16,6 @@ import CampaignDetail from "./pages/CampaignDetail";
 import CampaignsPage from "./pages/CampaignsPage";
 import AddCampaignPage from "./pages/AddCampaignPage";
 import AccountsPage from "./pages/AccountsPage";
-import IntegrationsPage from "./pages/IntegrationsPage";
 import DataSourcesPage from "./pages/DataSourcesPage";
 import SettingsPage from "./pages/SettingsPage";
 import BulkStatsPage from "./pages/BulkStatsPage";
@@ -87,6 +86,9 @@ const App = () => (
               {/* Redirect /campaign to /campaigns to fix 404 issues */}
               <Route path="/campaign" element={<Navigate to="/campaigns" replace />} />
               
+              {/* Redirect /integrations to /data-sources */}
+              <Route path="/integrations" element={<Navigate to="/data-sources" replace />} />
+              
               {/* All other routes are protected and wrapped with MainLayout */}
               <Route element={
                 <ProtectedRoute>
@@ -100,7 +102,6 @@ const App = () => (
                 <Route path="/bulk-stats" element={<BulkStatsPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts" element={<AccountsPage />} />
-                <Route path="/integrations" element={<DataSourcesPage />} />
                 <Route path="/data-sources" element={<DataSourcesPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/buyers" element={<BuyersPage />} />
