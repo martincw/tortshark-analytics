@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Google from "@/components/integrations/Google";
 import LeadProsper from "@/components/integrations/LeadProsper";
@@ -12,31 +12,43 @@ export default function IntegrationsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoading } = useAuth();
+  // Reference to prevent multiple navigation operations
+  const isNavigatingRef = useRef(false);
   
   // Parse URL params on initial load and tab changes
   useEffect(() => {
     if (isLoading) return;
+    if (isNavigatingRef.current) return; // Skip if navigation is already in progress
     
     const searchParams = new URLSearchParams(location.search);
     const integrationParam = searchParams.get('integration');
     
     if (integrationParam && ['hyros', 'google', 'leadprosper'].includes(integrationParam.toLowerCase())) {
-      setActiveTab(integrationParam.toLowerCase());
+      if (activeTab !== integrationParam.toLowerCase()) {
+        setActiveTab(integrationParam.toLowerCase());
+      }
     } else if (!activeTab) {
       // Only set default if no tab is currently active
+      isNavigatingRef.current = true;
       setActiveTab('hyros');
       
       // Update URL to reflect current integration tab without reload
       const newParams = new URLSearchParams(location.search);
       newParams.set('integration', 'hyros');
       navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+      
+      // Reset navigation flag
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 100);
     }
   }, [location.search, navigate, isLoading, activeTab]);
   
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
-    if (value === activeTab) return; // Prevent unnecessary updates
+    if (value === activeTab || isNavigatingRef.current) return; // Prevent unnecessary updates
     
+    isNavigatingRef.current = true;
     setActiveTab(value);
     
     // Update URL to reflect current integration tab
@@ -48,6 +60,11 @@ export default function IntegrationsPage() {
     
     // Update URL without reload
     navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+    
+    // Reset navigation flag
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 100);
   };
   
   // Show loading until tab state is determined

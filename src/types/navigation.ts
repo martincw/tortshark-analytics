@@ -9,4 +9,11 @@ export interface NavItem {
   external?: boolean;
   dropdown?: boolean;
   isProtected?: boolean;
+  children?: NavItem[];
+}
+
+export interface IntegrationTab {
+  id: string;
+  label: string;
+  icon?: ReactNode;
 }

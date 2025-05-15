@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import LeadProsperConnection from './LeadProsperConnection';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,8 +17,26 @@ export function LeadProsper() {
   // Get the 'tab' parameter from URL, defaulting to 'connection' if not present
   const defaultTab = searchParams.get('tab') === 'campaigns' ? 'campaigns' : 'connection';
   
-  // Handle tab navigation based on URL
+  // State to track if campaigns have already been updated to prevent redundant calls
+  const [campaignsUpdated, setCampaignsUpdated] = useState(false);
+  // State to track connection status check to prevent infinite loops
+  const [connectionChecked, setConnectionChecked] = useState(false);
+  // Track if a sync operation is in progress
+  const [isSyncing, setIsSyncing] = useState(false);
+  // Max retries for API calls
+  const MAX_RETRIES = 3;
+  // Track retry count
+  const retryCountRef = useRef(0);
+  // Track if navigation is in progress to prevent multiple navigations
+  const isNavigatingRef = useRef(false);
+  
+  // Handle tab navigation based on URL with debouncing
   const handleTabChange = (value: string) => {
+    // Prevent redundant navigation
+    if (isNavigatingRef.current) return;
+    
+    isNavigatingRef.current = true;
+    
     const newParams = new URLSearchParams(location.search);
     
     // Update integration param if needed (preserve it from parent)
@@ -33,101 +51,118 @@ export function LeadProsper() {
       newParams.set('tab', value);
     }
     
-    // Update URL without reload
+    // Update URL without reload and without adding to history
     navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
     
-    // If navigating to campaigns tab, call the update function
-    if (value === 'campaigns') {
-      updateExistingCampaigns();
-    }
+    // Reset navigation flag after short delay
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 100);
   };
   
-  // Check connection on initial load
+  // Safely check connection without causing navigation loops
   useEffect(() => {
-    // If initial tab is campaigns, verify connection first
-    if (defaultTab === 'campaigns') {
-      leadProsperApi.checkConnection()
-        .then(connectionData => {
-          if (!connectionData.isConnected) {
-            toast.warning('No active Lead Prosper connection found. Please connect your account first.');
-            
-            // Automatically redirect to connection tab if not connected
+    // Skip if we've already checked the connection or if a navigation is in progress
+    if (connectionChecked || isNavigatingRef.current) return;
+    
+    const checkConnection = async () => {
+      // Skip campaigns check if not on campaigns tab
+      if (defaultTab !== 'campaigns') {
+        setConnectionChecked(true);
+        return;
+      }
+      
+      try {
+        const connectionData = await leadProsperApi.checkConnection();
+        
+        if (!connectionData.isConnected) {
+          toast.warning('No active Lead Prosper connection found. Please connect your account first.');
+          
+          // Only navigate if we're not already navigating
+          if (!isNavigatingRef.current) {
+            isNavigatingRef.current = true;
+            // Navigate to connection tab without adding browser history entries
             const newParams = new URLSearchParams(location.search);
             if (newParams.has('integration')) {
               newParams.delete('tab');
               navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
             }
-          } else {
-            // Also update campaign user IDs when loading campaigns tab
-            updateExistingCampaigns();
-            
-            // Try a test refresh if connected
-            trySyncToday(connectionData.apiKey);
+            setTimeout(() => {
+              isNavigatingRef.current = false;
+            }, 100);
           }
-        })
-        .catch(err => {
-          console.error('Connection check failed:', err);
-          toast.error('Connection check failed. Please try again or reconnect your account.');
-        });
-    }
-  }, [defaultTab, location.pathname]);
+        } else if (!campaignsUpdated) {
+          // Only update campaigns once when first loading the campaigns tab
+          updateExistingCampaigns();
+        }
+      } catch (err) {
+        console.error('Connection check failed:', err);
+        // Don't show error toast - this prevents error loops
+      } finally {
+        // Mark connection as checked to prevent further checks
+        setConnectionChecked(true);
+      }
+    };
+    
+    checkConnection();
+  }, [defaultTab, campaignsUpdated, connectionChecked]);
   
-  // Function to test syncing today's leads when connection is established
-  const trySyncToday = async (apiKey: string | undefined) => {
-    if (!apiKey) return;
+  // Debounced function to update existing campaigns with current user ID
+  const updateExistingCampaigns = async () => {
+    // Prevent multiple simultaneous calls
+    if (campaignsUpdated) return;
     
     try {
-      toast.info('Testing Lead Prosper connection by syncing today\'s data...', {
-        duration: 10000, // Longer duration to show loading status
-      });
-      const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
+      setCampaignsUpdated(true);
       
-      if (result.success) {
-        if (result.total_leads > 0) {
-          toast.success('Successfully retrieved leads from Lead Prosper', {
-            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
-          });
-        } else if (result.used_stats_fallback) {
-          toast.success('Connected to Lead Prosper', {
-            description: `Retrieved campaign stats data successfully. No new leads found for today.`,
-          });
-        } else {
-          toast.info('Connected to Lead Prosper', {
-            description: `Connection successful, but no new leads found for today.`,
-          });
-        }
-      } else if (result.timezone_error) {
-        toast.warning('Connected, but timezone issues were detected', {
-          description: 'The connection works, but there may be timezone compatibility issues. Visit the Leads page to see detailed status.',
-        });
-      } else {
-        toast.warning('Connection test completed with issues', {
-          description: result.error || 'Unknown issue occurred during synchronization',
-        });
-      }
-    } catch (error) {
-      console.error('Error testing Lead Prosper sync:', error);
-      // Only show error for explicit connection test, not background test
-      toast.error('Error testing Lead Prosper connection', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
-    }
-  };
-  
-  // Function to update existing campaigns with the current user's ID
-  const updateExistingCampaigns = async () => {
-    try {
       const { data, error } = await supabase.functions.invoke('update-lp-campaigns-users');
       
       if (error) {
-        // Just log errors, don't notify the user as this is a background task
         console.error('Error updating campaign user IDs:', error);
+        // Silently handle error - don't show toast to prevent loops
       } else if (data && data.updated > 0) {
         console.log(`Updated ${data.updated} campaigns with current user ID`);
       }
+      
+      // Only attempt sync if connection was successful
+      if (!isSyncing && retryCountRef.current < MAX_RETRIES) {
+        tryConnectAndSync();
+      }
     } catch (error) {
-      // Just log errors, don't notify the user as this is a background task
       console.error('Error updating campaign user IDs:', error);
+      // Just log errors, don't notify user as this is a background task
+    }
+  };
+  
+  // Function to test syncing today's leads when connection is established
+  const tryConnectAndSync = async () => {
+    if (isSyncing) return;
+    
+    try {
+      setIsSyncing(true);
+      const connectionData = await leadProsperApi.checkConnection();
+      
+      if (!connectionData || !connectionData.isConnected || !connectionData.apiKey) {
+        // Silently exit if not connected - don't show error to prevent loops
+        return;
+      }
+      
+      // Only show toast for explicit sync requests, not background ones
+      const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
+      
+      // Silently handle result - don't show toast messages for background syncs
+      console.log('Lead Prosper sync result:', result);
+    } catch (error) {
+      console.error('Error testing Lead Prosper sync:', error);
+      // Only increment retry count for specific errors that might be temporary
+      if (error instanceof Error && 
+          (error.message.includes('timeout') || 
+           error.message.includes('network') || 
+           error.message.includes('429'))) {
+        retryCountRef.current++;
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
   
