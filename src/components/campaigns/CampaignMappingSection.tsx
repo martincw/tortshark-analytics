@@ -7,12 +7,14 @@ import { CardHeader, CardTitle, CardDescription, CardContent, Card } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Link2 } from "lucide-react";
+import { Loader2, Link2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { leadProsperApi } from "@/integrations/leadprosper/client";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { validateGoogleAdsConnection } from "@/services/googleAdsConnection";
 
 interface CampaignMappingSectionProps {
   campaignId: string;
@@ -28,6 +30,8 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   const [isLoadingLP, setIsLoadingLP] = useState(true);
   const [campaignName, setCampaignName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGoogleAdsConnected, setIsGoogleAdsConnected] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true);
 
   // Find the current campaign object for use in the mapping dialog
   const currentCampaign = campaigns?.find(c => c.id === campaignId);
@@ -48,11 +52,28 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   }, [campaignId, campaigns, availableAccounts]);
 
   useEffect(() => {
+    checkGoogleAdsConnection();
+  }, []);
+
+  useEffect(() => {
     if (campaignId) {
       fetchGoogleMappings();
       fetchLeadProsperMappings();
     }
   }, [campaignId]);
+
+  const checkGoogleAdsConnection = async () => {
+    setIsCheckingConnection(true);
+    try {
+      const isValid = await validateGoogleAdsConnection();
+      setIsGoogleAdsConnected(isValid);
+    } catch (error) {
+      console.error("Failed to check Google Ads connection:", error);
+      setIsGoogleAdsConnected(false);
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
 
   const fetchGoogleMappings = async () => {
     setIsLoadingGoogle(true);
@@ -107,15 +128,39 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
         <div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-medium">Google Ads Campaigns</h3>
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDialogOpen(true)}
-            >
-              <Link2 className="h-4 w-4 mr-2" />
-              Map Google Campaign
-            </Button>
+            {isCheckingConnection ? (
+              <Button variant="outline" size="sm" disabled>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Checking connection...
+              </Button>
+            ) : isGoogleAdsConnected ? (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDialogOpen(true)}
+              >
+                <Link2 className="h-4 w-4 mr-2" />
+                Map Google Campaign
+              </Button>
+            ) : (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/sources?source=googleads'}
+              >
+                Connect Google Ads
+              </Button>
+            )}
           </div>
+          
+          {!isCheckingConnection && !isGoogleAdsConnected && (
+            <Alert variant="warning" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Google Ads is not connected. Please connect your account in Data Sources.
+              </AlertDescription>
+            </Alert>
+          )}
           
           {/* Google Ads Mapping Dialog */}
           <CampaignMappingDialog 
