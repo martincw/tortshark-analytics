@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -22,13 +21,12 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Loader2, Search, LinkIcon, UnlinkIcon, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { LeadProsperConnection, LeadProsperMapping } from '@/integrations/leadprosper/types';
-import { DatePicker } from '@/components/ui/date-picker';
-import { LeadProsperMappingRecord } from '@/types/common';
 
 interface LeadProsperMappingDialogProps {
   campaignId: string;
@@ -44,12 +42,14 @@ export default function LeadProsperMappingDialog({
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBackfilling, setIsBackfilling] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState<any[]>([]);
   const [connection, setConnection] = useState<LeadProsperConnection | null>(null);
-  const [mappings, setMappings] = useState<LeadProsperMappingRecord[]>([]);
+  const [mappings, setMappings] = useState<any[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
+  const [backfillProgress, setBackfillProgress] = useState<number | null>(null);
   
   // Backfill date range
   const [backfillDateRange, setBackfillDateRange] = useState<{
@@ -194,13 +194,26 @@ export default function LeadProsperMappingDialog({
     }
 
     try {
+      setIsBackfilling(true);
       const formattedStartDate = format(backfillDateRange.startDate, 'yyyy-MM-dd');
       const formattedEndDate = format(backfillDateRange.endDate, 'yyyy-MM-dd');
       
-      toast.loading('Backfilling historical lead data...', {
+      // Show long-lived toast for backfill operation
+      toast.loading(`Backfilling lead data from ${formattedStartDate} to ${formattedEndDate}...`, {
         id: 'backfill',
-        duration: 30000
+        duration: 0
       });
+      
+      // Start a fake progress update for better UX
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += 5;
+        if (progress > 95) {
+          clearInterval(progressInterval);
+        } else {
+          setBackfillProgress(progress);
+        }
+      }, 1000);
       
       const result = await leadProsperApi.backfillLeads(
         connection.credentials.apiKey,
@@ -210,17 +223,34 @@ export default function LeadProsperMappingDialog({
         formattedEndDate
       );
       
-      if (result) {
-        toast.success('Lead data backfill initiated successfully');
+      // Clear the fake progress updates
+      clearInterval(progressInterval);
+      setBackfillProgress(100);
+      
+      // Update toast with results
+      if (result.success) {
+        toast.success(`Lead data backfill completed successfully`, {
+          id: 'backfill',
+          description: `Processed ${result.processed_leads} leads for the selected date range.`
+        });
         return true;
       } else {
-        toast.error('Failed to backfill lead data');
+        toast.error('Failed to backfill lead data', {
+          id: 'backfill',
+          description: result.message || 'An error occurred during the backfill process.'
+        });
         return false;
       }
     } catch (error) {
       console.error('Error during backfill:', error);
-      toast.error('Error during backfill process');
+      toast.error('Error during backfill process', {
+        id: 'backfill',
+        description: error.message || 'An unexpected error occurred'
+      });
       return false;
+    } finally {
+      setIsBackfilling(false);
+      setBackfillProgress(null);
     }
   };
   
@@ -334,15 +364,30 @@ export default function LeadProsperMappingDialog({
                   />
                 </div>
               </div>
+              
+              {backfillProgress !== null && (
+                <div className="mt-4">
+                  <div className="text-sm flex justify-between mb-1">
+                    <span>Backfill Progress</span>
+                    <span>{backfillProgress}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300 ease-in-out"
+                      style={{ width: `${backfillProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Search and selection */}
             <div className="space-y-4 border-t pt-4">
               <div className="flex items-center border rounded-md px-3 focus-within:ring-1 focus-within:ring-ring">
                 <Search className="h-5 w-5 mr-2 text-muted-foreground" />
-                <Input
+                <input
                   placeholder="Search campaigns by name or ID..."
-                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="flex h-10 w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -417,12 +462,12 @@ export default function LeadProsperMappingDialog({
           </Button>
           <Button 
             onClick={handleMapCampaign} 
-            disabled={!selectedCampaign || isSubmitting}
+            disabled={!selectedCampaign || isSubmitting || isBackfilling}
           >
-            {isSubmitting ? (
+            {isSubmitting || isBackfilling ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Mapping...
+                {isBackfilling ? "Backfilling Data..." : "Mapping..."}
               </>
             ) : (
               <>

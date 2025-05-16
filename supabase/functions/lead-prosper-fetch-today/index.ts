@@ -1,521 +1,481 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.8.0";
-import { format, subDays } from "https://esm.sh/date-fns@2.30.0";
 
-// Set up CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.6";
 
-// Handle CORS preflight requests
-const handleCors = (req: Request): Response | null => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-  return null;
-};
+// Create a Supabase client with the service role key for database operations
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Configuration for API requests
-const API_CONFIG = {
-  // Only try the most common timezone formats (reduced from 15+ to 3)
-  TIMEZONE_FORMATS: [
-    { format: null, description: "No timezone parameter (using campaign default)" },
-    { format: "America/Denver", description: "America/Denver timezone (recommended)" },
-    { format: "UTC", description: "UTC timezone (fallback)" }
-  ],
-  // Add delay between requests to avoid rate limiting
-  REQUEST_DELAY_MS: 1000,
-  // Maximum number of retries for rate-limited requests
-  MAX_RETRIES: 3,
-  // Starting delay for exponential backoff (in milliseconds)
-  INITIAL_RETRY_DELAY_MS: 2000
-};
+interface LeadProsperCredentials {
+  apiKey: string;
+  id?: string;
+}
 
-// Cache successful timezone formats to reuse
-const successfulTimezoneCache = new Map<number, string | null>();
+interface LeadProsperSyncResult {
+  success: boolean;
+  total_leads: number;
+  campaigns_processed: number;
+  last_synced?: string;
+  date_fetched?: string;
+  results?: any[];
+  error?: string;
+}
 
-// Sleep function for adding delays
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Exponential backoff implementation for retries
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  maxRetries: number = API_CONFIG.MAX_RETRIES,
-  initialDelay: number = API_CONFIG.INITIAL_RETRY_DELAY_MS
-): Promise<Response> {
-  let retries = 0;
-  let delay = initialDelay;
-  
-  while (true) {
-    try {
-      // IMPORTANT: Make sure we're using HTTPS URL
-      if (!url.startsWith("https://")) {
-        url = url.replace("http://", "https://");
-      }
-      
-      // SUPER SIMPLIFIED REQUEST:
-      // 1. Create a completely new options object with minimal properties
-      // 2. Only keep the Authorization header, remove everything else
-      const minimalOptions: RequestInit = {
-        method: options.method || 'GET',
+serve(async (req: Request) => {
+  try {
+    // Handle CORS
+    if (req.method === "OPTIONS") {
+      return new Response("ok", {
         headers: {
-          'Authorization': `Bearer ${(options.headers as any)?.Authorization || ''}`
-        }
-      };
-      
-      console.log(`Attempting request to: ${url}`);
-      console.log("Using minimal request options (no Content-Type header)");
-      
-      const response = await fetch(url, minimalOptions);
-      
-      // If we get a rate limit error, retry with backoff
-      if (response.status === 429 && retries < maxRetries) {
-        // Get retry-after header if available or use calculated delay
-        const retryAfter = response.headers.get('Retry-After');
-        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay;
-        
-        console.log(`Rate limited (429). Retrying in ${waitTime}ms. Attempt ${retries + 1} of ${maxRetries}`);
-        await sleep(waitTime);
-        
-        // Increase delay for next attempt with exponential backoff
-        retries++;
-        delay *= 2;
-        
-        // Continue to retry
-        continue;
-      }
-      
-      // Return the response for any other status
-      return response;
-    } catch (error) {
-      if (retries < maxRetries) {
-        console.log(`Network error. Retrying in ${delay}ms. Attempt ${retries + 1} of ${maxRetries}`);
-        await sleep(delay);
-        
-        retries++;
-        delay *= 2;
-      } else {
-        throw error; // Rethrow if we've exhausted retries
-      }
-    }
-  }
-}
-
-// Try to fetch leads with simplified approach
-async function fetchLeadsWithOptimizedTimezone(
-  apiKey: string,
-  campaignId: number,
-  date: string
-): Promise<any> {
-  try {
-    // Build the simplest possible URL
-    let url = `https://api.leadprosper.io/public/leads?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
-    
-    // Log attempt
-    console.log(`Trying simplified approach for campaign ${campaignId}`);
-    
-    // Create the most minimal request possible
-    const response = await fetchWithRetry(url, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      },
-    });
-
-    // Check if successful
-    if (response.ok) {
-      const data = await response.json();
-      console.log(`Success using simplified approach! Received ${data.data?.length || 0} leads`);
-      return { ...data, endpoint: 'leads' };
-    }
-    
-    const statusCode = response.status;
-    const errorText = await response.text();
-    console.error(`Failed with simplified approach: ${statusCode} - ${errorText}`);
-    
-    // Try backup approach with stats endpoint
-    console.log("Trying stats endpoint as backup...");
-    const statsUrl = `https://api.leadprosper.io/public/stats?campaign=${campaignId}&start_date=${date}&end_date=${date}`;
-    
-    // Make the API call to stats endpoint with minimal options
-    const statsResponse = await fetchWithRetry(statsUrl, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      },
-    });
-
-    if (statsResponse.ok) {
-      const statsData = await statsResponse.json();
-      console.log(`Success with stats endpoint! Processing stats data instead.`);
-      
-      return {
-        success: true,
-        data: [], // No leads data, but we'll record the stats
-        stats: statsData.data || [],
-        endpoint: 'stats'
-      };
-    }
-    
-    // Log error but continue trying other campaigns
-    const statsErrorText = await statsResponse.text();
-    const statsStatusCode = statsResponse.status;
-    console.error(`Failed with stats endpoint: ${statsStatusCode} - ${statsErrorText}`);
-    
-    // Format error details
-    throw new Error(`All API attempts failed for campaign ${campaignId}. Status: ${statusCode}, Error: ${errorText}`);
-  } catch (error) {
-    console.error(`API error for campaign ${campaignId}:`, error);
-    throw error;
-  }
-}
-
-// Process leads and update metrics
-async function processLeadsAndUpdateMetrics(
-  supabaseClient: any,
-  leads: any[],
-  campaignMapping: any
-): Promise<void> {
-  // Store raw leads
-  for (const lead of leads) {
-    await supabaseClient.from('lp_leads_raw').upsert({
-      id: lead.id,
-      lp_campaign_id: lead.campaign_id,
-      ts_campaign_id: campaignMapping.ts_campaign_id,
-      status: lead.status,
-      cost: lead.cost || 0,
-      revenue: lead.revenue || 0,
-      lead_date_ms: lead.created_at,
-      json_payload: lead,
-    }, {
-      onConflict: 'id',
-    });
-
-    // Get the date from the lead timestamp
-    const leadDate = new Date(lead.created_at);
-    const dateString = leadDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-
-    // Update daily metrics
-    let status = lead.status?.toUpperCase() || 'UNKNOWN';
-    let accepted = status === 'ACCEPTED' ? 1 : 0;
-    let duplicated = status === 'DUPLICATE' ? 1 : 0;
-    let failed = status === 'FAILED' || status === 'REJECTED' ? 1 : 0;
-
-    // Upsert into daily metrics
-    await supabaseClient.rpc('upsert_daily_lead_metrics', {
-      p_ts_campaign_id: campaignMapping.ts_campaign_id,
-      p_date: dateString,
-      p_lead_count: 1,
-      p_accepted: accepted,
-      p_duplicated: duplicated,
-      p_failed: failed,
-      p_cost: lead.cost || 0,
-      p_revenue: lead.revenue || 0
-    });
-  }
-}
-
-// Process stats data and update metrics
-async function processStatsAndUpdateMetrics(
-  supabaseClient: any,
-  statsData: any[],
-  campaignMapping: any
-): Promise<void> {
-  // If we have stats data but no leads, we'll just update the metrics for the day
-  if (!statsData || statsData.length === 0) {
-    console.log('No stats data available to process');
-    return;
-  }
-  
-  console.log(`Processing ${statsData.length} stats entries`);
-  
-  for (const stat of statsData) {
-    // Make sure we have a valid date from the stats
-    if (!stat.date) {
-      console.warn('Stats entry missing date, skipping:', stat);
-      continue;
-    }
-    
-    // Parse the date from the stats entry
-    const dateString = stat.date.split('T')[0]; // YYYY-MM-DD format
-    
-    // Calculate metrics from stats
-    const leadCount = stat.leads || 0;
-    const accepted = stat.accepted || 0;
-    const duplicated = stat.duplicates || 0;
-    const failed = (stat.rejected || 0) + (stat.failed || 0);
-    const cost = stat.cost || 0;
-    const revenue = stat.revenue || 0;
-    
-    console.log(`Updating metrics for date ${dateString}: leads=${leadCount}, accepted=${accepted}, duplicated=${duplicated}, failed=${failed}, cost=${cost}, revenue=${revenue}`);
-    
-    // Upsert into daily metrics
-    await supabaseClient.rpc('upsert_daily_lead_metrics', {
-      p_ts_campaign_id: campaignMapping.ts_campaign_id,
-      p_date: dateString,
-      p_lead_count: leadCount,
-      p_accepted: accepted,
-      p_duplicated: duplicated,
-      p_failed: failed,
-      p_cost: cost,
-      p_revenue: revenue
-    });
-  }
-}
-
-serve(async (req) => {
-  // Handle CORS
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
-
-  try {
-    console.log("Lead Prosper fetch-today function called");
-    
-    // Get the authorization header from the request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("No authorization header provided");
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create a Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
         },
-      }
-    );
+      });
+    }
 
-    // Get parameters from the request
-    let apiKey;
-    // Default to America/Denver as recommended by Lead Prosper support
-    let requestedTimezone = 'America/Denver';
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1); // Get yesterday's data too to avoid timezone issues
     
+    const todayFormatted = today.toISOString().split('T')[0];
+    const yesterdayFormatted = yesterday.toISOString().split('T')[0];
+
+    console.log(`Fetching leads for date range: ${yesterdayFormatted} to ${todayFormatted}`);
+
+    // Get the user ID from the request, or use null for system-wide sync
+    let userId: string | null = null;
     try {
       const body = await req.json();
-      apiKey = body.apiKey;
-      
-      // Extract timezone from the request body if provided
-      if (body.timezone && typeof body.timezone === 'string') {
-        requestedTimezone = body.timezone;
-      }
-      
-      if (!apiKey) {
-        console.error("Missing API key in request body");
-        return new Response(
-          JSON.stringify({ error: 'Missing API key' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log("API key received, length:", apiKey.length);
-      console.log("Using simplified request approach with minimal parameters");
-    } catch (error) {
-      console.error("Failed to parse request body:", error);
+      userId = body.user_id || null;
+    } catch (e) {
+      // No body or invalid JSON, proceed with system-wide sync
+    }
+
+    // Get Lead Prosper API credentials
+    const credentials = await getLeadProsperCredentials(userId);
+    if (!credentials || !credentials.apiKey) {
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to parse request body',
-          details: error instanceof Error ? error.message : 'Unknown error'
+          success: false, 
+          error: "No Lead Prosper API credentials found" 
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: { 
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          },
+        }
       );
     }
 
-    // Get all active campaign mappings
-    const { data: mappings, error: mappingsError } = await supabaseClient
+    // Get active campaign mappings
+    const { data: mappings, error: mappingsError } = await supabase
       .from('lp_to_ts_map')
       .select(`
         id,
+        lp_campaign_id,
         ts_campaign_id,
-        lp_campaign:external_lp_campaigns(id, lp_campaign_id, name)
+        active,
+        linked_at
       `)
       .eq('active', true);
 
     if (mappingsError) {
-      console.error('Error fetching campaign mappings:', mappingsError);
       return new Response(
         JSON.stringify({ 
-          error: mappingsError.message,
-          details: 'Failed to fetch active campaign mappings'
+          success: false, 
+          error: `Failed to get campaign mappings: ${mappingsError.message}` 
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: { 
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          },
+        }
       );
     }
 
     if (!mappings || mappings.length === 0) {
-      console.log('No active campaign mappings found');
       return new Response(
-        JSON.stringify({ message: 'No active campaign mappings found', count: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: false, 
+          error: "No active Lead Prosper campaign mappings found" 
+        }),
+        {
+          status: 400,
+          headers: { 
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          },
+        }
       );
     }
 
     console.log(`Found ${mappings.length} active campaign mappings`);
-    
-    let totalLeads = 0;
-    let successCount = 0;
-    let errorCount = 0;
+
+    // Process each campaign
     const results = [];
-    let debugInfo = [];
-    
-    // Change from today to yesterday
-    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-    console.log(`Using yesterday's date for API calls: ${yesterday}`);
+    let totalLeads = 0;
+    let campaignsProcessed = 0;
 
-    // Process each campaign mapping SEQUENTIALLY (not in parallel)
     for (const mapping of mappings) {
-      if (!mapping.lp_campaign || !mapping.lp_campaign.lp_campaign_id) {
-        console.warn(`Mapping ${mapping.id}: Missing LP campaign ID for mapping to ${mapping.ts_campaign_id}`);
-        results.push({
-          mapping_id: mapping.id,
-          ts_campaign_id: mapping.ts_campaign_id,
-          error: 'Missing Lead Prosper campaign ID',
-          status: 'skipped'
-        });
-        errorCount++;
-        continue;
-      }
-
-      const lpCampaignId = mapping.lp_campaign.lp_campaign_id;
-      
       try {
-        console.log(`Processing mapping ${mapping.id}: LP Campaign ${lpCampaignId} -> TS Campaign ${mapping.ts_campaign_id}`);
+        // Fetch the external campaign details to get the numeric ID
+        const { data: externalCampaign } = await supabase
+          .from('external_lp_campaigns')
+          .select('lp_campaign_id')
+          .eq('id', mapping.lp_campaign_id)
+          .single();
         
-        // Add delay between processing campaigns
-        if (results.length > 0) {
-          await sleep(API_CONFIG.REQUEST_DELAY_MS * 2);
+        if (!externalCampaign) {
+          console.warn(`No external campaign found for ID: ${mapping.lp_campaign_id}`);
+          continue;
         }
-        
-        // Try to fetch leads with extremely simplified approach
-        const apiResponse = await fetchLeadsWithOptimizedTimezone(
-          apiKey,
-          lpCampaignId,
-          yesterday
-        );
-        
-        // Record debug info for each campaign
-        const campaignDebugInfo = {
-          campaign_id: lpCampaignId,
-          endpoint_used: apiResponse.endpoint || 'unknown',
-          leads_count: apiResponse.data?.length || 0,
-          stats_count: apiResponse.stats?.length || 0
+
+        const lpCampaignId = externalCampaign.lp_campaign_id;
+        const tsCampaignId = mapping.ts_campaign_id;
+
+        console.log(`Processing campaign: LP ID ${lpCampaignId}, TS ID ${tsCampaignId}`);
+
+        // Fetch leads from Lead Prosper API
+        const apiUrl = `https://api.leadprosper.io/v1/campaigns/${lpCampaignId}/leads`;
+        const params = new URLSearchParams({
+          start_date: yesterdayFormatted,
+          end_date: todayFormatted,
+          limit: '1000',
+        });
+
+        const headers = {
+          'Authorization': `Bearer ${credentials.apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         };
+
+        const response = await fetch(`${apiUrl}?${params.toString()}`, {
+          method: 'GET',
+          headers,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Lead Prosper API error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+
+        const data = await response.json();
         
-        debugInfo.push(campaignDebugInfo);
-        
-        // Process leads if available
-        if (apiResponse.data && apiResponse.data.length > 0) {
-          await processLeadsAndUpdateMetrics(supabaseClient, apiResponse.data, {
-            ts_campaign_id: mapping.ts_campaign_id
+        if (!data.leads || !Array.isArray(data.leads)) {
+          console.warn(`No leads array in response for campaign ${lpCampaignId}`);
+          results.push({
+            campaign_id: lpCampaignId,
+            ts_campaign_id: tsCampaignId,
+            leads_count: 0,
+            status: "no_leads_array"
           });
-          
-          totalLeads += apiResponse.data.length;
-          successCount++;
+          continue;
+        }
+
+        console.log(`Retrieved ${data.leads.length} leads for campaign ${lpCampaignId}`);
+
+        // Process the leads
+        if (data.leads.length > 0) {
+          const result = await processLeadsAndUpdateMetrics({
+            leads: data.leads,
+            campaign_id: lpCampaignId,
+            ts_campaign_id: tsCampaignId
+          });
+
+          totalLeads += result.processed;
           
           results.push({
-            mapping_id: mapping.id,
             campaign_id: lpCampaignId,
-            ts_campaign_id: mapping.ts_campaign_id,
-            campaign_name: mapping.lp_campaign.name,
-            leads_count: apiResponse.data.length,
-            endpoint_used: apiResponse.endpoint || 'leads',
-            status: 'success'
+            ts_campaign_id: tsCampaignId,
+            leads_processed: result.processed,
+            leads_failed: result.errors,
+            status: result.success ? "success" : "partial_failure"
           });
-        } 
-        // Process stats if we have them instead
-        else if (apiResponse.stats && apiResponse.stats.length > 0) {
-          await processStatsAndUpdateMetrics(supabaseClient, apiResponse.stats, {
-            ts_campaign_id: mapping.ts_campaign_id
-          });
-          
-          // Add up the total leads from stats
-          const statsLeadsCount = apiResponse.stats.reduce((total: number, stat: any) => {
-            return total + (stat.leads || 0);
-          }, 0);
-          
-          totalLeads += statsLeadsCount;
-          successCount++;
-          
+        } else {
           results.push({
-            mapping_id: mapping.id,
             campaign_id: lpCampaignId,
-            ts_campaign_id: mapping.ts_campaign_id,
-            campaign_name: mapping.lp_campaign.name,
-            stats_count: apiResponse.stats.length,
-            leads_count: statsLeadsCount,
-            endpoint_used: 'stats',
-            status: 'success_stats_only'
+            ts_campaign_id: tsCampaignId,
+            leads_count: 0,
+            status: "no_leads"
           });
         }
-        else {
-          console.log(`No leads or stats found for yesterday (${yesterday}) for campaign ${lpCampaignId}`);
-          results.push({
-            mapping_id: mapping.id,
-            campaign_id: lpCampaignId,
-            ts_campaign_id: mapping.ts_campaign_id,
-            campaign_name: mapping.lp_campaign.name,
-            leads_count: 0,
-            endpoint_used: apiResponse.endpoint || 'unknown',
-            status: 'success_no_data'
-          });
-          successCount++;
+
+        campaignsProcessed++;
+
+        // Add a short delay between campaigns to avoid rate limiting
+        if (mappings.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
-        console.error(`Error processing campaign ${lpCampaignId}:`, error);
-        errorCount++;
-        
-        // More detailed error classification
-        let errorStatus = 'error';
-        let errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
-        // Check for common error types
-        if (errorMessage.includes('429') || errorMessage.includes('Too Many Attempts')) {
-          errorStatus = 'rate_limited';
-          errorMessage = 'Rate limit exceeded. Try again later.';
-        }
-        
+        console.error(`Error processing campaign ${mapping.lp_campaign_id}:`, error);
         results.push({
-          mapping_id: mapping.id,
-          campaign_id: lpCampaignId,
+          campaign_id: mapping.lp_campaign_id,
           ts_campaign_id: mapping.ts_campaign_id,
-          campaign_name: mapping.lp_campaign?.name || 'Unknown',
-          error: errorMessage,
-          status: errorStatus
+          status: "error",
+          error: error.message
         });
       }
     }
 
-    console.log(`Completed processing. Total leads: ${totalLeads}, Success: ${successCount}, Errors: ${errorCount}`);
-    
-    // Return success with summary
+    // Update the last_synced timestamp in account_connections
+    if (credentials.id && campaignsProcessed > 0) {
+      const { error: updateError } = await supabase
+        .from('account_connections')
+        .update({ last_synced: new Date().toISOString() })
+        .eq('id', credentials.id);
+
+      if (updateError) {
+        console.error('Error updating last_synced timestamp:', updateError);
+      }
+    }
+
+    // Return the results
+    const syncResult: LeadProsperSyncResult = {
+      success: true,
+      total_leads: totalLeads,
+      campaigns_processed: campaignsProcessed,
+      last_synced: new Date().toISOString(),
+      date_fetched: todayFormatted,
+      results
+    };
+
     return new Response(
-      JSON.stringify({ 
-        success: errorCount === 0,
-        total_leads: totalLeads,
-        campaigns_processed: mappings.length,
-        success_count: successCount,
-        error_count: errorCount,
-        results,
-        debug_info: debugInfo,
-        date_fetched: yesterday,
-        last_synced: new Date().toISOString()
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify(syncResult),
+      {
+        status: 200,
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+      }
     );
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error("Error in lead-prosper-fetch-today:", error);
+    
     return new Response(
       JSON.stringify({ 
-        error: 'Unexpected error occurred', 
-        details: error instanceof Error ? error.message : 'Unknown error'
+        success: false, 
+        error: `Unexpected error: ${error.message}` 
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+      }
     );
   }
 });
+
+// Helper function to get Lead Prosper API credentials
+async function getLeadProsperCredentials(userId: string | null): Promise<LeadProsperCredentials | null> {
+  try {
+    let query = supabase
+      .from('account_connections')
+      .select('id, credentials')
+      .eq('platform', 'leadprosper')
+      .eq('is_connected', true);
+      
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    
+    query = query.order('created_at', { ascending: false }).limit(1);
+    
+    const { data, error } = await query;
+    
+    if (error || !data || data.length === 0) {
+      console.error("Error or no credentials found:", error);
+      return null;
+    }
+    
+    const connection = data[0];
+    let credentials = connection.credentials;
+    
+    // Parse credentials if it's a string
+    if (typeof credentials === 'string') {
+      try {
+        credentials = JSON.parse(credentials);
+      } catch (e) {
+        console.error("Failed to parse credentials:", e);
+        return null;
+      }
+    }
+    
+    // Check if we have an API key
+    if (!credentials || !credentials.apiKey) {
+      console.error("No API key found in credentials");
+      return null;
+    }
+    
+    return {
+      apiKey: credentials.apiKey,
+      id: connection.id
+    };
+  } catch (error) {
+    console.error("Error getting Lead Prosper credentials:", error);
+    return null;
+  }
+}
+
+// Helper function to process leads and update metrics
+async function processLeadsAndUpdateMetrics(data: {
+  leads: any[];
+  campaign_id: number;
+  ts_campaign_id: string;
+}): Promise<{
+  success: boolean;
+  processed: number;
+  errors: number;
+}> {
+  // The function implementation is the same as in lead-prosper-backfill
+  // Rather than duplicating it, we'll reuse the logic
+  
+  try {
+    if (!data.leads || !Array.isArray(data.leads) || data.leads.length === 0) {
+      return { success: true, processed: 0, errors: 0 };
+    }
+
+    const { campaign_id: lpCampaignId, ts_campaign_id: tsCampaignId } = data;
+
+    if (!lpCampaignId || !tsCampaignId) {
+      throw new Error('Missing campaign IDs for lead processing');
+    }
+
+    let processed = 0;
+    let errors = 0;
+    
+    // Group leads by date for metrics aggregation
+    const metricsByDate: Record<string, {
+      leads: number;
+      accepted: number;
+      duplicated: number; 
+      failed: number;
+      cost: number;
+      revenue: number;
+    }> = {};
+    
+    // Prepare batch insert array
+    const leadsToInsert = [];
+
+    // Process each lead
+    for (const lead of data.leads) {
+      try {
+        // Convert created_at to appropriate format
+        const leadDate = typeof lead.created_at === 'number' 
+          ? new Date(lead.created_at) 
+          : new Date(lead.created_at);
+          
+        // Add to batch insert array
+        leadsToInsert.push({
+          id: lead.id,
+          lp_campaign_id: lpCampaignId,
+          ts_campaign_id: tsCampaignId,
+          status: lead.status || 'unknown',
+          cost: lead.cost || 0,
+          revenue: lead.revenue || 0,
+          lead_date_ms: leadDate.getTime(),
+          json_payload: lead
+        });
+        
+        // Aggregate metrics by date
+        const dateStr = leadDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        if (!metricsByDate[dateStr]) {
+          metricsByDate[dateStr] = {
+            leads: 0,
+            accepted: 0,
+            duplicated: 0,
+            failed: 0,
+            cost: 0,
+            revenue: 0
+          };
+        }
+        
+        metricsByDate[dateStr].leads++;
+        
+        if (lead.status?.toLowerCase() === 'sold') {
+          metricsByDate[dateStr].accepted++;
+        } else if (lead.status?.toLowerCase() === 'duplicate') {
+          metricsByDate[dateStr].duplicated++;
+        } else if (['rejected', 'failed'].includes(lead.status?.toLowerCase() || '')) {
+          metricsByDate[dateStr].failed++;
+        }
+        
+        metricsByDate[dateStr].cost += lead.cost || 0;
+        metricsByDate[dateStr].revenue += lead.revenue || 0;
+        
+        processed++;
+      } catch (err) {
+        console.error('Error processing lead:', err);
+        errors++;
+      }
+    }
+    
+    // Batch insert leads if we have any
+    if (leadsToInsert.length > 0) {
+      try {
+        // Use upsert with onConflict to handle duplicates
+        const { error: insertError } = await supabase
+          .from('lp_leads_raw')
+          .upsert(leadsToInsert, { 
+            onConflict: 'id',
+            ignoreDuplicates: true
+          });
+          
+        if (insertError) {
+          console.error('Error batch inserting leads:', insertError);
+          errors += leadsToInsert.length;
+          processed = 0; // Reset processed count since batch failed
+        }
+      } catch (batchError) {
+        console.error('Exception during batch insert:', batchError);
+        errors += leadsToInsert.length;
+        processed = 0;
+      }
+    }
+    
+    // Update metrics for each date
+    for (const [dateStr, metrics] of Object.entries(metricsByDate)) {
+      try {
+        const { error: metricsError } = await supabase.rpc('upsert_daily_lead_metrics', {
+          p_ts_campaign_id: tsCampaignId,
+          p_date: dateStr,
+          p_lead_count: metrics.leads,
+          p_accepted: metrics.accepted,
+          p_duplicated: metrics.duplicated,
+          p_failed: metrics.failed,
+          p_cost: metrics.cost,
+          p_revenue: metrics.revenue
+        });
+        
+        if (metricsError) {
+          console.error(`Error updating metrics for ${dateStr}:`, metricsError);
+        }
+      } catch (error) {
+        console.error(`Error calling upsert_daily_lead_metrics for ${dateStr}:`, error);
+      }
+    }
+
+    return {
+      success: errors === 0,
+      processed,
+      errors
+    };
+  } catch (error) {
+    console.error('Error in processLeadsAndUpdateMetrics:', error);
+    return {
+      success: false,
+      processed: 0,
+      errors: data.leads?.length || 0
+    };
+  }
+}

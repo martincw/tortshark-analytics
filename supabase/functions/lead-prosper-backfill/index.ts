@@ -90,17 +90,48 @@ serve(async (req: Request) => {
     let totalLeads = 0;
     let processedLeads = 0;
     let failedLeads = 0;
+    let rateLimited = false;
+    let maxRetries = 3;
 
     // Paginate through all leads
-    while (hasMoreLeads) {
+    while (hasMoreLeads && !rateLimited) {
       try {
         params.set('page', page.toString());
-        const response = await fetch(`${apiUrl}?${params.toString()}`, {
-          method: 'GET',
-          headers
-        });
+        
+        // Implement retry logic with exponential backoff for rate limiting
+        let retries = 0;
+        let success = false;
+        let response;
+        let backoffTime = 1000; // Start with 1 second
+        
+        while (!success && retries < maxRetries) {
+          response = await fetch(`${apiUrl}?${params.toString()}`, {
+            method: 'GET',
+            headers
+          });
+          
+          if (response.status === 429) {
+            // Rate limited - implement backoff
+            retries++;
+            const retryAfter = response.headers.get('Retry-After');
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : backoffTime;
+            
+            console.log(`Rate limited, waiting ${waitTime}ms before retry ${retries}/${maxRetries}`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            
+            // Exponential backoff
+            backoffTime *= 2;
+          } else {
+            success = true;
+          }
+          
+          if (retries >= maxRetries && response?.status === 429) {
+            rateLimited = true;
+            throw new Error(`Rate limit exceeded after ${maxRetries} retries`);
+          }
+        }
 
-        if (!response.ok) {
+        if (!response || !response.ok) {
           const errorText = await response.text();
           throw new Error(`Lead Prosper API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
@@ -138,6 +169,9 @@ serve(async (req: Request) => {
           processedLeads += result.processed;
           failedLeads += result.errors;
           allLeads = []; // Clear processed leads
+          
+          // Add a small delay between batches to avoid overwhelming the database
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       } catch (error) {
         console.error(`Error fetching leads page ${page}:`, error);
@@ -146,7 +180,8 @@ serve(async (req: Request) => {
           error: `Error fetching leads: ${error.message}`,
           processed_leads: processedLeads,
           failed_leads: failedLeads,
-          total_leads: totalLeads
+          total_leads: totalLeads,
+          rate_limited: rateLimited
         }), {
           status: 500,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -171,6 +206,7 @@ serve(async (req: Request) => {
       processed_leads: processedLeads,
       failed_leads: failedLeads,
       total_leads: totalLeads,
+      rate_limited: rateLimited,
       message: `Successfully processed ${processedLeads} leads for campaign ${lpCampaignId}`
     }), {
       status: 200,
@@ -198,6 +234,7 @@ async function processLeadsAndUpdateMetrics(data: {
   success: boolean;
   processed: number;
   errors: number;
+  message?: string;
 }> {
   try {
     if (!data.leads || !Array.isArray(data.leads) || data.leads.length === 0) {
@@ -222,35 +259,23 @@ async function processLeadsAndUpdateMetrics(data: {
       cost: number;
       revenue: number;
     }> = {};
+    
+    // Prepare batch insert array
+    const leadsToInsert = [];
 
     // Process each lead
     for (const lead of data.leads) {
       try {
-        // Check if lead already exists
-        const { data: existingLead, error: checkError } = await supabase
-          .from('lp_leads_raw')
-          .select('id')
-          .eq('id', lead.id)
-          .maybeSingle();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-          console.error('Error checking existing lead:', checkError);
-          errors++;
-          continue;
-        }
-
-        if (existingLead) {
-          console.log(`Lead ${lead.id} already exists, skipping`);
-          continue;
-        }
-
         // Convert created_at to appropriate format
         const leadDate = typeof lead.created_at === 'number' 
           ? new Date(lead.created_at) 
           : new Date(lead.created_at);
           
-        // Insert new lead
-        const { error: insertError } = await supabase.from('lp_leads_raw').insert({
+        // Check if lead already exists - optimized to reduce DB calls
+        const dateStr = leadDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        // Add to batch insert array
+        leadsToInsert.push({
           id: lead.id,
           lp_campaign_id: lpCampaignId,
           ts_campaign_id: tsCampaignId,
@@ -260,18 +285,8 @@ async function processLeadsAndUpdateMetrics(data: {
           lead_date_ms: leadDate.getTime(),
           json_payload: lead
         });
-
-        if (insertError) {
-          console.error('Error inserting lead:', insertError);
-          errors++;
-          continue;
-        }
-
-        processed++;
         
         // Aggregate metrics by date
-        const dateStr = leadDate.toISOString().split('T')[0]; // YYYY-MM-DD
-        
         if (!metricsByDate[dateStr]) {
           metricsByDate[dateStr] = {
             leads: 0,
@@ -285,19 +300,44 @@ async function processLeadsAndUpdateMetrics(data: {
         
         metricsByDate[dateStr].leads++;
         
-        if (lead.status === 'sold') {
+        if (lead.status?.toLowerCase() === 'sold') {
           metricsByDate[dateStr].accepted++;
-        } else if (lead.status === 'duplicate') {
+        } else if (lead.status?.toLowerCase() === 'duplicate') {
           metricsByDate[dateStr].duplicated++;
-        } else if (['rejected', 'failed'].includes(lead.status || '')) {
+        } else if (['rejected', 'failed'].includes(lead.status?.toLowerCase() || '')) {
           metricsByDate[dateStr].failed++;
         }
         
         metricsByDate[dateStr].cost += lead.cost || 0;
         metricsByDate[dateStr].revenue += lead.revenue || 0;
+        
+        processed++;
       } catch (err) {
         console.error('Error processing lead:', err);
         errors++;
+      }
+    }
+    
+    // Batch insert leads if we have any
+    if (leadsToInsert.length > 0) {
+      try {
+        // Use upsert with onConflict to handle duplicates
+        const { error: insertError } = await supabase
+          .from('lp_leads_raw')
+          .upsert(leadsToInsert, { 
+            onConflict: 'id',
+            ignoreDuplicates: true
+          });
+          
+        if (insertError) {
+          console.error('Error batch inserting leads:', insertError);
+          errors += leadsToInsert.length;
+          processed = 0; // Reset processed count since batch failed
+        }
+      } catch (batchError) {
+        console.error('Exception during batch insert:', batchError);
+        errors += leadsToInsert.length;
+        processed = 0;
       }
     }
     
