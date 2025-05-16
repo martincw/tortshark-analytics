@@ -1,3 +1,4 @@
+
 export interface LeadProsperLead {
   id: string;
   campaign_id: number;
@@ -93,7 +94,7 @@ export interface LeadProsperSyncResult {
 export interface LeadProsperLeadProcessingResult {
   success: boolean;
   processed: number;
-  processed_leads?: number; // Added missing property
+  processed_leads: number; // Ensuring this property exists
   errors: number;
   message?: string;
 }

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { 
   LeadProsperCredentials, 
@@ -54,20 +55,25 @@ export const leadProsperApi = {
 
       // Parse credentials
       let credentials = data[0].credentials;
-      if (typeof credentials === 'string') {
-        try {
-          credentials = JSON.parse(credentials);
-        } catch (e) {
-          console.error('Failed to parse credentials:', e);
-          return {
-            isConnected: false,
-            error: 'Invalid credentials format'
-          };
+      let apiKey = '';
+      
+      if (credentials) {
+        if (typeof credentials === 'string') {
+          try {
+            const parsedCreds = JSON.parse(credentials);
+            apiKey = parsedCreds?.apiKey || '';
+          } catch (e) {
+            console.error('Failed to parse credentials:', e);
+            return {
+              isConnected: false,
+              error: 'Invalid credentials format'
+            };
+          }
+        } else if (typeof credentials === 'object') {
+          // Handle the case when credentials is already an object
+          apiKey = (credentials as any)?.apiKey || '';
         }
       }
-
-      // Get API key from credentials
-      const apiKey = credentials?.apiKey;
       
       // Cache API key for future use
       if (apiKey) {
@@ -148,7 +154,7 @@ export const leadProsperApi = {
   /**
    * Store credentials in the database
    */
-  async storeCredentials(apiKey: string, userId: string): Promise<boolean> {
+  async storeCredentials(apiKey: string, userId?: string): Promise<boolean> {
     try {
       // For security, we'll rely on server-side RLS policies
       const { error } = await supabase.from('account_connections')
@@ -156,7 +162,7 @@ export const leadProsperApi = {
           platform: 'leadprosper',
           name: 'Lead Prosper',
           is_connected: true,
-          user_id: userId,
+          user_id: userId || (await supabase.auth.getUser()).data.user?.id,
           credentials: JSON.stringify({ apiKey })
         });
 
@@ -274,7 +280,7 @@ export const leadProsperApi = {
             }
           } else if (typeof record.credentials === 'object') {
             credentialsObj = record.credentials;
-            apiKey = credentialsObj.apiKey || '';
+            apiKey = (credentialsObj as any)?.apiKey || '';
           }
         }
         

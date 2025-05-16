@@ -193,8 +193,8 @@ export default function LeadProsperConnection() {
       setIsSubmitting(true);
       setErrorMessage(null);
       
-      // Try to store the credentials first
-      const storeSuccess = await leadProsperApi.storeCredentials(apiKey);
+      // Try to store the credentials
+      const storeSuccess = await leadProsperApi.storeCredentials(apiKey, user.id);
       if (!storeSuccess) {
         throw new Error('Failed to store API key in the database');
       }
