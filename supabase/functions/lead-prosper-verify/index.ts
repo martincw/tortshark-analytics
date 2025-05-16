@@ -67,8 +67,9 @@ serve(async (req) => {
     }
 
     // Make a simple request to the Lead Prosper API to verify the API key
+    // Use the /v1/campaigns endpoint to match the client-side verification
     console.log("Testing Lead Prosper API connection...");
-    const response = await fetch('https://api.leadprosper.io/public/campaigns', {
+    const response = await fetch('https://api.leadprosper.io/v1/campaigns', {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',

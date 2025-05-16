@@ -1,19 +1,40 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, LinkIcon, CheckCircle2, XCircle } from "lucide-react";
+import { Link, LinkIcon, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
+import { leadProsperApi } from "@/integrations/leadprosper/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LeadProsperIntegration = () => {
+  const { user } = useAuth();
   const [apiKey, setApiKey] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('connect');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Check for existing connection on component mount
+  useEffect(() => {
+    checkExistingConnection();
+  }, []);
+
+  const checkExistingConnection = async () => {
+    try {
+      const connectionData = await leadProsperApi.checkConnection(true);
+      if (connectionData.isConnected) {
+        setIsConnected(true);
+        setActiveTab('campaigns');
+      }
+    } catch (error) {
+      console.error("Error checking Lead Prosper connection:", error);
+    }
+  };
 
   const handleConnect = async () => {
     if (!apiKey.trim()) {
@@ -22,24 +43,88 @@ const LeadProsperIntegration = () => {
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
     
-    // Simulate API connection (frontend only)
-    setTimeout(() => {
-      setIsConnected(true);
-      setIsLoading(false);
-      setActiveTab('campaigns');
-      toast.success('Successfully connected to Lead Prosper');
+    try {
+      // Verify the API key using the Edge Function
+      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey }),
+      });
       
-      // In a real implementation, we would store the API key securely
-      // and make actual API calls to validate the connection
-    }, 1500);
+      const verifyResult = await response.json();
+      
+      if (!response.ok || !verifyResult.isValid) {
+        const errorMsg = verifyResult.error || 'API key verification failed. Please check your key and try again.';
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If verified, store the credentials
+      if (user) {
+        const connectionResult = await leadProsperApi.saveConnection(apiKey, 'Lead Prosper', user.id);
+        
+        if (connectionResult) {
+          // Cache the API key for quicker access
+          leadProsperApi.setCachedApiKey(apiKey);
+          
+          setIsConnected(true);
+          setActiveTab('campaigns');
+          toast.success('Successfully connected to Lead Prosper');
+        }
+      } else {
+        toast.error('User not logged in. Please sign in to save your connection.');
+      }
+    } catch (error) {
+      console.error('Error connecting to Lead Prosper:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to connect to Lead Prosper';
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    setApiKey('');
-    setActiveTab('connect');
-    toast.info('Lead Prosper disconnected');
+  const handleDisconnect = async () => {
+    setIsLoading(true);
+    try {
+      // Get the current connection
+      const { credentials } = await leadProsperApi.checkConnection();
+      
+      if (credentials?.id) {
+        // Delete the connection
+        const success = await leadProsperApi.deleteConnection(credentials.id);
+        
+        if (success) {
+          // Clear local cache
+          leadProsperApi.resetState();
+          
+          setIsConnected(false);
+          setApiKey('');
+          setActiveTab('connect');
+          toast.info('Lead Prosper disconnected');
+        } else {
+          toast.error('Failed to disconnect from Lead Prosper');
+        }
+      } else {
+        // If no connection in DB but locally we think we're connected
+        leadProsperApi.resetState();
+        setIsConnected(false);
+        setApiKey('');
+        setActiveTab('connect');
+        toast.info('Lead Prosper disconnected');
+      }
+    } catch (error) {
+      console.error('Error disconnecting from Lead Prosper:', error);
+      toast.error('Error disconnecting from Lead Prosper');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -92,6 +177,9 @@ const LeadProsperIntegration = () => {
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                       />
+                      {errorMessage && (
+                        <p className="text-sm text-red-500 mt-1">{errorMessage}</p>
+                      )}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       You can find your API key in your Lead Prosper account settings.
@@ -108,11 +196,13 @@ const LeadProsperIntegration = () => {
         </CardContent>
         <CardFooter className="flex justify-between">
           {isConnected ? (
-            <Button variant="destructive" onClick={handleDisconnect}>
+            <Button variant="destructive" onClick={handleDisconnect} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Disconnect Lead Prosper
             </Button>
           ) : (
             <Button onClick={handleConnect} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? "Connecting..." : "Connect Lead Prosper"}
             </Button>
           )}
