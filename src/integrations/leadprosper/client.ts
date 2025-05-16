@@ -80,10 +80,21 @@ export const leadProsperApi = {
         this.setCachedApiKey(apiKey);
       }
 
+      // Create a properly shaped credentials object
+      const credentialsObj = typeof credentials === 'string' 
+        ? { apiKey } 
+        : { apiKey, ...(credentials as Record<string, any> || {}) };
+
       return {
         isConnected: !!apiKey,
         apiKey,
-        credentials: data[0]
+        credentials: {
+          id: data[0].id,
+          name: data[0].name,
+          is_connected: data[0].is_connected,
+          last_synced: data[0].last_synced,
+          credentials: credentialsObj
+        }
       };
     } catch (error) {
       console.error('Error in checkConnection:', error);
