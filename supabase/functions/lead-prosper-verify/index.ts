@@ -29,6 +29,7 @@ serve(async (req) => {
     try {
       const requestData = await req.json();
       apiKey = requestData.apiKey;
+      console.log("API key received, length:", apiKey?.length || 0);
     } catch (parseError) {
       console.error('Error parsing request body:', parseError);
       return new Response(
@@ -66,44 +67,74 @@ serve(async (req) => {
       );
     }
 
-    // Make a simple request to the Lead Prosper API to verify the API key
-    // Use the /v1/campaigns endpoint to match the client-side verification
-    console.log("Testing Lead Prosper API connection...");
-    const response = await fetch('https://api.leadprosper.io/v1/campaigns', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      // Add a timeout to avoid hanging requests
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-    });
+    console.log("Attempting Lead Prosper API verification");
+    
+    // First attempt with v1/campaigns endpoint
+    let response;
+    let isValid = false;
+    let errorDetails = null;
+    
+    console.log("Trying first endpoint: /v1/campaigns");
+    try {
+      response = await fetch('https://api.leadprosper.io/v1/campaigns', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        // Add a timeout to avoid hanging requests
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Lead Prosper API error (${response.status}): ${errorText}`);
-      
+      if (response.ok) {
+        console.log("Lead Prosper API connection successful with /v1/campaigns");
+        isValid = true;
+      } else {
+        console.error(`Lead Prosper API error with first endpoint (${response.status}): ${response.statusText}`);
+        errorDetails = `Error with primary endpoint (${response.status}): ${response.statusText}`;
+        
+        // Try alternative endpoint
+        console.log("Trying alternative endpoint: /public/campaigns");
+        const altResponse = await fetch('https://api.leadprosper.io/public/campaigns', {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(10000),
+        });
+        
+        if (altResponse.ok) {
+          console.log("Lead Prosper API connection successful with /public/campaigns");
+          isValid = true;
+        } else {
+          console.error(`Lead Prosper API error with alternative endpoint (${altResponse.status}): ${altResponse.statusText}`);
+          errorDetails += ` | Error with alternative endpoint (${altResponse.status}): ${altResponse.statusText}`;
+        }
+      }
+    } catch (fetchError) {
+      console.error("Fetch error during verification:", fetchError);
+      errorDetails = `Fetch error: ${fetchError.message || "Unknown error"}`;
+    }
+
+    // Return verification result
+    if (isValid) {
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          isValid: true,
+          message: "Lead Prosper API connection successful" 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
       return new Response(
         JSON.stringify({ 
           success: false, 
           isValid: false,
-          status: response.status,
-          error: `Lead Prosper API error: ${response.status} ${response.statusText}`,
-          details: errorText
+          error: errorDetails || "Failed to connect to Lead Prosper API",
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Successfully verified
-    console.log("Lead Prosper API connection successful");
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        isValid: true,
-        message: "Lead Prosper API connection successful" 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
     
   } catch (error) {
     console.error("Error verifying Lead Prosper API:", error);

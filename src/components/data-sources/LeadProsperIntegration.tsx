@@ -5,17 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, LinkIcon, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Link, LinkIcon, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
 import { toast } from 'sonner';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const LeadProsperIntegration = () => {
   const { user } = useAuth();
   const [apiKey, setApiKey] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState('connect');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -26,13 +28,19 @@ const LeadProsperIntegration = () => {
 
   const checkExistingConnection = async () => {
     try {
+      setIsLoading(true);
       const connectionData = await leadProsperApi.checkConnection(true);
       if (connectionData.isConnected) {
+        console.log("Found existing Lead Prosper connection");
         setIsConnected(true);
         setActiveTab('campaigns');
+      } else {
+        console.log("No existing Lead Prosper connection found");
       }
     } catch (error) {
       console.error("Error checking Lead Prosper connection:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -46,7 +54,9 @@ const LeadProsperIntegration = () => {
     setErrorMessage(null);
     
     try {
-      // Verify the API key using the Edge Function
+      console.log("Starting verification process");
+      
+      // First try to verify the API key using the Edge Function
       const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
         method: 'POST',
         headers: {
@@ -55,9 +65,11 @@ const LeadProsperIntegration = () => {
         body: JSON.stringify({ apiKey }),
       });
       
+      console.log("Verification response status:", response.status);
       const verifyResult = await response.json();
+      console.log("Verification result:", verifyResult);
       
-      if (!response.ok || !verifyResult.isValid) {
+      if (!verifyResult.isValid) {
         const errorMsg = verifyResult.error || 'API key verification failed. Please check your key and try again.';
         setErrorMessage(errorMsg);
         toast.error(errorMsg);
@@ -67,6 +79,7 @@ const LeadProsperIntegration = () => {
       
       // If verified, store the credentials
       if (user) {
+        console.log("Saving verified connection");
         const connectionResult = await leadProsperApi.saveConnection(apiKey, 'Lead Prosper', user.id);
         
         if (connectionResult) {
@@ -76,6 +89,9 @@ const LeadProsperIntegration = () => {
           setIsConnected(true);
           setActiveTab('campaigns');
           toast.success('Successfully connected to Lead Prosper');
+          console.log("Connection saved successfully");
+        } else {
+          throw new Error("Failed to save the connection");
         }
       } else {
         toast.error('User not logged in. Please sign in to save your connection.');
@@ -127,6 +143,47 @@ const LeadProsperIntegration = () => {
     }
   };
 
+  // Verify API key separately before connecting
+  const verifyApiKeyOnly = async () => {
+    if (!apiKey.trim()) {
+      toast.error('Please enter your Lead Prosper API key');
+      return;
+    }
+
+    setIsVerifying(true);
+    setErrorMessage(null);
+    
+    try {
+      console.log("Verifying API key only");
+      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey }),
+      });
+      
+      console.log("Verification response status:", response.status);
+      const verifyResult = await response.json();
+      console.log("Verification result:", verifyResult);
+      
+      if (verifyResult.isValid) {
+        toast.success('API key is valid!');
+      } else {
+        const errorMsg = verifyResult.error || 'API key verification failed. Please check your key.';
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+      }
+    } catch (error) {
+      console.error('Error verifying API key:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to verify API key';
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -148,43 +205,61 @@ const LeadProsperIntegration = () => {
             
             <TabsContent value="connect">
               <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1">
-                    <Label htmlFor="leadprosper-status">Connection Status</Label>
-                    <div className="flex items-center mt-1 text-sm">
-                      {isConnected ? (
-                        <>
-                          <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                          <span className="text-green-600">Connected</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                          <span className="text-red-600">Not Connected</span>
-                        </>
-                      )}
-                    </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="flex items-center space-x-2">
+                      <div className="flex-1">
+                        <Label htmlFor="leadprosper-status">Connection Status</Label>
+                        <div className="flex items-center mt-1 text-sm">
+                          {isConnected ? (
+                            <>
+                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                              <span className="text-green-600">Connected</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                              <span className="text-red-600">Not Connected</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-                {!isConnected && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="leadprosper-api-key">API Key</Label>
-                      <Input
-                        id="leadprosper-api-key"
-                        placeholder="Enter your Lead Prosper API key"
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                      />
-                      {errorMessage && (
-                        <p className="text-sm text-red-500 mt-1">{errorMessage}</p>
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      You can find your API key in your Lead Prosper account settings.
-                    </div>
-                  </div>
+                    {errorMessage && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">{errorMessage}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {!isConnected && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="leadprosper-api-key">API Key</Label>
+                          <Input
+                            id="leadprosper-api-key"
+                            placeholder="Enter your Lead Prosper API key"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          You can find your API key in your Lead Prosper account settings.
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                          <Button variant="secondary" onClick={verifyApiKeyOnly} disabled={isVerifying || !apiKey.trim()}>
+                            {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isVerifying ? "Verifying..." : "Verify API Key"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </TabsContent>
@@ -201,7 +276,7 @@ const LeadProsperIntegration = () => {
               Disconnect Lead Prosper
             </Button>
           ) : (
-            <Button onClick={handleConnect} disabled={isLoading}>
+            <Button onClick={handleConnect} disabled={isLoading || !apiKey.trim()}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? "Connecting..." : "Connect Lead Prosper"}
             </Button>
