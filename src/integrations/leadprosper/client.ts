@@ -1,11 +1,11 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { 
   LeadProsperCredentials, 
   LeadProsperCampaign, 
   LeadProsperMapping,
   LeadProsperSyncResult,
-  LeadProsperLeadProcessingResult
+  LeadProsperLeadProcessingResult,
+  LeadProsperConnection
 } from "./types";
 
 // Cache key for storing the API key in localStorage
@@ -148,7 +148,7 @@ export const leadProsperApi = {
   /**
    * Store credentials in the database
    */
-  async storeCredentials(apiKey: string): Promise<boolean> {
+  async storeCredentials(apiKey: string, userId: string): Promise<boolean> {
     try {
       // For security, we'll rely on server-side RLS policies
       const { error } = await supabase.from('account_connections')
@@ -156,6 +156,7 @@ export const leadProsperApi = {
           platform: 'leadprosper',
           name: 'Lead Prosper',
           is_connected: true,
+          user_id: userId,
           credentials: JSON.stringify({ apiKey })
         });
 
@@ -234,6 +235,65 @@ export const leadProsperApi = {
     } catch (error) {
       console.error('Error in saveConnection:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Get Lead Prosper account connections
+   */
+  async getAccountConnections(): Promise<LeadProsperConnection[]> {
+    try {
+      const { data, error } = await supabase
+        .from('account_connections')
+        .select('*')
+        .eq('platform', 'leadprosper')
+        .eq('is_connected', true);
+        
+      if (error) {
+        console.error('Error fetching Lead Prosper connections:', error);
+        return [];
+      }
+      
+      if (!data || data.length === 0) {
+        return [];
+      }
+      
+      // Transform the database records to the expected connection format
+      return data.map(record => {
+        // Handle credentials - might be stored as string or object
+        let apiKey = '';
+        let credentialsObj: any = {};
+        
+        if (record.credentials) {
+          if (typeof record.credentials === 'string') {
+            try {
+              credentialsObj = JSON.parse(record.credentials);
+              apiKey = credentialsObj.apiKey || '';
+            } catch (e) {
+              console.error('Failed to parse credentials string:', e);
+            }
+          } else if (typeof record.credentials === 'object') {
+            credentialsObj = record.credentials;
+            apiKey = credentialsObj.apiKey || '';
+          }
+        }
+        
+        return {
+          id: record.id,
+          name: record.name,
+          platform: 'leadprosper',
+          isConnected: record.is_connected,
+          lastSynced: record.last_synced,
+          apiKey,
+          credentials: {
+            apiKey,
+            ...credentialsObj
+          }
+        };
+      });
+    } catch (error) {
+      console.error('Error in getAccountConnections:', error);
+      return [];
     }
   },
 

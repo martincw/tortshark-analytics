@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -231,7 +230,7 @@ export default function LeadProsperMappingDialog({
       if (result.success) {
         toast.success(`Lead data backfill completed successfully`, {
           id: 'backfill',
-          description: `Processed ${result.processed_leads} leads for the selected date range.`
+          description: `Processed ${result.processed || 0} leads for the selected date range.`
         });
         return true;
       } else {

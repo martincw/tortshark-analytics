@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.6";
 
@@ -233,12 +232,13 @@ async function processLeadsAndUpdateMetrics(data: {
 }): Promise<{
   success: boolean;
   processed: number;
+  processed_leads: number; // Added to match interface
   errors: number;
   message?: string;
 }> {
   try {
     if (!data.leads || !Array.isArray(data.leads) || data.leads.length === 0) {
-      return { success: true, processed: 0, errors: 0 };
+      return { success: true, processed: 0, processed_leads: 0, errors: 0 };
     }
 
     const { campaign_id: lpCampaignId, ts_campaign_id: tsCampaignId } = data;
@@ -366,6 +366,7 @@ async function processLeadsAndUpdateMetrics(data: {
     return {
       success: errors === 0,
       processed,
+      processed_leads: processed, // Added to match interface
       errors
     };
   } catch (error) {
@@ -373,6 +374,7 @@ async function processLeadsAndUpdateMetrics(data: {
     return {
       success: false,
       processed: 0,
+      processed_leads: 0, // Added to match interface
       errors: data.leads?.length || 0
     };
   }
