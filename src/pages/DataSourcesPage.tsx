@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import LeadProsperIntegration from "@/components/data-sources/LeadProsperIntegration";
+import LeadProsper from "@/components/integrations/LeadProsper";
 import GoogleAdsIntegration from "@/components/data-sources/GoogleAdsIntegration";
 import ClickMagickIntegration from "@/components/data-sources/ClickMagickIntegration";
 
@@ -77,7 +77,7 @@ export default function DataSourcesPage() {
           <TabsTrigger value="clickmagick">ClickMagick</TabsTrigger>
         </TabsList>
         <TabsContent value="leadprosper">
-          <LeadProsperIntegration />
+          <LeadProsper />
         </TabsContent>
         <TabsContent value="googleads">
           <GoogleAdsIntegration />
