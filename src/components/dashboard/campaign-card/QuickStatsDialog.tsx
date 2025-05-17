@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
   campaignName,
   onSubmit
 }) => {
+  // Initialize form state only when dialog opens
   const [quickStats, setQuickStats] = useState<QuickStatsData>({
     leads: "0",
     cases: "0",
@@ -59,6 +61,21 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
       setCalendarOpen(false);
     }
   };
+  
+  // Reset the form values when the dialog opens/closes
+  React.useEffect(() => {
+    if (isOpen) {
+      // Only reset values, not the campaign selection
+      setQuickStats({
+        leads: "0",
+        cases: "0",
+        retainers: "0",
+        revenue: "0",
+        adSpend: "0"
+      });
+      setSelectedDate(subDays(new Date(), 1));
+    }
+  }, [isOpen]);
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

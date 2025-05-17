@@ -25,22 +25,31 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
   const [adSpend, setAdSpend] = useState<number>(0);
   const [revenue, setRevenue] = useState<number>(0);
   
+  // Track if this is the initial dialog open to only set default campaign once
+  const [isInitialOpen, setIsInitialOpen] = useState<boolean>(true);
+  
   const { submitStats, isSubmitting } = useStatsSubmission({
     fetchCampaigns,
     onClose: () => onOpenChange(false)
   });
 
-  // Reset form when dialog opens
+  // Handle dialog open/close
   useEffect(() => {
     if (open) {
-      setSelectedCampaignId(campaigns.length > 0 ? campaigns[0].id : "");
+      // Only set the default campaign ID if it's the initial open or no campaign is selected
+      if (isInitialOpen || selectedCampaignId === "") {
+        setSelectedCampaignId(campaigns.length > 0 ? campaigns[0].id : "");
+        setIsInitialOpen(false);
+      }
+      
+      // Reset form fields except selected campaign
       setStatsDate(subDays(new Date(), 1)); // Set to yesterday
       setLeads(0);
       setCases(0);
       setAdSpend(0);
       setRevenue(0);
     }
-  }, [open, campaigns]);
+  }, [open, campaigns, isInitialOpen, selectedCampaignId]);
 
   const handleSubmit = async () => {
     await submitStats(
