@@ -6,6 +6,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
+const GOOGLE_ADS_API_VERSION = "v18";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,29 +132,85 @@ serve(async (req) => {
           }
         }
         
-        // For demonstration purposes, return mock accounts
-        // In production, you would make an actual call to the Google Ads API
-        // This is a temporary solution until we implement the full Google Ads API client
-        const mockAccounts = [
-          {
-            id: "1234567890",
-            name: "Test Account 1",
-            status: "ENABLED",
-            customerId: "1234567890"
-          },
-          {
-            id: "9876543210",
-            name: "Test Account 2",
-            status: "ENABLED",
-            customerId: "9876543210"
-          }
-        ];
+        let accessToken = tokenData.access_token;
 
-        console.log(`Successfully retrieved ${mockAccounts.length} accounts`);
+        // Refresh token if needed
+        if (isExpired && tokenData.refresh_token) {
+          const { data: refreshData } = await supabase.functions.invoke("google-oauth", {
+            body: { action: "refresh" }
+          });
+
+          if (refreshData?.success) {
+            const { data: newToken } = await adminClient
+              .from("google_ads_tokens")
+              .select("access_token")
+              .eq("user_id", user.id)
+              .single();
+            accessToken = newToken?.access_token || accessToken;
+          }
+        }
+
+        const listRes = await fetch(
+          `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN
+            }
+          }
+        );
+
+        if (!listRes.ok) {
+          const errorText = await listRes.text();
+          throw new Error(`Failed to list accounts: ${errorText}`);
+        }
+
+        const { resourceNames } = await listRes.json();
+
+        if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
+          return new Response(JSON.stringify({ accounts: [] }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const customerIds = resourceNames.map((name: string) => name.split("/")[1]);
+
+        const accounts = await Promise.all(
+          customerIds.map(async (cid: string) => {
+            try {
+              const resp = await fetch(
+                `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${cid}`,
+                {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN
+                  }
+                }
+              );
+
+              if (!resp.ok) {
+                return { id: cid, customerId: cid, name: `Account ${cid}` };
+              }
+
+              const data = await resp.json();
+              return {
+                id: cid,
+                customerId: cid,
+                name: data.customer?.descriptiveName || `Account ${cid}`,
+                status: data.customer?.status || "ENABLED"
+              };
+            } catch {
+              return { id: cid, customerId: cid, name: `Account ${cid}` };
+            }
+          })
+        );
+
         return new Response(
-          JSON.stringify({ accounts: mockAccounts }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          JSON.stringify({ accounts }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           }
         );
       } catch (error) {

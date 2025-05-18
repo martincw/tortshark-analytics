@@ -11,6 +11,12 @@ const corsHeaders = {
 };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const adminClient = createClient(
+  SUPABASE_URL,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+);
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
+const GOOGLE_ADS_API_VERSION = "v18";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -105,15 +111,65 @@ serve(async (req) => {
       }
 
       try {
-        // Mock campaigns for testing purposes
-        const mockCampaigns = [
-          { id: "campaign-1", name: "Campaign 1", status: "RUNNING" },
-          { id: "campaign-2", name: "Campaign 2", status: "PAUSED" },
-        ];
+        const { data: tokenData, error: tokenError } = await adminClient
+          .from("google_ads_tokens")
+          .select("access_token, refresh_token, expires_at")
+          .eq("user_id", user.id)
+          .single();
 
-        console.log(`Successfully listed available campaigns for account ${googleAccountId}`);
+        if (tokenError || !tokenData) {
+          return new Response(
+            JSON.stringify({ error: "Google Ads authentication not set up" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        let accessToken = tokenData.access_token;
+        const isExpired = new Date(tokenData.expires_at) < new Date();
+
+        if (isExpired && tokenData.refresh_token) {
+          const { data: refreshData } = await supabase.functions.invoke("google-oauth", {
+            body: { action: "refresh" }
+          });
+          if (refreshData?.success) {
+            const { data: newToken } = await adminClient
+              .from("google_ads_tokens")
+              .select("access_token")
+              .eq("user_id", user.id)
+              .single();
+            accessToken = newToken?.access_token || accessToken;
+          }
+        }
+
+        const query = `SELECT campaign.id, campaign.name, campaign.status FROM campaign WHERE campaign.status != 'REMOVED'`;
+
+        const resp = await fetch(
+          `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${googleAccountId}/googleAds:search`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ query, pageSize: 1000 })
+          }
+        );
+
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          throw new Error(`API error: ${errorText}`);
+        }
+
+        const data = await resp.json();
+        const campaigns = (data.results || []).map((r: any) => ({
+          id: r.campaign.id,
+          name: r.campaign.name,
+          status: r.campaign.status
+        }));
+
         return new Response(
-          JSON.stringify({ campaigns: mockCampaigns }),
+          JSON.stringify({ campaigns }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (error) {
