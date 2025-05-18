@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "@/integrations/supabase/client";
 import { 
   LeadProsperCredentials, 
   LeadProsperCampaign, 
@@ -571,7 +571,7 @@ export const leadProsperApi = {
    * Get Lead Prosper webhook URL
    */
   getLeadProsperWebhookUrl(): string {
-    return `${window.location.origin}/api/webhook/leadprosper`;
+    return `${SUPABASE_FUNCTIONS_URL}/lead-prosper-webhook`;
   },
 
   /**
@@ -585,7 +585,7 @@ export const leadProsperApi = {
     endDate: string
   ): Promise<LeadProsperLeadProcessingResult> {
     try {
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-backfill`, {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/lead-prosper-backfill`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -615,7 +615,7 @@ export const leadProsperApi = {
    */
   async fetchTodayLeads(): Promise<LeadProsperSyncResult> {
     try {
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-fetch-today`, {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/lead-prosper-fetch-today`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
