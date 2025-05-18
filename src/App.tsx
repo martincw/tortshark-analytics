@@ -23,6 +23,7 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
 import LeadsPage from "./pages/LeadsPage";
+import RedirectIntegrations from "./components/RedirectIntegrations";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,8 +72,8 @@ const App = () => (
               {/* Redirect /campaign to /campaigns to fix 404 issues */}
               <Route path="/campaign" element={<Navigate to="/campaigns" replace />} />
               
-              {/* Redirect /integrations to /data-sources */}
-              <Route path="/integrations" element={<Navigate to="/data-sources" replace />} />
+              {/* Redirect /integrations to /data-sources while preserving query params */}
+              <Route path="/integrations" element={<RedirectIntegrations />} />
               
               {/* All other routes are protected and wrapped with MainLayout */}
               <Route element={
