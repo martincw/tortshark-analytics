@@ -9,6 +9,7 @@ import { Link, LinkIcon, CheckCircle2, XCircle, Loader2, AlertCircle } from "luc
 import { toast } from 'sonner';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -56,17 +57,16 @@ const LeadProsperIntegration = () => {
     try {
       console.log("Starting verification process");
       
-      // First try to verify the API key using the Edge Function
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      // First try to verify the API key using the Edge Function via Supabase
+      const { data, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
-      
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const verifyResult = typeof data === 'string' ? JSON.parse(data) : data;
       console.log("Verification result:", verifyResult);
       
       if (!verifyResult.isValid) {
@@ -155,16 +155,15 @@ const LeadProsperIntegration = () => {
     
     try {
       console.log("Verifying API key only");
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      const { data, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
-      
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const verifyResult = typeof data === 'string' ? JSON.parse(data) : data;
       console.log("Verification result:", verifyResult);
       
       if (verifyResult.isValid) {
