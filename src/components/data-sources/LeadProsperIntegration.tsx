@@ -66,7 +66,15 @@ const LeadProsperIntegration = () => {
       });
       
       console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+      let verifyResult: any = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        verifyResult = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Unexpected verification response:', text);
+        throw new Error(text || 'Unexpected response from verification endpoint');
+      }
       console.log("Verification result:", verifyResult);
       
       if (!verifyResult.isValid) {
@@ -164,7 +172,15 @@ const LeadProsperIntegration = () => {
       });
       
       console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+      let verifyResult: any = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        verifyResult = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Unexpected verification response:', text);
+        throw new Error(text || 'Unexpected response from verification endpoint');
+      }
       console.log("Verification result:", verifyResult);
       
       if (verifyResult.isValid) {
