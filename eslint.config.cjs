@@ -3,6 +3,10 @@ module.exports = [
   { ignores: ["dist"] },
   {
     files: ["**/*.{ts,tsx}"],
+    plugins: {
+      "react-hooks": require("eslint-plugin-react-hooks"),
+      "react-refresh": require("eslint-plugin-react-refresh"),
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: {
