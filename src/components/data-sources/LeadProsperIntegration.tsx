@@ -11,6 +11,7 @@ import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 const LeadProsperIntegration = () => {
   const { user } = useAuth();
@@ -57,16 +58,14 @@ const LeadProsperIntegration = () => {
       console.log("Starting verification process");
       
       // First try to verify the API key using the Edge Function
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      const { data: verifyResult, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
-      
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+
+      if (error) {
+        console.error('Verification error:', error);
+      }
+
       console.log("Verification result:", verifyResult);
       
       if (!verifyResult.isValid) {
@@ -155,16 +154,14 @@ const LeadProsperIntegration = () => {
     
     try {
       console.log("Verifying API key only");
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      const { data: verifyResult, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
-      
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+
+      if (error) {
+        console.error('Verification error:', error);
+      }
+
       console.log("Verification result:", verifyResult);
       
       if (verifyResult.isValid) {
