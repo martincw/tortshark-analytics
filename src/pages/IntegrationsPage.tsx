@@ -3,7 +3,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Google from "@/components/integrations/Google";
 import LeadProsper from "@/components/integrations/LeadProsper";
-import Hyros from "@/components/integrations/Hyros";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -23,18 +22,18 @@ export default function IntegrationsPage() {
     const searchParams = new URLSearchParams(location.search);
     const integrationParam = searchParams.get('integration');
     
-    if (integrationParam && ['hyros', 'google', 'leadprosper'].includes(integrationParam.toLowerCase())) {
+    if (integrationParam && ['google', 'leadprosper'].includes(integrationParam.toLowerCase())) {
       if (activeTab !== integrationParam.toLowerCase()) {
         setActiveTab(integrationParam.toLowerCase());
       }
     } else if (!activeTab) {
       // Only set default if no tab is currently active
       isNavigatingRef.current = true;
-      setActiveTab('hyros');
+      setActiveTab('google');
       
       // Update URL to reflect current integration tab without reload
       const newParams = new URLSearchParams(location.search);
-      newParams.set('integration', 'hyros');
+      newParams.set('integration', 'google');
       navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
       
       // Reset navigation flag
@@ -89,13 +88,9 @@ export default function IntegrationsPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="hyros">HYROS</TabsTrigger>
           <TabsTrigger value="google">Google Ads</TabsTrigger>
           <TabsTrigger value="leadprosper">Lead Prosper</TabsTrigger>
         </TabsList>
-        <TabsContent value="hyros">
-          <Hyros />
-        </TabsContent>
         <TabsContent value="google">
           <Google />
         </TabsContent>
