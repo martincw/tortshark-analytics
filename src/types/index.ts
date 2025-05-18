@@ -5,6 +5,5 @@ export * from './buyer';
 export * from './metrics';
 export * from './forecasting';
 export * from './common';
-export * from './hyros';
 export * from './navigation';
 
