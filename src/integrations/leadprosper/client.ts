@@ -585,25 +585,21 @@ export const leadProsperApi = {
     endDate: string
   ): Promise<LeadProsperLeadProcessingResult> {
     try {
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-backfill`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('lead-prosper-backfill', {
+        body: {
           apiKey,
           lpCampaignId,
           tsCampaignId,
           startDate,
           endDate
-        })
+        }
       });
-      
-      if (!response.ok) {
-        throw new Error(`Backfill API error: ${response.status} ${response.statusText}`);
+
+      if (error) {
+        throw new Error(`Backfill API error: ${error.message}`);
       }
-      
-      return await response.json();
+
+      return data as LeadProsperLeadProcessingResult;
     } catch (error) {
       console.error('Error backfilling leads:', error);
       throw error;
@@ -615,18 +611,13 @@ export const leadProsperApi = {
    */
   async fetchTodayLeads(): Promise<LeadProsperSyncResult> {
     try {
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-fetch-today`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today');
+
+      if (error) {
+        throw new Error(`API error: ${error.message}`);
       }
-      
-      return await response.json();
+
+      return data as LeadProsperSyncResult;
     } catch (error) {
       console.error('Error fetching today\'s leads:', error);
       throw {
