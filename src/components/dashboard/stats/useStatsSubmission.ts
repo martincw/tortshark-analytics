@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface UseStatsSubmissionProps {
   fetchCampaigns: () => Promise<void>;
@@ -11,6 +12,7 @@ interface UseStatsSubmissionProps {
 
 export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissionProps) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const { currentWorkspace } = useWorkspace();
 
   const submitStats = async (
     selectedCampaignId: string,
@@ -74,7 +76,8 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases, // Using cases as retainers
             revenue,
-            ad_spend: adSpend
+            ad_spend: adSpend,
+            workspace_id: currentWorkspace?.id // Add workspace_id
           });
           
         if (insertError) {
@@ -114,7 +117,8 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases,
             revenue,
-            date: dateString
+            date: dateString,
+            workspace_id: currentWorkspace?.id // Add workspace_id
           }, {
             onConflict: 'campaign_id'
           });
@@ -124,6 +128,24 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
         }
       } else {
         console.log("Skipping manual stats update as the new date is older:", dateString);
+      }
+      
+      // Call RPC function to update the daily metrics
+      if (leads > 0 || adSpend > 0 || revenue > 0) {
+        const { error: rpcError } = await supabase.rpc('upsert_daily_lead_metrics', {
+          p_ts_campaign_id: selectedCampaignId,
+          p_date: dateString,
+          p_lead_count: leads,
+          p_accepted: cases,
+          p_duplicated: 0, // Not tracking duplicates here
+          p_failed: 0, // Not tracking failed leads here
+          p_cost: adSpend,
+          p_revenue: revenue
+        });
+        
+        if (rpcError) {
+          console.error("Error calling upsert_daily_lead_metrics:", rpcError);
+        }
       }
       
       // Refresh data

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { subDays } from "@/lib/utils/ManualDateUtils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface QuickStatsDialogProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
   // Set default date to yesterday instead of today
   const [selectedDate, setSelectedDate] = useState<Date>(subDays(new Date(), 1));
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const { currentWorkspace } = useWorkspace();
   
   const handleSubmit = () => {
     onSubmit(quickStats, selectedDate);

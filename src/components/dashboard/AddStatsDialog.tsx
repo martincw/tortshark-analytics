@@ -7,6 +7,7 @@ import { CampaignSelect } from "./stats/CampaignSelect";
 import { StatsForm } from "./stats/StatsForm";
 import { useStatsSubmission } from "./stats/useStatsSubmission";
 import { subDays } from "@/lib/utils/ManualDateUtils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface AddStatsDialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface AddStatsDialogProps {
 
 export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChange }) => {
   const { campaigns, fetchCampaigns } = useCampaign();
+  const { currentWorkspace } = useWorkspace();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [statsDate, setStatsDate] = useState<Date>(() => {
     // Default to yesterday instead of today
@@ -33,12 +35,17 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
     onClose: () => onOpenChange(false)
   });
 
+  // Filter campaigns by current workspace
+  const workspaceCampaigns = currentWorkspace 
+    ? campaigns.filter(campaign => campaign.workspace_id === currentWorkspace.id || campaign.workspace_id === null)
+    : campaigns;
+
   // Handle dialog open/close
   useEffect(() => {
     if (open) {
       // Only set the default campaign ID if it's the initial open or no campaign is selected
       if (isInitialOpen || selectedCampaignId === "") {
-        setSelectedCampaignId(campaigns.length > 0 ? campaigns[0].id : "");
+        setSelectedCampaignId(workspaceCampaigns.length > 0 ? workspaceCampaigns[0].id : "");
         setIsInitialOpen(false);
       }
       
@@ -49,7 +56,7 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
       setAdSpend(0);
       setRevenue(0);
     }
-  }, [open, campaigns, isInitialOpen, selectedCampaignId]);
+  }, [open, workspaceCampaigns, isInitialOpen, selectedCampaignId]);
 
   const handleSubmit = async () => {
     await submitStats(
@@ -70,7 +77,7 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
         </DialogHeader>
         
         <CampaignSelect 
-          campaigns={campaigns}
+          campaigns={workspaceCampaigns}
           selectedCampaignId={selectedCampaignId}
           onCampaignChange={setSelectedCampaignId}
         />

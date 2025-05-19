@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,11 +20,15 @@ import {
   Users,
   ListFilter,
   Link as LinkIcon,
+  Settings,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
 import { NavItems } from "./NavItems";
 import { NavItem } from "@/types/navigation";
+import { WorkspaceSelector } from "../workspace/WorkspaceSelector";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // Main navigation items (excluding external links that will only be in sidebar)
 const navItems: NavItem[] = [
@@ -33,6 +38,12 @@ const navItems: NavItem[] = [
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
   { href: "/leads", label: "Leads", icon: <ListFilter className="h-4 w-4 mr-2" /> },
   { href: "/data-sources", label: "Data Sources", icon: <LinkIcon className="h-4 w-4 mr-2" /> },
+];
+
+// Team and settings items
+const teamNavItems: NavItem[] = [
+  { href: "/team-settings", label: "Team", icon: <UserPlus className="h-4 w-4 mr-2" /> },
+  { href: "/settings", label: "Settings", icon: <Settings className="h-4 w-4 mr-2" /> },
 ];
 
 // External links that will only appear in sidebar
@@ -47,6 +58,7 @@ const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortSh
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const { signOut } = useAuth();
+  const { currentWorkspace } = useWorkspace();
   const [logoError, setLogoError] = useState(false);
   
   const handleLogout = async () => {
@@ -79,7 +91,7 @@ export const Navbar: React.FC = () => {
                 </SheetDescription>
               </SheetHeader>
               <SidebarMenu 
-                navItems={navItems}
+                navItems={[...navItems, ...teamNavItems]}
                 externalNavItems={externalNavItems} 
                 isActive={isActive} 
               />
@@ -97,11 +109,18 @@ export const Navbar: React.FC = () => {
               />
             )}
           </Link>
+          
+          {/* Add Workspace Selector */}
+          <WorkspaceSelector />
         </div>
         <nav className="md:flex items-center space-x-4 hidden">
           <NavItems items={navItems} isActive={isActive} priority={true} />
           <div className="h-6 border-r mx-2"></div>
           <NavItems items={navItems} isActive={isActive} priority={false} />
+          
+          {/* Team settings menu */}
+          <NavItems items={teamNavItems} isActive={isActive} priority={false} />
+          
           <Button
             variant="ghost"
             size="sm"
