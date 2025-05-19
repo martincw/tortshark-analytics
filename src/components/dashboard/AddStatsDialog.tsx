@@ -37,7 +37,10 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
 
   // Filter campaigns by current workspace
   const workspaceCampaigns = currentWorkspace 
-    ? campaigns.filter(campaign => campaign.workspace_id === currentWorkspace.id || campaign.workspace_id === null)
+    ? campaigns.filter(campaign => {
+        // Filter campaigns that belong to current workspace or have null workspace
+        return campaign.workspace_id === currentWorkspace.id || !campaign.workspace_id;
+      })
     : campaigns;
 
   // Handle dialog open/close

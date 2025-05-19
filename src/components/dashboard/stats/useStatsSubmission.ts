@@ -132,6 +132,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
       
       // Call RPC function to update the daily metrics
       if (leads > 0 || adSpend > 0 || revenue > 0) {
+        // Use direct SQL query with RPC function call since the function wasn't recognized in types
         const { error: rpcError } = await supabase.rpc('upsert_daily_lead_metrics', {
           p_ts_campaign_id: selectedCampaignId,
           p_date: dateString,

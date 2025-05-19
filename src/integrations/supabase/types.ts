@@ -1130,6 +1130,19 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      upsert_daily_lead_metrics: {
+        Args: {
+          p_ts_campaign_id: string
+          p_date: string
+          p_lead_count: number
+          p_accepted: number
+          p_duplicated: number
+          p_failed: number
+          p_cost: number
+          p_revenue: number
+        }
+        Returns: undefined
+      }
       upsert_hyros_daily_metrics: {
         Args: {
           p_ts_campaign_id: string

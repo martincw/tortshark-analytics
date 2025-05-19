@@ -27,16 +27,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  users as usersIcon, 
-  plus, 
-  search, 
-  moreHorizontal, 
-  userPlus, 
-  edit, 
-  trash, 
-  check, 
-  x,
-  logOut
+  Users, 
+  Plus, 
+  Search, 
+  MoreHorizontal, 
+  UserPlus, 
+  Edit, 
+  Trash, 
+  Check, 
+  X,
+  LogOut
 } from "lucide-react";
 
 import { useWorkspace, Workspace, WorkspaceMember, WorkspaceInvitation } from "@/contexts/WorkspaceContext";
@@ -178,7 +178,7 @@ const TeamSettingsPage: React.FC = () => {
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button size="sm" variant="outline">
-                        <plus className="h-4 w-4 mr-1" />
+                        <Plus className="h-4 w-4 mr-1" />
                         New
                       </Button>
                     </DialogTrigger>
@@ -220,7 +220,7 @@ const TeamSettingsPage: React.FC = () => {
                     >
                       <div className="flex items-center space-x-3">
                         <div className="bg-primary/20 h-8 w-8 rounded-full flex items-center justify-center">
-                          <usersIcon className="h-4 w-4 text-primary" />
+                          <Users className="h-4 w-4 text-primary" />
                         </div>
                         <div>
                           <p className="font-medium">{workspace.name}</p>
@@ -233,7 +233,7 @@ const TeamSettingsPage: React.FC = () => {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <moreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -244,7 +244,7 @@ const TeamSettingsPage: React.FC = () => {
                               setEditWorkspaceName(workspace.name);
                             }}
                           >
-                            <edit className="mr-2 h-4 w-4" />
+                            <Edit className="mr-2 h-4 w-4" />
                             Rename
                           </DropdownMenuItem>
                           
@@ -255,7 +255,7 @@ const TeamSettingsPage: React.FC = () => {
                             }}
                             className="text-destructive"
                           >
-                            <trash className="mr-2 h-4 w-4" />
+                            <Trash className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -297,7 +297,7 @@ const TeamSettingsPage: React.FC = () => {
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button size="sm">
-                              <userPlus className="h-4 w-4 mr-2" />
+                              <UserPlus className="h-4 w-4 mr-2" />
                               Invite
                             </Button>
                           </DialogTrigger>
@@ -352,7 +352,7 @@ const TeamSettingsPage: React.FC = () => {
                       Manage members in your workspace.
                     </CardDescription>
                     <div className="relative">
-                      <search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search members..."
                         className="pl-9"
@@ -402,7 +402,7 @@ const TeamSettingsPage: React.FC = () => {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <moreHorizontal className="h-4 w-4" />
+                                    <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -413,12 +413,12 @@ const TeamSettingsPage: React.FC = () => {
                                       >
                                         {member.role === 'admin' ? (
                                           <>
-                                            <logOut className="mr-2 h-4 w-4" />
+                                            <LogOut className="mr-2 h-4 w-4" />
                                             Change to Member
                                           </>
                                         ) : (
                                           <>
-                                            <edit className="mr-2 h-4 w-4" />
+                                            <Edit className="mr-2 h-4 w-4" />
                                             Make Admin
                                           </>
                                         )}
@@ -431,7 +431,7 @@ const TeamSettingsPage: React.FC = () => {
                                         }}
                                         className="text-destructive"
                                       >
-                                        <trash className="mr-2 h-4 w-4" />
+                                        <Trash className="mr-2 h-4 w-4" />
                                         Remove from workspace
                                       </DropdownMenuItem>
                                     </>
@@ -493,7 +493,7 @@ const TeamSettingsPage: React.FC = () => {
                                     toast.success(`Invitation resent to ${invitation.email}`);
                                   }}
                                 >
-                                  <check className="h-4 w-4" />
+                                  <Check className="h-4 w-4" />
                                   <span className="sr-only">Resend</span>
                                 </Button>
                                 <Button 
@@ -502,7 +502,7 @@ const TeamSettingsPage: React.FC = () => {
                                   className="h-8 px-2 text-destructive hover:bg-destructive/10"
                                   onClick={() => cancelInvitation(invitation.id)}
                                 >
-                                  <x className="h-4 w-4" />
+                                  <X className="h-4 w-4" />
                                   <span className="sr-only">Cancel</span>
                                 </Button>
                               </div>
