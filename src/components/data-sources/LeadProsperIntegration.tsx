@@ -9,6 +9,7 @@ import { Link, LinkIcon, CheckCircle2, XCircle, Loader2, AlertCircle } from "luc
 import { toast } from 'sonner';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
+import { SUPABASE_FUNCTIONS_URL } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -57,7 +58,7 @@ const LeadProsperIntegration = () => {
       console.log("Starting verification process");
       
       // First try to verify the API key using the Edge Function
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/lead-prosper-verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +156,7 @@ const LeadProsperIntegration = () => {
     
     try {
       console.log("Verifying API key only");
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/lead-prosper-verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

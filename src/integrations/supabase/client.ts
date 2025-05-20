@@ -24,3 +24,6 @@ export const supabase = createClient<Database>(
 
 // Export the Supabase URL for Edge Functions
 export const SUPABASE_PROJECT_URL = SUPABASE_URL;
+
+// Base URL for calling Supabase Edge Functions
+export const SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
