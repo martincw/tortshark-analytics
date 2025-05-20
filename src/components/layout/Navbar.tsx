@@ -20,8 +20,6 @@ import {
   Users,
   ListFilter,
   Link as LinkIcon,
-  Settings,
-  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
@@ -40,10 +38,10 @@ const navItems: NavItem[] = [
   { href: "/data-sources", label: "Data Sources", icon: <LinkIcon className="h-4 w-4 mr-2" /> },
 ];
 
-// Team and settings items
+// Team and settings items - still needed for sidebar, but moved to sidebar
 const teamNavItems: NavItem[] = [
-  { href: "/team-settings", label: "Team", icon: <UserPlus className="h-4 w-4 mr-2" /> },
-  { href: "/settings", label: "Settings", icon: <Settings className="h-4 w-4 mr-2" /> },
+  { href: "/team-settings", label: "Team", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/settings", label: "Settings", icon: <LinkIcon className="h-4 w-4 mr-2" /> },
 ];
 
 // External links that will only appear in sidebar
@@ -118,8 +116,7 @@ export const Navbar: React.FC = () => {
           <div className="h-6 border-r mx-2"></div>
           <NavItems items={navItems} isActive={isActive} priority={false} />
           
-          {/* Team settings menu */}
-          <NavItems items={teamNavItems} isActive={isActive} priority={false} />
+          {/* Team settings menu removed from here */}
           
           <Button
             variant="ghost"

@@ -1,9 +1,10 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Table, LinkIcon, FileText, Users, ListFilter } from "lucide-react";
+import { ExternalLink, Table, LinkIcon, FileText, Users, ListFilter, Settings, UserPlus } from "lucide-react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
+import { Separator } from "@/components/ui/separator";
 
 interface SidebarMenuProps {
   navItems: NavItem[];
@@ -56,25 +57,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
         )
       ))}
       
-      {/* External Links */}
-      <div className="px-4 py-2">
-        <h3 className="text-sm font-medium mb-2">External Links</h3>
-        <div className="space-y-1">
-          {externalNavItems.map((item) => (
-            <a 
-              key={item.href}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2 py-1 rounded-md hover:bg-secondary flex items-center"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              {item.label}
-            </a>
-          ))}
-        </div>
-      </div>
-      
+      {/* Built-in Links */}
       <Link 
         to="/bulk-stats" 
         className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
@@ -105,6 +88,57 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
         Invoicing
       </a>
 
+      {/* Team & Settings Section with separator */}
+      <Separator className="my-2" />
+      
+      <div className="px-4 py-1">
+        <h3 className="text-xs font-medium text-muted-foreground">Team & Admin</h3>
+      </div>
+      
+      <Link 
+        to="/team-settings" 
+        className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+          isActive("/team-settings") ? "bg-secondary font-medium" : ""
+        }`}
+      >
+        <UserPlus className="h-4 w-4 mr-2" />
+        Team
+      </Link>
+      
+      <Link 
+        to="/settings" 
+        className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+          isActive("/settings") ? "bg-secondary font-medium" : ""
+        }`}
+      >
+        <Settings className="h-4 w-4 mr-2" />
+        Settings
+      </Link>
+
+      {/* External Links */}
+      <Separator className="my-2" />
+      
+      <div className="px-4 py-1">
+        <h3 className="text-xs font-medium text-muted-foreground">External Links</h3>
+      </div>
+      
+      <div className="px-4 py-2">
+        <div className="space-y-1">
+          {externalNavItems.map((item) => (
+            <a 
+              key={item.href}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1 rounded-md hover:bg-secondary flex items-center"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {item.label}
+            </a>
+          ))}
+        </div>
+      </div>
+      
       <a 
         href="https://app.diagrams.net/#G1yXi1A4e7ahlSvTaP58a0d_p_NV3_dgCn#%7B%22pageId%22%3A%22prtHgNgQTEPvFCAcTncT%22%7D" 
         target="_blank"
