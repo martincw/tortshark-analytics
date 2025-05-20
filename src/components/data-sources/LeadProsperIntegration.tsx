@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, LinkIcon, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { LinkIcon, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
 import { toast } from 'sonner';
 import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -45,6 +46,10 @@ const LeadProsperIntegration = () => {
   };
 
   const handleConnect = async () => {
+    if (!user) {
+      toast.error('Please sign in to connect Lead Prosper');
+      return;
+    }
     if (!apiKey.trim()) {
       toast.error('Please enter your Lead Prosper API key');
       return;
@@ -57,16 +62,14 @@ const LeadProsperIntegration = () => {
       console.log("Starting verification process");
       
       // First try to verify the API key using the Edge Function
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      const { data: verifyResult, error: verifyError } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
-      
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+
+      if (verifyError) {
+        throw verifyError;
+      }
+
       console.log("Verification result:", verifyResult);
       
       if (!verifyResult.isValid) {
@@ -145,6 +148,10 @@ const LeadProsperIntegration = () => {
 
   // Verify API key separately before connecting
   const verifyApiKeyOnly = async () => {
+    if (!user) {
+      toast.error('Please sign in to verify your API key');
+      return;
+    }
     if (!apiKey.trim()) {
       toast.error('Please enter your Lead Prosper API key');
       return;
@@ -155,16 +162,14 @@ const LeadProsperIntegration = () => {
     
     try {
       console.log("Verifying API key only");
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      const { data: verifyResult, error: verifyError } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
-      
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+
+      if (verifyError) {
+        throw verifyError;
+      }
+
       console.log("Verification result:", verifyResult);
       
       if (verifyResult.isValid) {
