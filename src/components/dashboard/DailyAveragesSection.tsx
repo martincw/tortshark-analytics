@@ -1,9 +1,10 @@
+
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, DollarSign, TrendingUp, Info, Users, BriefcaseBusiness, Percent, Calculator } from "lucide-react";
 import { Campaign } from "@/types/campaign";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { differenceInDays, parseISO, format } from "date-fns";
+import { differenceInDays, parseISO, format, isToday } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 
@@ -27,17 +28,15 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         costPerLead: 0,
         earningsPerLead: 0,
         daysInRange: 1,
-        excludesToday: false,
         displayDateRange: ""
       };
     }
     
-    // Check if today falls within the date range
+    // Get today's date for filtering
     const today = new Date();
     const todayString = format(today, 'yyyy-MM-dd');
-    const todayInRange = isDateInRange(todayString, dateRange.startDate, dateRange.endDate);
     
-    // Calculate total metrics within date range
+    // Calculate total metrics within date range, excluding today
     let totalAdSpend = 0;
     let totalLeads = 0;
     let totalCases = 0;
@@ -46,23 +45,15 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     // Track which days have entries to calculate true average
     const daysWithEntries = new Set<string>();
     
-    // Check if we have any entries for today
-    let hasEntriesForToday = false;
-    
     filteredCampaigns.forEach(campaign => {
       campaign.statsHistory.forEach(entry => {
-        // Check if this entry is for today
+        // Skip today's entries completely
         if (entry.date === todayString) {
-          hasEntriesForToday = true;
+          return;
         }
         
         // Only include entries within date range
         if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-          // If it's today and we don't have entries for today across any campaign, skip
-          if (entry.date === todayString && todayInRange && !hasEntriesForToday) {
-            return;
-          }
-          
           totalAdSpend += entry.adSpend || 0;
           totalLeads += entry.leads || 0;
           totalCases += entry.cases || 0;
@@ -75,21 +66,25 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     // Calculate number of days in the selected range
     const startDate = parseISO(dateRange.startDate);
     const endDate = parseISO(dateRange.endDate);
-    let daysInRange = differenceInDays(endDate, startDate) + 1;
     
-    // If today is in range but has no entries, exclude it from days in range
-    const excludesToday = todayInRange && !hasEntriesForToday;
-    if (excludesToday) {
-      daysInRange--;
-    }
+    // Always exclude today from the range if today is the end date
+    const effectiveEndDate = isToday(endDate) ? 
+      new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1) : 
+      endDate;
+    
+    let daysInRange = differenceInDays(effectiveEndDate, startDate) + 1;
+    
+    // Ensure we don't have negative or zero days
+    daysInRange = Math.max(daysInRange, 1);
     
     // Calculate display date range for subtitle
-    let displayDateRange = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
-    if (excludesToday) {
-      // If excluding today, show the updated end date
-      const adjustedEndDate = new Date(today);
-      adjustedEndDate.setDate(today.getDate() - 1);
-      displayDateRange = `${format(startDate, 'MMM d')} - ${format(adjustedEndDate, 'MMM d, yyyy')}`;
+    let displayDateRange = `${format(startDate, 'MMM d')} - `;
+    
+    // If today is in the original range, show the adjusted end date
+    if (isToday(endDate)) {
+      displayDateRange += `${format(effectiveEndDate, 'MMM d, yyyy')}`;
+    } else {
+      displayDateRange += `${format(endDate, 'MMM d, yyyy')}`;
     }
     
     // Use days with entries for average calculation if available, otherwise use adjusted days in range
@@ -119,8 +114,8 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
       costPerLead,
       earningsPerLead,
       daysInRange: effectiveDays,
-      excludesToday,
-      displayDateRange
+      displayDateRange,
+      todayExcluded: isToday(endDate)
     };
   }, [filteredCampaigns, dateRange]);
 
@@ -144,12 +139,10 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
         <CardTitle className="text-lg font-medium flex items-center gap-2">
           <BarChart className="h-5 w-5 text-primary" />
           Daily Performance Averages
-          {averages.excludesToday && (
-            <div className="ml-2 text-xs text-muted-foreground flex items-center">
-              <Info className="h-3 w-3 mr-1" />
-              Today excluded (no data)
-            </div>
-          )}
+          <div className="ml-2 text-xs text-muted-foreground flex items-center">
+            <Info className="h-3 w-3 mr-1" />
+            Today's data always excluded
+          </div>
         </CardTitle>
         {averages.displayDateRange && (
           <p className="text-xs text-muted-foreground mt-1">
