@@ -1,3 +1,4 @@
+
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 import { addDays, subDays } from "date-fns";
@@ -24,25 +25,36 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   // Get previous week's stats using trailing 7 days
   const previousWeekStats = getPreviousWeekStats(campaign, dateRange);
   
+  // Add debug logging to track values
+  console.log(`Campaign ${campaign.name} - Revenue: ${periodStats.revenue}, AdSpend: ${periodStats.adSpend}`);
+  
   // Calculate metrics using period stats
   const costPerLead = periodStats.leads > 0 ? periodStats.adSpend / periodStats.leads : 0;
   const cpa = periodStats.cases > 0 ? periodStats.adSpend / periodStats.cases : 0;
   const cpl = costPerLead; // Alias for cpl field
-  const profit = periodStats.revenue - periodStats.adSpend;
+  
+  // Ensure both values are valid numbers for profit calculation
+  const revenue = typeof periodStats.revenue === 'number' ? periodStats.revenue : 0;
+  const adSpend = typeof periodStats.adSpend === 'number' ? periodStats.adSpend : 0;
+  
+  // Explicitly calculate profit with numeric safety checks
+  const profit = revenue - adSpend;
+  console.log(`Campaign ${campaign.name} - Calculated profit: ${profit}`);
+  
   const previousWeekProfit = previousWeekStats.revenue - previousWeekStats.adSpend;
   const weekOverWeekChange = profit - previousWeekProfit;
-  const roi = periodStats.adSpend > 0 ? (profit / periodStats.adSpend) * 100 : 0;
-  const roas = periodStats.adSpend > 0 ? (periodStats.revenue / periodStats.adSpend) * 100 : 0;
-  const earningsPerLead = periodStats.leads > 0 ? periodStats.revenue / periodStats.leads : 0;
-  const revenuePerCase = periodStats.cases > 0 ? periodStats.revenue / periodStats.cases : 0;
+  const roi = adSpend > 0 ? (profit / adSpend) * 100 : 0;
+  const roas = adSpend > 0 ? (revenue / adSpend) * 100 : 0;
+  const earningsPerLead = periodStats.leads > 0 ? revenue / periodStats.leads : 0;
+  const revenuePerCase = periodStats.cases > 0 ? revenue / periodStats.cases : 0;
   const retainers = periodStats.cases; // Set retainers equal to cases for now
 
   const metrics: CampaignMetrics = {
-    revenue: periodStats.revenue,
+    revenue: revenue,
     leads: periodStats.leads,
     cases: periodStats.cases,
     retainers: retainers,
-    adSpend: periodStats.adSpend,
+    adSpend: adSpend,
     costPerLead,
     cpa,
     cpl,
@@ -140,6 +152,12 @@ export const getPreviousWeekStats = (campaign: Campaign, dateRange?: DateRange) 
 };
 
 export const formatCurrency = (value: number): string => {
+  // Ensure value is a valid number
+  if (typeof value !== 'number' || isNaN(value)) {
+    console.warn(`Invalid currency value: ${value}, replacing with 0`);
+    value = 0;
+  }
+  
   return `$${value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2

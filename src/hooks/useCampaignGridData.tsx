@@ -33,12 +33,22 @@ export function useCampaignGridData(campaigns: Campaign[]) {
       
       // Pre-calculate aggregated stats to avoid doing this multiple times
       const aggregateStats = filteredHistory.reduce((acc, entry) => {
-        acc.adSpend += entry.adSpend || 0;
-        acc.leads += entry.leads || 0;
-        acc.cases += entry.cases || 0;
-        acc.revenue += entry.revenue || 0;
+        // Ensure all values are valid numbers
+        const adSpend = typeof entry.adSpend === 'number' ? entry.adSpend : 0;
+        const leads = typeof entry.leads === 'number' ? entry.leads : 0;
+        const cases = typeof entry.cases === 'number' ? entry.cases : 0;
+        const revenue = typeof entry.revenue === 'number' ? entry.revenue : 0;
+        
+        acc.adSpend += adSpend;
+        acc.leads += leads;
+        acc.cases += cases;
+        acc.revenue += revenue;
         return acc;
       }, { adSpend: 0, leads: 0, cases: 0, revenue: 0 });
+      
+      // Calculate profit directly to check for issues
+      const directProfit = aggregateStats.revenue - aggregateStats.adSpend;
+      console.log(`Campaign ${campaign.name} direct stats - Revenue: ${aggregateStats.revenue}, AdSpend: ${aggregateStats.adSpend}, Direct Profit: ${directProfit}`);
       
       filteredCampaign.stats = {
         ...filteredCampaign.stats,
@@ -56,6 +66,12 @@ export function useCampaignGridData(campaigns: Campaign[]) {
       
       // Pre-calculate metrics to avoid doing this multiple times
       filteredCampaign._metrics = calculateMetrics(filteredCampaign, dateRange);
+      
+      // Sanity check for profit calculation
+      if (filteredCampaign._metrics.profit === 0 && directProfit > 0) {
+        console.warn(`Campaign ${campaign.name} has inconsistent profit calculation. Fixing.`);
+        filteredCampaign._metrics.profit = directProfit;
+      }
       
       return filteredCampaign;
     });
@@ -167,9 +183,10 @@ export function useCampaignGridData(campaigns: Campaign[]) {
           return metricsB - metricsA;
         }
         case "profit": {
-          const metricsA = a._metrics?.profit || 0;
-          const metricsB = b._metrics?.profit || 0;
-          return metricsB - metricsA;
+          // Ensure we're using valid numbers for comparison
+          const profitA = (a._metrics?.profit || 0);
+          const profitB = (b._metrics?.profit || 0);
+          return profitB - profitA;
         }
         case "revenue":
           return b.manualStats.revenue - a.manualStats.revenue;

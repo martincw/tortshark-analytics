@@ -30,12 +30,20 @@ const CampaignFinancialOverview: React.FC<CampaignFinancialOverviewProps> = ({ c
     
     campaign.statsHistory.forEach(entry => {
       if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
-        totalRevenue += entry.revenue || 0;
-        totalCost += entry.adSpend || 0;
+        // Ensure values are valid numbers 
+        const revenue = typeof entry.revenue === 'number' ? entry.revenue : 0;
+        const adSpend = typeof entry.adSpend === 'number' ? entry.adSpend : 0;
+        
+        totalRevenue += revenue;
+        totalCost += adSpend;
       }
     });
     
+    // Ensure profit is calculated correctly
     const profit = totalRevenue - totalCost;
+    
+    // Log the values for debugging
+    console.log(`CampaignFinancialOverview - Campaign ${campaign.name} - Revenue: ${totalRevenue}, Cost: ${totalCost}, Profit: ${profit}`);
     
     return {
       revenue: totalRevenue,

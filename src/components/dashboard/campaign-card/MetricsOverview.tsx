@@ -26,8 +26,17 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
   manualStats,
   targetProfit
 }) => {
+  // Ensure profit is properly calculated even if metrics.profit is somehow incorrect
+  const profit = manualStats.revenue - campaignStats.adSpend;
+  
+  // Log both values to help debug any discrepancies
+  console.log(`MetricsOverview - Revenue: ${manualStats.revenue}, AdSpend: ${campaignStats.adSpend}, Calculated profit: ${profit}, Metrics profit: ${metrics.profit}`);
+  
+  // Use our directly calculated profit if metrics.profit is zero but should be non-zero
+  const effectiveProfit = (metrics.profit === 0 && profit !== 0) ? profit : metrics.profit;
+  
   const profitProgress = targetProfit > 0 
-    ? Math.max(Math.min((metrics.profit / targetProfit) * 100, 100), 0)
+    ? Math.max(Math.min((effectiveProfit / targetProfit) * 100, 100), 0)
     : 0;
     
   const getProfitVariant = () => {
@@ -48,7 +57,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
     ? ((manualStats.cases / manualStats.leads) * 100).toFixed(1) 
     : "0";
   const profitPerCase = manualStats.cases > 0 
-    ? metrics.profit / manualStats.cases 
+    ? effectiveProfit / manualStats.cases 
     : 0;
 
   return (
@@ -68,9 +77,9 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
           <div className="flex items-center gap-1.5 mt-1">
             <DollarSign className="h-4 w-4 text-secondary" />
             <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-              {metrics.profit >= 1000 
-                ? `$${(metrics.profit / 1000).toFixed(1)}K` 
-                : formatCurrency(metrics.profit)}
+              {effectiveProfit >= 1000 
+                ? `$${(effectiveProfit / 1000).toFixed(1)}K` 
+                : formatCurrency(effectiveProfit)}
             </span>
           </div>
         </div>
@@ -145,7 +154,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Profit Progress</span>
             <span className="font-medium">
-              {formatCurrency(metrics.profit)} of {formatCurrency(targetProfit)}
+              {formatCurrency(effectiveProfit)} of {formatCurrency(targetProfit)}
             </span>
           </div>
           <CustomProgressBar 
