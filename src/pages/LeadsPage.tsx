@@ -2,19 +2,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Search, Filter, RefreshCcw, AlertCircle, BarChart3, List } from 'lucide-react';
+import { Search, Filter, RefreshCcw, AlertCircle, BarChart3, List, Link2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -23,26 +15,33 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCampaign } from '@/contexts/CampaignContext';
-import { hyrosApi } from '@/integrations/hyros/client';
-import { HyrosSyncResult } from '@/integrations/hyros/types';
-import HyrosLeadsList from '@/components/leads/HyrosLeadsList';
-import { localDateToUTCNoon, formatDateForStorage, parseStoredDate } from '@/lib/utils/ManualDateUtils';
+import { leadProsperApi } from '@/integrations/leadprosper/client';
+import LeadProsperLeadsList from '@/components/leads/LeadProsperLeadsList';
+import { formatDateForStorage, parseStoredDate } from '@/lib/utils/ManualDateUtils';
 import { debounce } from '@/lib/utils';
+import { supabase } from "@/integrations/supabase/client";
+
+interface CampaignMapping {
+  id: string;
+  lp_campaign_id: string;
+  ts_campaign_id: string;
+  active: boolean;
+  linked_at: string;
+  lp_campaign?: {
+    name: string;
+    lp_campaign_id: number;
+  };
+}
 
 export default function LeadsPage() {
   const { campaigns } = useCampaign();
   const { toast: uiToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  // View mode (aggregate or individual leads)
-  const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>(searchParams.get('viewMode') as any || 'individual');
   
   // Get today's date for default
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -50,10 +49,10 @@ export default function LeadsPage() {
   // Get filters from URL params or set defaults
   const [filters, setFilters] = useState({
     campaignId: searchParams.get('campaignId') || '',
-    status: searchParams.get('status') || '',
     startDate: searchParams.get('startDate') || today,
     endDate: searchParams.get('endDate') || today,
     searchTerm: searchParams.get('search') || '',
+    status: searchParams.get('status') || '',
   });
   
   // Selected dates for the date picker
@@ -64,38 +63,24 @@ export default function LeadsPage() {
     filters.endDate ? parseStoredDate(filters.endDate) : new Date()
   );
   
-  // Pagination
-  const [page, setPage] = useState(parseInt(searchParams.get('page') || '1', 10));
-  const [pageSize] = useState(20);
-  const [totalLeads, setTotalLeads] = useState(0);
-  
-  // Data
-  const [leads, setLeads] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Lead Prosper specific state
+  const [mappings, setMappings] = useState<Record<string, CampaignMapping>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any[]>([]);
-  
-  // Filter popover state
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  
-  // Last synced timestamp and date fetched
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const [dateFetched, setDateFetched] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   
   // Create a debounced version of the URL params update
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedUpdateUrlParams = useCallback(
-    debounce((newFilters, newPage, newViewMode) => {
+    debounce((newFilters) => {
       const params = new URLSearchParams();
       
-      params.set('viewMode', newViewMode);
       if (newFilters.campaignId) params.set('campaignId', newFilters.campaignId);
       if (newFilters.status) params.set('status', newFilters.status);
       if (newFilters.startDate) params.set('startDate', newFilters.startDate);
       if (newFilters.endDate) params.set('endDate', newFilters.endDate);
       if (newFilters.searchTerm) params.set('search', newFilters.searchTerm);
-      if (newPage > 1) params.set('page', newPage.toString());
       
       setSearchParams(params);
     }, 400),
@@ -104,17 +89,20 @@ export default function LeadsPage() {
   
   // Update URL when filters change
   useEffect(() => {
-    debouncedUpdateUrlParams(filters, page, viewMode);
-  }, [filters, page, viewMode, debouncedUpdateUrlParams]);
+    debouncedUpdateUrlParams(filters);
+  }, [filters, debouncedUpdateUrlParams]);
+
+  // Load campaign mappings on component mount
+  useEffect(() => {
+    loadMappings();
+  }, []);
   
   // Handle date changes
   const handleStartDateChange = (date: Date | undefined) => {
     if (!date) return;
     
-    // Format date for storage and update filters
     const formattedDate = formatDateForStorage(date);
     
-    // Only update if the formatted date is different
     if (formattedDate !== filters.startDate) {
       setFilters(prev => ({ ...prev, startDate: formattedDate }));
       setSelectedStartDate(date);
@@ -124,105 +112,72 @@ export default function LeadsPage() {
   const handleEndDateChange = (date: Date | undefined) => {
     if (!date) return;
     
-    // Format date for storage and update filters
     const formattedDate = formatDateForStorage(date);
     
-    // Only update if the formatted date is different
     if (formattedDate !== filters.endDate) {
       setFilters(prev => ({ ...prev, endDate: formattedDate }));
       setSelectedEndDate(date);
     }
   };
-  
-  // Load leads based on current filters
-  const loadLeads = async () => {
-    if (viewMode === 'aggregate') {
-      try {
-        setLoading(true);
-        setRefreshError(null);
-        
-        const result = await hyrosApi.getLeadsList({
-          page,
-          pageSize,
-          startDate: filters.startDate,
-          endDate: filters.endDate,
-          tsCampaignId: filters.campaignId || undefined,
-          searchTerm: filters.searchTerm || undefined,
-        });
-        
-        setLeads(result.leads);
-        setTotalLeads(result.total);
-        
-      } catch (error) {
-        console.error('Error loading leads:', error);
-        uiToast({
-          title: 'Error loading leads',
-          description: error instanceof Error ? error.message : 'An unexpected error occurred',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-  
-  // Initial load and reload when filters change
-  useEffect(() => {
-    if (viewMode === 'aggregate') {
-      loadLeads();
-    }
-  }, [filters.campaignId, filters.status, filters.startDate, filters.endDate, page, viewMode]);
-  
-  // Handle search
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Reset page when searching
-    setPage(1);
-    loadLeads();
-  };
-  
-  // Format date for display
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return '';
+
+  const loadMappings = async () => {
     try {
-      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-    } catch {
-      return '';
+      if (!campaigns || campaigns.length === 0) return;
+
+      const mappingPromises = campaigns.map(async (campaign) => {
+        const { data, error } = await supabase
+          .from('lp_to_ts_map')
+          .select(`
+            id,
+            lp_campaign_id,
+            ts_campaign_id,
+            active,
+            linked_at,
+            lp_campaign:external_lp_campaigns!inner(
+              name,
+              lp_campaign_id
+            )
+          `)
+          .eq('ts_campaign_id', campaign.id)
+          .eq('active', true)
+          .single();
+
+        return { campaignId: campaign.id, mapping: data };
+      });
+
+      const results = await Promise.all(mappingPromises);
+      const mappingMap: Record<string, CampaignMapping> = {};
+      
+      results.forEach(({ campaignId, mapping }) => {
+        if (mapping) {
+          mappingMap[campaignId] = mapping;
+        }
+      });
+
+      setMappings(mappingMap);
+    } catch (err) {
+      console.error("Error loading mappings:", err);
     }
   };
   
-  // Refresh yesterday's leads with improved error handling
-  const refreshYesterdaysLeads = async () => {
+  // Refresh Lead Prosper leads
+  const refreshLeadProsperLeads = async () => {
     try {
       setRefreshing(true);
       setRefreshError(null);
-      setDebugInfo([]);
       
-      // Get the HYROS API Key
-      const apiKeyResponse = await hyrosApi.getApiCredentials();
+      // Check connection first
+      const connectionData = await leadProsperApi.checkConnection();
       
-      if (!apiKeyResponse?.api_key) {
-        throw new Error('No HYROS API key found. Please connect your account first.');
+      if (!connectionData.isConnected) {
+        throw new Error('No active Lead Prosper connection found. Please connect your account first.');
       }
       
-      // Call the edge function to fetch yesterday's leads
-      const result = await hyrosApi.fetchYesterdayStats();
-      
-      // Store debug info for troubleshooting
-      if (result.debug_info) {
-        setDebugInfo(result.debug_info);
-      }
-      
-      // Store date fetched
-      if (result.date_fetched) {
-        setDateFetched(result.date_fetched);
-      }
+      // Sync today's leads from Lead Prosper
+      const result = await leadProsperApi.fetchTodayLeads();
       
       if (result.success) {
-        // Store the last synced timestamp
-        if (result.last_synced) {
-          setLastSynced(result.last_synced);
-        }
+        setLastSynced(new Date().toISOString());
         
         if (result.total_leads && result.total_leads > 0) {
           toast.success(`Lead refresh succeeded`, {
@@ -231,41 +186,26 @@ export default function LeadsPage() {
           });
         } else {
           toast.info(`No new leads found`, {
-            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no new leads for yesterday`,
+            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no new leads`,
             duration: 4000,
           });
         }
-        
-        // Reload the leads list to show the new data
-        await loadLeads();
       } else {
-        // Special handling for rate limit errors
-        const isRateLimitError = result.error?.includes('rate limit') || result.error?.includes('429');
-        
         const errorMessage = result.error || 'Failed to refresh leads';
         setRefreshError(errorMessage);
-        
-        if (isRateLimitError) {
-          toast.error('API Rate Limit Exceeded', {
-            description: 'The HYROS API is rate limited. Please wait a few minutes and try again.',
-            duration: 8000,
-          });
-        } else {
-          toast.error('Lead refresh failed', {
-            description: errorMessage,
-            duration: 5000,
-          });
-        }
+        toast.error('Lead refresh failed', {
+          description: errorMessage,
+          duration: 5000,
+        });
       }
     } catch (error) {
       console.error('Error refreshing leads:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setRefreshError(errorMessage);
       
-      // Special handling for rate limit errors
-      if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
-        toast.error('API Rate Limit Exceeded', {
-          description: 'Please wait a few minutes before trying again.',
+      if (errorMessage.includes('connection')) {
+        toast.error('Connection Error', {
+          description: 'Please check your Lead Prosper connection in Data Sources.',
           duration: 8000,
         });
       } else {
@@ -279,12 +219,19 @@ export default function LeadsPage() {
     }
   };
   
-  // Helper to format lead date
-  const formatLeadDate = (date: string) => {
+  // Handle search
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // The LeadProsperLeadsList component will handle the search automatically
+  };
+  
+  // Format date for display
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return '';
     try {
-      return format(new Date(date), 'MMM d, yyyy');
-    } catch (error) {
-      return 'Invalid date';
+      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+    } catch {
+      return '';
     }
   };
   
@@ -303,36 +250,95 @@ export default function LeadsPage() {
     
     setSelectedStartDate(today);
     setSelectedEndDate(today);
-    setPage(1);
   };
-  
-  // Calculate pagination
-  const totalPages = Math.ceil(totalLeads / pageSize);
-  const showPagination = totalPages > 1;
+
+  // Get mapped campaigns only
+  const mappedCampaigns = campaigns?.filter(campaign => mappings[campaign.id]) || [];
   
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">HYROS Leads</h1>
+          <h1 className="text-2xl font-semibold">Lead Prosper Leads</h1>
           <p className="text-muted-foreground">
-            View and manage leads from HYROS campaigns
+            View and manage leads imported from Lead Prosper campaigns
           </p>
         </div>
         
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={refreshYesterdaysLeads}
+            onClick={refreshLeadProsperLeads}
             disabled={refreshing}
           >
             <RefreshCcw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
-            {refreshing ? "Refreshing..." : "Refresh Yesterday's Leads"}
+            {refreshing ? "Refreshing..." : "Refresh Leads"}
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = '/sources?source=leadprosper'}
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            Manage Connection
           </Button>
         </div>
       </div>
       
-      {/* Date Selector at the top */}
+      {/* Campaign Mapping Status */}
+      {campaigns && campaigns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Campaign Mapping Status</CardTitle>
+            <CardDescription>
+              Lead Prosper campaigns must be mapped to TortShark campaigns to import lead data
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {campaigns.map((campaign) => {
+                const isMapped = !!mappings[campaign.id];
+                const mapping = mappings[campaign.id];
+                
+                return (
+                  <div key={campaign.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">{campaign.name}</h4>
+                      {isMapped ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          Mapped
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-orange-200 text-orange-800">
+                          Not Mapped
+                        </Badge>
+                      )}
+                    </div>
+                    {isMapped && mapping && (
+                      <p className="text-sm text-muted-foreground">
+                        → {mapping.lp_campaign?.name || 'Unknown Lead Prosper Campaign'}
+                      </p>
+                    )}
+                    {!isMapped && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.location.href = `/sources?source=leadprosper&tab=campaigns`}
+                        className="mt-2"
+                      >
+                        <Link2 className="h-3 w-3 mr-1" />
+                        Map Campaign
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Date Selector */}
       <div className="flex flex-col sm:flex-row gap-3 items-center p-4 border rounded-md bg-background">
         <div className="font-medium">Date Range:</div>
         <div className="flex gap-2 items-center">
@@ -378,7 +384,6 @@ export default function LeadsPage() {
       {lastSynced && (
         <div className="text-sm text-muted-foreground">
           Last synchronized: {formatDate(lastSynced)}
-          {dateFetched && <span> • Data for: {format(new Date(dateFetched), 'MMM d, yyyy')}</span>}
         </div>
       )}
       
@@ -390,7 +395,7 @@ export default function LeadsPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={refreshYesterdaysLeads} 
+              onClick={refreshLeadProsperLeads} 
               className="ml-2"
               disabled={refreshing}
             >
@@ -399,49 +404,15 @@ export default function LeadsPage() {
           </AlertDescription>
         </Alert>
       )}
-      
-      {/* Debug information panel - only show if there's debug info */}
-      {debugInfo && debugInfo.length > 0 && (
-        <Card className="bg-slate-50 border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Lead Retrieval Debug Info</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 py-0">
-            <div className="text-xs">
-              {debugInfo.map((info, index) => (
-                <div key={index} className="mb-1 p-2 bg-slate-100 rounded">
-                  <div>Campaign ID: {info.campaign_id}</div>
-                  <div>Endpoint used: {info.endpoint_used}</div>
-                  <div>Leads retrieved: {info.leads_count}</div>
-                  {info.stats_count > 0 && <div>Stats entries: {info.stats_count}</div>}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
+
+      {/* Main Leads Section */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex justify-between items-center">
-            <span>Leads</span>
-            <div className="flex items-center space-x-2">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'aggregate' | 'individual')} className="w-auto">
-                <TabsList>
-                  <TabsTrigger value="individual" className="flex items-center">
-                    <List className="w-4 h-4 mr-1" /> Individual
-                  </TabsTrigger>
-                  <TabsTrigger value="aggregate" className="flex items-center">
-                    <BarChart3 className="w-4 h-4 mr-1" /> Aggregate
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            <span>Leads from Lead Prosper</span>
           </CardTitle>
           <CardDescription>
-            {viewMode === 'aggregate' 
-              ? 'Aggregated leads imported from HYROS campaigns' 
-              : 'Individual leads from HYROS API'}
+            Leads imported from mapped Lead Prosper campaigns
           </CardDescription>
         </CardHeader>
         
@@ -454,7 +425,7 @@ export default function LeadsPage() {
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder={viewMode === 'aggregate' ? "Search leads..." : "Search by email..."}
+                    placeholder="Search leads..."
                     className="pl-8"
                     value={filters.searchTerm}
                     onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
@@ -468,169 +439,82 @@ export default function LeadsPage() {
                 onClick={() => setFiltersOpen(!filtersOpen)}
               >
                 <Filter className="mr-2 h-4 w-4" />
-                Campaigns
+                Filters
               </Button>
             </div>
           </div>
           
-          {/* Campaign Filter */}
+          {/* Additional Filters */}
           {filtersOpen && (
-            <div className="p-3 border rounded-md mb-3">
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Campaign</h4>
-                <Select 
-                  value={filters.campaignId} 
-                  onValueChange={(value) => {
-                    setFilters({...filters, campaignId: value});
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Campaigns" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Campaigns</SelectItem>
-                    {campaigns?.map((campaign) => (
-                      <SelectItem key={campaign.id} value={campaign.id}>
-                        {campaign.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="p-3 border rounded-md mb-3 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-sm mb-2">Campaign</h4>
+                  <Select 
+                    value={filters.campaignId} 
+                    onValueChange={(value) => setFilters({...filters, campaignId: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Campaigns" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Campaigns</SelectItem>
+                      {mappedCampaigns.map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-sm mb-2">Status</h4>
+                  <Select 
+                    value={filters.status} 
+                    onValueChange={(value) => setFilters({...filters, status: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Statuses</SelectItem>
+                      <SelectItem value="sold">Sold</SelectItem>
+                      <SelectItem value="duplicate">Duplicate</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="unknown">Unknown</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           )}
           
-          {/* Content based on view mode */}
-          {viewMode === 'aggregate' ? (
-            /* Aggregated Leads Table */
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead>Leads</TableHead>
-                    <TableHead>Sales</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Revenue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                      </TableRow>
-                    ))
-                  ) : leads.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                        No leads found. Try adjusting your filters.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    leads.map((lead) => {
-                      // Find campaign name
-                      const campaign = campaigns?.find(c => c.id === lead.tsCampaignId);
-                      
-                      return (
-                        <TableRow key={lead.id}>
-                          <TableCell>{formatLeadDate(lead.date)}</TableCell>
-                          <TableCell>
-                            {campaign?.name || 'Unknown Campaign'}
-                          </TableCell>
-                          <TableCell>{lead.leads || 0}</TableCell>
-                          <TableCell>{lead.sales || 0}</TableCell>
-                          <TableCell>${lead.adSpend?.toFixed(2) || '0.00'}</TableCell>
-                          <TableCell>${lead.revenue?.toFixed(2) || '0.00'}</TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            /* Individual Leads List */
-            <HyrosLeadsList 
-              startDate={filters.startDate}
-              endDate={filters.endDate}
-              campaignId={filters.campaignId}
-              searchTerm={filters.searchTerm}
-              pageSize={pageSize}
-            />
-          )}
-          
-          {/* Pagination for aggregate view */}
-          {viewMode === 'aggregate' && showPagination && (
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-muted-foreground">
-                Showing {Math.min((page - 1) * pageSize + 1, totalLeads)} to {Math.min(page * pageSize, totalLeads)} of {totalLeads} leads
-              </div>
-              
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                >
-                  First
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Next
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                >
-                  Last
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-        
-        {refreshError && (
-          <CardFooter className="pb-4">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              <AlertDescription className="text-sm flex flex-wrap items-center gap-2">
-                {refreshError}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={refreshYesterdaysLeads} 
-                  className="ml-2"
-                  disabled={refreshing}
-                >
-                  Try Again
-                </Button>
+          {/* Check if any campaigns are mapped */}
+          {mappedCampaigns.length === 0 ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                No campaigns are mapped to Lead Prosper yet. Map your campaigns to start importing lead data.
+                <div className="mt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.location.href = '/sources?source=leadprosper&tab=campaigns'}
+                  >
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Map Campaigns
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
-          </CardFooter>
-        )}
+          ) : (
+            <LeadProsperLeadsList 
+              campaignId={filters.campaignId}
+            />
+          )}
+        </CardContent>
       </Card>
     </div>
   );
