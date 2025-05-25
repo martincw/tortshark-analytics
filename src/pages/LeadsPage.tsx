@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -25,6 +24,7 @@ import LeadProsperLeadsList from '@/components/leads/LeadProsperLeadsList';
 import { formatDateForStorage, parseStoredDate } from '@/lib/utils/ManualDateUtils';
 import { debounce } from '@/lib/utils';
 import { supabase } from "@/integrations/supabase/client";
+import LeadProsperQuickMappingDialog from '@/components/leads/LeadProsperMappingDialog';
 
 interface CampaignMapping {
   id: string;
@@ -71,6 +71,8 @@ export default function LeadsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+  const [selectedCampaignForMapping, setSelectedCampaignForMapping] = useState<{id: string, name: string} | null>(null);
   
   // Create a debounced version of the URL params update
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,6 +279,15 @@ export default function LeadsPage() {
   // Get mapped campaigns only
   const mappedCampaigns = campaigns?.filter(campaign => mappings[campaign.id]) || [];
   
+  const handleQuickMapCampaign = (campaignId: string, campaignName: string) => {
+    setSelectedCampaignForMapping({ id: campaignId, name: campaignName });
+    setMappingDialogOpen(true);
+  };
+
+  const handleMappingUpdated = () => {
+    loadMappings(); // Refresh the mappings
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -345,11 +356,11 @@ export default function LeadsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.location.href = `/data-sources?source=leadprosper&tab=campaigns`}
+                        onClick={() => handleQuickMapCampaign(campaign.id, campaign.name)}
                         className="mt-2"
                       >
                         <Link2 className="h-3 w-3 mr-1" />
-                        Map Campaign
+                        Quick Map
                       </Button>
                     )}
                   </div>
@@ -560,10 +571,11 @@ export default function LeadsPage() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.location.href = '/data-sources?source=leadprosper&tab=campaigns'}
+                    onClick={() => campaigns && campaigns.length > 0 && handleQuickMapCampaign(campaigns[0].id, campaigns[0].name)}
+                    disabled={!campaigns || campaigns.length === 0}
                   >
                     <Link2 className="h-4 w-4 mr-2" />
-                    Map Campaigns
+                    Map First Campaign
                   </Button>
                 </div>
               </AlertDescription>
@@ -575,6 +587,17 @@ export default function LeadsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Quick Mapping Dialog */}
+      {selectedCampaignForMapping && (
+        <LeadProsperQuickMappingDialog
+          tsCampaignId={selectedCampaignForMapping.id}
+          tsCampaignName={selectedCampaignForMapping.name}
+          onMappingUpdated={handleMappingUpdated}
+          open={mappingDialogOpen}
+          onOpenChange={setMappingDialogOpen}
+        />
+      )}
     </div>
   );
 }
