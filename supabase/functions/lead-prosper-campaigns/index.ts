@@ -197,17 +197,25 @@ serve(async (req) => {
             continue;
           }
           
-          // Upsert the campaign
-          await supabaseClient.from('external_lp_campaigns').upsert({
-            lp_campaign_id: campaign.id,
-            name: campaign.name || `Campaign ${campaign.id}`,
-            status: campaign.status || 'active',
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'lp_campaign_id',
-          });
+          // Upsert the campaign with user_id set
+          const { error: upsertError } = await supabaseClient
+            .from('external_lp_campaigns')
+            .upsert({
+              lp_campaign_id: campaign.id,
+              name: campaign.name || `Campaign ${campaign.id}`,
+              status: campaign.status || 'active',
+              user_id: user.id, // Set the user_id for RLS
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'lp_campaign_id',
+            });
+            
+          if (upsertError) {
+            console.error('Error upserting campaign:', campaign.id, upsertError);
+            // Continue with other campaigns even if one fails
+          }
         }
-        console.log(`Successfully stored ${campaigns.length} campaigns in database`);
+        console.log(`Successfully processed ${campaigns.length} campaigns for database storage`);
       } catch (dbError) {
         console.error('Error storing campaigns in database:', dbError);
         // Continue to return campaigns even if storage fails

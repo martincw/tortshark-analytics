@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,11 @@ const LeadProsperCampaigns = () => {
 
       // Load existing mappings for these campaigns
       await loadMappings(fetchedCampaigns);
+      
+      // Show success message for refresh operations
+      if (isRefreshing) {
+        toast.success(`Successfully loaded ${fetchedCampaigns.length} campaigns`);
+      }
     } catch (err) {
       console.error("Error loading campaigns:", err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load campaigns';
@@ -114,7 +120,6 @@ const LeadProsperCampaigns = () => {
     setIsRefreshing(true);
     await loadCampaigns();
     setIsRefreshing(false);
-    toast.success("Campaigns refreshed");
   };
 
   const handleMapCampaign = (campaign: Campaign) => {
@@ -125,6 +130,7 @@ const LeadProsperCampaigns = () => {
   const handleMappingUpdated = () => {
     // Reload mappings after a successful mapping
     loadMappings(campaigns);
+    toast.success("Campaign mapping updated successfully");
   };
 
   const handleUnmapCampaign = async (campaignId: number) => {
@@ -219,7 +225,20 @@ const LeadProsperCampaigns = () => {
           {error ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {error.includes('authentication') && (
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => window.location.href = '/sources?source=leadprosper'}
+                    >
+                      Check Connection
+                    </Button>
+                  </div>
+                )}
+              </AlertDescription>
             </Alert>
           ) : campaigns.length > 0 ? (
             <div className="rounded-md border">
@@ -296,6 +315,16 @@ const LeadProsperCampaigns = () => {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 No campaigns found. Make sure you have active campaigns in your Lead Prosper account.
+                <div className="mt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRefresh}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}
