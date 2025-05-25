@@ -70,15 +70,11 @@ const LeadProsperQuickMappingDialog: React.FC<LeadProsperQuickMappingDialogProps
     try {
       console.log(`Creating mapping: LP ${selectedLpCampaignId} -> TS ${tsCampaignId}`);
       
-      const success = await leadProsperApi.mapCampaign(tsCampaignId, parseInt(selectedLpCampaignId));
+      await leadProsperApi.mapCampaign(tsCampaignId, parseInt(selectedLpCampaignId));
       
-      if (success) {
-        toast.success("Campaign mapping created successfully");
-        onOpenChange(false);
-        onMappingUpdated();
-      } else {
-        throw new Error("Failed to create mapping");
-      }
+      toast.success("Campaign mapping created successfully");
+      onOpenChange(false);
+      onMappingUpdated();
     } catch (err) {
       console.error("Error creating mapping:", err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create mapping';
