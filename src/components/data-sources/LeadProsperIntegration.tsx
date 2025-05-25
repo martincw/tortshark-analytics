@@ -11,6 +11,7 @@ import LeadProsperCampaigns from './LeadProsperCampaigns';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 const LeadProsperIntegration = () => {
   const { user } = useAuth();
@@ -56,21 +57,24 @@ const LeadProsperIntegration = () => {
     try {
       console.log("Starting verification process");
       
-      // First try to verify the API key using the Edge Function
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      // Use Supabase edge function invocation instead of direct fetch
+      const { data: verifyResult, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
       
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+      if (error) {
+        console.error("Verification error:", error);
+        const errorMsg = error.message || 'API key verification failed. Please check your key and try again.';
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+        setIsLoading(false);
+        return;
+      }
+      
       console.log("Verification result:", verifyResult);
       
-      if (!verifyResult.isValid) {
-        const errorMsg = verifyResult.error || 'API key verification failed. Please check your key and try again.';
+      if (!verifyResult?.isValid) {
+        const errorMsg = verifyResult?.error || 'API key verification failed. Please check your key and try again.';
         setErrorMessage(errorMsg);
         toast.error(errorMsg);
         setIsLoading(false);
@@ -155,22 +159,26 @@ const LeadProsperIntegration = () => {
     
     try {
       console.log("Verifying API key only");
-      const response = await fetch(`${window.location.origin}/functions/lead-prosper-verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
+      
+      // Use Supabase edge function invocation instead of direct fetch
+      const { data: verifyResult, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
       });
       
-      console.log("Verification response status:", response.status);
-      const verifyResult = await response.json();
+      if (error) {
+        console.error("Verification error:", error);
+        const errorMsg = error.message || 'API key verification failed. Please check your key.';
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+        return;
+      }
+      
       console.log("Verification result:", verifyResult);
       
-      if (verifyResult.isValid) {
+      if (verifyResult?.isValid) {
         toast.success('API key is valid!');
       } else {
-        const errorMsg = verifyResult.error || 'API key verification failed. Please check your key.';
+        const errorMsg = verifyResult?.error || 'API key verification failed. Please check your key.';
         setErrorMessage(errorMsg);
         toast.error(errorMsg);
       }
