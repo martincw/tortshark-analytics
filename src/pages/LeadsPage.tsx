@@ -299,7 +299,7 @@ export default function LeadsPage() {
           
           <Button
             variant="outline"
-            onClick={() => window.location.href = '/sources?source=leadprosper'}
+            onClick={() => window.location.href = '/data-sources?source=leadprosper'}
           >
             <Link2 className="mr-2 h-4 w-4" />
             Manage Connection
@@ -345,7 +345,7 @@ export default function LeadsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.location.href = `/sources?source=leadprosper&tab=campaigns`}
+                        onClick={() => window.location.href = `/data-sources?source=leadprosper&tab=campaigns`}
                         className="mt-2"
                       >
                         <Link2 className="h-3 w-3 mr-1" />
@@ -560,7 +560,7 @@ export default function LeadsPage() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.location.href = '/sources?source=leadprosper&tab=campaigns'}
+                    onClick={() => window.location.href = '/data-sources?source=leadprosper&tab=campaigns'}
                   >
                     <Link2 className="h-4 w-4 mr-2" />
                     Map Campaigns
