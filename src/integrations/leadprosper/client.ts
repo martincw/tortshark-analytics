@@ -32,6 +32,8 @@ interface LeadProsperSyncResult {
   total_leads: number;
   campaigns_processed: number;
   error?: string;
+  debug_info?: any[];
+  results?: any[];
 }
 
 interface ConnectionCheckResult {
@@ -369,17 +371,28 @@ class LeadProsperApiClient {
     }
   }
 
-  async fetchTodayLeads(): Promise<LeadProsperSyncResult> {
+  async fetchLeadsWithDateRange(startDate?: string, endDate?: string): Promise<LeadProsperSyncResult> {
     try {
-      console.log("Fetching today's leads from Lead Prosper...");
+      console.log("Fetching leads from Lead Prosper with date range...");
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error("User not authenticated");
       }
 
+      const body: any = { user_id: user.id };
+      
+      if (startDate) {
+        body.start_date = startDate;
+      }
+      if (endDate) {
+        body.end_date = endDate;
+      }
+
+      console.log("Calling fetch-today function with:", body);
+
       const { data, error } = await supabase.functions.invoke('lead-prosper-fetch-today', {
-        body: { user_id: user.id }
+        body
       });
 
       if (error) {
@@ -387,12 +400,16 @@ class LeadProsperApiClient {
         throw new Error(`Failed to fetch leads: ${error.message}`);
       }
 
-      console.log("Today's leads fetch completed:", data);
+      console.log("Lead fetch completed:", data);
       return data;
     } catch (error) {
-      console.error("Error in fetchTodayLeads:", error);
+      console.error("Error in fetchLeadsWithDateRange:", error);
       throw error;
     }
+  }
+
+  async fetchTodayLeads(): Promise<LeadProsperSyncResult> {
+    return this.fetchLeadsWithDateRange();
   }
 
   async getLeadsList(params: {

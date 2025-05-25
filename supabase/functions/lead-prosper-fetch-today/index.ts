@@ -20,6 +20,7 @@ interface LeadProsperSyncResult {
   date_fetched?: string;
   results?: any[];
   error?: string;
+  debug_info?: any[];
 }
 
 serve(async (req: Request) => {
@@ -35,24 +36,34 @@ serve(async (req: Request) => {
       });
     }
 
-    // Get today's date in YYYY-MM-DD format
+    // Get date range from request body, defaulting to today and yesterday
     const today = new Date();
     const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1); // Get yesterday's data too to avoid timezone issues
+    yesterday.setDate(yesterday.getDate() - 1);
     
-    const todayFormatted = today.toISOString().split('T')[0];
-    const yesterdayFormatted = yesterday.toISOString().split('T')[0];
-
-    console.log(`Fetching leads for date range: ${yesterdayFormatted} to ${todayFormatted}`);
-
-    // Get the user ID from the request, or use null for system-wide sync
+    let startDate = yesterday;
+    let endDate = today;
     let userId: string | null = null;
+    
     try {
       const body = await req.json();
       userId = body.user_id || null;
+      
+      // Allow custom date range from request
+      if (body.start_date) {
+        startDate = new Date(body.start_date);
+      }
+      if (body.end_date) {
+        endDate = new Date(body.end_date);
+      }
     } catch (e) {
-      // No body or invalid JSON, proceed with system-wide sync
+      // No body or invalid JSON, proceed with defaults
     }
+    
+    const startDateFormatted = startDate.toISOString().split('T')[0];
+    const endDateFormatted = endDate.toISOString().split('T')[0];
+
+    console.log(`Fetching leads for date range: ${startDateFormatted} to ${endDateFormatted}`);
 
     // Get Lead Prosper API credentials
     const credentials = await getLeadProsperCredentials(userId);
@@ -120,6 +131,7 @@ serve(async (req: Request) => {
 
     // Process each campaign
     const results = [];
+    const debugInfo = [];
     let totalLeads = 0;
     let campaignsProcessed = 0;
 
@@ -128,25 +140,31 @@ serve(async (req: Request) => {
         // Fetch the external campaign details to get the numeric ID
         const { data: externalCampaign } = await supabase
           .from('external_lp_campaigns')
-          .select('lp_campaign_id')
+          .select('lp_campaign_id, name')
           .eq('id', mapping.lp_campaign_id)
           .single();
         
         if (!externalCampaign) {
           console.warn(`No external campaign found for ID: ${mapping.lp_campaign_id}`);
+          debugInfo.push({
+            mapping_id: mapping.id,
+            issue: 'external_campaign_not_found',
+            lp_campaign_id: mapping.lp_campaign_id
+          });
           continue;
         }
 
         const lpCampaignId = externalCampaign.lp_campaign_id;
         const tsCampaignId = mapping.ts_campaign_id;
+        const campaignName = externalCampaign.name;
 
-        console.log(`Processing campaign: LP ID ${lpCampaignId}, TS ID ${tsCampaignId}`);
+        console.log(`Processing campaign: LP ID ${lpCampaignId} ("${campaignName}"), TS ID ${tsCampaignId}`);
 
         // Fetch leads from Lead Prosper API
         const apiUrl = `https://api.leadprosper.io/v1/campaigns/${lpCampaignId}/leads`;
         const params = new URLSearchParams({
-          start_date: yesterdayFormatted,
-          end_date: todayFormatted,
+          start_date: startDateFormatted,
+          end_date: endDateFormatted,
           limit: '1000',
         });
 
@@ -156,6 +174,8 @@ serve(async (req: Request) => {
           'Accept': 'application/json',
         };
 
+        console.log(`Calling Lead Prosper API: ${apiUrl}?${params.toString()}`);
+
         const response = await fetch(`${apiUrl}?${params.toString()}`, {
           method: 'GET',
           headers,
@@ -163,15 +183,48 @@ serve(async (req: Request) => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Lead Prosper API error: ${response.status} ${response.statusText} - ${errorText}`);
+          console.error(`Lead Prosper API error for campaign ${lpCampaignId}: ${response.status} ${response.statusText} - ${errorText}`);
+          
+          debugInfo.push({
+            campaign_id: lpCampaignId,
+            campaign_name: campaignName,
+            ts_campaign_id: tsCampaignId,
+            api_error: `${response.status}: ${errorText}`,
+            api_url: `${apiUrl}?${params.toString()}`
+          });
+          
+          results.push({
+            campaign_id: lpCampaignId,
+            campaign_name: campaignName,
+            ts_campaign_id: tsCampaignId,
+            leads_count: 0,
+            status: "api_error",
+            error: `${response.status}: ${errorText}`
+          });
+          continue;
         }
 
         const data = await response.json();
         
+        console.log(`API Response for campaign ${lpCampaignId}:`, {
+          has_leads: !!data.leads,
+          leads_count: data.leads?.length || 0,
+          response_keys: Object.keys(data)
+        });
+        
         if (!data.leads || !Array.isArray(data.leads)) {
           console.warn(`No leads array in response for campaign ${lpCampaignId}`);
+          debugInfo.push({
+            campaign_id: lpCampaignId,
+            campaign_name: campaignName,
+            ts_campaign_id: tsCampaignId,
+            issue: 'no_leads_array_in_response',
+            response_structure: Object.keys(data)
+          });
+          
           results.push({
             campaign_id: lpCampaignId,
+            campaign_name: campaignName,
             ts_campaign_id: tsCampaignId,
             leads_count: 0,
             status: "no_leads_array"
@@ -179,31 +232,53 @@ serve(async (req: Request) => {
           continue;
         }
 
-        console.log(`Retrieved ${data.leads.length} leads for campaign ${lpCampaignId}`);
+        console.log(`Retrieved ${data.leads.length} leads for campaign ${lpCampaignId} ("${campaignName}")`);
 
         // Process the leads
         if (data.leads.length > 0) {
           const result = await processLeadsAndUpdateMetrics({
             leads: data.leads,
             campaign_id: lpCampaignId,
-            ts_campaign_id: tsCampaignId
+            ts_campaign_id: tsCampaignId,
+            campaign_name: campaignName
           });
 
           totalLeads += result.processed;
           
           results.push({
             campaign_id: lpCampaignId,
+            campaign_name: campaignName,
             ts_campaign_id: tsCampaignId,
             leads_processed: result.processed,
             leads_failed: result.errors,
             status: result.success ? "success" : "partial_failure"
           });
+          
+          debugInfo.push({
+            campaign_id: lpCampaignId,
+            campaign_name: campaignName,
+            ts_campaign_id: tsCampaignId,
+            leads_fetched: data.leads.length,
+            leads_processed: result.processed,
+            leads_failed: result.errors
+          });
         } else {
+          console.log(`No leads found for campaign ${lpCampaignId} ("${campaignName}") in date range ${startDateFormatted} to ${endDateFormatted}`);
+          
           results.push({
             campaign_id: lpCampaignId,
+            campaign_name: campaignName,
             ts_campaign_id: tsCampaignId,
             leads_count: 0,
-            status: "no_leads"
+            status: "no_leads_in_date_range"
+          });
+          
+          debugInfo.push({
+            campaign_id: lpCampaignId,
+            campaign_name: campaignName,
+            ts_campaign_id: tsCampaignId,
+            issue: 'no_leads_in_date_range',
+            date_range: `${startDateFormatted} to ${endDateFormatted}`
           });
         }
 
@@ -220,6 +295,13 @@ serve(async (req: Request) => {
           ts_campaign_id: mapping.ts_campaign_id,
           status: "error",
           error: error.message
+        });
+        
+        debugInfo.push({
+          campaign_id: mapping.lp_campaign_id,
+          ts_campaign_id: mapping.ts_campaign_id,
+          error: error.message,
+          stack: error.stack
         });
       }
     }
@@ -242,9 +324,12 @@ serve(async (req: Request) => {
       total_leads: totalLeads,
       campaigns_processed: campaignsProcessed,
       last_synced: new Date().toISOString(),
-      date_fetched: todayFormatted,
-      results
+      date_fetched: `${startDateFormatted} to ${endDateFormatted}`,
+      results,
+      debug_info: debugInfo
     };
+
+    console.log('Final sync result:', syncResult);
 
     return new Response(
       JSON.stringify(syncResult),
@@ -262,7 +347,8 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: `Unexpected error: ${error.message}` 
+        error: `Unexpected error: ${error.message}`,
+        debug_info: [{ error: error.message, stack: error.stack }]
       }),
       {
         status: 500,
@@ -331,20 +417,18 @@ async function processLeadsAndUpdateMetrics(data: {
   leads: any[];
   campaign_id: number;
   ts_campaign_id: string;
+  campaign_name: string;
 }): Promise<{
   success: boolean;
   processed: number;
   errors: number;
 }> {
-  // The function implementation is the same as in lead-prosper-backfill
-  // Rather than duplicating it, we'll reuse the logic
-  
   try {
     if (!data.leads || !Array.isArray(data.leads) || data.leads.length === 0) {
       return { success: true, processed: 0, errors: 0 };
     }
 
-    const { campaign_id: lpCampaignId, ts_campaign_id: tsCampaignId } = data;
+    const { campaign_id: lpCampaignId, ts_campaign_id: tsCampaignId, campaign_name } = data;
 
     if (!lpCampaignId || !tsCampaignId) {
       throw new Error('Missing campaign IDs for lead processing');
@@ -423,6 +507,8 @@ async function processLeadsAndUpdateMetrics(data: {
     // Batch insert leads if we have any
     if (leadsToInsert.length > 0) {
       try {
+        console.log(`Batch inserting ${leadsToInsert.length} leads for campaign ${campaign_name} (${lpCampaignId})`);
+        
         // Use upsert with onConflict to handle duplicates
         const { error: insertError } = await supabase
           .from('lp_leads_raw')
@@ -435,6 +521,8 @@ async function processLeadsAndUpdateMetrics(data: {
           console.error('Error batch inserting leads:', insertError);
           errors += leadsToInsert.length;
           processed = 0; // Reset processed count since batch failed
+        } else {
+          console.log(`Successfully inserted ${leadsToInsert.length} leads for campaign ${campaign_name}`);
         }
       } catch (batchError) {
         console.error('Exception during batch insert:', batchError);
@@ -446,6 +534,8 @@ async function processLeadsAndUpdateMetrics(data: {
     // Update metrics for each date
     for (const [dateStr, metrics] of Object.entries(metricsByDate)) {
       try {
+        console.log(`Updating metrics for ${campaign_name} on ${dateStr}: ${metrics.leads} leads`);
+        
         const { error: metricsError } = await supabase.rpc('upsert_daily_lead_metrics', {
           p_ts_campaign_id: tsCampaignId,
           p_date: dateStr,
@@ -459,6 +549,8 @@ async function processLeadsAndUpdateMetrics(data: {
         
         if (metricsError) {
           console.error(`Error updating metrics for ${dateStr}:`, metricsError);
+        } else {
+          console.log(`Successfully updated metrics for ${campaign_name} on ${dateStr}`);
         }
       } catch (error) {
         console.error(`Error calling upsert_daily_lead_metrics for ${dateStr}:`, error);

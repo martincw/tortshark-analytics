@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Search, Filter, RefreshCcw, AlertCircle, BarChart3, List, Link2 } from 'lucide-react';
+import { Search, Filter, RefreshCcw, AlertCircle, BarChart3, List, Link2, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +69,8 @@ export default function LeadsPage() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
   
   // Create a debounced version of the URL params update
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,11 +162,12 @@ export default function LeadsPage() {
     }
   };
   
-  // Refresh Lead Prosper leads
+  // Refresh Lead Prosper leads with custom date range
   const refreshLeadProsperLeads = async () => {
     try {
       setRefreshing(true);
       setRefreshError(null);
+      setDebugInfo([]);
       
       // Check connection first
       const connectionData = await leadProsperApi.checkConnection();
@@ -173,22 +176,36 @@ export default function LeadsPage() {
         throw new Error('No active Lead Prosper connection found. Please connect your account first.');
       }
       
-      // Sync today's leads from Lead Prosper
-      const result = await leadProsperApi.fetchTodayLeads();
+      // Sync leads from Lead Prosper with the selected date range
+      const result = await leadProsperApi.fetchLeadsWithDateRange(
+        filters.startDate,
+        filters.endDate
+      );
+      
+      console.log('Lead fetch result:', result);
+      
+      if (result.debug_info) {
+        setDebugInfo(result.debug_info);
+      }
       
       if (result.success) {
         setLastSynced(new Date().toISOString());
         
         if (result.total_leads && result.total_leads > 0) {
           toast.success(`Lead refresh succeeded`, {
-            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''}`,
+            description: `Retrieved ${result.total_leads} leads from ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} for ${filters.startDate} to ${filters.endDate}`,
             duration: 5000,
           });
         } else {
-          toast.info(`No new leads found`, {
-            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no new leads`,
+          toast.info(`No leads found for date range`, {
+            description: `Checked ${result.campaigns_processed} campaign${result.campaigns_processed !== 1 ? 's' : ''} but found no leads for ${filters.startDate} to ${filters.endDate}`,
             duration: 4000,
           });
+          
+          // Show debug info if no leads found
+          if (result.debug_info && result.debug_info.length > 0) {
+            setShowDebug(true);
+          }
         }
       } else {
         const errorMessage = result.error || 'Failed to refresh leads';
@@ -197,6 +214,11 @@ export default function LeadsPage() {
           description: errorMessage,
           duration: 5000,
         });
+        
+        // Show debug info on error
+        if (result.debug_info && result.debug_info.length > 0) {
+          setShowDebug(true);
+        }
       }
     } catch (error) {
       console.error('Error refreshing leads:', error);
@@ -316,7 +338,7 @@ export default function LeadsPage() {
                     </div>
                     {isMapped && mapping && (
                       <p className="text-sm text-muted-foreground">
-                        → {mapping.lp_campaign?.name || 'Unknown Lead Prosper Campaign'}
+                        → {mapping.lp_campaign?.name || 'Lead Prosper Campaign'}
                       </p>
                     )}
                     {!isMapped && (
@@ -405,6 +427,43 @@ export default function LeadsPage() {
         </Alert>
       )}
 
+      {/* Debug Information */}
+      {debugInfo.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Debug Information
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDebug(!showDebug)}
+              >
+                {showDebug ? 'Hide' : 'Show'} Details
+              </Button>
+            </div>
+            <CardDescription>
+              Troubleshooting information for lead import process
+            </CardDescription>
+          </CardHeader>
+          {showDebug && (
+            <CardContent>
+              <div className="space-y-4">
+                {debugInfo.map((info, index) => (
+                  <div key={index} className="border rounded p-3 bg-gray-50">
+                    <pre className="text-xs overflow-x-auto">
+                      {JSON.stringify(info, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Main Leads Section */}
       <Card>
         <CardHeader className="pb-3">
@@ -412,7 +471,7 @@ export default function LeadsPage() {
             <span>Leads from Lead Prosper</span>
           </CardTitle>
           <CardDescription>
-            Leads imported from mapped Lead Prosper campaigns
+            Leads imported from mapped Lead Prosper campaigns for {filters.startDate} to {filters.endDate}
           </CardDescription>
         </CardHeader>
         

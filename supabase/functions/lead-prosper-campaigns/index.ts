@@ -47,7 +47,7 @@ async function fetchLeadProsperCampaigns(apiKey: string): Promise<any> {
       // Log the structure and count of campaigns
       console.log(`Successfully fetched ${Array.isArray(campaigns) ? campaigns.length : 0} campaigns from Lead Prosper`);
       if (Array.isArray(campaigns) && campaigns.length > 0) {
-        console.log('First campaign structure:', JSON.stringify(campaigns[0], null, 2).substring(0, 200) + '...');
+        console.log('First campaign structure:', JSON.stringify(campaigns[0], null, 2).substring(0, 500) + '...');
       } else if (campaigns && typeof campaigns === 'object') {
         console.log('Response structure:', Object.keys(campaigns));
       }
@@ -197,12 +197,17 @@ serve(async (req) => {
             continue;
           }
           
-          // Upsert the campaign with user_id set
+          // Extract campaign name with fallback
+          const campaignName = campaign.name || campaign.public_name || `Campaign ${campaign.id}`;
+          
+          console.log(`Storing campaign: ID=${campaign.id}, Name="${campaignName}"`);
+          
+          // Upsert the campaign with user_id set and proper name handling
           const { error: upsertError } = await supabaseClient
             .from('external_lp_campaigns')
             .upsert({
               lp_campaign_id: campaign.id,
-              name: campaign.name || `Campaign ${campaign.id}`,
+              name: campaignName,
               status: campaign.status || 'active',
               user_id: user.id, // Set the user_id for RLS
               updated_at: new Date().toISOString(),
@@ -213,6 +218,8 @@ serve(async (req) => {
           if (upsertError) {
             console.error('Error upserting campaign:', campaign.id, upsertError);
             // Continue with other campaigns even if one fails
+          } else {
+            console.log(`Successfully stored campaign ${campaign.id}: "${campaignName}"`);
           }
         }
         console.log(`Successfully processed ${campaigns.length} campaigns for database storage`);
