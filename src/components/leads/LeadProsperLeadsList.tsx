@@ -50,18 +50,18 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
-  const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId || '');
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId || 'all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [startDate, setStartDate] = useState<Date | undefined>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // 30 days ago
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [error, setError] = useState<string | null>(null);
 
   // Load leads on initial render and when filters change
   useEffect(() => {
-    if (selectedCampaignId) {
+    if (selectedCampaignId !== 'all') {
       loadLeads();
     } else {
       setIsLoading(false);
@@ -76,7 +76,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
   }, [campaignId]);
 
   const loadLeads = async () => {
-    if (!selectedCampaignId) return;
+    if (!selectedCampaignId || selectedCampaignId === 'all') return;
 
     setIsLoading(true);
     setError(null);
@@ -87,7 +87,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
         page,
         pageSize,
         ts_campaign_id: selectedCampaignId,
-        status: selectedStatus || undefined,
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
         searchTerm: searchTerm || undefined,
         startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
         endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
@@ -105,7 +105,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
   };
 
   const refreshLeads = async () => {
-    if (!selectedCampaignId) return;
+    if (!selectedCampaignId || selectedCampaignId === 'all') return;
 
     setIsRefreshing(true);
     setError(null);
@@ -230,7 +230,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
             size="sm" 
             variant="outline"
             onClick={refreshLeads}
-            disabled={isRefreshing || !selectedCampaignId}
+            disabled={isRefreshing || !selectedCampaignId || selectedCampaignId === 'all'}
           >
             {isRefreshing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -259,6 +259,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
                   <SelectValue placeholder="Select a campaign" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Campaigns</SelectItem>
                   {campaigns?.map((campaign) => (
                     <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>
                   ))}
@@ -276,7 +277,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="sold">Sold</SelectItem>
                   <SelectItem value="duplicate">Duplicate</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
@@ -339,7 +340,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : !selectedCampaignId ? (
+        ) : !selectedCampaignId || selectedCampaignId === 'all' ? (
           <div className="text-center py-12 text-muted-foreground">
             Please select a campaign to view leads
           </div>

@@ -48,11 +48,11 @@ export default function LeadsPage() {
   
   // Get filters from URL params or set defaults
   const [filters, setFilters] = useState({
-    campaignId: searchParams.get('campaignId') || '',
+    campaignId: searchParams.get('campaignId') || 'all',
     startDate: searchParams.get('startDate') || today,
     endDate: searchParams.get('endDate') || today,
     searchTerm: searchParams.get('search') || '',
-    status: searchParams.get('status') || '',
+    status: searchParams.get('status') || 'all',
   });
   
   // Selected dates for the date picker
@@ -76,8 +76,8 @@ export default function LeadsPage() {
     debounce((newFilters) => {
       const params = new URLSearchParams();
       
-      if (newFilters.campaignId) params.set('campaignId', newFilters.campaignId);
-      if (newFilters.status) params.set('status', newFilters.status);
+      if (newFilters.campaignId && newFilters.campaignId !== 'all') params.set('campaignId', newFilters.campaignId);
+      if (newFilters.status && newFilters.status !== 'all') params.set('status', newFilters.status);
       if (newFilters.startDate) params.set('startDate', newFilters.startDate);
       if (newFilters.endDate) params.set('endDate', newFilters.endDate);
       if (newFilters.searchTerm) params.set('search', newFilters.searchTerm);
@@ -241,8 +241,8 @@ export default function LeadsPage() {
     const formattedToday = formatDateForStorage(today);
     
     setFilters({
-      campaignId: '',
-      status: '',
+      campaignId: 'all',
+      status: 'all',
       startDate: formattedToday,
       endDate: formattedToday,
       searchTerm: '',
@@ -458,7 +458,7 @@ export default function LeadsPage() {
                       <SelectValue placeholder="All Campaigns" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Campaigns</SelectItem>
+                      <SelectItem value="all">All Campaigns</SelectItem>
                       {mappedCampaigns.map((campaign) => (
                         <SelectItem key={campaign.id} value={campaign.id}>
                           {campaign.name}
@@ -478,7 +478,7 @@ export default function LeadsPage() {
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Statuses</SelectItem>
+                      <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="sold">Sold</SelectItem>
                       <SelectItem value="duplicate">Duplicate</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
@@ -511,7 +511,7 @@ export default function LeadsPage() {
             </Alert>
           ) : (
             <LeadProsperLeadsList 
-              campaignId={filters.campaignId}
+              campaignId={filters.campaignId === 'all' ? undefined : filters.campaignId}
             />
           )}
         </CardContent>
