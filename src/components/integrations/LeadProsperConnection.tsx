@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -46,7 +45,7 @@ import { LeadProsperConnection as LeadProsperConnectionType } from '@/integratio
 export default function LeadProsperConnection() {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
-  const [connection, setConnection] = useState<LeadProsperConnectionType | null>(null);
+  const [connection, setConnection] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -130,7 +129,7 @@ export default function LeadProsperConnection() {
         setConnectionName(data.credentials.name);
       }
       
-      if (data.isConnected && !data.fromCache) {
+      if (data.isConnected && data.fromCache === false) {
         setSuccessMessage('Connection status verified successfully');
       }
     } catch (error) {

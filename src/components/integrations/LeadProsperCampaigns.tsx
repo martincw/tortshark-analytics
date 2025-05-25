@@ -175,11 +175,11 @@ export default function LeadProsperCampaigns() {
           return;
         }
         
-        setErrorMessage(`Failed to load campaigns: ${error.message}`);
+        setErrorMessage(`Failed to load campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error in loadCampaigns:', error);
-      setErrorMessage(`Unexpected error: ${error.message}`);
+      setErrorMessage(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -199,34 +199,8 @@ export default function LeadProsperCampaigns() {
         return;
       }
       
-      // Get API key (either from credentials or cache)
-      let apiKey;
-      try {
-        // Try to get API key from credentials first
-        if (connectionData.credentials?.credentials) {
-          const credentials = typeof connectionData.credentials.credentials === 'string' 
-            ? JSON.parse(connectionData.credentials.credentials) 
-            : connectionData.credentials.credentials;
-            
-          apiKey = credentials?.apiKey;
-        }
-        
-        // If not found in credentials, try to get from cache
-        if (!apiKey) {
-          apiKey = leadProsperApi.getCachedApiKey();
-        }
-        
-        if (!apiKey) {
-          throw new Error('API key not found');
-        }
-      } catch (error) {
-        console.error('Error extracting API key:', error);
-        setErrorMessage('API key not found. Please reconnect your Lead Prosper account.');
-        return;
-      }
-      
-      // Get campaigns with force refresh
-      const campaignsData = await leadProsperApi.getCampaigns(apiKey);
+      // Get campaigns with fresh data
+      const campaignsData = await leadProsperApi.fetchCampaigns();
       
       if (Array.isArray(campaignsData)) {
         setLpCampaigns(campaignsData);
@@ -238,8 +212,8 @@ export default function LeadProsperCampaigns() {
       }
     } catch (error) {
       console.error('Error refreshing campaigns:', error);
-      toast.error(`Failed to refresh campaigns: ${error.message}`);
-      setErrorMessage(`Failed to refresh campaigns: ${error.message}`);
+      toast.error(`Failed to refresh campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setErrorMessage(`Failed to refresh campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRefreshing(false);
     }

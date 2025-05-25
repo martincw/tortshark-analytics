@@ -34,18 +34,79 @@ interface LeadProsperSyncResult {
   error?: string;
 }
 
+interface ConnectionCheckResult {
+  isConnected: boolean;
+  credentials?: any;
+  error?: string;
+  apiKey?: string;
+  fromCache?: boolean;
+}
+
 class LeadProsperApiClient {
   private cachedApiKey: string | null = null;
   
-  setCachedApiKey(apiKey: string) {
+  setCachedApiKey(apiKey: string | null) {
     this.cachedApiKey = apiKey;
+  }
+  
+  getCachedApiKey(): string | null {
+    return this.cachedApiKey;
   }
   
   resetState() {
     this.cachedApiKey = null;
   }
 
-  async checkConnection(skipCache = false): Promise<{ isConnected: boolean; credentials?: any }> {
+  getLeadProsperWebhookUrl(): string {
+    return `https://msgqsgftjwpbnqenhfmc.supabase.co/functions/v1/lead-prosper-webhook`;
+  }
+
+  async verifyApiKey(apiKey: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.functions.invoke('lead-prosper-verify', {
+        body: { apiKey }
+      });
+
+      if (error) {
+        console.error("API key verification error:", error);
+        return false;
+      }
+
+      return data?.isValid || false;
+    } catch (error) {
+      console.error("Error in verifyApiKey:", error);
+      return false;
+    }
+  }
+
+  async storeCredentials(apiKey: string, userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('account_connections')
+        .upsert({
+          user_id: userId,
+          platform: 'leadprosper',
+          name: 'Lead Prosper',
+          is_connected: true,
+          credentials: { apiKey },
+          last_synced: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,platform'
+        });
+
+      if (error) {
+        console.error("Error storing credentials:", error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error in storeCredentials:", error);
+      return false;
+    }
+  }
+
+  async checkConnection(skipCache = false): Promise<ConnectionCheckResult> {
     try {
       console.log("Checking Lead Prosper connection...");
       
@@ -67,21 +128,32 @@ class LeadProsperApiClient {
 
       if (error) {
         console.error("Error checking connection:", error);
-        return { isConnected: false };
+        return { isConnected: false, error: error.message };
       }
 
       if (connections && connections.length > 0) {
         const connection = connections[0];
         console.log("Found existing Lead Prosper connection");
         
+        // Extract API key from credentials
+        let apiKey = '';
+        if (connection.credentials) {
+          const credentials = typeof connection.credentials === 'string' 
+            ? JSON.parse(connection.credentials) 
+            : connection.credentials;
+          apiKey = credentials?.apiKey || '';
+        }
+        
         // Cache the API key if not cached
-        if (!this.cachedApiKey && connection.credentials?.apiKey) {
-          this.cachedApiKey = connection.credentials.apiKey;
+        if (!this.cachedApiKey && apiKey) {
+          this.cachedApiKey = apiKey;
         }
         
         return { 
           isConnected: true, 
-          credentials: connection 
+          credentials: connection,
+          apiKey,
+          fromCache: !skipCache
         };
       }
 
@@ -89,37 +161,39 @@ class LeadProsperApiClient {
       return { isConnected: false };
     } catch (error) {
       console.error("Error in checkConnection:", error);
-      return { isConnected: false };
+      return { isConnected: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
-  async saveConnection(apiKey: string, platform: string, userId: string): Promise<boolean> {
+  async saveConnection(apiKey: string, connectionName: string, userId: string): Promise<any> {
     try {
       console.log("Saving Lead Prosper connection...");
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('account_connections')
         .upsert({
           user_id: userId,
           platform: 'leadprosper',
-          name: 'Lead Prosper',
+          name: connectionName,
           is_connected: true,
           credentials: { apiKey },
           last_synced: new Date().toISOString()
         }, {
           onConflict: 'user_id,platform'
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error("Error saving connection:", error);
-        return false;
+        throw error;
       }
 
       console.log("Lead Prosper connection saved successfully");
-      return true;
+      return data;
     } catch (error) {
       console.error("Error in saveConnection:", error);
-      return false;
+      throw error;
     }
   }
 
@@ -148,11 +222,18 @@ class LeadProsperApiClient {
       
       // Get API key from connection
       const { isConnected, credentials } = await this.checkConnection();
-      if (!isConnected || !credentials?.credentials?.apiKey) {
+      if (!isConnected || !credentials?.credentials) {
         throw new Error("No valid Lead Prosper connection found");
       }
 
-      const apiKey = credentials.credentials.apiKey;
+      const credentialsData = typeof credentials.credentials === 'string' 
+        ? JSON.parse(credentials.credentials) 
+        : credentials.credentials;
+      const apiKey = credentialsData?.apiKey;
+
+      if (!apiKey) {
+        throw new Error("No API key found in credentials");
+      }
 
       // Call the edge function to fetch campaigns
       const { data, error } = await supabase.functions.invoke('lead-prosper-campaigns', {
@@ -239,6 +320,52 @@ class LeadProsperApiClient {
     } catch (error) {
       console.error("Error in createCampaignMapping:", error);
       throw error;
+    }
+  }
+
+  async mapCampaign(tsCampaignId: string, lpCampaignId: number): Promise<void> {
+    try {
+      // Find the external campaign UUID for the selected LP campaign ID
+      const { data: externalCampaigns, error: fetchError } = await supabase
+        .from('external_lp_campaigns')
+        .select('id')
+        .eq('lp_campaign_id', lpCampaignId)
+        .single();
+
+      if (fetchError || !externalCampaigns) {
+        throw new Error("Lead Prosper campaign not found in database");
+      }
+
+      await this.createCampaignMapping(externalCampaigns.id, tsCampaignId);
+    } catch (error) {
+      console.error("Error in mapCampaign:", error);
+      throw error;
+    }
+  }
+
+  async getAccountConnections(): Promise<any[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('account_connections')
+        .select('*')
+        .eq('platform', 'leadprosper')
+        .eq('user_id', user.id)
+        .eq('is_connected', true);
+
+      if (error) {
+        console.error("Error fetching account connections:", error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Error in getAccountConnections:", error);
+      return [];
     }
   }
 

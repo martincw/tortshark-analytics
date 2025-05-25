@@ -8,6 +8,7 @@ import { Loader2, Link2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { leadProsperApi } from "@/integrations/leadprosper/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LeadProsperMappingDialogProps {
   campaignId: string;
@@ -47,8 +48,8 @@ const LeadProsperMappingDialog: React.FC<LeadProsperMappingDialogProps> = ({
       console.log("Loading Lead Prosper campaigns for mapping...");
       
       // Check if Lead Prosper is connected
-      const { isConnected } = await leadProsperApi.checkConnection();
-      if (!isConnected) {
+      const connectionCheck = await leadProsperApi.checkConnection();
+      if (!connectionCheck.isConnected) {
         setError("Lead Prosper is not connected. Please connect your account first.");
         return;
       }

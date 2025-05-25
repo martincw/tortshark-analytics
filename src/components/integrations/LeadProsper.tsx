@@ -1,13 +1,12 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import LeadProsperConnection from './LeadProsperConnection';
-import LeadProsperCampaigns from './LeadProsperCampaigns';
+import LeadProsperCampaigns from '../data-sources/LeadProsperCampaigns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { leadProsperApi } from '@/integrations/leadprosper/client';
 import { supabase } from "@/integrations/supabase/client";
-import { LeadProsperSyncResult } from '@/integrations/leadprosper/types';
 
 export function LeadProsper() {
   const location = useLocation();
@@ -142,13 +141,13 @@ export function LeadProsper() {
       setIsSyncing(true);
       const connectionData = await leadProsperApi.checkConnection();
       
-      if (!connectionData || !connectionData.isConnected || !connectionData.apiKey) {
+      if (!connectionData || !connectionData.isConnected) {
         // Silently exit if not connected - don't show error to prevent loops
         return;
       }
       
       // Only show toast for explicit sync requests, not background ones
-      const result: LeadProsperSyncResult = await leadProsperApi.fetchTodayLeads();
+      const result = await leadProsperApi.fetchTodayLeads();
       
       // Silently handle result - don't show toast messages for background syncs
       console.log('Lead Prosper sync result:', result);
