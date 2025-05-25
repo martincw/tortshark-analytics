@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
@@ -32,6 +31,9 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGoogleAdsConnected, setIsGoogleAdsConnected] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+  
+  // Lead Prosper mapping dialog state
+  const [isLPMappingDialogOpen, setIsLPMappingDialogOpen] = useState(false);
 
   // Find the current campaign object for use in the mapping dialog
   const currentCampaign = campaigns?.find(c => c.id === campaignId);
@@ -113,6 +115,10 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
   const handleMappingUpdated = () => {
     fetchGoogleMappings();
     fetchLeadProsperMappings();
+  };
+
+  const handleLPMappingUpdated = async () => {
+    await fetchLeadProsperMappings();
   };
 
   return (
@@ -217,11 +223,14 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
         <div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-medium">Lead Prosper Campaigns</h3>
-            <LeadProsperMappingDialog 
-              campaignId={campaignId}
-              campaignName={campaignName}
-              onMappingUpdated={fetchLeadProsperMappings}
-            />
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setIsLPMappingDialogOpen(true)}
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              Map Lead Prosper Campaign
+            </Button>
           </div>
           
           {isLoadingLP ? (
@@ -260,6 +269,15 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
           )}
         </div>
       </CardContent>
+      
+      {/* Lead Prosper Mapping Dialog */}
+      <LeadProsperMappingDialog 
+        campaignId={campaignId}
+        campaignName={campaignName}
+        onMappingUpdated={handleLPMappingUpdated}
+        open={isLPMappingDialogOpen}
+        onOpenChange={setIsLPMappingDialogOpen}
+      />
     </Card>
   );
 }

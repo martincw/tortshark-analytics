@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { leadProsperApi } from "@/integrations/leadprosper/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCampaign } from "@/contexts/CampaignContext";
 import LeadProsperMappingDialog from "../campaigns/LeadProsperMappingDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Campaign {
   id: number;
