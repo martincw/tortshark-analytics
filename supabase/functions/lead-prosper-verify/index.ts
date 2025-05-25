@@ -20,129 +20,76 @@ serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
-  console.log("Lead Prosper verification endpoint called");
-  
   try {
-    // Get the API key from the request body
-    let apiKey;
+    console.log('Lead Prosper verify function called');
     
-    try {
-      const requestData = await req.json();
-      apiKey = requestData.apiKey;
-      console.log("API key received, length:", apiKey?.length || 0);
-    } catch (parseError) {
-      console.error('Error parsing request body:', parseError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          isValid: false,
-          error: "Invalid JSON in request body" 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { apiKey } = await req.json();
     
-    // Basic validation
     if (!apiKey) {
-      console.error("No API key provided");
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          isValid: false,
-          error: "No API key provided" 
+          isValid: false, 
+          error: 'No API key provided' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (typeof apiKey !== 'string' || apiKey.length < 10) {
-      console.error("Invalid API key format");
+    console.log('Verifying API key with Lead Prosper...');
+    
+    // Try to fetch campaigns to verify the API key
+    const response = await fetch('https://api.leadprosper.io/public/campaigns', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log(`Lead Prosper API response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Lead Prosper API error: ${errorText}`);
+      
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          isValid: false,
-          error: "Invalid API key format" 
+          isValid: false, 
+          error: `API verification failed: ${response.status} ${response.statusText}` 
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log("Attempting Lead Prosper API verification");
-    
-    // First attempt with v1/campaigns endpoint
-    let response;
-    let isValid = false;
-    let errorDetails = null;
-    
-    console.log("Trying first endpoint: /v1/campaigns");
+    // Try to parse the response
+    let campaigns;
     try {
-      response = await fetch('https://api.leadprosper.io/v1/campaigns', {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        // Add a timeout to avoid hanging requests
-        signal: AbortSignal.timeout(10000), // 10 second timeout
-      });
-
-      if (response.ok) {
-        console.log("Lead Prosper API connection successful with /v1/campaigns");
-        isValid = true;
-      } else {
-        console.error(`Lead Prosper API error with first endpoint (${response.status}): ${response.statusText}`);
-        errorDetails = `Error with primary endpoint (${response.status}): ${response.statusText}`;
-        
-        // Try alternative endpoint
-        console.log("Trying alternative endpoint: /public/campaigns");
-        const altResponse = await fetch('https://api.leadprosper.io/public/campaigns', {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          signal: AbortSignal.timeout(10000),
-        });
-        
-        if (altResponse.ok) {
-          console.log("Lead Prosper API connection successful with /public/campaigns");
-          isValid = true;
-        } else {
-          console.error(`Lead Prosper API error with alternative endpoint (${altResponse.status}): ${altResponse.statusText}`);
-          errorDetails += ` | Error with alternative endpoint (${altResponse.status}): ${altResponse.statusText}`;
-        }
-      }
-    } catch (fetchError) {
-      console.error("Fetch error during verification:", fetchError);
-      errorDetails = `Fetch error: ${fetchError.message || "Unknown error"}`;
-    }
-
-    // Return verification result
-    if (isValid) {
+      campaigns = await response.json();
+      console.log(`API key verified - found ${Array.isArray(campaigns) ? campaigns.length : 'unknown'} campaigns`);
+    } catch (parseError) {
+      console.error('Error parsing Lead Prosper response:', parseError);
       return new Response(
         JSON.stringify({ 
-          success: true,
-          isValid: true,
-          message: "Lead Prosper API connection successful" 
+          isValid: false, 
+          error: 'Invalid response from Lead Prosper API' 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } else {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          isValid: false,
-          error: errorDetails || "Failed to connect to Lead Prosper API",
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-  } catch (error) {
-    console.error("Error verifying Lead Prosper API:", error);
+
+    // API key is valid
     return new Response(
       JSON.stringify({ 
-        success: false,
+        isValid: true,
+        campaignCount: Array.isArray(campaigns) ? campaigns.length : 0
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error in lead-prosper-verify:', error);
+    return new Response(
+      JSON.stringify({ 
         isValid: false, 
-        error: error.message || "Unknown error during verification" 
+        error: `Verification error: ${error.message}` 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
