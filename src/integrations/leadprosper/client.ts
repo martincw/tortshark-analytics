@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -485,20 +486,10 @@ class LeadProsperApiClient {
     try {
       console.log("Fetching all leads list with params:", params);
       
+      // First, get the basic leads data
       let query = supabase
         .from('lp_leads_raw')
-        .select(`
-          *,
-          lp_to_ts_map!inner(
-            ts_campaign_id,
-            active,
-            campaigns!inner(name)
-          ),
-          external_lp_campaigns!inner(
-            name,
-            lp_campaign_id
-          )
-        `, { count: 'exact' });
+        .select('*', { count: 'exact' });
 
       // Apply status filter
       if (params.status && params.status !== 'all') {
@@ -529,20 +520,56 @@ class LeadProsperApiClient {
         .order('lead_date_ms', { ascending: false })
         .range(from, to);
 
-      const { data, error, count } = await query;
+      const { data: rawLeads, error, count } = await query;
 
       if (error) {
-        console.error("Error fetching all leads:", error);
+        console.error("Error fetching leads:", error);
         throw error;
       }
 
-      // Process leads to add mapping information
-      const processedLeads = (data || []).map(lead => ({
-        ...lead,
-        mapped_campaign_name: lead.lp_to_ts_map?.[0]?.campaigns?.name || null,
-        lp_campaign_name: lead.external_lp_campaigns?.name || `Campaign ${lead.lp_campaign_id}`,
-        is_mapped: !!lead.lp_to_ts_map?.[0]?.active
-      }));
+      if (!rawLeads || rawLeads.length === 0) {
+        return { leads: [], total: count || 0 };
+      }
+
+      // Get unique LP campaign IDs from the leads
+      const uniqueLpCampaignIds = [...new Set(rawLeads.map(lead => lead.lp_campaign_id))];
+
+      // Fetch external LP campaign info
+      const { data: externalCampaigns } = await supabase
+        .from('external_lp_campaigns')
+        .select('id, name, lp_campaign_id')
+        .in('lp_campaign_id', uniqueLpCampaignIds);
+
+      // Fetch mapping info
+      const { data: mappings } = await supabase
+        .from('lp_to_ts_map')
+        .select(`
+          lp_campaign_id,
+          ts_campaign_id,
+          active,
+          campaigns!inner(name)
+        `)
+        .eq('active', true);
+
+      // Process leads to add mapping and campaign information
+      const processedLeads = rawLeads.map(lead => {
+        // Find external campaign info
+        const externalCampaign = externalCampaigns?.find(
+          ec => ec.lp_campaign_id === lead.lp_campaign_id
+        );
+
+        // Find mapping info
+        const mapping = mappings?.find(
+          m => m.lp_campaign_id === externalCampaign?.id
+        );
+
+        return {
+          ...lead,
+          lp_campaign_name: externalCampaign?.name || `Campaign ${lead.lp_campaign_id}`,
+          mapped_campaign_name: mapping?.campaigns?.name || null,
+          is_mapped: !!mapping?.active
+        };
+      });
 
       // Filter by mapping status if requested
       let filteredLeads = processedLeads;
