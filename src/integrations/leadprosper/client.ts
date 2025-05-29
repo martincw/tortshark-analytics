@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -470,6 +469,96 @@ class LeadProsperApiClient {
       };
     } catch (error) {
       console.error("Error in getLeadsList:", error);
+      throw error;
+    }
+  }
+
+  async getAllLeadsList(params: {
+    page: number;
+    pageSize: number;
+    status?: string;
+    searchTerm?: string;
+    startDate?: string;
+    endDate?: string;
+    mappingStatus?: 'all' | 'mapped' | 'unmapped';
+  }): Promise<{ leads: any[]; total: number }> {
+    try {
+      console.log("Fetching all leads list with params:", params);
+      
+      let query = supabase
+        .from('lp_leads_raw')
+        .select(`
+          *,
+          lp_to_ts_map!inner(
+            ts_campaign_id,
+            active,
+            campaigns!inner(name)
+          ),
+          external_lp_campaigns!inner(
+            name,
+            lp_campaign_id
+          )
+        `, { count: 'exact' });
+
+      // Apply status filter
+      if (params.status && params.status !== 'all') {
+        query = query.eq('status', params.status);
+      }
+
+      // Apply date filters
+      if (params.startDate) {
+        const startMs = new Date(params.startDate).getTime();
+        query = query.gte('lead_date_ms', startMs);
+      }
+
+      if (params.endDate) {
+        const endMs = new Date(params.endDate + 'T23:59:59').getTime();
+        query = query.lte('lead_date_ms', endMs);
+      }
+
+      // Apply search filter
+      if (params.searchTerm) {
+        query = query.ilike('id', `%${params.searchTerm}%`);
+      }
+
+      // Apply pagination
+      const from = (params.page - 1) * params.pageSize;
+      const to = from + params.pageSize - 1;
+      
+      query = query
+        .order('lead_date_ms', { ascending: false })
+        .range(from, to);
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error("Error fetching all leads:", error);
+        throw error;
+      }
+
+      // Process leads to add mapping information
+      const processedLeads = (data || []).map(lead => ({
+        ...lead,
+        mapped_campaign_name: lead.lp_to_ts_map?.[0]?.campaigns?.name || null,
+        lp_campaign_name: lead.external_lp_campaigns?.name || `Campaign ${lead.lp_campaign_id}`,
+        is_mapped: !!lead.lp_to_ts_map?.[0]?.active
+      }));
+
+      // Filter by mapping status if requested
+      let filteredLeads = processedLeads;
+      if (params.mappingStatus === 'mapped') {
+        filteredLeads = processedLeads.filter(lead => lead.is_mapped);
+      } else if (params.mappingStatus === 'unmapped') {
+        filteredLeads = processedLeads.filter(lead => !lead.is_mapped);
+      }
+
+      console.log(`Fetched ${filteredLeads.length} leads (total: ${count})`);
+      return {
+        leads: filteredLeads,
+        total: params.mappingStatus !== 'all' ? filteredLeads.length : count || 0
+      };
+    } catch (error) {
+      console.error("Error in getAllLeadsList:", error);
       throw error;
     }
   }

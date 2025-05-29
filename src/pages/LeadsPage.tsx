@@ -46,7 +46,7 @@ export default function LeadsPage() {
   // Get today's date for default
   const today = format(new Date(), 'yyyy-MM-dd');
   
-  // Get filters from URL params or set defaults
+  // Get filters from URL params or set defaults - default to 'all' campaigns
   const [filters, setFilters] = useState({
     campaignId: searchParams.get('campaignId') || 'all',
     startDate: searchParams.get('startDate') || today,
@@ -276,7 +276,7 @@ export default function LeadsPage() {
     setSelectedEndDate(today);
   };
 
-  // Get mapped campaigns only
+  // Get mapped campaigns only - but also include 'all' option
   const mappedCampaigns = campaigns?.filter(campaign => mappings[campaign.id]) || [];
   
   const handleQuickMapCampaign = (campaignId: string, campaignName: string) => {
@@ -482,7 +482,7 @@ export default function LeadsPage() {
             <span>Leads from Lead Prosper</span>
           </CardTitle>
           <CardDescription>
-            Leads imported from mapped Lead Prosper campaigns for {filters.startDate} to {filters.endDate}
+            View all leads from Lead Prosper campaigns for {filters.startDate} to {filters.endDate}
           </CardDescription>
         </CardHeader>
         
@@ -529,7 +529,7 @@ export default function LeadsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Campaigns</SelectItem>
-                      {mappedCampaigns.map((campaign) => (
+                      {campaigns?.map((campaign) => (
                         <SelectItem key={campaign.id} value={campaign.id}>
                           {campaign.name}
                         </SelectItem>
@@ -561,12 +561,18 @@ export default function LeadsPage() {
             </div>
           )}
           
-          {/* Check if any campaigns are mapped */}
-          {mappedCampaigns.length === 0 ? (
+          {/* Always show leads list now - no need to check for mapped campaigns */}
+          <LeadProsperLeadsList 
+            campaignId={filters.campaignId === 'all' ? undefined : filters.campaignId}
+          />
+          
+          {/* Show info about unmapped campaigns if there are any */}
+          {campaigns && campaigns.length > mappedCampaigns.length && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                No campaigns are mapped to Lead Prosper yet. Map your campaigns to start importing lead data.
+                You have {campaigns.length - mappedCampaigns.length} unmapped campaign(s). 
+                Map them to organize leads better and enable campaign-specific analytics.
                 <div className="mt-2">
                   <Button 
                     variant="outline" 
@@ -580,10 +586,6 @@ export default function LeadsPage() {
                 </div>
               </AlertDescription>
             </Alert>
-          ) : (
-            <LeadProsperLeadsList 
-              campaignId={filters.campaignId === 'all' ? undefined : filters.campaignId}
-            />
           )}
         </CardContent>
       </Card>

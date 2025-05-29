@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -55,18 +54,15 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [mappingStatus, setMappingStatus] = useState<'all' | 'mapped' | 'unmapped'>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // 30 days ago
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [error, setError] = useState<string | null>(null);
 
   // Load leads on initial render and when filters change
   useEffect(() => {
-    if (selectedCampaignId !== 'all') {
-      loadLeads();
-    } else {
-      setIsLoading(false);
-    }
-  }, [selectedCampaignId, page, pageSize, selectedStatus, searchTerm, startDate, endDate]);
+    loadLeads();
+  }, [selectedCampaignId, page, pageSize, selectedStatus, searchTerm, startDate, endDate, mappingStatus]);
 
   // If campaignId prop changes, update the selected campaign
   useEffect(() => {
@@ -76,22 +72,35 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
   }, [campaignId]);
 
   const loadLeads = async () => {
-    if (!selectedCampaignId || selectedCampaignId === 'all') return;
-
     setIsLoading(true);
     setError(null);
 
     try {
-      // Call the API with all our filters
-      const result = await leadProsperApi.getLeadsList({
-        page,
-        pageSize,
-        ts_campaign_id: selectedCampaignId,
-        status: selectedStatus === 'all' ? undefined : selectedStatus,
-        searchTerm: searchTerm || undefined,
-        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
-        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
-      });
+      let result;
+      
+      if (selectedCampaignId === 'all') {
+        // Use the new method to get all leads
+        result = await leadProsperApi.getAllLeadsList({
+          page,
+          pageSize,
+          status: selectedStatus === 'all' ? undefined : selectedStatus,
+          searchTerm: searchTerm || undefined,
+          startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
+          endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
+          mappingStatus,
+        });
+      } else {
+        // Use the existing method for specific campaign
+        result = await leadProsperApi.getLeadsList({
+          page,
+          pageSize,
+          ts_campaign_id: selectedCampaignId,
+          status: selectedStatus === 'all' ? undefined : selectedStatus,
+          searchTerm: searchTerm || undefined,
+          startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
+          endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
+        });
+      }
 
       setLeads(result.leads);
       setTotalLeads(result.total);
@@ -230,7 +239,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
             size="sm" 
             variant="outline"
             onClick={refreshLeads}
-            disabled={isRefreshing || !selectedCampaignId || selectedCampaignId === 'all'}
+            disabled={isRefreshing}
           >
             {isRefreshing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -248,7 +257,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
         {/* Filters */}
         <div className="space-y-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="w-full md:w-1/3">
+            <div className="w-full md:w-1/4">
               <label className="text-sm font-medium mb-1 block">Campaign</label>
               <Select
                 value={selectedCampaignId}
@@ -266,8 +275,27 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedCampaignId === 'all' && (
+              <div className="w-full md:w-1/4">
+                <label className="text-sm font-medium mb-1 block">Mapping Status</label>
+                <Select
+                  value={mappingStatus}
+                  onValueChange={(value: 'all' | 'mapped' | 'unmapped') => setMappingStatus(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Leads</SelectItem>
+                    <SelectItem value="mapped">Mapped Only</SelectItem>
+                    <SelectItem value="unmapped">Unmapped Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
-            <div className="w-full md:w-1/3">
+            <div className="w-full md:w-1/4">
               <label className="text-sm font-medium mb-1 block">Status</label>
               <Select
                 value={selectedStatus}
@@ -287,7 +315,7 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
               </Select>
             </div>
             
-            <div className="w-full md:w-1/3">
+            <div className="w-full md:w-1/4">
               <label className="text-sm font-medium mb-1 block">Search</label>
               <div className="flex">
                 <Input
@@ -340,10 +368,6 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : !selectedCampaignId || selectedCampaignId === 'all' ? (
-          <div className="text-center py-12 text-muted-foreground">
-            Please select a campaign to view leads
-          </div>
         ) : leads.length > 0 ? (
           <>
             <div className="rounded-md border overflow-x-auto">
@@ -352,6 +376,8 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
                   <TableRow>
                     <TableHead>Lead ID</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>LP Campaign</TableHead>
+                    {selectedCampaignId === 'all' && <TableHead>TS Campaign</TableHead>}
                     <TableHead>Status</TableHead>
                     <TableHead>Cost</TableHead>
                     <TableHead>Revenue</TableHead>
@@ -367,6 +393,27 @@ export default function LeadProsperLeadsList({ campaignId }: LeadProsperLeadsLis
                           ? new Date(lead.lead_date_ms).toLocaleDateString() 
                           : 'Unknown'}
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {lead.lp_campaign_name || `Campaign ${lead.lp_campaign_id}`}
+                      </TableCell>
+                      {selectedCampaignId === 'all' && (
+                        <TableCell className="text-sm">
+                          {lead.is_mapped ? (
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                Mapped
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {lead.mapped_campaign_name}
+                              </span>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                              Unmapped
+                            </Badge>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Badge 
                           variant="outline" 
