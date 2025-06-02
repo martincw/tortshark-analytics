@@ -1118,8 +1118,16 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      is_workspace_admin: {
+        Args: { workspace_id: string; user_id?: string }
+        Returns: boolean
+      }
       is_workspace_member: {
         Args: { workspace_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_workspace_member_safe: {
+        Args: { workspace_id: string; user_id?: string }
         Returns: boolean
       }
       migrate_campaigns_from_localstorage: {

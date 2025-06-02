@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -42,6 +41,7 @@ interface WorkspaceContextType {
   members: WorkspaceMember[];
   invitations: WorkspaceInvitation[];
   isLoading: boolean;
+  error: string | null;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   createWorkspace: (name: string) => Promise<Workspace | null>;
   updateWorkspace: (id: string, name: string) => Promise<void>;
@@ -50,6 +50,7 @@ interface WorkspaceContextType {
   updateMemberRole: (memberId: string, role: 'admin' | 'member') => Promise<void>;
   removeMember: (memberId: string) => Promise<void>;
   cancelInvitation: (invitationId: string) => Promise<void>;
+  retryWorkspaceLoad: () => Promise<void>;
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -61,6 +62,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch workspaces when user auth state changes
   useEffect(() => {
@@ -71,6 +73,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setCurrentWorkspace(null);
       setMembers([]);
       setInvitations([]);
+      setError(null);
       setIsLoading(false);
     }
   }, [isAuthenticated, user]);
@@ -80,23 +83,38 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!user) return;
     
     setIsLoading(true);
+    setError(null);
+    
     try {
+      console.log("Fetching workspaces for user:", user.id);
+      
+      // First try to get the user's workspace memberships
       const { data: membershipData, error: membershipError } = await supabase
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id);
       
       if (membershipError) {
+        console.error("Error fetching memberships:", membershipError);
+        
+        // If it's an RLS error, try to create a default workspace
+        if (membershipError.message.includes('policy') || membershipError.message.includes('permission')) {
+          console.log("RLS policy issue detected, attempting to create default workspace");
+          await createDefaultWorkspaceForUser();
+          return;
+        }
+        
         throw membershipError;
       }
       
       if (!membershipData || membershipData.length === 0) {
-        console.log("User has no workspaces, might be a new user");
-        setIsLoading(false);
+        console.log("User has no workspaces, creating default workspace");
+        await createDefaultWorkspaceForUser();
         return;
       }
       
       const workspaceIds = membershipData.map(m => m.workspace_id);
+      console.log("Found workspace IDs:", workspaceIds);
       
       const { data: workspacesData, error: workspacesError } = await supabase
         .from('workspaces')
@@ -104,10 +122,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .in('id', workspaceIds);
         
       if (workspacesError) {
+        console.error("Error fetching workspaces:", workspacesError);
         throw workspacesError;
       }
       
       if (workspacesData && workspacesData.length > 0) {
+        console.log("Successfully loaded workspaces:", workspacesData.length);
         setWorkspaces(workspacesData);
         
         // Set current workspace (either from local storage or default to first)
@@ -124,18 +144,50 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           localStorage.setItem('current_workspace_id', workspacesData[0].id);
           await fetchWorkspaceDetails(workspacesData[0].id);
         }
+      } else {
+        console.log("No workspaces returned, creating default");
+        await createDefaultWorkspaceForUser();
       }
     } catch (error) {
-      console.error("Error fetching workspaces:", error);
+      console.error("Error in fetchWorkspaces:", error);
+      setError("Failed to load workspaces. Please try again.");
       toast.error("Failed to load workspaces");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Create a default workspace for users who don't have one
+  const createDefaultWorkspaceForUser = async () => {
+    if (!user) return;
+    
+    try {
+      console.log("Creating default workspace for user");
+      const defaultWorkspace = await createWorkspace("Default Workspace");
+      
+      if (defaultWorkspace) {
+        console.log("Default workspace created successfully");
+        setError(null);
+      } else {
+        throw new Error("Failed to create default workspace");
+      }
+    } catch (error) {
+      console.error("Error creating default workspace:", error);
+      setError("Failed to create workspace. Please refresh the page.");
+      toast.error("Failed to create workspace");
+    }
+  };
+
+  // Retry loading workspaces
+  const retryWorkspaceLoad = async () => {
+    await fetchWorkspaces();
+  };
+
   // Fetch members and invitations for a specific workspace
   const fetchWorkspaceDetails = async (workspaceId: string) => {
     try {
+      console.log("Fetching workspace details for:", workspaceId);
+      
       // Fetch members
       const { data: membersData, error: membersError } = await supabase
         .from('workspace_members')
@@ -143,17 +195,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .eq('workspace_id', workspaceId);
         
       if (membersError) {
+        console.error("Error fetching members:", membersError);
         throw membersError;
       }
       
-      // Get user details for each member
-      if (membersData && membersData.length > 0) {
-        // We can't directly access auth.users, so we'll need to get info from profiles
-        // in a real app. For now, set what we have.
-        setMembers(membersData);
-      } else {
-        setMembers([]);
-      }
+      setMembers(membersData || []);
       
       // Fetch invitations
       const { data: invitationsData, error: invitationsError } = await supabase
@@ -163,17 +209,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .is('accepted_at', null);
         
       if (invitationsError) {
+        console.error("Error fetching invitations:", invitationsError);
         throw invitationsError;
       }
       
-      if (invitationsData) {
-        setInvitations(invitationsData);
-      } else {
-        setInvitations([]);
-      }
+      setInvitations(invitationsData || []);
+      console.log("Workspace details loaded successfully");
     } catch (error) {
       console.error("Error fetching workspace details:", error);
-      toast.error("Failed to load workspace members");
+      // Don't show error toast for workspace details as it's not critical
+      setMembers([]);
+      setInvitations([]);
     }
   };
 
@@ -189,8 +235,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     localStorage.setItem('current_workspace_id', workspaceId);
     await fetchWorkspaceDetails(workspaceId);
     
-    // Refresh key data for the new workspace context
-    // This would typically trigger other context refreshes as well
     toast.success(`Switched to ${workspace.name}`);
   };
 
@@ -199,6 +243,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!user) return null;
     
     try {
+      console.log("Creating workspace:", name);
+      
       // Create the workspace
       const { data: workspaceData, error: workspaceError } = await supabase
         .from('workspaces')
@@ -210,6 +256,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .single();
         
       if (workspaceError) {
+        console.error("Error creating workspace:", workspaceError);
         throw workspaceError;
       }
       
@@ -227,11 +274,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
         
       if (memberError) {
+        console.error("Error adding user as owner:", memberError);
         throw memberError;
       }
       
       // Update state
       setWorkspaces([...workspaces, workspaceData]);
+      console.log("Workspace created successfully:", workspaceData.name);
       toast.success(`Created workspace: ${name}`);
       
       return workspaceData;
@@ -451,6 +500,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     members,
     invitations,
     isLoading,
+    error,
     switchWorkspace,
     createWorkspace,
     updateWorkspace,
@@ -459,6 +509,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateMemberRole,
     removeMember,
     cancelInvitation,
+    retryWorkspaceLoad,
   };
 
   return (
