@@ -1114,28 +1114,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      create_workspace_with_owner: {
-        Args: { p_workspace_name: string; p_owner_user_id?: string }
-        Returns: {
-          workspace_id: string
-          workspace_name: string
-          created_at: string
-        }[]
-      }
       get_user_default_workspace: {
         Args: { p_user_id: string }
         Returns: string
       }
-      is_workspace_admin: {
-        Args: { workspace_id: string; user_id?: string }
-        Returns: boolean
-      }
       is_workspace_member: {
         Args: { workspace_id: string; user_id: string }
-        Returns: boolean
-      }
-      is_workspace_member_safe: {
-        Args: { workspace_id: string; user_id?: string }
         Returns: boolean
       }
       migrate_campaigns_from_localstorage: {

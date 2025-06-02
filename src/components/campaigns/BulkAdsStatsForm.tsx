@@ -45,7 +45,7 @@ const adsStatsFields: { id: AdsStatsField; label: string }[] = [
 
 export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate }) => {
   const { campaigns } = useCampaign();
-  const { uniqueCampaigns, activeAdsField, setActiveAdsField, currentWorkspace } = useBulkStatsData();
+  const { uniqueCampaigns, activeAdsField, setActiveAdsField } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, boolean>>({});
@@ -58,7 +58,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
   
   console.log("BulkAdsStatsForm - Week dates:", weekDates);
   console.log("BulkAdsStatsForm - Week date keys:", weekDateKeys);
-  console.log("BulkAdsStatsForm - Current workspace:", currentWorkspace);
 
   const handleSelectAll = () => {
     const allSelected = uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length;
@@ -149,34 +148,13 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
     });
   };
 
-  const validateAdsData = (selectedCampaignIds: string[]): boolean => {
-    let hasValidData = false;
-    
-    selectedCampaignIds.forEach(campaignId => {
-      const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-      Object.entries(campaignWeeklyStats).forEach(([dateKey, dayStats]) => {
-        if (dayStats.adSpend > 0 || dayStats.impressions > 0 || dayStats.clicks > 0) {
-          hasValidData = true;
-        }
-      });
-    });
-    
-    return hasValidData;
-  };
-
   const handleSaveDailyStats = async () => {
     if (!user) {
       toast.error("You must be logged in to add stats");
       return;
     }
-
-    if (!currentWorkspace?.id) {
-      toast.error("No workspace selected");
-      return;
-    }
     
     setLoading(true);
-    console.log("Submitting bulk ads stats with workspace ID:", currentWorkspace.id);
     
     try {
       const selectedCampaignIds = Object.entries(selectedCampaigns)
@@ -185,12 +163,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       
       if (selectedCampaignIds.length === 0) {
         toast.error("Please select at least one campaign");
-        setLoading(false);
-        return;
-      }
-
-      if (!validateAdsData(selectedCampaignIds)) {
-        toast.error("Please enter some ad stats data before submitting");
         setLoading(false);
         return;
       }
@@ -207,12 +179,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
           
           console.log(`BulkAdsStatsForm - Processing stats for campaign ${campaignId} on date key: ${dateKey}`);
           console.log(`BulkAdsStatsForm - Stats to save:`, dayStats);
-          
-          // Skip if all values are zero unless it's an intentional update
-          if (dayStats.adSpend === 0 && dayStats.impressions === 0 && dayStats.clicks === 0) {
-            console.log(`Skipping ${dateKey} - all values are zero`);
-            continue;
-          }
           
           const { data, error: checkError } = await supabase
             .from('campaign_stats_history')
@@ -234,8 +200,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
               .from('campaign_stats_history')
               .update({ 
                 ad_spend: dayStats.adSpend || 0,
-                date: dateKey,
-                workspace_id: currentWorkspace.id
+                date: dateKey 
               })
               .eq('id', data.id);
               
@@ -256,8 +221,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                 leads: 0,
                 cases: 0,
                 retainers: 0,
-                revenue: 0,
-                workspace_id: currentWorkspace.id
+                revenue: 0
               });
               
             if (insertError) {
@@ -269,26 +233,13 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
         }
       }
       
-      // Use the last date in the week for campaign_stats that has actual data
+      // Use the last date in the week for campaign_stats
+      const recentDateKey = weekDateKeys[weekDateKeys.length - 1];
+      console.log("BulkAdsStatsForm - Recent date key for campaign_stats:", recentDateKey);
+      
       for (const campaignId of selectedCampaignIds) {
         const campaignWeeklyStats = weeklyStatsData[campaignId] || {};
-        
-        // Find the most recent date with actual data
-        let recentDateKey = '';
-        let recentStats = { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
-        
-        for (let i = weekDateKeys.length - 1; i >= 0; i--) {
-          const dateKey = weekDateKeys[i];
-          const dayStats = campaignWeeklyStats[dateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
-          
-          if (dayStats.adSpend > 0 || dayStats.impressions > 0 || dayStats.clicks > 0) {
-            recentDateKey = dateKey;
-            recentStats = dayStats;
-            break;
-          }
-        }
-        
-        if (!recentDateKey) continue;
+        const recentStats = campaignWeeklyStats[recentDateKey] || { adSpend: 0, impressions: 0, clicks: 0, cpc: 0 };
         
         console.log(`BulkAdsStatsForm - Updating campaign_stats for ${campaignId} with date ${recentDateKey}`);
         console.log("BulkAdsStatsForm - Stats to save:", recentStats);
@@ -363,18 +314,11 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
 
   return (
     <div className="space-y-6">
-      {!currentWorkspace && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-yellow-800">No workspace selected. Please select a workspace to continue.</p>
-        </div>
-      )}
-
       <div className="flex items-center space-x-2 mb-4">
         <Checkbox
           id="select-all-ads"
           checked={uniqueCampaigns.length > 0 && uniqueCampaigns.length === Object.values(selectedCampaigns).filter(Boolean).length}
           onCheckedChange={handleSelectAll}
-          disabled={!currentWorkspace}
         />
         <label htmlFor="select-all-ads" className="text-sm font-medium">
           Select All Campaigns
@@ -430,7 +374,6 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
                       id={`select-ads-${campaign.id}`}
                       checked={selectedCampaigns[campaign.id] || false}
                       onCheckedChange={() => handleSelectCampaign(campaign.id)}
-                      disabled={!currentWorkspace}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
@@ -454,7 +397,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
           </Table>
         )}
         
-        {activeAdsField !== 'adSpend' && currentWorkspace && (
+        {activeAdsField !== 'adSpend' && (
           <>
             <div className="grid grid-cols-6 gap-4 p-2 font-medium bg-muted rounded-md">
               <div className="col-span-2">Campaign</div>
@@ -539,7 +482,7 @@ export const BulkAdsStatsForm: React.FC<BulkAdsStatsFormProps> = ({ startDate })
       <div className="flex justify-end">
         <Button 
           onClick={handleSaveDailyStats} 
-          disabled={loading || Object.values(selectedCampaigns).filter(Boolean).length === 0 || !currentWorkspace}
+          disabled={loading || Object.values(selectedCampaigns).filter(Boolean).length === 0}
         >
           {loading ? "Saving..." : "Save All Ad Stats"}
         </Button>

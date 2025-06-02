@@ -45,7 +45,7 @@ type WeeklyStats = {
 };
 
 export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
-  const { uniqueCampaigns, refreshAfterBulkUpdate, currentWorkspace } = useBulkStatsData();
+  const { uniqueCampaigns, refreshAfterBulkUpdate } = useBulkStatsData();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
@@ -56,10 +56,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
   
   const weekDates = createWeekDates(startDate);
   const weekDateKeys = weekDates.map(date => formatDateForStorage(date));
-
-  console.log("BulkStatsForm - Week dates:", weekDates);
-  console.log("BulkStatsForm - Week date keys:", weekDateKeys);
-  console.log("BulkStatsForm - Current workspace:", currentWorkspace);
 
   const handleCampaignSelect = async (campaignId: string) => {
     // Check if we're selecting or deselecting
@@ -74,7 +70,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     }
     
     // Fetch existing stats for this campaign
-    console.log("Fetching existing stats for campaign:", campaignId, "dates:", weekDateKeys);
     const { data: existingStats, error } = await supabase
       .from('campaign_stats_history')
       .select('*')
@@ -87,8 +82,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
       initializeWeeklyStats(campaignId);
       return;
     }
-
-    console.log("Fetched existing stats:", existingStats);
 
     // Initialize stats with existing data
     const weekStats: WeeklyStats = {};
@@ -188,51 +181,20 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
     toast.success(`Pasted ${validValues.length} values for ${bulkPasteField}`);
   };
 
-  const validateStatsData = (campaignId: string, weeklyStats: WeeklyStats): boolean => {
-    let hasValidData = false;
-    
-    Object.entries(weeklyStats).forEach(([dateKey, dayStats]) => {
-      if (dayStats.leads > 0 || dayStats.cases > 0 || dayStats.revenue > 0 || dayStats.adSpend > 0) {
-        hasValidData = true;
-      }
-    });
-    
-    return hasValidData;
-  };
-
   const handleSubmit = async () => {
     if (!user || !selectedCampaign) {
       toast.error("Please select a campaign first");
       return;
     }
-
-    if (!currentWorkspace?.id) {
-      toast.error("No workspace selected");
-      return;
-    }
-    
-    const campaignWeeklyStats = weeklyStatsData[selectedCampaign] || {};
-    
-    if (!validateStatsData(selectedCampaign, campaignWeeklyStats)) {
-      toast.error("Please enter some stats data before submitting");
-      return;
-    }
     
     setLoading(true);
-    console.log("Submitting bulk stats with workspace ID:", currentWorkspace.id);
     
     try {
+      const campaignWeeklyStats = weeklyStatsData[selectedCampaign] || {};
+      
       for (let i = 0; i < weekDateKeys.length; i++) {
         const dateKey = weekDateKeys[i];
         const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-        
-        console.log(`Processing stats for campaign ${selectedCampaign} on date ${dateKey}:`, dayStats);
-        
-        // Skip if all values are zero unless it's an intentional update
-        if (dayStats.leads === 0 && dayStats.cases === 0 && dayStats.revenue === 0 && dayStats.adSpend === 0) {
-          console.log(`Skipping ${dateKey} - all values are zero`);
-          continue;
-        }
         
         const { data: existingRecord, error: checkError } = await supabase
           .from('campaign_stats_history')
@@ -247,7 +209,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
         
         if (existingRecord) {
-          console.log(`Updating existing record for ${selectedCampaign} on ${dateKey}`);
           const { error: updateError } = await supabase
             .from('campaign_stats_history')
             .update({
@@ -256,8 +217,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               retainers: dayStats.cases || 0,
               revenue: dayStats.revenue || 0,
               ad_spend: dayStats.adSpend || 0,
-              date: dateKey,
-              workspace_id: currentWorkspace.id
+              date: dateKey
             })
             .eq('id', existingRecord.id);
             
@@ -266,7 +226,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             toast.error(`Failed to update stats for ${dateKey}`);
           }
         } else {
-          console.log(`Inserting new record for ${selectedCampaign} on ${dateKey}`);
           const { error: insertError } = await supabase
             .from('campaign_stats_history')
             .insert({
@@ -278,7 +237,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
               retainers: dayStats.cases || 0,
               revenue: dayStats.revenue || 0,
               ad_spend: dayStats.adSpend || 0,
-              workspace_id: currentWorkspace.id,
               created_at: new Date().toISOString()
             });
             
@@ -289,60 +247,42 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
         }
       }
       
-      // Update manual stats with the most recent day's data that has actual values
-      let recentDateKey = '';
-      let recentStats = { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
+      // Update manual stats with the most recent day's data
+      const recentDateKey = weekDateKeys[weekDateKeys.length - 1];
+      const recentStats = campaignWeeklyStats[recentDateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
       
-      // Find the most recent date with actual data
-      for (let i = weekDateKeys.length - 1; i >= 0; i--) {
-        const dateKey = weekDateKeys[i];
-        const dayStats = campaignWeeklyStats[dateKey] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
+      const { data: existingManualStats, error: checkManualError } = await supabase
+        .from('campaign_manual_stats')
+        .select('id')
+        .eq('campaign_id', selectedCampaign)
+        .maybeSingle();
         
-        if (dayStats.leads > 0 || dayStats.cases > 0 || dayStats.revenue > 0 || dayStats.adSpend > 0) {
-          recentDateKey = dateKey;
-          recentStats = dayStats;
-          break;
-        }
-      }
-      
-      if (recentDateKey) {
-        console.log("Updating manual stats with date:", recentDateKey, "stats:", recentStats);
-        
-        const { data: existingManualStats, error: checkManualError } = await supabase
-          .from('campaign_manual_stats')
-          .select('id')
-          .eq('campaign_id', selectedCampaign)
-          .maybeSingle();
-          
-        if (checkManualError) {
-          console.error(`Error checking manual stats for ${selectedCampaign}:`, checkManualError);
+      if (checkManualError) {
+        console.error(`Error checking manual stats for ${selectedCampaign}:`, checkManualError);
+      } else {
+        if (existingManualStats) {
+          await supabase
+            .from('campaign_manual_stats')
+            .update({
+              leads: recentStats.leads || 0,
+              cases: recentStats.cases || 0,
+              retainers: recentStats.cases || 0,
+              revenue: recentStats.revenue || 0,
+              date: recentDateKey
+            })
+            .eq('id', existingManualStats.id);
         } else {
-          if (existingManualStats) {
-            await supabase
-              .from('campaign_manual_stats')
-              .update({
-                leads: recentStats.leads || 0,
-                cases: recentStats.cases || 0,
-                retainers: recentStats.cases || 0,
-                revenue: recentStats.revenue || 0,
-                date: recentDateKey,
-                workspace_id: currentWorkspace.id
-              })
-              .eq('id', existingManualStats.id);
-          } else {
-            await supabase
-              .from('campaign_manual_stats')
-              .insert({
-                id: uuidv4(),
-                campaign_id: selectedCampaign,
-                date: recentDateKey,
-                leads: recentStats.leads || 0,
-                cases: recentStats.cases || 0,
-                retainers: recentStats.cases || 0,
-                revenue: recentStats.revenue || 0,
-                workspace_id: currentWorkspace.id
-              });
-          }
+          await supabase
+            .from('campaign_manual_stats')
+            .insert({
+              id: uuidv4(),
+              campaign_id: selectedCampaign,
+              date: recentDateKey,
+              leads: recentStats.leads || 0,
+              cases: recentStats.cases || 0,
+              retainers: recentStats.cases || 0,
+              revenue: recentStats.revenue || 0
+            });
         }
       }
       
@@ -377,7 +317,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
                     id={`select-${campaign.id}`}
                     checked={selectedCampaign === campaign.id}
                     onCheckedChange={() => handleCampaignSelect(campaign.id)}
-                    disabled={!currentWorkspace}
                   />
                 </TableCell>
                 <TableCell className="font-medium">{campaign.name}</TableCell>
@@ -386,7 +325,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
           </TableBody>
         </Table>
 
-        {selectedCampaign && currentWorkspace && (
+        {selectedCampaign && (
           <div className="mt-6">
             <Table>
               <TableHeader>
@@ -511,7 +450,7 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
             <div className="flex justify-end mt-4">
               <Button 
                 onClick={handleSubmit} 
-                disabled={loading || !currentWorkspace}
+                disabled={loading}
               >
                 {loading ? "Saving..." : "Save All Stats"}
               </Button>

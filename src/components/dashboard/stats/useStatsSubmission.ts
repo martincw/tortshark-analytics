@@ -27,13 +27,6 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
       return;
     }
 
-    if (!currentWorkspace?.id) {
-      toast.error("No workspace selected");
-      return;
-    }
-
-    console.log("Submitting stats with workspace ID:", currentWorkspace.id);
-
     setIsSubmitting(true);
     
     try {
@@ -62,8 +55,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases, // Using cases as retainers
             revenue,
-            ad_spend: adSpend,
-            workspace_id: currentWorkspace.id
+            ad_spend: adSpend
           })
           .eq('id', existingData.id);
           
@@ -85,7 +77,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             retainers: cases, // Using cases as retainers
             revenue,
             ad_spend: adSpend,
-            workspace_id: currentWorkspace.id
+            workspace_id: currentWorkspace?.id // Add workspace_id
           });
           
         if (insertError) {
@@ -126,7 +118,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             retainers: cases,
             revenue,
             date: dateString,
-            workspace_id: currentWorkspace.id
+            workspace_id: currentWorkspace?.id // Add workspace_id
           }, {
             onConflict: 'campaign_id'
           });

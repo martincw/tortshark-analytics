@@ -5,7 +5,6 @@ import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO, subWeeks } 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
-import { useWorkspace } from "./WorkspaceContext";
 import { leadProsperApi } from "@/integrations/leadprosper/client";
 
 interface CampaignContextType {
@@ -102,7 +101,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   });
   
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
   
   // Save date range to localStorage when it changes
   useEffect(() => {
@@ -137,19 +135,11 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     if (!user) {
       console.log("User not authenticated, skipping campaign fetch.");
       setIsLoading(false);
-      setCampaigns([]);
-      return;
-    }
-
-    if (!currentWorkspace) {
-      console.log("No workspace selected, skipping campaign fetch.");
-      setIsLoading(false);
-      setCampaigns([]);
       return;
     }
 
     try {
-      console.log("Fetching campaigns for workspace:", currentWorkspace.id);
+      console.log("Fetching campaigns for user:", user.id);
       
       const { data, error } = await supabase
         .from('campaigns')
@@ -160,7 +150,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           campaign_stats_history(*),
           campaign_targets(*)
         `)
-        .eq('workspace_id', currentWorkspace.id);
+        .eq('user_id', user.id);
 
       if (error) {
         console.error("Error fetching campaigns:", error);
@@ -254,7 +244,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           };
         });
 
-        console.log(`Successfully fetched ${typedCampaigns.length} campaigns for workspace ${currentWorkspace.name}`);
+        console.log(`Successfully fetched ${typedCampaigns.length} campaigns`);
         setCampaigns(typedCampaigns);
       } else {
         console.log("No campaign data returned");
@@ -267,17 +257,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     } finally {
       setIsLoading(false);
     }
-  }, [user, currentWorkspace]);
-
-  // Fetch campaigns when workspace changes
-  useEffect(() => {
-    if (user && currentWorkspace) {
-      fetchCampaigns();
-      fetchGoogleAdsAccounts();
-    } else {
-      setCampaigns([]);
-    }
-  }, [fetchCampaigns, user, currentWorkspace]);
+  }, [user]);
 
   const fetchHyrosAccounts = async () => {
     try {
@@ -321,6 +301,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         };
       });
       
+      // Get HYROS connections from tokens table
       try {
         const { data: tokenData, error: tokenError } = await supabase
           .from('hyros_tokens')
@@ -345,6 +326,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         }
       } catch (tokenError) {
         console.error("Error fetching HYROS connections:", tokenError);
+        // Continue even if HYROS token fetch fails
       }
       
       setAccountConnections(connections);
@@ -400,9 +382,11 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         };
       });
       
+      // Get Lead Prosper connections
       try {
         const lpConnections = await leadProsperApi.getAccountConnections();
         
+        // Add LP connections if they don't exist already
         lpConnections.forEach(lpConn => {
           const exists = connections.some(conn => conn.platform === 'leadprosper');
           if (!exists) {
@@ -411,8 +395,10 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         });
       } catch (lpError) {
         console.error("Error fetching Lead Prosper connections:", lpError);
+        // Continue even if Lead Prosper fails
       }
       
+      // Get HYROS connections from tokens table
       try {
         const { data: tokenData, error: tokenError } = await supabase
           .from('hyros_tokens')
@@ -437,6 +423,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         }
       } catch (hyrosError) {
         console.error("Error fetching HYROS connections:", hyrosError);
+        // Continue even if HYROS fetch fails
       }
       
       setAccountConnections(connections);
@@ -490,19 +477,21 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     });
   };
 
-  const addCampaign = useCallback(async (campaignData: Omit<Campaign, "id">) => {
-    if (!currentWorkspace) {
-      toast.error("No workspace selected");
-      return;
+  useEffect(() => {
+    if (user) {
+      fetchCampaigns();
+      fetchGoogleAdsAccounts();
     }
+  }, [fetchCampaigns, user]);
 
+  const addCampaign = useCallback(async (campaignData: Omit<Campaign, "id">) => {
     try {
+      // Add campaign to the database
       const { data, error } = await supabase.from('campaigns').insert([
         {
           name: campaignData.name,
           platform: campaignData.platform,
           user_id: campaignData.userId,
-          workspace_id: currentWorkspace.id,
           account_id: campaignData.accountId || null,
           account_name: campaignData.accountName || null
         }
@@ -517,7 +506,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         const { error: targetsError } = await supabase.from('campaign_targets').insert([
           {
             campaign_id: newCampaignId,
-            workspace_id: currentWorkspace.id,
             monthly_retainers: campaignData.targets.monthlyRetainers,
             case_payout_amount: campaignData.targets.casePayoutAmount,
             monthly_income: campaignData.targets.monthlyIncome,
@@ -535,7 +523,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         const { error: manualStatsError } = await supabase.from('campaign_manual_stats').insert([
           {
             campaign_id: newCampaignId,
-            workspace_id: currentWorkspace.id,
             leads: campaignData.manualStats.leads,
             cases: campaignData.manualStats.cases,
             retainers: campaignData.manualStats.retainers || 0,
@@ -555,7 +542,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       console.error('Error adding campaign:', error);
       throw error;
     }
-  }, [fetchCampaigns, currentWorkspace]);
+  }, [fetchCampaigns]);
 
   const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
     setIsLoading(true);
@@ -649,11 +636,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   };
   
   const addStatHistoryEntry = async (campaignId: string, entry: any) => {
-    if (!currentWorkspace) {
-      toast.error("No workspace selected");
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
   
@@ -664,7 +646,6 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           {
             id: uuidv4(),
             campaign_id: campaignId,
-            workspace_id: currentWorkspace.id,
             date: entry.date,
             leads: entry.leads,
             cases: entry.cases,
