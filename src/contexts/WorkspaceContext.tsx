@@ -132,18 +132,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
         // Set current workspace (either from local storage or default to first)
         const storedWorkspaceId = localStorage.getItem('current_workspace_id');
-        const foundWorkspace = storedWorkspaceId 
-          ? workspacesData.find(w => w.id === storedWorkspaceId) 
-          : null;
-          
-        if (foundWorkspace) {
-          setCurrentWorkspace(foundWorkspace);
-          await fetchWorkspaceDetails(foundWorkspace.id);
-        } else {
-          setCurrentWorkspace(workspacesData[0]);
-          localStorage.setItem('current_workspace_id', workspacesData[0].id);
-          await fetchWorkspaceDetails(workspacesData[0].id);
+        let selectedWorkspace = null;
+        
+        if (storedWorkspaceId) {
+          selectedWorkspace = workspacesData.find(w => w.id === storedWorkspaceId);
         }
+        
+        // If no stored workspace or stored one not found, use first workspace
+        if (!selectedWorkspace) {
+          selectedWorkspace = workspacesData[0];
+          localStorage.setItem('current_workspace_id', selectedWorkspace.id);
+          console.log("Auto-selected first workspace:", selectedWorkspace.name);
+        }
+        
+        setCurrentWorkspace(selectedWorkspace);
+        await fetchWorkspaceDetails(selectedWorkspace.id);
       } else {
         console.log("No workspaces returned, creating default");
         await createDefaultWorkspaceForUser();
@@ -168,6 +171,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (defaultWorkspace) {
         console.log("Default workspace created successfully");
         setError(null);
+        // Auto-select the newly created workspace
+        setCurrentWorkspace(defaultWorkspace);
+        localStorage.setItem('current_workspace_id', defaultWorkspace.id);
+        await fetchWorkspaceDetails(defaultWorkspace.id);
       } else {
         throw new Error("Failed to create default workspace");
       }

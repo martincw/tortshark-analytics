@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Button } from "@/components/ui/button";
@@ -362,12 +361,6 @@ export const BulkStatsForm: React.FC<BulkStatsFormProps> = ({ startDate }) => {
 
   return (
     <div className="space-y-6">
-      {!currentWorkspace && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-yellow-800">No workspace selected. Please select a workspace to continue.</p>
-        </div>
-      )}
-      
       <div className="grid grid-cols-1 gap-4">
         <Table>
           <TableHeader>
