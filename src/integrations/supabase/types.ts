@@ -1114,6 +1114,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      create_workspace_with_owner: {
+        Args: { p_workspace_name: string; p_owner_user_id?: string }
+        Returns: {
+          workspace_id: string
+          workspace_name: string
+          created_at: string
+        }[]
+      }
       get_user_default_workspace: {
         Args: { p_user_id: string }
         Returns: string

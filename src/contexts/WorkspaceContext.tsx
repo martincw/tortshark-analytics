@@ -238,55 +238,82 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     toast.success(`Switched to ${workspace.name}`);
   };
 
-  // Create a new workspace
+  // Create a new workspace using the atomic database function
   const createWorkspace = async (name: string): Promise<Workspace | null> => {
-    if (!user) return null;
+    if (!user) {
+      console.error("Cannot create workspace: user not authenticated");
+      toast.error("You must be logged in to create a workspace");
+      return null;
+    }
+    
+    // Validate input on frontend
+    if (!name || !name.trim()) {
+      toast.error("Workspace name cannot be empty");
+      return null;
+    }
+    
+    const trimmedName = name.trim();
+    
+    // Check for duplicate names in existing workspaces
+    const existingWorkspace = workspaces.find(w => 
+      w.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    
+    if (existingWorkspace) {
+      toast.error(`You already have a workspace named "${trimmedName}"`);
+      return null;
+    }
     
     try {
-      console.log("Creating workspace:", name);
+      console.log("Creating workspace using database function:", trimmedName);
       
-      // Create the workspace
-      const { data: workspaceData, error: workspaceError } = await supabase
-        .from('workspaces')
-        .insert({ 
-          name,
-          owner_id: user.id
-        })
-        .select()
-        .single();
-        
-      if (workspaceError) {
-        console.error("Error creating workspace:", workspaceError);
-        throw workspaceError;
-      }
-      
-      if (!workspaceData) {
-        throw new Error("Failed to create workspace");
-      }
-      
-      // Add current user as owner
-      const { error: memberError } = await supabase
-        .from('workspace_members')
-        .insert({
-          workspace_id: workspaceData.id,
-          user_id: user.id,
-          role: 'owner'
+      // Call the database function for atomic workspace creation
+      const { data, error } = await supabase
+        .rpc('create_workspace_with_owner', {
+          p_workspace_name: trimmedName
         });
         
-      if (memberError) {
-        console.error("Error adding user as owner:", memberError);
-        throw memberError;
+      if (error) {
+        console.error("Database function error:", error);
+        
+        // Handle specific error types
+        if (error.message.includes('already have a workspace named')) {
+          toast.error(error.message);
+        } else if (error.message.includes('must be authenticated')) {
+          toast.error("Authentication required to create workspace");
+        } else if (error.message.includes('cannot be empty')) {
+          toast.error("Workspace name cannot be empty");
+        } else {
+          console.error("Unexpected error:", error);
+          toast.error("Failed to create workspace. Please try again.");
+        }
+        return null;
       }
       
-      // Update state
-      setWorkspaces([...workspaces, workspaceData]);
-      console.log("Workspace created successfully:", workspaceData.name);
-      toast.success(`Created workspace: ${name}`);
+      if (!data || data.length === 0) {
+        console.error("No data returned from workspace creation function");
+        toast.error("Failed to create workspace. Please try again.");
+        return null;
+      }
       
-      return workspaceData;
+      const workspaceData = data[0];
+      const newWorkspace: Workspace = {
+        id: workspaceData.workspace_id,
+        name: workspaceData.workspace_name,
+        created_at: workspaceData.created_at,
+        updated_at: workspaceData.created_at,
+        owner_id: user.id
+      };
+      
+      // Update state
+      setWorkspaces([...workspaces, newWorkspace]);
+      console.log("Workspace created successfully:", newWorkspace.name);
+      toast.success(`Created workspace: ${newWorkspace.name}`);
+      
+      return newWorkspace;
     } catch (error) {
       console.error("Error creating workspace:", error);
-      toast.error("Failed to create workspace");
+      toast.error("Failed to create workspace. Please try again.");
       return null;
     }
   };

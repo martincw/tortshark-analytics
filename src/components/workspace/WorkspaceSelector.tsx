@@ -29,17 +29,30 @@ export const WorkspaceSelector = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const navigate = useNavigate();
   
   const handleCreateWorkspace = async () => {
-    if (!newWorkspaceName.trim()) return;
+    if (!newWorkspaceName.trim()) {
+      toast.error("Please enter a workspace name");
+      return;
+    }
     
-    setIsCreating(true);
-    const workspace = await createWorkspace(newWorkspaceName);
-    setIsCreating(false);
+    setIsCreatingWorkspace(true);
     
-    if (workspace) {
-      setNewWorkspaceName("");
+    try {
+      console.log("Creating workspace:", newWorkspaceName);
+      const workspace = await createWorkspace(newWorkspaceName);
+      
+      if (workspace) {
+        setNewWorkspaceName("");
+        setIsCreating(false);
+      }
+    } catch (error) {
+      console.error("Error in handleCreateWorkspace:", error);
+      toast.error("Failed to create workspace");
+    } finally {
+      setIsCreatingWorkspace(false);
     }
   };
 
@@ -52,6 +65,19 @@ export const WorkspaceSelector = () => {
       toast.error("Failed to reload workspaces");
     } finally {
       setIsRetrying(false);
+    }
+  };
+
+  const handleDialogClose = () => {
+    if (!isCreatingWorkspace) {
+      setIsCreating(false);
+      setNewWorkspaceName("");
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isCreatingWorkspace) {
+      handleCreateWorkspace();
     }
   };
   
@@ -146,19 +172,42 @@ export const WorkspaceSelector = () => {
         </DropdownMenuContent>
       </DropdownMenu>
       
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
+      <Dialog open={isCreating} onOpenChange={handleDialogClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create new workspace</DialogTitle>
           </DialogHeader>
-          <Input
-            placeholder="Workspace name"
-            value={newWorkspaceName}
-            onChange={(e) => setNewWorkspaceName(e.target.value)}
-          />
+          <div className="py-4">
+            <Input
+              placeholder="Workspace name"
+              value={newWorkspaceName}
+              onChange={(e) => setNewWorkspaceName(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={isCreatingWorkspace}
+              autoFocus
+            />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
-            <Button onClick={handleCreateWorkspace}>Create</Button>
+            <Button 
+              variant="outline" 
+              onClick={handleDialogClose}
+              disabled={isCreatingWorkspace}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateWorkspace}
+              disabled={isCreatingWorkspace || !newWorkspaceName.trim()}
+            >
+              {isCreatingWorkspace ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "Create"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
