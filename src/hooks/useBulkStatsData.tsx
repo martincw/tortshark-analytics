@@ -1,6 +1,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Campaign } from "@/types/campaign";
 import { toast } from "sonner";
 
@@ -9,6 +10,7 @@ export type AdsStatsField = 'adSpend' | 'impressions' | 'clicks' | 'cpc';
 
 export function useBulkStatsData() {
   const { campaigns, fetchCampaigns } = useCampaign();
+  const { currentWorkspace } = useWorkspace();
   const [activeField, setActiveField] = useState<StatsField>('leads');
   const [activeAdsField, setActiveAdsField] = useState<AdsStatsField>('adSpend');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -54,6 +56,7 @@ export function useBulkStatsData() {
     setActiveField,
     activeAdsField,
     setActiveAdsField,
-    refreshAfterBulkUpdate
+    refreshAfterBulkUpdate,
+    currentWorkspace
   };
 }
