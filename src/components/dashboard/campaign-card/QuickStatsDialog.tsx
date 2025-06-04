@@ -18,6 +18,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { subDays } from "@/lib/utils/ManualDateUtils";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { useNavigationWarning } from "@/hooks/useNavigationWarning";
+import { DraftRecoveryBanner } from "@/components/ui/draft-recovery-banner";
 
 interface QuickStatsDialogProps {
   isOpen: boolean;
@@ -34,53 +37,103 @@ export interface QuickStatsData {
   adSpend: string;
 }
 
+interface QuickStatsFormData {
+  leads: string;
+  cases: string;
+  retainers: string;
+  revenue: string;
+  adSpend: string;
+  selectedDate: Date;
+}
+
 export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
   isOpen,
   onClose,
   campaignName,
   onSubmit
 }) => {
-  // Initialize form state only when dialog opens
-  const [quickStats, setQuickStats] = useState<QuickStatsData>({
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showDraftRecovery, setShowDraftRecovery] = useState(false);
+  const { currentWorkspace } = useWorkspace();
+  
+  const defaultValues: QuickStatsFormData = {
     leads: "0",
     cases: "0",
     retainers: "0",
     revenue: "0",
-    adSpend: "0"
+    adSpend: "0",
+    selectedDate: subDays(new Date(), 1)
+  };
+
+  const {
+    formData,
+    updateField,
+    resetForm,
+    isDirty,
+    lastSaved,
+    hasSavedData
+  } = useFormPersistence<QuickStatsFormData>({
+    storageKey: `quickStats-${campaignName}`,
+    defaultValues,
+    autoSaveDelay: 2000
   });
-  // Set default date to yesterday instead of today
-  const [selectedDate, setSelectedDate] = useState<Date>(subDays(new Date(), 1));
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const { currentWorkspace } = useWorkspace();
+
+  useNavigationWarning({ 
+    isDirty, 
+    message: "You have unsaved quick stats data. Are you sure you want to leave?" 
+  });
   
   const handleSubmit = () => {
-    onSubmit(quickStats, selectedDate);
+    const statsData: QuickStatsData = {
+      leads: formData.leads,
+      cases: formData.cases,
+      retainers: formData.retainers,
+      revenue: formData.revenue,
+      adSpend: formData.adSpend
+    };
+    
+    onSubmit(statsData, formData.selectedDate);
+    resetForm();
   };
   
   const onCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      setSelectedDate(date);
+      updateField('selectedDate', date);
       setCalendarOpen(false);
     }
   };
   
-  // Reset the form values when the dialog opens/closes
+  // Handle dialog open/close
   React.useEffect(() => {
     if (isOpen) {
-      // Only reset values, not the campaign selection
-      setQuickStats({
-        leads: "0",
-        cases: "0",
-        retainers: "0",
-        revenue: "0",
-        adSpend: "0"
-      });
-      setSelectedDate(subDays(new Date(), 1));
+      if (hasSavedData()) {
+        setShowDraftRecovery(true);
+      }
+    } else {
+      setShowDraftRecovery(false);
     }
-  }, [isOpen]);
+  }, [isOpen, hasSavedData]);
+
+  const handleClose = () => {
+    if (isDirty) {
+      const shouldClose = window.confirm("You have unsaved changes. Are you sure you want to close?");
+      if (!shouldClose) return;
+    }
+    resetForm();
+    onClose();
+  };
+
+  const handleRestoreDraft = () => {
+    setShowDraftRecovery(false);
+  };
+
+  const handleDiscardDraft = () => {
+    resetForm();
+    setShowDraftRecovery(false);
+  };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Stats for {campaignName}</DialogTitle>
@@ -88,6 +141,13 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
             Add leads, cases, retainers, ad spend, and revenue for a specific date. These values will be added to the total.
           </DialogDescription>
         </DialogHeader>
+        
+        <DraftRecoveryBanner
+          show={showDraftRecovery}
+          lastSaved={lastSaved}
+          onRestore={handleRestoreDraft}
+          onDiscard={handleDiscardDraft}
+        />
         
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -102,12 +162,12 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left",
-                      !selectedDate && "text-muted-foreground"
+                      !formData.selectedDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarDays className="mr-2 h-4 w-4" />
-                    {selectedDate ? (
-                      format(selectedDate, "PPP")
+                    {formData.selectedDate ? (
+                      format(formData.selectedDate, "PPP")
                     ) : (
                       <span>Select date</span>
                     )}
@@ -116,7 +176,7 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
                 <PopoverContent className="w-auto p-0" align="start">
                   <CalendarComponent
                     mode="single"
-                    selected={selectedDate}
+                    selected={formData.selectedDate}
                     onSelect={onCalendarSelect}
                     initialFocus
                     className="pointer-events-auto"
@@ -133,8 +193,8 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
             <Input
               id="quick-leads"
               type="number"
-              value={quickStats.leads}
-              onChange={(e) => setQuickStats({...quickStats, leads: e.target.value})}
+              value={formData.leads}
+              onChange={(e) => updateField('leads', e.target.value)}
               className="col-span-3"
               min="0"
             />
@@ -146,8 +206,8 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
             <Input
               id="quick-cases" 
               type="number"
-              value={quickStats.cases}
-              onChange={(e) => setQuickStats({...quickStats, cases: e.target.value})}
+              value={formData.cases}
+              onChange={(e) => updateField('cases', e.target.value)}
               className="col-span-3"
               min="0"
             />
@@ -159,8 +219,8 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
             <Input
               id="quick-retainers"
               type="number" 
-              value={quickStats.retainers}
-              onChange={(e) => setQuickStats({...quickStats, retainers: e.target.value})}
+              value={formData.retainers}
+              onChange={(e) => updateField('retainers', e.target.value)}
               className="col-span-3"
               min="0"
             />
@@ -172,8 +232,8 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
             <Input
               id="quick-adspend"
               type="number" 
-              value={quickStats.adSpend}
-              onChange={(e) => setQuickStats({...quickStats, adSpend: e.target.value})}
+              value={formData.adSpend}
+              onChange={(e) => updateField('adSpend', e.target.value)}
               className="col-span-3"
               min="0"
             />
@@ -185,8 +245,8 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
             <Input
               id="quick-revenue"
               type="number" 
-              value={quickStats.revenue}
-              onChange={(e) => setQuickStats({...quickStats, revenue: e.target.value})}
+              value={formData.revenue}
+              onChange={(e) => updateField('revenue', e.target.value)}
               className="col-span-3"
               min="0"
             />
@@ -194,13 +254,19 @@ export const QuickStatsDialog: React.FC<QuickStatsDialogProps> = ({
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button onClick={handleSubmit}>
             Add Stats
           </Button>
         </DialogFooter>
+        
+        {isDirty && (
+          <div className="text-xs text-muted-foreground mt-2">
+            {lastSaved ? `Last saved: ${lastSaved.toLocaleTimeString()}` : "Auto-saving..."}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
