@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,9 @@ const DashboardFinancialStats: React.FC = () => {
         let totalLeads = 0;
         let totalCases = 0;
         
+        // Track which days have entries to calculate true average
+        const daysWithEntries = new Set<string>();
+        
         relevantCampaigns.forEach(campaign => {
           campaign.statsHistory.forEach(entry => {
             if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
@@ -55,6 +59,8 @@ const DashboardFinancialStats: React.FC = () => {
               totalCost += entry.adSpend || 0;
               totalLeads += entry.leads || 0;
               totalCases += entry.cases || 0;
+              // Track days with actual data entries
+              daysWithEntries.add(entry.date);
             }
           });
         });
@@ -67,70 +73,28 @@ const DashboardFinancialStats: React.FC = () => {
         const profitPerLead = totalLeads > 0 ? profit / totalLeads : 0;
         const partnerProfit = profit / 2;
         
-        // Calculate number of days in the date range
-        const startDate = new Date(dateRange.startDate);
-        const endDate = new Date(dateRange.endDate);
-        const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        // Calculate daily profit using days with actual data entries
+        // This ensures we divide by the actual number of days that have passed with data
+        const effectiveDays = Math.max(1, daysWithEntries.size);
+        const dailyProfit = partnerProfit / effectiveDays;
         
-        // Calculate number of elapsed days in the date range (up to today)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to start of day
-        
-        // Determine the last elapsed day (either today or endDate, whichever comes first)
-        const lastElapsedDate = today < endDate ? today : endDate;
-        
-        // Calculate elapsed days from start date to lastElapsedDate
-        const elapsedDaysDiff = Math.ceil((lastElapsedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        // Ensure we have at least 1 elapsed day for calculations
-        const effectiveElapsedDays = Math.max(1, elapsedDaysDiff);
-        
-        // Calculate daily profit based on elapsed days only
-        const dailyProfit = partnerProfit / effectiveElapsedDays;
-        
-        // Refined hourly calculation only counting hours that have already passed
+        // Calculate hourly opportunity cost based on work hours in days with data
         const workdayHours = 8;
         const workdaysPerWeek = 5;
         
         // Function to determine if a date is a workday (Monday-Friday)
-        const isWorkday = (date: Date) => {
+        const isWorkday = (dateString: string) => {
+          const date = new Date(dateString);
           const dayOfWeek = date.getDay();
           return dayOfWeek >= 1 && dayOfWeek <= 5; // 0=Sunday, 1=Monday, ..., 6=Saturday
         };
         
-        // Calculate elapsed work hours with more precision
-        let totalElapsedWorkHours = 0;
-        let currentDate = new Date(startDate);
+        // Count work days from the days that have actual data entries
+        const workDaysWithData = Array.from(daysWithEntries).filter(isWorkday).length;
+        const totalWorkHours = Math.max(1, workDaysWithData * workdayHours);
         
-        // Iterate through each day in the date range up to today or end date (whichever comes first)
-        while (currentDate <= lastElapsedDate) {
-          if (isWorkday(currentDate)) {
-            if (currentDate.toDateString() === today.toDateString()) {
-              // For today, only count hours that have already passed in the workday
-              const currentHour = new Date().getHours();
-              const workdayStartHour = 9; // Assuming 9am-5pm workday
-              const workdayEndHour = 17; // 5pm
-              
-              // Only count hours if we're in or past the workday
-              if (currentHour >= workdayStartHour) {
-                // Count elapsed hours today, capped at workday length
-                const elapsedHoursToday = Math.min(currentHour - workdayStartHour, workdayHours);
-                totalElapsedWorkHours += elapsedHoursToday;
-              }
-            } else {
-              // For past days, count full workday
-              totalElapsedWorkHours += workdayHours;
-            }
-          }
-          
-          // Move to next day
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-        
-        // Ensure we have at least one hour for the calculation to avoid division by zero
-        const effectiveElapsedWorkHours = Math.max(1, totalElapsedWorkHours);
-        
-        // Calculate hourly opportunity cost based on elapsed work hours
-        const hourlyOpportunityCost = partnerProfit / effectiveElapsedWorkHours;
+        // Calculate hourly opportunity cost based on work hours in days with data
+        const hourlyOpportunityCost = partnerProfit / totalWorkHours;
         
         console.log('Financial data calculated:', {
           revenue: totalRevenue,
@@ -148,9 +112,10 @@ const DashboardFinancialStats: React.FC = () => {
           hourlyOpportunityCost,
           dateRange,
           campaignsCount: relevantCampaigns.length,
-          totalDays: daysDiff,
-          elapsedDays: effectiveElapsedDays,
-          totalElapsedWorkHours: effectiveElapsedWorkHours
+          daysWithEntries: daysWithEntries.size,
+          workDaysWithData: workDaysWithData,
+          totalWorkHours: totalWorkHours,
+          daysWithData: Array.from(daysWithEntries).sort()
         });
         
         setStats({
