@@ -1,117 +1,152 @@
 
 import { Campaign } from "@/types/campaign";
 import { getPeriodStats } from "./campaignUtils";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, format } from "date-fns";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, format, subDays, startOfDay, endOfDay } from "date-fns";
 
-export interface WeeklyData {
-  period: string;
+export interface ComparisonPeriod {
+  label: string;
   startDate: string;
   endDate: string;
-  adSpend: number;
-  leads: number;
-  cases: number;
-  revenue: number;
-  cpl: number;
-  epl: number;
-  profit: number;
-  roi: number;
 }
 
-export interface MonthlyData {
-  period: string;
-  startDate: string;
-  endDate: string;
-  adSpend: number;
-  leads: number;
-  cases: number;
-  revenue: number;
-  cpl: number;
-  epl: number;
-  profit: number;
-  roi: number;
+export interface ComparisonData {
+  basePeriod: ComparisonPeriod;
+  comparePeriod: ComparisonPeriod;
+  baseStats: {
+    adSpend: number;
+    leads: number;
+    cases: number;
+    revenue: number;
+    cpl: number;
+    epl: number;
+    profit: number;
+    roi: number;
+  };
+  compareStats: {
+    adSpend: number;
+    leads: number;
+    cases: number;
+    revenue: number;
+    cpl: number;
+    epl: number;
+    profit: number;
+    roi: number;
+  };
+  changes: {
+    adSpend: number;
+    leads: number;
+    cases: number;
+    revenue: number;
+    cpl: number;
+    epl: number;
+    profit: number;
+    roi: number;
+  };
 }
 
-export const getWeeklyComparison = (campaign: Campaign): WeeklyData[] => {
+export const getPeriodPresets = (): ComparisonPeriod[] => {
   const now = new Date();
-  const weeks: WeeklyData[] = [];
   
-  for (let i = 0; i < 4; i++) {
-    const weekStart = startOfWeek(subWeeks(now, i), { weekStartsOn: 1 }); // Monday start
-    const weekEnd = endOfWeek(subWeeks(now, i), { weekStartsOn: 1 });
-    
-    const stats = getPeriodStats(campaign, {
-      startDate: weekStart.toISOString().split('T')[0],
-      endDate: weekEnd.toISOString().split('T')[0]
-    });
-    
-    const cpl = stats.leads > 0 ? stats.adSpend / stats.leads : 0;
-    const epl = stats.leads > 0 ? stats.revenue / stats.leads : 0;
-    const profit = stats.revenue - stats.adSpend;
-    const roi = stats.adSpend > 0 ? (profit / stats.adSpend) * 100 : 0;
-    
-    let periodName = "";
-    if (i === 0) periodName = "This Week";
-    else if (i === 1) periodName = "Last Week";
-    else if (i === 2) periodName = "2 Weeks Ago";
-    else periodName = "3 Weeks Ago";
-    
-    weeks.push({
-      period: periodName,
-      startDate: weekStart.toISOString().split('T')[0],
-      endDate: weekEnd.toISOString().split('T')[0],
-      adSpend: stats.adSpend,
-      leads: stats.leads,
-      cases: stats.cases,
-      revenue: stats.revenue,
-      cpl,
-      epl,
-      profit,
-      roi
-    });
-  }
-  
-  return weeks;
+  return [
+    {
+      label: "This Week",
+      startDate: startOfWeek(now, { weekStartsOn: 1 }).toISOString().split('T')[0],
+      endDate: endOfWeek(now, { weekStartsOn: 1 }).toISOString().split('T')[0]
+    },
+    {
+      label: "Last Week",
+      startDate: startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }).toISOString().split('T')[0],
+      endDate: endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }).toISOString().split('T')[0]
+    },
+    {
+      label: "2 Weeks Ago",
+      startDate: startOfWeek(subWeeks(now, 2), { weekStartsOn: 1 }).toISOString().split('T')[0],
+      endDate: endOfWeek(subWeeks(now, 2), { weekStartsOn: 1 }).toISOString().split('T')[0]
+    },
+    {
+      label: "3 Weeks Ago",
+      startDate: startOfWeek(subWeeks(now, 3), { weekStartsOn: 1 }).toISOString().split('T')[0],
+      endDate: endOfWeek(subWeeks(now, 3), { weekStartsOn: 1 }).toISOString().split('T')[0]
+    },
+    {
+      label: "This Month",
+      startDate: startOfMonth(now).toISOString().split('T')[0],
+      endDate: endOfMonth(now).toISOString().split('T')[0]
+    },
+    {
+      label: "Last Month",
+      startDate: startOfMonth(subMonths(now, 1)).toISOString().split('T')[0],
+      endDate: endOfMonth(subMonths(now, 1)).toISOString().split('T')[0]
+    },
+    {
+      label: "2 Months Ago",
+      startDate: startOfMonth(subMonths(now, 2)).toISOString().split('T')[0],
+      endDate: endOfMonth(subMonths(now, 2)).toISOString().split('T')[0]
+    },
+    {
+      label: "Last 7 Days",
+      startDate: subDays(now, 6).toISOString().split('T')[0],
+      endDate: now.toISOString().split('T')[0]
+    },
+    {
+      label: "Last 30 Days",
+      startDate: subDays(now, 29).toISOString().split('T')[0],
+      endDate: now.toISOString().split('T')[0]
+    }
+  ];
 };
 
-export const getMonthlyComparison = (campaign: Campaign): MonthlyData[] => {
-  const now = new Date();
-  const months: MonthlyData[] = [];
+export const getComparisonData = (campaign: Campaign, basePeriod: ComparisonPeriod, comparePeriod: ComparisonPeriod): ComparisonData => {
+  const baseStats = getPeriodStats(campaign, {
+    startDate: basePeriod.startDate,
+    endDate: basePeriod.endDate
+  });
   
-  for (let i = 0; i < 3; i++) {
-    const monthStart = startOfMonth(subMonths(now, i));
-    const monthEnd = endOfMonth(subMonths(now, i));
-    
-    const stats = getPeriodStats(campaign, {
-      startDate: monthStart.toISOString().split('T')[0],
-      endDate: monthEnd.toISOString().split('T')[0]
-    });
-    
-    const cpl = stats.leads > 0 ? stats.adSpend / stats.leads : 0;
-    const epl = stats.leads > 0 ? stats.revenue / stats.leads : 0;
-    const profit = stats.revenue - stats.adSpend;
-    const roi = stats.adSpend > 0 ? (profit / stats.adSpend) * 100 : 0;
-    
-    let periodName = "";
-    if (i === 0) periodName = "This Month";
-    else if (i === 1) periodName = "Last Month";
-    else periodName = "2 Months Ago";
-    
-    months.push({
-      period: periodName,
-      startDate: monthStart.toISOString().split('T')[0],
-      endDate: monthEnd.toISOString().split('T')[0],
-      adSpend: stats.adSpend,
-      leads: stats.leads,
-      cases: stats.cases,
-      revenue: stats.revenue,
-      cpl,
-      epl,
-      profit,
-      roi
-    });
-  }
+  const compareStats = getPeriodStats(campaign, {
+    startDate: comparePeriod.startDate,
+    endDate: comparePeriod.endDate
+  });
   
-  return months;
+  // Calculate derived metrics for base period
+  const baseCpl = baseStats.leads > 0 ? baseStats.adSpend / baseStats.leads : 0;
+  const baseEpl = baseStats.leads > 0 ? baseStats.revenue / baseStats.leads : 0;
+  const baseProfit = baseStats.revenue - baseStats.adSpend;
+  const baseRoi = baseStats.adSpend > 0 ? (baseProfit / baseStats.adSpend) * 100 : 0;
+  
+  // Calculate derived metrics for compare period
+  const compareCpl = compareStats.leads > 0 ? compareStats.adSpend / compareStats.leads : 0;
+  const compareEpl = compareStats.leads > 0 ? compareStats.revenue / compareStats.leads : 0;
+  const compareProfit = compareStats.revenue - compareStats.adSpend;
+  const compareRoi = compareStats.adSpend > 0 ? (compareProfit / compareStats.adSpend) * 100 : 0;
+  
+  return {
+    basePeriod,
+    comparePeriod,
+    baseStats: {
+      ...baseStats,
+      cpl: baseCpl,
+      epl: baseEpl,
+      profit: baseProfit,
+      roi: baseRoi
+    },
+    compareStats: {
+      ...compareStats,
+      cpl: compareCpl,
+      epl: compareEpl,
+      profit: compareProfit,
+      roi: compareRoi
+    },
+    changes: {
+      adSpend: calculatePercentageChange(baseStats.adSpend, compareStats.adSpend),
+      leads: calculatePercentageChange(baseStats.leads, compareStats.leads),
+      cases: calculatePercentageChange(baseStats.cases, compareStats.cases),
+      revenue: calculatePercentageChange(baseStats.revenue, compareStats.revenue),
+      cpl: calculatePercentageChange(baseCpl, compareCpl),
+      epl: calculatePercentageChange(baseEpl, compareEpl),
+      profit: calculatePercentageChange(baseProfit, compareProfit),
+      roi: calculatePercentageChange(baseRoi, compareRoi)
+    }
+  };
 };
 
 export const calculatePercentageChange = (current: number, previous: number): number => {
@@ -123,4 +158,10 @@ export const getTrendColor = (change: number): string => {
   if (change > 0) return "text-success-DEFAULT";
   if (change < 0) return "text-error-DEFAULT";
   return "text-muted-foreground";
+};
+
+export const getTrendIcon = (change: number) => {
+  if (change > 5) return "↗";
+  if (change < -5) return "↘";
+  return "→";
 };

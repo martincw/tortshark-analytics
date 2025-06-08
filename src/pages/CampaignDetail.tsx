@@ -57,7 +57,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import CampaignFinancialOverview from "@/components/campaigns/CampaignFinancialOverview";
 import CampaignDailyAverages from "@/components/campaigns/CampaignDailyAverages";
 import { BuyerStackSection } from "@/components/campaigns/BuyerStackSection";
-import { TimeComparisonSection } from "@/components/campaigns/TimeComparisonSection";
+import { FlexibleTimeComparison } from "@/components/campaigns/FlexibleTimeComparison";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -624,7 +624,8 @@ const CampaignDetail = () => {
       
       <BuyerStackSection campaign={campaign} />
       
-      <TimeComparisonSection campaign={campaign} />
+      {/* Replace TimeComparisonSection with FlexibleTimeComparison */}
+      <FlexibleTimeComparison campaign={campaign} />
 
       <Card className="shadow-md border-accent/30 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
