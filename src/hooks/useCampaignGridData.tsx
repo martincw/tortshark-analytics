@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Campaign } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
@@ -186,7 +185,23 @@ export function useCampaignGridData(campaigns: Campaign[]) {
           // Ensure we're using valid numbers for comparison
           const profitA = (a._metrics?.profit || 0);
           const profitB = (b._metrics?.profit || 0);
-          return profitB - profitA;
+          
+          // Check if campaigns have any activity (revenue OR ad spend > 0)
+          const hasActivityA = a.manualStats.revenue > 0 || a.stats.adSpend > 0;
+          const hasActivityB = b.manualStats.revenue > 0 || b.stats.adSpend > 0;
+          
+          // Three-tier sorting system:
+          // 1. Active campaigns (with activity) come before inactive campaigns
+          if (hasActivityA && !hasActivityB) return -1;
+          if (!hasActivityA && hasActivityB) return 1;
+          
+          // 2. If both have activity, sort by profit (highest first)
+          if (hasActivityA && hasActivityB) {
+            return profitB - profitA;
+          }
+          
+          // 3. If both are inactive (no activity), maintain original order
+          return 0;
         }
         case "revenue":
           return b.manualStats.revenue - a.manualStats.revenue;
