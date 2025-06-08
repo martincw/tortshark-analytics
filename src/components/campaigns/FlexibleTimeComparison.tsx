@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPeriodPresets, getComparisonData, ComparisonPeriod } from "@/utils/timeComparisonUtils";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -31,9 +30,9 @@ export function FlexibleTimeComparison({ campaign }: FlexibleTimeComparisonProps
   };
 
   const renderTrendIcon = (change: number) => {
-    if (change > 0) return <TrendingUp className="h-3 w-3 text-success-DEFAULT" />;
-    if (change < 0) return <TrendingDown className="h-3 w-3 text-error-DEFAULT" />;
-    return <Minus className="h-3 w-3 text-muted-foreground" />;
+    if (change > 0) return <TrendingUp className="h-4 w-4 text-success-DEFAULT" />;
+    if (change < 0) return <TrendingDown className="h-4 w-4 text-error-DEFAULT" />;
+    return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getTrendColor = (change: number, isInverted = false) => {
@@ -169,55 +168,51 @@ export function FlexibleTimeComparison({ campaign }: FlexibleTimeComparisonProps
         </CardContent>
       </Card>
 
-      {/* Metrics Table */}
-      <Card className="border-border/50 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border/50 bg-muted/30">
-              <TableHead className="font-semibold text-foreground py-4">Metric</TableHead>
-              <TableHead className="font-semibold text-foreground text-right py-4">{basePeriod.label}</TableHead>
-              <TableHead className="font-semibold text-foreground text-right py-4">{comparePeriod.label}</TableHead>
-              <TableHead className="font-semibold text-foreground text-right py-4">Change</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {metrics.map((metric) => {
-              const baseValue = comparisonData.baseStats[metric.key];
-              const compareValue = comparisonData.compareStats[metric.key];
-              const change = comparisonData.changes[metric.key];
-              
-              return (
-                <TableRow key={metric.key} className="border-border/30 hover:bg-muted/20 transition-colors">
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-3">
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {metrics.map((metric) => {
+          const baseValue = comparisonData.baseStats[metric.key];
+          const compareValue = comparisonData.compareStats[metric.key];
+          const change = comparisonData.changes[metric.key];
+          
+          return (
+            <Card key={metric.key} className="border-border/50 shadow-sm hover:shadow-md transition-all duration-200">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                       <div className={cn("w-3 h-3 rounded-full", metric.colorClass.replace('text-', 'bg-'))} />
-                      <span className="font-medium text-foreground">{metric.label}</span>
+                      <h3 className="font-medium text-foreground">{metric.label}</h3>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right py-4">
-                    <span className="text-lg font-semibold text-foreground">
-                      {metric.formatter(baseValue as number)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right py-4">
-                    <span className="text-base text-muted-foreground">
-                      {metric.formatter(compareValue as number)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right py-4">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center gap-1">
                       {renderTrendIcon(metric.isInverted ? -change : change)}
                       <span className={cn("text-sm font-medium", getTrendColor(change, metric.isInverted))}>
                         {formatChange(change, metric.isInverted)}
                       </span>
                     </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">{basePeriod.label}</div>
+                      <div className="text-2xl font-bold text-foreground">
+                        {metric.formatter(baseValue as number)}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">{comparePeriod.label}</div>
+                      <div className="text-lg text-muted-foreground">
+                        {metric.formatter(compareValue as number)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
