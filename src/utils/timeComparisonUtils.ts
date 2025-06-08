@@ -21,6 +21,7 @@ export interface ComparisonData {
     epl: number;
     profit: number;
     roi: number;
+    closeRate: number;
   };
   compareStats: {
     adSpend: number;
@@ -31,6 +32,7 @@ export interface ComparisonData {
     epl: number;
     profit: number;
     roi: number;
+    closeRate: number;
   };
   changes: {
     adSpend: number;
@@ -41,6 +43,7 @@ export interface ComparisonData {
     epl: number;
     profit: number;
     roi: number;
+    closeRate: number;
   };
 }
 
@@ -112,12 +115,14 @@ export const getComparisonData = (campaign: Campaign, basePeriod: ComparisonPeri
   const baseEpl = baseStats.leads > 0 ? baseStats.revenue / baseStats.leads : 0;
   const baseProfit = baseStats.revenue - baseStats.adSpend;
   const baseRoi = baseStats.adSpend > 0 ? (baseProfit / baseStats.adSpend) * 100 : 0;
+  const baseCloseRate = baseStats.leads > 0 ? (baseStats.cases / baseStats.leads) * 100 : 0;
   
   // Calculate derived metrics for compare period
   const compareCpl = compareStats.leads > 0 ? compareStats.adSpend / compareStats.leads : 0;
   const compareEpl = compareStats.leads > 0 ? compareStats.revenue / compareStats.leads : 0;
   const compareProfit = compareStats.revenue - compareStats.adSpend;
   const compareRoi = compareStats.adSpend > 0 ? (compareProfit / compareStats.adSpend) * 100 : 0;
+  const compareCloseRate = compareStats.leads > 0 ? (compareStats.cases / compareStats.leads) * 100 : 0;
   
   return {
     basePeriod,
@@ -127,14 +132,16 @@ export const getComparisonData = (campaign: Campaign, basePeriod: ComparisonPeri
       cpl: baseCpl,
       epl: baseEpl,
       profit: baseProfit,
-      roi: baseRoi
+      roi: baseRoi,
+      closeRate: baseCloseRate
     },
     compareStats: {
       ...compareStats,
       cpl: compareCpl,
       epl: compareEpl,
       profit: compareProfit,
-      roi: compareRoi
+      roi: compareRoi,
+      closeRate: compareCloseRate
     },
     changes: {
       adSpend: calculatePercentageChange(baseStats.adSpend, compareStats.adSpend),
@@ -144,7 +151,8 @@ export const getComparisonData = (campaign: Campaign, basePeriod: ComparisonPeri
       cpl: calculatePercentageChange(baseCpl, compareCpl),
       epl: calculatePercentageChange(baseEpl, compareEpl),
       profit: calculatePercentageChange(baseProfit, compareProfit),
-      roi: calculatePercentageChange(baseRoi, compareRoi)
+      roi: calculatePercentageChange(baseRoi, compareRoi),
+      closeRate: calculatePercentageChange(baseCloseRate, compareCloseRate)
     }
   };
 };
