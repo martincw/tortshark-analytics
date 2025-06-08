@@ -7,15 +7,17 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
+import { SingleDayBulkStatsForm } from "@/components/campaigns/SingleDayBulkStatsForm";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate } from "@/lib/utils/ManualDateUtils";
+import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate, subDays } from "@/lib/utils/ManualDateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const BulkStatsPage = () => {
   const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
   const [startDate, setStartDate] = useState<Date>(initialDate);
+  const [singleDayDate, setSingleDayDate] = useState<Date>(subDays(createDateAtUTCNoon(new Date()), 1));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
@@ -90,7 +92,7 @@ const BulkStatsPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Bulk Campaign Stats</h1>
           <p className="text-muted-foreground mt-1">
-            Add daily stats for multiple campaigns for the week
+            Add stats for multiple campaigns at once
           </p>
         </div>
         <div className="flex flex-col items-center gap-2">
@@ -153,18 +155,40 @@ const BulkStatsPage = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="manual" className="w-full">
+      <Tabs defaultValue="single-day" className="w-full">
         <TabsList>
-          <TabsTrigger value="manual">Manual Stats</TabsTrigger>
-          <TabsTrigger value="ads">Ad Spend Stats</TabsTrigger>
+          <TabsTrigger value="single-day">Single Day Stats</TabsTrigger>
+          <TabsTrigger value="manual">Weekly Stats</TabsTrigger>
+          <TabsTrigger value="ads">Weekly Ad Stats</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="single-day" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Single Day Bulk Stats</CardTitle>
+              <CardDescription>
+                Add stats for multiple campaigns for a specific day. Perfect for entering yesterday's data across all your campaigns.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Select Date</label>
+                <DatePicker 
+                  date={singleDayDate} 
+                  setDate={(date) => date && setSingleDayDate(date)} 
+                />
+              </div>
+              <SingleDayBulkStatsForm selectedDate={singleDayDate} />
+            </CardContent>
+          </Card>
+        </TabsContent>
         
         <TabsContent value="manual" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Bulk Manual Stats</CardTitle>
               <CardDescription>
-                Add leads, cases, retainers, and revenue for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}.
+                Add leads, cases, retainers, and revenue for one campaign for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -178,7 +202,7 @@ const BulkStatsPage = () => {
             <CardHeader>
               <CardTitle>Bulk Ad Stats</CardTitle>
               <CardDescription>
-                Add ad spend, impressions, clicks, and CPC for multiple campaigns for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}.
+                Add ad spend, impressions, clicks, and CPC for one campaign for the week of {format(startDate, "MMMM d")} to {format(addDays(startDate, 6), "MMMM d, yyyy")}.
               </CardDescription>
             </CardHeader>
             <CardContent>
