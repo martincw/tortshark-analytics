@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -68,12 +67,48 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
     message: "You have unsaved stats data. Are you sure you want to leave?" 
   });
 
-  // Filter campaigns by current workspace
+  // Filter and sort campaigns by current workspace and most recently edited
   const workspaceCampaigns = currentWorkspace 
-    ? campaigns.filter(campaign => {
-        return campaign.workspace_id === currentWorkspace.id || !campaign.workspace_id;
-      })
-    : campaigns;
+    ? campaigns
+        .filter(campaign => {
+          return campaign.workspace_id === currentWorkspace.id || !campaign.workspace_id;
+        })
+        .sort((a, b) => {
+          // Get the most recent activity date for each campaign
+          const getLastActivityDate = (campaign: any) => {
+            // Find the most recent stats entry date
+            const mostRecentStatsDate = campaign.statsHistory.length > 0
+              ? Math.max(...campaign.statsHistory.map((entry: any) => new Date(entry.createdAt || entry.date).getTime()))
+              : 0;
+            
+            // Fall back to campaign updatedAt, then createdAt
+            const campaignDate = new Date(campaign.updatedAt || campaign.createdAt).getTime();
+            
+            // Return the most recent of stats date or campaign date
+            return Math.max(mostRecentStatsDate, campaignDate);
+          };
+          
+          const dateA = getLastActivityDate(a);
+          const dateB = getLastActivityDate(b);
+          
+          // Sort in descending order (most recent first)
+          return dateB - dateA;
+        })
+    : campaigns.sort((a, b) => {
+        // Same sorting logic for when no workspace is selected
+        const getLastActivityDate = (campaign: any) => {
+          const mostRecentStatsDate = campaign.statsHistory.length > 0
+            ? Math.max(...campaign.statsHistory.map((entry: any) => new Date(entry.createdAt || entry.date).getTime()))
+            : 0;
+          
+          const campaignDate = new Date(campaign.updatedAt || campaign.createdAt).getTime();
+          return Math.max(mostRecentStatsDate, campaignDate);
+        };
+        
+        const dateA = getLastActivityDate(a);
+        const dateB = getLastActivityDate(b);
+        return dateB - dateA;
+      });
 
   // Handle dialog open/close
   useEffect(() => {
