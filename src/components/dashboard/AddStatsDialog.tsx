@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -67,46 +68,54 @@ export const AddStatsDialog: React.FC<AddStatsDialogProps> = ({ open, onOpenChan
     message: "You have unsaved stats data. Are you sure you want to leave?" 
   });
 
-  // Filter and sort campaigns by current workspace and most recently edited
+  // Filter and sort campaigns by current workspace and most recently added stats
   const workspaceCampaigns = currentWorkspace 
     ? campaigns
         .filter(campaign => {
           return campaign.workspace_id === currentWorkspace.id || !campaign.workspace_id;
         })
         .sort((a, b) => {
-          // Get the most recent activity date for each campaign
-          const getLastActivityDate = (campaign: any) => {
-            // Find the most recent stats entry date
-            const mostRecentStatsDate = campaign.statsHistory.length > 0
-              ? Math.max(...campaign.statsHistory.map((entry: any) => new Date(entry.createdAt || entry.date).getTime()))
-              : 0;
+          // Get the most recent stats creation date for each campaign
+          const getLastStatsDate = (campaign: any) => {
+            if (campaign.statsHistory.length === 0) {
+              // If no stats, use campaign creation date as fallback
+              return new Date(campaign.createdAt).getTime();
+            }
             
-            // Fall back to campaign updatedAt, then createdAt
-            const campaignDate = new Date(campaign.updatedAt || campaign.createdAt).getTime();
+            // Find the most recent stats entry by createdAt
+            const mostRecentStatsDate = Math.max(
+              ...campaign.statsHistory
+                .map((entry: any) => entry.createdAt ? new Date(entry.createdAt).getTime() : 0)
+                .filter((time: number) => time > 0)
+            );
             
-            // Return the most recent of stats date or campaign date
-            return Math.max(mostRecentStatsDate, campaignDate);
+            return mostRecentStatsDate > 0 ? mostRecentStatsDate : new Date(campaign.createdAt).getTime();
           };
           
-          const dateA = getLastActivityDate(a);
-          const dateB = getLastActivityDate(b);
+          const dateA = getLastStatsDate(a);
+          const dateB = getLastStatsDate(b);
           
           // Sort in descending order (most recent first)
           return dateB - dateA;
         })
     : campaigns.sort((a, b) => {
         // Same sorting logic for when no workspace is selected
-        const getLastActivityDate = (campaign: any) => {
-          const mostRecentStatsDate = campaign.statsHistory.length > 0
-            ? Math.max(...campaign.statsHistory.map((entry: any) => new Date(entry.createdAt || entry.date).getTime()))
-            : 0;
+        const getLastStatsDate = (campaign: any) => {
+          if (campaign.statsHistory.length === 0) {
+            return new Date(campaign.createdAt).getTime();
+          }
           
-          const campaignDate = new Date(campaign.updatedAt || campaign.createdAt).getTime();
-          return Math.max(mostRecentStatsDate, campaignDate);
+          const mostRecentStatsDate = Math.max(
+            ...campaign.statsHistory
+              .map((entry: any) => entry.createdAt ? new Date(entry.createdAt).getTime() : 0)
+              .filter((time: number) => time > 0)
+          );
+          
+          return mostRecentStatsDate > 0 ? mostRecentStatsDate : new Date(campaign.createdAt).getTime();
         };
         
-        const dateA = getLastActivityDate(a);
-        const dateB = getLastActivityDate(b);
+        const dateA = getLastStatsDate(a);
+        const dateB = getLastStatsDate(b);
         return dateB - dateA;
       });
 
