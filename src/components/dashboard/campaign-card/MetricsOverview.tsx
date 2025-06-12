@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Percent, DollarSign, Users, AlertCircle, TrendingUp } from "lucide-react";
 import { BadgeStat } from "@/components/ui/badge-stat";
@@ -26,17 +25,13 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
   manualStats,
   targetProfit
 }) => {
-  // Ensure profit is properly calculated even if metrics.profit is somehow incorrect
+  // Calculate profit directly from the core values
   const profit = manualStats.revenue - campaignStats.adSpend;
   
-  // Log both values to help debug any discrepancies
-  console.log(`MetricsOverview - Revenue: ${manualStats.revenue}, AdSpend: ${campaignStats.adSpend}, Calculated profit: ${profit}, Metrics profit: ${metrics.profit}`);
-  
-  // Use our directly calculated profit if metrics.profit is zero but should be non-zero
-  const effectiveProfit = (metrics.profit === 0 && profit !== 0) ? profit : metrics.profit;
+  console.log(`MetricsOverview - Campaign revenue: ${manualStats.revenue}, adSpend: ${campaignStats.adSpend}, calculated profit: ${profit}`);
   
   const profitProgress = targetProfit > 0 
-    ? Math.max(Math.min((effectiveProfit / targetProfit) * 100, 100), 0)
+    ? Math.max(Math.min((profit / targetProfit) * 100, 100), 0)
     : 0;
     
   const getProfitVariant = () => {
@@ -57,7 +52,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
     ? ((manualStats.cases / manualStats.leads) * 100).toFixed(1) 
     : "0";
   const profitPerCase = manualStats.cases > 0 
-    ? effectiveProfit / manualStats.cases 
+    ? profit / manualStats.cases 
     : 0;
 
   return (
@@ -68,7 +63,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
           <div className="flex items-center gap-1.5 mt-1">
             <Percent className="h-4 w-4 text-secondary" />
             <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-              {((manualStats.revenue / campaignStats.adSpend) * 100).toFixed(0)}%
+              {campaignStats.adSpend > 0 ? ((manualStats.revenue / campaignStats.adSpend) * 100).toFixed(0) : "0"}%
             </span>
           </div>
         </div>
@@ -76,10 +71,10 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
           <span className="text-xs font-medium text-muted-foreground">Profit</span>
           <div className="flex items-center gap-1.5 mt-1">
             <DollarSign className="h-4 w-4 text-secondary" />
-            <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-              {effectiveProfit >= 1000 
-                ? `$${(effectiveProfit / 1000).toFixed(1)}K` 
-                : formatCurrency(effectiveProfit)}
+            <span className={`text-xl font-bold ${profit >= 0 ? 'text-success-DEFAULT' : 'text-error-DEFAULT'}`}>
+              {Math.abs(profit) >= 1000 
+                ? `${profit >= 0 ? '' : '-'}$${(Math.abs(profit) / 1000).toFixed(1)}K` 
+                : formatCurrency(profit)}
             </span>
           </div>
         </div>
@@ -154,7 +149,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Profit Progress</span>
             <span className="font-medium">
-              {formatCurrency(effectiveProfit)} of {formatCurrency(targetProfit)}
+              {formatCurrency(profit)} of {formatCurrency(targetProfit)}
             </span>
           </div>
           <CustomProgressBar 

@@ -34,6 +34,11 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const navigate = useNavigate();
   const metrics = calculateMetrics(campaign);
   
+  // Calculate profit directly from core values
+  const profit = campaign.manualStats.revenue - campaign.stats.adSpend;
+  
+  console.log(`CampaignCard - Campaign ${campaign.name}: revenue=${campaign.manualStats.revenue}, adSpend=${campaign.stats.adSpend}, calculated profit=${profit}`);
+  
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
   const [quickStats, setQuickStats] = useState({
     leads: "0",
@@ -123,9 +128,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const profitProgress = useMemo(() => {
     if (campaign.targets.targetProfit <= 0) return 0;
     
-    const percentage = (metrics.profit / campaign.targets.targetProfit) * 100;
+    const percentage = (profit / campaign.targets.targetProfit) * 100;
     return Math.max(Math.min(percentage, 100), 0);
-  }, [metrics.profit, campaign.targets.targetProfit]);
+  }, [profit, campaign.targets.targetProfit]);
   
   const getProfitVariant = () => {
     if (profitProgress >= 100) return "success";
@@ -137,7 +142,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const earningsPerLead = campaign.manualStats.leads > 0 ? campaign.manualStats.revenue / campaign.manualStats.leads : 0;
   
   const profitPerCase = campaign.manualStats.cases > 0 
-    ? metrics.profit / campaign.manualStats.cases 
+    ? profit / campaign.manualStats.cases 
     : 0;
 
   return (
@@ -168,7 +173,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               <div className="flex items-center gap-1.5 mt-1">
                 <Percent className="h-4 w-4 text-secondary" />
                 <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                  {((campaign.manualStats.revenue / campaign.stats.adSpend) * 100).toFixed(0)}%
+                  {campaign.stats.adSpend > 0 ? ((campaign.manualStats.revenue / campaign.stats.adSpend) * 100).toFixed(0) : "0"}%
                 </span>
               </div>
             </div>
@@ -176,10 +181,10 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               <span className="text-xs font-medium text-muted-foreground">Profit</span>
               <div className="flex items-center gap-1.5 mt-1">
                 <DollarSign className="h-4 w-4 text-secondary" />
-                <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-                  {metrics.profit >= 1000 
-                    ? `$${(metrics.profit / 1000).toFixed(1)}K` 
-                    : formatCurrency(metrics.profit)}
+                <span className={`text-xl font-bold ${profit >= 0 ? 'text-success-DEFAULT' : 'text-error-DEFAULT'}`}>
+                  {Math.abs(profit) >= 1000 
+                    ? `${profit >= 0 ? '' : '-'}$${(Math.abs(profit) / 1000).toFixed(1)}K` 
+                    : formatCurrency(profit)}
                 </span>
               </div>
             </div>
@@ -253,7 +258,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Profit Progress</span>
-                <span className="font-medium">{formatCurrency(metrics.profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
+                <span className="font-medium">{formatCurrency(profit)} of {formatCurrency(campaign.targets.targetProfit)}</span>
               </div>
               <CustomProgressBar value={profitProgress} size="sm" variant={getProfitVariant()} className="w-full" />
             </div>
