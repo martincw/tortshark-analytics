@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Campaign } from "@/types/campaign";
@@ -14,7 +13,9 @@ import { CampaignCardHeader } from "./CampaignCardHeader";
 import { MetricsOverview } from "./MetricsOverview";
 import { CampaignCardActions } from "./CampaignCardActions";
 import { QuickStatsDialog } from "./QuickStatsDialog";
+import { MultiDayStatsDialog } from "./MultiDayStatsDialog";
 import { useQuickStats } from "./useQuickStats";
+import { useMultiDayStats } from "./useMultiDayStats";
 import { BuyerStackItem } from "@/types/buyer";
 
 interface CampaignCardProps {
@@ -40,6 +41,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     closeQuickEntry,
     handleQuickStatsSubmit
   } = useQuickStats(campaign.id);
+  
+  const {
+    isMultiDayEntryOpen,
+    selectedDates,
+    dayStats,
+    openMultiDayEntry,
+    closeMultiDayEntry,
+    handleDatesSelected,
+    updateDayStats,
+    handleMultiDayStatsSubmit
+  } = useMultiDayStats(campaign.id);
   
   // Update local state when campaign prop changes
   useEffect(() => {
@@ -149,6 +161,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <CampaignCardActions 
           onViewDetails={handleViewDetails}
           onAddStats={openQuickEntry}
+          onAddMultiDayStats={openMultiDayEntry}
         />
       </Card>
       
@@ -157,6 +170,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         onClose={closeQuickEntry}
         campaignName={campaign.name}
         onSubmit={handleQuickStatsSubmit}
+      />
+      
+      <MultiDayStatsDialog
+        isOpen={isMultiDayEntryOpen}
+        onClose={closeMultiDayEntry}
+        campaignName={campaign.name}
+        selectedDates={selectedDates}
+        dayStats={dayStats}
+        onDatesSelected={handleDatesSelected}
+        onUpdateDayStats={updateDayStats}
+        onSubmit={handleMultiDayStatsSubmit}
       />
     </>
   );
