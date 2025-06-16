@@ -50,6 +50,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     closeMultiDayEntry,
     handleDatesSelected,
     updateDayStats,
+    handleBulkUpdateField,
     handleMultiDayStatsSubmit
   } = useMultiDayStats(campaign.id);
   
@@ -180,6 +181,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         dayStats={dayStats}
         onDatesSelected={handleDatesSelected}
         onUpdateDayStats={updateDayStats}
+        onBulkUpdateField={handleBulkUpdateField}
         onSubmit={handleMultiDayStatsSubmit}
       />
     </>

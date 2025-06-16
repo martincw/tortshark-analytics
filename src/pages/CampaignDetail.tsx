@@ -154,6 +154,7 @@ const CampaignDetail = () => {
     closeMultiDayEntry,
     handleDatesSelected,
     updateDayStats,
+    handleBulkUpdateField,
     handleMultiDayStatsSubmit
   } = useMultiDayStats(id || "");
 
@@ -1013,6 +1014,7 @@ const CampaignDetail = () => {
         dayStats={dayStats}
         onDatesSelected={handleDatesSelected}
         onUpdateDayStats={updateDayStats}
+        onBulkUpdateField={handleBulkUpdateField}
         onSubmit={handleMultiDayStatsSubmit}
       />
     </div>
