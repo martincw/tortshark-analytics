@@ -47,17 +47,12 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
 }) => {
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
 
-  const handleCalendarSelect = (date: Date | undefined) => {
-    if (!date) return;
-    
-    setCalendarDates(prev => {
-      const isSelected = prev.some(d => d.getTime() === date.getTime());
-      if (isSelected) {
-        return prev.filter(d => d.getTime() !== date.getTime());
-      } else {
-        return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
-      }
-    });
+  const handleCalendarSelect = (dates: Date[] | undefined) => {
+    if (dates) {
+      setCalendarDates(dates.sort((a, b) => a.getTime() - b.getTime()));
+    } else {
+      setCalendarDates([]);
+    }
   };
 
   const applySelectedDates = () => {
