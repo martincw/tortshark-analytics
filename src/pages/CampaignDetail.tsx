@@ -16,6 +16,9 @@ import {
   Loader2,
   ChevronDown,
   AlertCircle,
+  PlusCircle,
+  Calendar,
+  MoreVertical,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -37,6 +40,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -58,6 +67,8 @@ import CampaignFinancialOverview from "@/components/campaigns/CampaignFinancialO
 import CampaignDailyAverages from "@/components/campaigns/CampaignDailyAverages";
 import { BuyerStackSection } from "@/components/campaigns/BuyerStackSection";
 import { FlexibleTimeComparison } from "@/components/campaigns/FlexibleTimeComparison";
+import { MultiDayStatsDialog } from "@/components/dashboard/campaign-card/MultiDayStatsDialog";
+import { useMultiDayStats } from "@/components/dashboard/campaign-card/useMultiDayStats";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -133,6 +144,18 @@ const CampaignDetail = () => {
   // State to control how many manual stats entries to show
   const [showAllStats, setShowAllStats] = useState(false);
   const STATS_PER_PAGE = 10;
+
+  // Multi-day stats integration
+  const {
+    isMultiDayEntryOpen,
+    selectedDates,
+    dayStats,
+    openMultiDayEntry,
+    closeMultiDayEntry,
+    handleDatesSelected,
+    updateDayStats,
+    handleMultiDayStatsSubmit
+  } = useMultiDayStats(id || "");
 
   useEffect(() => {
     console.log("Campaign state changed");
@@ -601,13 +624,24 @@ const CampaignDetail = () => {
             </>
           ) : (
             <>
-              <Button
-                onClick={() => setIsDailyStatsDialogOpen(true)}
-                variant="outline"
-              >
-                <CalendarDays className="mr-2 h-4 w-4" />
-                Add Stats
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <PlusCircle className="h-4 w-4" />
+                    <MoreVertical className="h-3 w-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsDailyStatsDialogOpen(true)}>
+                    <CalendarDays className="h-4 w-4 mr-2" />
+                    Quick Stats (Single Day)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={openMultiDayEntry}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Multi-Day Stats
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button onClick={handleDelete} variant="destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -970,6 +1004,17 @@ const CampaignDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MultiDayStatsDialog
+        isOpen={isMultiDayEntryOpen}
+        onClose={closeMultiDayEntry}
+        campaignName={campaign.name}
+        selectedDates={selectedDates}
+        dayStats={dayStats}
+        onDatesSelected={handleDatesSelected}
+        onUpdateDayStats={updateDayStats}
+        onSubmit={handleMultiDayStatsSubmit}
+      />
     </div>
   );
 };
