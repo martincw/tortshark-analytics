@@ -11,17 +11,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { CalendarDays, Plus, Minus } from "lucide-react";
+import { CalendarDays, Plus, Minus, Copy, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface DayStats {
   date: Date;
+  adSpend: string;
   leads: string;
   cases: string;
-  retainers: string;
   revenue: string;
-  adSpend: string;
 }
 
 interface MultiDayStatsDialogProps {
@@ -46,6 +47,9 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
   onSubmit
 }) => {
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
+  const [showBulkPaste, setShowBulkPaste] = useState(false);
+  const [bulkPasteData, setBulkPasteData] = useState("");
+  const [previewData, setPreviewData] = useState<string[][]>([]);
 
   const handleCalendarSelect = (dates: Date[] | undefined) => {
     if (dates) {
@@ -64,13 +68,57 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
     onDatesSelected(newDates);
   };
 
+  const parseBulkData = (data: string) => {
+    const lines = data.trim().split('\n');
+    const parsed: string[][] = [];
+    
+    for (const line of lines) {
+      if (line.trim()) {
+        // Support both comma and tab separation
+        const values = line.split(/[,\t]/).map(v => v.trim());
+        if (values.length >= 4) {
+          parsed.push(values.slice(0, 4)); // Take first 4 values: adSpend, leads, cases, revenue
+        }
+      }
+    }
+    
+    return parsed;
+  };
+
+  const handleBulkPastePreview = () => {
+    const parsed = parseBulkData(bulkPasteData);
+    setPreviewData(parsed);
+  };
+
+  const applyBulkPaste = () => {
+    if (previewData.length === 0) {
+      toast.error("No valid data to apply");
+      return;
+    }
+
+    // Apply the data to the selected days
+    previewData.forEach((row, index) => {
+      if (index < dayStats.length && row.length >= 4) {
+        onUpdateDayStats(index, 'adSpend', row[0] || '0');
+        onUpdateDayStats(index, 'leads', row[1] || '0');
+        onUpdateDayStats(index, 'cases', row[2] || '0');
+        onUpdateDayStats(index, 'revenue', row[3] || '0');
+      }
+    });
+
+    setShowBulkPaste(false);
+    setBulkPasteData("");
+    setPreviewData([]);
+    toast.success("Bulk data applied successfully");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Multi-Day Stats for {campaignName}</DialogTitle>
           <DialogDescription>
-            Select multiple dates and add stats for each day. All values will be added to the campaign totals.
+            Select multiple dates and add stats for each day. Field order: Ad Spend, Leads, Cases, Revenue.
           </DialogDescription>
         </DialogHeader>
 
@@ -103,13 +151,23 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
                 <Label className="text-sm font-medium">
                   Stats for {selectedDates.length} Selected Date{selectedDates.length !== 1 ? 's' : ''}
                 </Label>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => onDatesSelected([])}
-                >
-                  Change Dates
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowBulkPaste(true)}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Bulk Paste
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => onDatesSelected([])}
+                  >
+                    Change Dates
+                  </Button>
+                </div>
               </div>
               
               <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -131,7 +189,18 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-5 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
+                      <div>
+                        <Label htmlFor={`adSpend-${index}`} className="text-xs">Ad Spend ($)</Label>
+                        <Input
+                          id={`adSpend-${index}`}
+                          type="number"
+                          value={stat.adSpend}
+                          onChange={(e) => onUpdateDayStats(index, 'adSpend', e.target.value)}
+                          min="0"
+                          className="h-8 text-sm"
+                        />
+                      </div>
                       <div>
                         <Label htmlFor={`leads-${index}`} className="text-xs">Leads</Label>
                         <Input
@@ -155,34 +224,12 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`retainers-${index}`} className="text-xs">Retainers</Label>
-                        <Input
-                          id={`retainers-${index}`}
-                          type="number"
-                          value={stat.retainers}
-                          onChange={(e) => onUpdateDayStats(index, 'retainers', e.target.value)}
-                          min="0"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div>
                         <Label htmlFor={`revenue-${index}`} className="text-xs">Revenue ($)</Label>
                         <Input
                           id={`revenue-${index}`}
                           type="number"
                           value={stat.revenue}
                           onChange={(e) => onUpdateDayStats(index, 'revenue', e.target.value)}
-                          min="0"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`adSpend-${index}`} className="text-xs">Ad Spend ($)</Label>
-                        <Input
-                          id={`adSpend-${index}`}
-                          type="number"
-                          value={stat.adSpend}
-                          onChange={(e) => onUpdateDayStats(index, 'adSpend', e.target.value)}
                           min="0"
                           className="h-8 text-sm"
                         />
@@ -206,6 +253,80 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Bulk Paste Dialog */}
+      <Dialog open={showBulkPaste} onOpenChange={setShowBulkPaste}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Bulk Paste Data</DialogTitle>
+            <DialogDescription>
+              Paste data in the format: Ad Spend, Leads, Cases, Revenue (comma or tab separated). One row per day.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="bulk-data">Paste Data</Label>
+              <Textarea
+                id="bulk-data"
+                value={bulkPasteData}
+                onChange={(e) => setBulkPasteData(e.target.value)}
+                placeholder="Example:&#10;1000,50,5,25000&#10;1200,60,6,30000&#10;800,40,4,20000"
+                className="min-h-[120px] font-mono text-sm"
+              />
+            </div>
+            
+            {bulkPasteData && (
+              <Button
+                variant="outline"
+                onClick={handleBulkPastePreview}
+                className="w-full"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Preview Data
+              </Button>
+            )}
+            
+            {previewData.length > 0 && (
+              <div className="border rounded p-3 bg-muted/30">
+                <Label className="text-sm font-medium">Preview:</Label>
+                <div className="mt-2 text-xs space-y-1">
+                  <div className="grid grid-cols-4 gap-2 font-semibold">
+                    <span>Ad Spend</span>
+                    <span>Leads</span>
+                    <span>Cases</span>
+                    <span>Revenue</span>
+                  </div>
+                  {previewData.slice(0, 5).map((row, index) => (
+                    <div key={index} className="grid grid-cols-4 gap-2">
+                      {row.map((cell, cellIndex) => (
+                        <span key={cellIndex}>{cell}</span>
+                      ))}
+                    </div>
+                  ))}
+                  {previewData.length > 5 && (
+                    <div className="text-muted-foreground">
+                      ...and {previewData.length - 5} more rows
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkPaste(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={applyBulkPaste}
+              disabled={previewData.length === 0}
+            >
+              Apply Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

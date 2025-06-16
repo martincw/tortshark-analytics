@@ -6,11 +6,10 @@ import { format } from "date-fns";
 
 interface DayStats {
   date: Date;
+  adSpend: string;
   leads: string;
   cases: string;
-  retainers: string;
   revenue: string;
-  adSpend: string;
 }
 
 export const useMultiDayStats = (campaignId: string) => {
@@ -34,11 +33,10 @@ export const useMultiDayStats = (campaignId: string) => {
     // Initialize stats for each selected date
     const initialStats = dates.map(date => ({
       date,
+      adSpend: "0",
       leads: "0",
       cases: "0", 
-      retainers: "0",
-      revenue: "0",
-      adSpend: "0"
+      revenue: "0"
     }));
     setDayStats(initialStats);
   };
@@ -56,13 +54,12 @@ export const useMultiDayStats = (campaignId: string) => {
       let hasValidData = false;
       
       for (const stat of dayStats) {
+        const adSpend = parseFloat(stat.adSpend) || 0;
         const leads = parseInt(stat.leads) || 0;
         const cases = parseInt(stat.cases) || 0;
-        const retainers = parseInt(stat.retainers) || 0;
         const revenue = parseFloat(stat.revenue) || 0;
-        const adSpend = parseFloat(stat.adSpend) || 0;
         
-        if (leads > 0 || cases > 0 || retainers > 0 || revenue > 0 || adSpend > 0) {
+        if (adSpend > 0 || leads > 0 || cases > 0 || revenue > 0) {
           hasValidData = true;
           const formattedDate = format(stat.date, "yyyy-MM-dd");
           
@@ -70,7 +67,7 @@ export const useMultiDayStats = (campaignId: string) => {
             date: formattedDate,
             leads,
             cases,
-            retainers,
+            retainers: cases, // Keep retainers equal to cases for backward compatibility
             revenue,
             adSpend
           });
