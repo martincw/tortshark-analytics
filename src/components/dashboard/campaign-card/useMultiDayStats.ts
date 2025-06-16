@@ -49,6 +49,15 @@ export const useMultiDayStats = (campaignId: string) => {
     );
   };
 
+  const handleBulkUpdateField = (field: keyof Omit<DayStats, 'date'>, values: string[]) => {
+    setDayStats(prev => 
+      prev.map((stat, index) => ({
+        ...stat,
+        [field]: values[index] || stat[field]
+      }))
+    );
+  };
+
   const handleMultiDayStatsSubmit = async () => {
     try {
       let hasValidData = false;
@@ -95,6 +104,7 @@ export const useMultiDayStats = (campaignId: string) => {
     closeMultiDayEntry,
     handleDatesSelected,
     updateDayStats,
+    handleBulkUpdateField,
     handleMultiDayStatsSubmit
   };
 };

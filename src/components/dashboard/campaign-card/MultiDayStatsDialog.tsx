@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { CalendarDays, Plus, Minus, Copy, Eye } from "lucide-react";
+import { CalendarDays, Plus, Minus, DollarSign, Users, Briefcase, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -33,6 +33,7 @@ interface MultiDayStatsDialogProps {
   dayStats: DayStats[];
   onDatesSelected: (dates: Date[]) => void;
   onUpdateDayStats: (dateIndex: number, field: keyof Omit<DayStats, 'date'>, value: string) => void;
+  onBulkUpdateField: (field: keyof Omit<DayStats, 'date'>, values: string[]) => void;
   onSubmit: () => void;
 }
 
@@ -44,12 +45,13 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
   dayStats,
   onDatesSelected,
   onUpdateDayStats,
+  onBulkUpdateField,
   onSubmit
 }) => {
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
   const [showBulkPaste, setShowBulkPaste] = useState(false);
+  const [bulkPasteField, setBulkPasteField] = useState<keyof Omit<DayStats, 'date'> | null>(null);
   const [bulkPasteData, setBulkPasteData] = useState("");
-  const [previewData, setPreviewData] = useState<string[][]>([]);
 
   const handleCalendarSelect = (dates: Date[] | undefined) => {
     if (dates) {
@@ -68,48 +70,65 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
     onDatesSelected(newDates);
   };
 
-  const parseBulkData = (data: string) => {
-    const lines = data.trim().split('\n');
-    const parsed: string[][] = [];
-    
-    for (const line of lines) {
-      if (line.trim()) {
-        // Support both comma and tab separation
-        const values = line.split(/[,\t]/).map(v => v.trim());
-        if (values.length >= 4) {
-          parsed.push(values.slice(0, 4)); // Take first 4 values: adSpend, leads, cases, revenue
-        }
-      }
-    }
-    
-    return parsed;
+  const openBulkPaste = (field: keyof Omit<DayStats, 'date'>) => {
+    setBulkPasteField(field);
+    setBulkPasteData("");
+    setShowBulkPaste(true);
   };
 
-  const handleBulkPastePreview = () => {
-    const parsed = parseBulkData(bulkPasteData);
-    setPreviewData(parsed);
+  const closeBulkPaste = () => {
+    setShowBulkPaste(false);
+    setBulkPasteField(null);
+    setBulkPasteData("");
   };
 
   const applyBulkPaste = () => {
-    if (previewData.length === 0) {
+    if (!bulkPasteField) return;
+
+    const lines = bulkPasteData.trim().split('\n');
+    const values = lines.map(line => line.trim()).filter(line => line !== '');
+    
+    if (values.length === 0) {
       toast.error("No valid data to apply");
       return;
     }
 
-    // Apply the data to the selected days
-    previewData.forEach((row, index) => {
-      if (index < dayStats.length && row.length >= 4) {
-        onUpdateDayStats(index, 'adSpend', row[0] || '0');
-        onUpdateDayStats(index, 'leads', row[1] || '0');
-        onUpdateDayStats(index, 'cases', row[2] || '0');
-        onUpdateDayStats(index, 'revenue', row[3] || '0');
-      }
-    });
+    onBulkUpdateField(bulkPasteField, values);
+    
+    const appliedCount = Math.min(values.length, dayStats.length);
+    toast.success(`Applied ${appliedCount} ${getFieldDisplayName(bulkPasteField)} values`);
+    
+    closeBulkPaste();
+  };
 
-    setShowBulkPaste(false);
-    setBulkPasteData("");
-    setPreviewData([]);
-    toast.success("Bulk data applied successfully");
+  const getFieldDisplayName = (field: keyof Omit<DayStats, 'date'>) => {
+    switch (field) {
+      case 'adSpend': return 'Ad Spend';
+      case 'leads': return 'Leads';
+      case 'cases': return 'Cases';
+      case 'revenue': return 'Revenue';
+      default: return field;
+    }
+  };
+
+  const getFieldIcon = (field: keyof Omit<DayStats, 'date'>) => {
+    switch (field) {
+      case 'adSpend': return <DollarSign className="h-4 w-4" />;
+      case 'leads': return <Users className="h-4 w-4" />;
+      case 'cases': return <Briefcase className="h-4 w-4" />;
+      case 'revenue': return <TrendingUp className="h-4 w-4" />;
+      default: return null;
+    }
+  };
+
+  const getFieldPlaceholder = (field: keyof Omit<DayStats, 'date'>) => {
+    switch (field) {
+      case 'adSpend': return 'Enter one ad spend amount per line:\n1000\n1200\n800\n950\n1100';
+      case 'leads': return 'Enter one lead count per line:\n50\n60\n40\n45\n55';
+      case 'cases': return 'Enter one case count per line:\n5\n6\n4\n4\n5';
+      case 'revenue': return 'Enter one revenue amount per line:\n25000\n30000\n20000\n22500\n27500';
+      default: return 'Enter one value per line';
+    }
   };
 
   return (
@@ -155,19 +174,51 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setShowBulkPaste(true)}
-                  >
-                    <Copy className="h-4 w-4 mr-1" />
-                    Bulk Paste
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
                     onClick={() => onDatesSelected([])}
                   >
                     Change Dates
                   </Button>
                 </div>
+              </div>
+
+              {/* Bulk Paste Buttons Row */}
+              <div className="grid grid-cols-4 gap-2 p-3 bg-muted/30 rounded-lg">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openBulkPaste('adSpend')}
+                  className="text-xs flex items-center gap-1"
+                >
+                  {getFieldIcon('adSpend')}
+                  Bulk Paste Ad Spend
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openBulkPaste('leads')}
+                  className="text-xs flex items-center gap-1"
+                >
+                  {getFieldIcon('leads')}
+                  Bulk Paste Leads
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openBulkPaste('cases')}
+                  className="text-xs flex items-center gap-1"
+                >
+                  {getFieldIcon('cases')}
+                  Bulk Paste Cases
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openBulkPaste('revenue')}
+                  className="text-xs flex items-center gap-1"
+                >
+                  {getFieldIcon('revenue')}
+                  Bulk Paste Revenue
+                </Button>
               </div>
               
               <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -254,75 +305,49 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
         </DialogFooter>
       </DialogContent>
 
-      {/* Bulk Paste Dialog */}
+      {/* Single Field Bulk Paste Dialog */}
       <Dialog open={showBulkPaste} onOpenChange={setShowBulkPaste}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Bulk Paste Data</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {bulkPasteField && getFieldIcon(bulkPasteField)}
+              Bulk Paste {bulkPasteField && getFieldDisplayName(bulkPasteField)}
+            </DialogTitle>
             <DialogDescription>
-              Paste data in the format: Ad Spend, Leads, Cases, Revenue (comma or tab separated). One row per day.
+              Paste {bulkPasteField && getFieldDisplayName(bulkPasteField).toLowerCase()} values for {dayStats.length} selected days. Enter one value per line.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="bulk-data">Paste Data</Label>
+              <Label htmlFor="bulk-data">
+                {bulkPasteField && getFieldDisplayName(bulkPasteField)} Values
+              </Label>
               <Textarea
                 id="bulk-data"
                 value={bulkPasteData}
                 onChange={(e) => setBulkPasteData(e.target.value)}
-                placeholder="Example:&#10;1000,50,5,25000&#10;1200,60,6,30000&#10;800,40,4,20000"
-                className="min-h-[120px] font-mono text-sm"
+                placeholder={bulkPasteField ? getFieldPlaceholder(bulkPasteField) : "Enter values, one per line"}
+                className="min-h-[150px] font-mono text-sm"
               />
             </div>
             
             {bulkPasteData && (
-              <Button
-                variant="outline"
-                onClick={handleBulkPastePreview}
-                className="w-full"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Preview Data
-              </Button>
-            )}
-            
-            {previewData.length > 0 && (
-              <div className="border rounded p-3 bg-muted/30">
-                <Label className="text-sm font-medium">Preview:</Label>
-                <div className="mt-2 text-xs space-y-1">
-                  <div className="grid grid-cols-4 gap-2 font-semibold">
-                    <span>Ad Spend</span>
-                    <span>Leads</span>
-                    <span>Cases</span>
-                    <span>Revenue</span>
-                  </div>
-                  {previewData.slice(0, 5).map((row, index) => (
-                    <div key={index} className="grid grid-cols-4 gap-2">
-                      {row.map((cell, cellIndex) => (
-                        <span key={cellIndex}>{cell}</span>
-                      ))}
-                    </div>
-                  ))}
-                  {previewData.length > 5 && (
-                    <div className="text-muted-foreground">
-                      ...and {previewData.length - 5} more rows
-                    </div>
-                  )}
-                </div>
+              <div className="text-sm text-muted-foreground">
+                {bulkPasteData.trim().split('\n').filter(line => line.trim()).length} values will be applied to {Math.min(bulkPasteData.trim().split('\n').filter(line => line.trim()).length, dayStats.length)} days
               </div>
             )}
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBulkPaste(false)}>
+            <Button variant="outline" onClick={closeBulkPaste}>
               Cancel
             </Button>
             <Button 
               onClick={applyBulkPaste}
-              disabled={previewData.length === 0}
+              disabled={!bulkPasteData.trim()}
             >
-              Apply Data
+              Apply {bulkPasteField && getFieldDisplayName(bulkPasteField)}
             </Button>
           </DialogFooter>
         </DialogContent>
