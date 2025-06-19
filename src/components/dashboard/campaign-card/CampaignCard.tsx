@@ -8,6 +8,7 @@ import { useBuyers } from "@/hooks/useBuyers";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { OptimalSpendBadge } from "@/components/ui/optimal-spend-badge";
 
 import { CampaignCardHeader } from "./CampaignCardHeader";
 import { MetricsOverview } from "./MetricsOverview";
@@ -133,6 +134,23 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             manualStats={campaign.manualStats}
             targetProfit={campaign.targets.targetProfit}
           />
+          
+          {/* Add optimal spend section */}
+          {metrics.optimalDailySpend && (
+            <div className="mt-3 border-t pt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium text-muted-foreground">Spend Optimization</span>
+                <OptimalSpendBadge
+                  optimalSpend={metrics.optimalDailySpend}
+                  currentSpend={campaign.stats.adSpend}
+                  efficiency={metrics.currentEfficiency}
+                  confidence={metrics.spendConfidenceScore}
+                  recommendation={metrics.spendRecommendation}
+                  projectedIncrease={metrics.projectedLeadIncrease}
+                />
+              </div>
+            </div>
+          )}
           
           {buyerStack.length > 0 && (
             <div className="mt-3 border-t pt-2 animate-fade-in">

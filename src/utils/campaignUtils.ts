@@ -1,7 +1,7 @@
-
 import { Campaign, CampaignMetrics, DateRange } from "../types/campaign";
 import { isDateInRange } from "@/lib/utils/ManualDateUtils";
 import { addDays, subDays } from "date-fns";
+import { calculateOptimalSpend } from "./spendOptimization";
 
 // Create a cache for metric calculations to avoid recalculating
 const metricsCache = new Map<string, CampaignMetrics>();
@@ -49,6 +49,9 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   const revenuePerCase = periodStats.cases > 0 ? revenue / periodStats.cases : 0;
   const retainers = periodStats.cases; // Set retainers equal to cases for now
 
+  // Calculate optimal spend recommendations
+  const optimizationResult = calculateOptimalSpend(campaign.statsHistory || []);
+
   const metrics: CampaignMetrics = {
     revenue: revenue,
     leads: periodStats.leads,
@@ -64,7 +67,13 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     earningsPerLead,
     revenuePerCase,
     previousWeekProfit,
-    weekOverWeekChange
+    weekOverWeekChange,
+    // Add optimization metrics
+    optimalDailySpend: optimizationResult?.optimalDailySpend,
+    currentEfficiency: optimizationResult?.currentEfficiency,
+    spendConfidenceScore: optimizationResult?.confidenceScore,
+    spendRecommendation: optimizationResult?.recommendation,
+    projectedLeadIncrease: optimizationResult?.projectedLeadIncrease
   };
 
   // Store in cache
@@ -220,5 +229,12 @@ export const getRoasClass = (roas: number | undefined): string => {
   if (roas > 300) return "text-success-DEFAULT font-bold";
   if (roas > 200) return "text-secondary font-bold";
   if (roas > 0) return "text-secondary";
+  return "text-error-DEFAULT";
+};
+
+export const getSpendEfficiencyClass = (efficiency: number | undefined): string => {
+  if (!efficiency) return "text-muted-foreground";
+  if (efficiency >= 85) return "text-success-DEFAULT";
+  if (efficiency >= 70) return "text-warning-DEFAULT";
   return "text-error-DEFAULT";
 };

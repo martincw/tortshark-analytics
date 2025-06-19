@@ -15,6 +15,12 @@ export interface CampaignMetrics {
   revenuePerCase: number;
   previousWeekProfit: number;
   weekOverWeekChange: number;
+  // Add optimization metrics
+  optimalDailySpend?: number;
+  currentEfficiency?: number;
+  spendConfidenceScore?: number;
+  spendRecommendation?: string;
+  projectedLeadIncrease?: number;
 }
 
 export interface GoogleAdsMetrics {
