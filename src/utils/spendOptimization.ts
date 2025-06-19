@@ -1,4 +1,3 @@
-
 import { StatHistoryEntry } from "@/types/campaign";
 
 export interface OptimizationResult {
@@ -8,6 +7,7 @@ export interface OptimizationResult {
   recommendation: string;
   marginalLeadsPerDollar: number;
   projectedLeadIncrease: number;
+  analysisType: 'advanced' | 'basic' | 'gathering' | 'insufficient_variation' | 'low_confidence';
 }
 
 export interface RegressionModel {
@@ -18,22 +18,39 @@ export interface RegressionModel {
 }
 
 export const calculateOptimalSpend = (statsHistory: StatHistoryEntry[]): OptimizationResult | null => {
-  // Filter data for last 60 days and ensure we have spend variation
+  console.log(`Spend optimization: Processing ${statsHistory?.length || 0} data points`);
+  
+  // Filter data for last 60 days and ensure we have valid data
   const recentData = statsHistory
-    .filter(entry => entry.adSpend && entry.adSpend > 0 && entry.leads >= 0)
-    .slice(0, 60);
+    ?.filter(entry => entry.adSpend && entry.adSpend > 0 && entry.leads >= 0)
+    ?.slice(0, 60) || [];
 
-  if (recentData.length < 10) {
-    return null; // Insufficient data
+  console.log(`Spend optimization: Filtered to ${recentData.length} valid data points`);
+
+  // State 1: Gathering data (less than 5 data points)
+  if (recentData.length < 5) {
+    return {
+      optimalDailySpend: 0,
+      currentEfficiency: 0,
+      confidenceScore: 0,
+      recommendation: "Gathering performance data...",
+      marginalLeadsPerDollar: 0,
+      projectedLeadIncrease: 0,
+      analysisType: 'gathering'
+    };
   }
 
   // Check for spend variation
   const spends = recentData.map(d => d.adSpend || 0);
   const minSpend = Math.min(...spends);
   const maxSpend = Math.max(...spends);
+  const avgSpend = spends.reduce((a, b) => a + b, 0) / spends.length;
   
-  if (maxSpend - minSpend < minSpend * 0.2) {
-    return null; // Not enough spend variation
+  console.log(`Spend optimization: Min: $${minSpend}, Max: $${maxSpend}, Avg: $${avgSpend}`);
+
+  // State 2: Insufficient spend variation
+  if (maxSpend - minSpend < Math.max(minSpend * 0.15, 50)) {
+    return createBasicAnalysis(recentData, 'insufficient_variation');
   }
 
   // Try different regression models
@@ -48,18 +65,71 @@ export const calculateOptimalSpend = (statsHistory: StatHistoryEntry[]): Optimiz
     current.rSquared > best.rSquared ? current : best
   );
 
-  if (bestModel.rSquared < 0.4) {
-    return null; // Poor model fit
+  console.log(`Spend optimization: Best model R-squared: ${bestModel.rSquared}`);
+
+  // State 3: Low confidence model (R-squared 0.2-0.4)
+  if (bestModel.rSquared >= 0.2 && bestModel.rSquared < 0.4) {
+    return createAdvancedAnalysis(bestModel, recentData, 'low_confidence');
   }
 
+  // State 4: Poor model fit - use basic analysis
+  if (bestModel.rSquared < 0.2) {
+    return createBasicAnalysis(recentData, 'basic');
+  }
+
+  // State 5: Good model - advanced analysis
+  return createAdvancedAnalysis(bestModel, recentData, 'advanced');
+};
+
+const createBasicAnalysis = (data: StatHistoryEntry[], type: 'basic' | 'insufficient_variation'): OptimizationResult => {
+  const currentAvgSpend = data.reduce((a, b) => a + (b.adSpend || 0), 0) / data.length;
+  const currentAvgLeads = data.reduce((a, b) => a + b.leads, 0) / data.length;
+  const currentCPL = currentAvgSpend > 0 ? currentAvgSpend / currentAvgLeads : 0;
+  
+  // Industry benchmark: typical CPL ranges from $50-200 depending on vertical
+  const benchmarkCPL = 125; // Conservative middle ground
+  const efficiency = currentCPL > 0 ? Math.min((benchmarkCPL / currentCPL) * 100, 100) : 50;
+  
+  let recommendation = "";
+  let optimalSpend = currentAvgSpend;
+  
+  if (type === 'insufficient_variation') {
+    recommendation = "Try varying spend by ±20% to optimize";
+    optimalSpend = currentAvgSpend * 1.2; // Suggest modest increase
+  } else if (currentCPL > benchmarkCPL * 1.2) {
+    recommendation = "Reduce spend to improve efficiency";
+    optimalSpend = currentAvgSpend * 0.8;
+  } else if (currentCPL < benchmarkCPL * 0.8 && efficiency > 70) {
+    recommendation = "Consider increasing spend";
+    optimalSpend = currentAvgSpend * 1.3;
+  } else {
+    recommendation = "Current spend appears balanced";
+  }
+
+  return {
+    optimalDailySpend: Math.round(optimalSpend),
+    currentEfficiency: Math.round(efficiency),
+    confidenceScore: type === 'insufficient_variation' ? 30 : 45,
+    recommendation,
+    marginalLeadsPerDollar: currentAvgLeads / currentAvgSpend || 0,
+    projectedLeadIncrease: Math.round((optimalSpend - currentAvgSpend) * (currentAvgLeads / currentAvgSpend || 0)),
+    analysisType: type
+  };
+};
+
+const createAdvancedAnalysis = (model: RegressionModel, data: StatHistoryEntry[], type: 'advanced' | 'low_confidence'): OptimizationResult => {
+  const spends = data.map(d => d.adSpend || 0);
+  const minSpend = Math.min(...spends);
+  const maxSpend = Math.max(...spends);
+  
   // Find optimal spend point
-  const optimalSpend = findOptimalSpend(bestModel, minSpend, maxSpend);
+  const optimalSpend = findOptimalSpend(model, minSpend, maxSpend);
   const currentAvgSpend = spends.reduce((a, b) => a + b, 0) / spends.length;
-  const currentAvgLeads = recentData.reduce((a, b) => a + b.leads, 0) / recentData.length;
+  const currentAvgLeads = data.reduce((a, b) => a + b.leads, 0) / data.length;
   
   // Calculate efficiency and recommendations
-  const optimalLeads = bestModel.predict(optimalSpend);
-  const currentOptimalLeads = bestModel.predict(currentAvgSpend);
+  const optimalLeads = model.predict(optimalSpend);
+  const currentOptimalLeads = model.predict(currentAvgSpend);
   const efficiency = Math.min((currentOptimalLeads / optimalLeads) * 100, 100);
   
   const spendDifference = optimalSpend - currentAvgSpend;
@@ -74,13 +144,18 @@ export const calculateOptimalSpend = (statsHistory: StatHistoryEntry[]): Optimiz
     recommendation = `Decrease by $${Math.round(Math.abs(spendDifference))}/day`;
   }
 
+  // Adjust confidence based on analysis type
+  const baseConfidence = Math.round(model.rSquared * 100);
+  const adjustedConfidence = type === 'low_confidence' ? Math.min(baseConfidence, 60) : baseConfidence;
+
   return {
     optimalDailySpend: Math.round(optimalSpend),
     currentEfficiency: Math.round(efficiency),
-    confidenceScore: Math.round(bestModel.rSquared * 100),
+    confidenceScore: adjustedConfidence,
     recommendation,
-    marginalLeadsPerDollar: calculateMarginalLeads(bestModel, currentAvgSpend),
-    projectedLeadIncrease: Math.round(leadIncrease)
+    marginalLeadsPerDollar: calculateMarginalLeads(model, currentAvgSpend),
+    projectedLeadIncrease: Math.round(leadIncrease),
+    analysisType: type
   };
 };
 

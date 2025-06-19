@@ -135,22 +135,25 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             targetProfit={campaign.targets.targetProfit}
           />
           
-          {/* Add optimal spend section */}
-          {metrics.optimalDailySpend && (
-            <div className="mt-3 border-t pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-medium text-muted-foreground">Spend Optimization</span>
-                <OptimalSpendBadge
-                  optimalSpend={metrics.optimalDailySpend}
-                  currentSpend={campaign.stats.adSpend}
-                  efficiency={metrics.currentEfficiency}
-                  confidence={metrics.spendConfidenceScore}
-                  recommendation={metrics.spendRecommendation}
-                  projectedIncrease={metrics.projectedLeadIncrease}
-                />
-              </div>
+          {/* Always show optimal spend section - now with enhanced states */}
+          <div className="mt-3 border-t pt-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-muted-foreground">Spend Optimization</span>
+              <OptimalSpendBadge
+                optimalSpend={metrics.optimalDailySpend}
+                currentSpend={campaign.stats.adSpend}
+                efficiency={metrics.currentEfficiency}
+                confidence={metrics.spendConfidenceScore}
+                recommendation={metrics.spendRecommendation}
+                projectedIncrease={metrics.projectedLeadIncrease}
+                analysisType={
+                  metrics.optimalDailySpend ? 
+                    (metrics.spendConfidenceScore && metrics.spendConfidenceScore >= 65 ? 'advanced' : 'low_confidence')
+                    : 'gathering'
+                }
+              />
             </div>
-          )}
+          </div>
           
           {buyerStack.length > 0 && (
             <div className="mt-3 border-t pt-2 animate-fade-in">

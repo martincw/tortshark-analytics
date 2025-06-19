@@ -49,7 +49,7 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   const revenuePerCase = periodStats.cases > 0 ? revenue / periodStats.cases : 0;
   const retainers = periodStats.cases; // Set retainers equal to cases for now
 
-  // Calculate optimal spend recommendations
+  // Always calculate optimal spend recommendations (now with enhanced states)
   const optimizationResult = calculateOptimalSpend(campaign.statsHistory || []);
 
   const metrics: CampaignMetrics = {
@@ -68,12 +68,13 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
     revenuePerCase,
     previousWeekProfit,
     weekOverWeekChange,
-    // Add optimization metrics
-    optimalDailySpend: optimizationResult?.optimalDailySpend,
-    currentEfficiency: optimizationResult?.currentEfficiency,
-    spendConfidenceScore: optimizationResult?.confidenceScore,
-    spendRecommendation: optimizationResult?.recommendation,
-    projectedLeadIncrease: optimizationResult?.projectedLeadIncrease
+    // Enhanced optimization metrics (always populated now)
+    optimalDailySpend: optimizationResult?.optimalDailySpend || 0,
+    currentEfficiency: optimizationResult?.currentEfficiency || 0,
+    spendConfidenceScore: optimizationResult?.confidenceScore || 0,
+    spendRecommendation: optimizationResult?.recommendation || "Gathering data...",
+    projectedLeadIncrease: optimizationResult?.projectedLeadIncrease || 0,
+    analysisType: optimizationResult?.analysisType || 'gathering'
   };
 
   // Store in cache
