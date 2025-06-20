@@ -94,6 +94,13 @@ export const Navbar: React.FC = () => {
 
   const isActive = (href: string) => location.pathname === href;
 
+  // Convert navItems to NavItem format by mapping name to label
+  const convertedNavItems: NavItem[] = navItems.map(item => ({
+    href: item.href,
+    label: item.name,
+    icon: <item.icon className="h-4 w-4 mr-2" />
+  }));
+
   return (
     <div className="border-b bg-background sticky top-0 z-50">
       <div className="flex h-16 items-center px-4 justify-between">
@@ -112,7 +119,7 @@ export const Navbar: React.FC = () => {
                 </SheetDescription>
               </SheetHeader>
               <SidebarMenu 
-                navItems={[...navItems, ...teamNavItems]}
+                navItems={[...convertedNavItems, ...teamNavItems]}
                 externalNavItems={externalNavItems} 
                 isActive={isActive} 
               />
