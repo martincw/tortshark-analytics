@@ -1,18 +1,21 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { CampaignProvider } from './contexts/CampaignContext';
 import Dashboard from './pages/Dashboard';
-import CampaignDetails from './pages/CampaignDetails';
+import CampaignDetail from './pages/CampaignDetail';
 import BuyersPage from './pages/BuyersPage';
 import SettingsPage from './pages/SettingsPage';
-import LoginPage from './pages/LoginPage';
+import AuthPage from './pages/AuthPage';
 import PrivateRoute from './components/PrivateRoute';
-import { QueryClient } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BulkStatsPage from './pages/BulkStatsPage';
 import { Toaster } from 'sonner';
 import ContractorWorkflowPage from "./pages/ContractorWorkflowPage";
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
@@ -20,17 +23,17 @@ function App() {
       <AuthProvider>
         <WorkspaceProvider>
           <CampaignProvider>
-            <QueryClient>
+            <QueryClientProvider client={queryClient}>
               <Routes>
-                <Route path="/login" element={<LoginPage />} />
+                <Route path="/login" element={<AuthPage />} />
                 <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-                <Route path="/campaign/:id" element={<PrivateRoute><CampaignDetails /></PrivateRoute>} />
+                <Route path="/campaign/:id" element={<PrivateRoute><CampaignDetail /></PrivateRoute>} />
                 <Route path="/buyers" element={<PrivateRoute><BuyersPage /></PrivateRoute>} />
                 <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
                 <Route path="/bulk-stats" element={<PrivateRoute><BulkStatsPage /></PrivateRoute>} />
                 <Route path="/contractor-workflow" element={<ContractorWorkflowPage />} />
               </Routes>
-            </QueryClient>
+            </QueryClientProvider>
             <Toaster />
           </CampaignProvider>
         </WorkspaceProvider>
