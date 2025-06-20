@@ -1,10 +1,11 @@
+
 import React, { useState } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Info, AlertCircle } from "lucide-react";
 import { BulkStatsForm } from "@/components/campaigns/BulkStatsForm";
 import { BulkAdsStatsForm } from "@/components/campaigns/BulkAdsStatsForm";
 import { SingleDayBulkStatsForm } from "@/components/campaigns/SingleDayBulkStatsForm";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import { createDateAtUTCNoon, formatDateForStorage, format, addDays, getWeekStartDate, subDays } from "@/lib/utils/ManualDateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const BulkStatsPage = () => {
   const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
@@ -155,6 +157,15 @@ const BulkStatsPage = () => {
         </div>
       </div>
 
+      {/* Contractor Guidance Alert */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>For Contractors:</strong> Use the "Single Day Stats" tab below for the most efficient daily workflow. 
+          Select multiple campaigns, enter data using bulk paste features, and save all at once.
+        </AlertDescription>
+      </Alert>
+
       <Tabs defaultValue="single-day" className="w-full">
         <TabsList>
           <TabsTrigger value="single-day">Single Day Stats</TabsTrigger>
@@ -165,9 +176,13 @@ const BulkStatsPage = () => {
         <TabsContent value="single-day" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Single Day Bulk Stats</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Single Day Bulk Stats
+                <AlertCircle className="h-4 w-4 text-blue-500" />
+              </CardTitle>
               <CardDescription>
-                Add stats for multiple campaigns for a specific day. Perfect for entering yesterday's data across all your campaigns.
+                <strong>Recommended for contractors:</strong> Add stats for multiple campaigns for a specific day. 
+                Perfect for entering yesterday's data across all your campaigns. Use bulk paste for efficiency.
               </CardDescription>
             </CardHeader>
             <CardContent>
