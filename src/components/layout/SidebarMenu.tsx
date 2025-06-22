@@ -89,6 +89,16 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
       </Link>
 
       <Link 
+        to="/contractor-submissions" 
+        className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+          isActive("/contractor-submissions") ? "bg-secondary font-medium" : ""
+        }`}
+      >
+        <FileText className="h-4 w-4 mr-2" />
+        Contractor Submissions
+      </Link>
+
+      <Link 
         to="/data-sources" 
         className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
           isActive("/data-sources") ? "bg-secondary font-medium" : ""
