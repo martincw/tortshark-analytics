@@ -23,13 +23,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
-import { navItems } from "./NavItems";
+import { NavItems } from "./NavItems";
 import { NavItem } from "@/types/navigation";
 import { WorkspaceSelector } from "../workspace/WorkspaceSelector";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // Main navigation items (excluding external links that will only be in sidebar)
-const mainNavItems: NavItem[] = [
+const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
   { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
@@ -53,29 +53,6 @@ export const externalNavItems: NavItem[] = [
 
 const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortShark-Logo.webp";
 
-const NavItems: React.FC<{ items: NavItem[]; isActive: (href: string) => boolean; priority?: boolean }> = ({ items, isActive, priority }) => {
-  const filteredItems = priority !== undefined ? items.filter(item => !!item.priority === priority) : items;
-  
-  return (
-    <>
-      {filteredItems.map((item) => (
-        <Link
-          key={item.href}
-          to={item.href}
-          className={`flex items-center text-sm font-medium transition-colors hover:text-primary ${
-            isActive(item.href)
-              ? 'text-primary'
-              : 'text-muted-foreground'
-          }`}
-        >
-          {item.icon}
-          {item.label}
-        </Link>
-      ))}
-    </>
-  );
-};
-
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const { signOut } = useAuth();
@@ -93,13 +70,6 @@ export const Navbar: React.FC = () => {
   };
 
   const isActive = (href: string) => location.pathname === href;
-
-  // Convert navItems to NavItem format by mapping name to label
-  const convertedNavItems: NavItem[] = navItems.map(item => ({
-    href: item.href,
-    label: item.name,
-    icon: <item.icon className="h-4 w-4 mr-2" />
-  }));
 
   return (
     <div className="border-b bg-background sticky top-0 z-50">
@@ -119,7 +89,7 @@ export const Navbar: React.FC = () => {
                 </SheetDescription>
               </SheetHeader>
               <SidebarMenu 
-                navItems={[...convertedNavItems, ...teamNavItems]}
+                navItems={[...navItems, ...teamNavItems]}
                 externalNavItems={externalNavItems} 
                 isActive={isActive} 
               />
@@ -142,9 +112,9 @@ export const Navbar: React.FC = () => {
           <WorkspaceSelector />
         </div>
         <nav className="md:flex items-center space-x-4 hidden">
-          <NavItems items={mainNavItems} isActive={isActive} priority={true} />
+          <NavItems items={navItems} isActive={isActive} priority={true} />
           <div className="h-6 border-r mx-2"></div>
-          <NavItems items={mainNavItems} isActive={isActive} priority={false} />
+          <NavItems items={navItems} isActive={isActive} priority={false} />
           
           {/* Team settings menu removed from here */}
           
