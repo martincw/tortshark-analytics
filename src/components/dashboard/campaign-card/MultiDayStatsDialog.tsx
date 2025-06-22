@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -53,6 +52,13 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
   const [bulkPasteField, setBulkPasteField] = useState<keyof Omit<DayStats, 'date'> | null>(null);
   const [bulkPasteData, setBulkPasteData] = useState("");
 
+  // Clean numeric string from currency symbols and formatting
+  const cleanNumericValue = (value: string): string => {
+    // Remove currency symbols, commas, and other non-numeric characters except decimal points
+    const cleanedValue = value.replace(/[$,\s]/g, '');
+    return cleanedValue === '' ? '0' : cleanedValue;
+  };
+
   const handleCalendarSelect = (dates: Date[] | undefined) => {
     if (dates) {
       setCalendarDates(dates.sort((a, b) => a.getTime() - b.getTime()));
@@ -86,7 +92,10 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
     if (!bulkPasteField) return;
 
     const lines = bulkPasteData.trim().split('\n');
-    const values = lines.map(line => line.trim()).filter(line => line !== '');
+    const values = lines
+      .map(line => line.trim())
+      .filter(line => line !== '')
+      .map(value => cleanNumericValue(value)); // Apply the cleaning function here
     
     if (values.length === 0) {
       toast.error("No valid data to apply");
@@ -123,10 +132,10 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
 
   const getFieldPlaceholder = (field: keyof Omit<DayStats, 'date'>) => {
     switch (field) {
-      case 'adSpend': return 'Enter one ad spend amount per line:\n1000\n1200\n800\n950\n1100';
+      case 'adSpend': return 'Enter one ad spend amount per line:\n$1,000\n$1,200\n$800\n$950\n$1,100';
       case 'leads': return 'Enter one lead count per line:\n50\n60\n40\n45\n55';
       case 'cases': return 'Enter one case count per line:\n5\n6\n4\n4\n5';
-      case 'revenue': return 'Enter one revenue amount per line:\n25000\n30000\n20000\n22500\n27500';
+      case 'revenue': return 'Enter one revenue amount per line:\n$25,000\n$30,000\n$20,000\n$22,500\n$27,500';
       default: return 'Enter one value per line';
     }
   };
@@ -138,6 +147,7 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
           <DialogTitle>Add Multi-Day Stats for {campaignName}</DialogTitle>
           <DialogDescription>
             Select multiple dates and add stats for each day. Field order: Ad Spend, Leads, Cases, Revenue.
+            Currency symbols ($) and commas will be automatically removed from pasted values.
           </DialogDescription>
         </DialogHeader>
 
@@ -315,6 +325,7 @@ export const MultiDayStatsDialog: React.FC<MultiDayStatsDialogProps> = ({
             </DialogTitle>
             <DialogDescription>
               Paste {bulkPasteField && getFieldDisplayName(bulkPasteField).toLowerCase()} values for {dayStats.length} selected days. Enter one value per line.
+              Currency symbols ($) and commas will be automatically removed.
             </DialogDescription>
           </DialogHeader>
           
