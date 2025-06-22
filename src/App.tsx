@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -27,6 +26,7 @@ import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
 import LeadsPage from "./pages/LeadsPage";
 import TeamSettingsPage from "./pages/TeamSettingsPage";
+import StatsWorkflowPage from "./pages/StatsWorkflowPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +93,7 @@ const App = () => (
                   <Route path="/campaigns" element={<CampaignsPage />} />
                   <Route path="/add-campaign" element={<AddCampaignPage />} />
                   <Route path="/bulk-stats" element={<BulkStatsPage />} />
+                  <Route path="/stats-workflow" element={<StatsWorkflowPage />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/accounts" element={<AccountsPage />} />
                   <Route path="/data-sources" element={<DataSourcesPage />} />
