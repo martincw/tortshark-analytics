@@ -1,7 +1,6 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Table, LinkIcon, FileText, Users, ListFilter, Settings, UserPlus } from "lucide-react";
+import { ExternalLink, Table, LinkIcon, FileText, Users, ListFilter, Settings, UserPlus, Plus } from "lucide-react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +65,16 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
       >
         <Table className="h-4 w-4 mr-2" />
         Bulk Stats
+      </Link>
+
+      <Link 
+        to="/bulk-case-revenue" 
+        className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+          isActive("/bulk-case-revenue") ? "bg-secondary font-medium" : ""
+        }`}
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Bulk Cases & Revenue
       </Link>
 
       <Link 

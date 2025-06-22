@@ -12,6 +12,7 @@ import AuthPage from './pages/AuthPage';
 import PrivateRoute from './components/PrivateRoute';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BulkStatsPage from './pages/BulkStatsPage';
+import BulkCaseRevenuePage from './pages/BulkCaseRevenuePage';
 import { Toaster } from 'sonner';
 import ContractorWorkflowPage from "./pages/ContractorWorkflowPage";
 
