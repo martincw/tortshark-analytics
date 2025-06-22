@@ -1,3 +1,4 @@
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -90,7 +91,7 @@ const ContractorRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   // For non-contractors, use regular layout
-  return <MainLayout />;
+  return <MainLayout>{children}</MainLayout>;
 };
 
 const App = () => (
@@ -115,27 +116,111 @@ const App = () => (
                   <Route path="/integrations" element={<Navigate to="/data-sources" replace />} />
                   
                   {/* All other routes are protected and wrapped with ContractorRoute */}
-                  <Route element={
+                  <Route path="/" element={
                     <ProtectedRoute>
-                      <ContractorRoute />
+                      <ContractorRoute>
+                        <Index />
+                      </ContractorRoute>
                     </ProtectedRoute>
-                  }>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/campaign/:id" element={<CampaignDetail />} />
-                    <Route path="/campaigns" element={<CampaignsPage />} />
-                    <Route path="/add-campaign" element={<AddCampaignPage />} />
-                    <Route path="/bulk-stats" element={<BulkStatsPage />} />
-                    <Route path="/daily-stats" element={<DailyStatsPage />} />
-                    <Route path="/stats-workflow" element={<StatsWorkflowPage />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/accounts" element={<AccountsPage />} />
-                    <Route path="/data-sources" element={<DataSourcesPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/team-settings" element={<TeamSettingsPage />} />
-                    <Route path="/buyers" element={<BuyersPage />} />
-                    <Route path="/leads" element={<LeadsPage />} /> 
-                    <Route path="*" element={<NotFound />} />
-                  </Route>
+                  } />
+                  <Route path="/campaign/:id" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <CampaignDetail />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/campaigns" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <CampaignsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/add-campaign" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <AddCampaignPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/bulk-stats" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <BulkStatsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/daily-stats" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <DailyStatsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/stats-workflow" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <StatsWorkflowPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <Dashboard />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/accounts" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <AccountsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/data-sources" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <DataSourcesPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <SettingsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/team-settings" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <TeamSettingsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/buyers" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <BuyersPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/leads" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <LeadsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="*" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <NotFound />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
                 </Routes>
               </BrowserRouter>
               <Toaster />

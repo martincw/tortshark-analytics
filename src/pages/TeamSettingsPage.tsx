@@ -45,6 +45,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CreateContractorDialog } from "@/components/team/CreateContractorDialog";
 import { ContractorList } from "@/components/team/ContractorList";
 import { useAccountType } from "@/contexts/AccountTypeContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const TeamSettingsPage: React.FC = () => {
   const { 

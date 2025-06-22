@@ -5,12 +5,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { Navbar } from "./Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 
-export function MainLayout() {
+export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background antialiased">
       <Navbar />
       <div className="container py-6">
-        <Outlet />
+        {children}
       </div>
       <Toaster />
     </div>
