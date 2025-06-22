@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Table, LinkIcon, FileText, Users, ListFilter, Settings, UserPlus, Workflow } from "lucide-react";
+import { ExternalLink, Table, LinkIcon, FileText, Users, ListFilter, Settings, UserPlus, Workflow, CalendarDays } from "lucide-react";
 import { useBuyers } from "@/hooks/useBuyers";
 import { NavItem } from "@/types/navigation";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +66,16 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
       >
         <Workflow className="h-4 w-4 mr-2" />
         Stats Workflow
+      </Link>
+
+      <Link 
+        to="/daily-stats" 
+        className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
+          isActive("/daily-stats") ? "bg-secondary font-medium" : ""
+        }`}
+      >
+        <CalendarDays className="h-4 w-4 mr-2" />
+        Daily Stats
       </Link>
 
       <Link 
