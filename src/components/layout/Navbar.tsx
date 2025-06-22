@@ -1,7 +1,7 @@
-
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccountType } from "@/contexts/AccountTypeContext";
 import {
   Sheet,
   SheetContent,
@@ -57,9 +57,11 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { signOut } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const { accountType } = useAccountType();
+  const navigate = useNavigate();
   const [logoError, setLogoError] = useState(false);
   
-  const handleLogout = async () => {
+  const handleSignOut = async () => {
     await signOut();
   };
 
@@ -71,8 +73,13 @@ export const Navbar: React.FC = () => {
 
   const isActive = (href: string) => location.pathname === href;
 
+  // Don't render navbar for contractors (they use ContractorLayout)
+  if (accountType === 'contractor') {
+    return null;
+  }
+
   return (
-    <div className="border-b bg-background sticky top-0 z-50">
+    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-4 justify-between">
         <div className="flex items-center">
           <Sheet>
@@ -121,7 +128,7 @@ export const Navbar: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleLogout}
+            onClick={handleSignOut}
             className="flex items-center"
           >
             <LogOut className="h-4 w-4 mr-2" />
@@ -129,6 +136,6 @@ export const Navbar: React.FC = () => {
           </Button>
         </nav>
       </div>
-    </div>
+    </nav>
   );
 };

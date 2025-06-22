@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -43,6 +42,9 @@ import { useWorkspace, Workspace, WorkspaceMember, WorkspaceInvitation } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { CreateContractorDialog } from "@/components/team/CreateContractorDialog";
+import { ContractorList } from "@/components/team/ContractorList";
+import { useAccountType } from "@/contexts/AccountTypeContext";
 
 const TeamSettingsPage: React.FC = () => {
   const { 
@@ -61,6 +63,7 @@ const TeamSettingsPage: React.FC = () => {
     cancelInvitation
   } = useWorkspace();
   const { user } = useAuth();
+  const { accountType } = useAccountType();
   
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
@@ -74,6 +77,40 @@ const TeamSettingsPage: React.FC = () => {
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
   const [editWorkspaceName, setEditWorkspaceName] = useState("");
   
+  const [contractors, setContractors] = useState<any[]>([]);
+  const [isLoadingContractors, setIsLoadingContractors] = useState(false);
+
+  // Fetch contractors
+  const fetchContractors = async () => {
+    if (!currentWorkspace) return;
+    
+    setIsLoadingContractors(true);
+    try {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select('*')
+        .eq('workspace_id', currentWorkspace.id)
+        .eq('account_type', 'contractor');
+        
+      if (error) {
+        throw error;
+      }
+      
+      setContractors(data || []);
+    } catch (error) {
+      console.error("Error fetching contractors:", error);
+      toast.error("Failed to load contractors");
+    } finally {
+      setIsLoadingContractors(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentWorkspace) {
+      fetchContractors();
+    }
+  }, [currentWorkspace]);
+
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) {
       toast.error("Please enter a workspace name");
@@ -128,8 +165,14 @@ const TeamSettingsPage: React.FC = () => {
     ? members.filter(m => 
         m.user_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.user_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : members;
+      ).filter(m => {
+        // Exclude contractors from regular members list
+        return !contractors.some(c => c.user_id === m.user_id);
+      })
+    : members.filter(m => {
+        // Exclude contractors from regular members list
+        return !contractors.some(c => c.user_id === m.user_id);
+      });
     
   const isUserWorkspaceOwner = currentWorkspace && members.some(
     m => m.user_id === user?.id && m.role === 'owner' && m.workspace_id === currentWorkspace.id
@@ -139,6 +182,20 @@ const TeamSettingsPage: React.FC = () => {
     m => m.user_id === user?.id && (m.role === 'owner' || m.role === 'admin') && m.workspace_id === currentWorkspace.id
   );
   
+  // Don't show team settings to contractors
+  if (accountType === 'contractor') {
+    return (
+      <div className="container max-w-screen-xl py-6">
+        <div className="text-center py-8">
+          <h1 className="text-2xl font-bold mb-4">Access Restricted</h1>
+          <p className="text-muted-foreground">
+            You don't have permission to access team settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container max-w-screen-xl py-6">
       <div className="flex justify-between items-center mb-6">
@@ -285,6 +342,7 @@ const TeamSettingsPage: React.FC = () => {
             <Tabs defaultValue="members">
               <TabsList className="mb-4">
                 <TabsTrigger value="members">Team Members</TabsTrigger>
+                <TabsTrigger value="contractors">Contractors</TabsTrigger>
                 <TabsTrigger value="invitations">Pending Invitations</TabsTrigger>
               </TabsList>
               
@@ -455,6 +513,33 @@ const TeamSettingsPage: React.FC = () => {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+              
+              <TabsContent value="contractors">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-medium">Contractors</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Contractors can only access the Daily Stats page
+                      </p>
+                    </div>
+                    {isUserWorkspaceAdmin && (
+                      <CreateContractorDialog onContractorCreated={fetchContractors} />
+                    )}
+                  </div>
+                  
+                  {isLoadingContractors ? (
+                    <div className="flex justify-center p-8">
+                      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : (
+                    <ContractorList 
+                      contractors={contractors} 
+                      onContractorRemoved={fetchContractors}
+                    />
+                  )}
+                </div>
               </TabsContent>
               
               <TabsContent value="invitations">

@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,6 +10,9 @@ import { MainLayout } from "./components/layout/MainLayout";
 import { useAuth } from "./contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { InvitationAccepter } from "./components/team/InvitationAccepter";
+import { AccountTypeProvider } from "./contexts/AccountTypeContext";
+import { ContractorLayout } from "./components/layout/ContractorLayout";
+import { useAccountType } from "./contexts/AccountTypeContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -39,7 +41,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected route component with better handling of authentication state
+// Enhanced ProtectedRoute with contractor handling
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -64,54 +66,83 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Contractor route wrapper
+const ContractorRoute = ({ children }: { children: React.ReactNode }) => {
+  const { accountType, isLoading } = useAccountType();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  // If contractor trying to access non-daily-stats page, redirect
+  if (accountType === 'contractor' && location.pathname !== '/daily-stats') {
+    return <Navigate to="/daily-stats" replace />;
+  }
+
+  // If contractor, use contractor layout
+  if (accountType === 'contractor') {
+    return <ContractorLayout>{children}</ContractorLayout>;
+  }
+
+  // For non-contractors, use regular layout
+  return <MainLayout />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <WorkspaceProvider>
-          <CampaignProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* Auth page is public */}
-                <Route path="/auth" element={<AuthPage />} />
-                
-                {/* Handle workspace invitations */}
-                <Route path="/invite" element={<InvitationAccepter />} />
-                
-                {/* Redirect /campaign to /campaigns to fix 404 issues */}
-                <Route path="/campaign" element={<Navigate to="/campaigns" replace />} />
-                
-                {/* Redirect /integrations to /data-sources */}
-                <Route path="/integrations" element={<Navigate to="/data-sources" replace />} />
-                
-                {/* All other routes are protected and wrapped with MainLayout */}
-                <Route element={
-                  <ProtectedRoute>
-                    <MainLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/campaign/:id" element={<CampaignDetail />} />
-                  <Route path="/campaigns" element={<CampaignsPage />} />
-                  <Route path="/add-campaign" element={<AddCampaignPage />} />
-                  <Route path="/bulk-stats" element={<BulkStatsPage />} />
-                  <Route path="/daily-stats" element={<DailyStatsPage />} />
-                  <Route path="/stats-workflow" element={<StatsWorkflowPage />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/accounts" element={<AccountsPage />} />
-                  <Route path="/data-sources" element={<DataSourcesPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/team-settings" element={<TeamSettingsPage />} />
-                  <Route path="/buyers" element={<BuyersPage />} />
-                  <Route path="/leads" element={<LeadsPage />} /> 
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-            <Toaster />
-            <Sonner />
-          </CampaignProvider>
-        </WorkspaceProvider>
+        <AccountTypeProvider>
+          <WorkspaceProvider>
+            <CampaignProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* Auth page is public */}
+                  <Route path="/auth" element={<AuthPage />} />
+                  
+                  {/* Handle workspace invitations */}
+                  <Route path="/invite" element={<InvitationAccepter />} />
+                  
+                  {/* Redirect /campaign to /campaigns to fix 404 issues */}
+                  <Route path="/campaign" element={<Navigate to="/campaigns" replace />} />
+                  
+                  {/* Redirect /integrations to /data-sources */}
+                  <Route path="/integrations" element={<Navigate to="/data-sources" replace />} />
+                  
+                  {/* All other routes are protected and wrapped with ContractorRoute */}
+                  <Route element={
+                    <ProtectedRoute>
+                      <ContractorRoute />
+                    </ProtectedRoute>
+                  }>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/campaign/:id" element={<CampaignDetail />} />
+                    <Route path="/campaigns" element={<CampaignsPage />} />
+                    <Route path="/add-campaign" element={<AddCampaignPage />} />
+                    <Route path="/bulk-stats" element={<BulkStatsPage />} />
+                    <Route path="/daily-stats" element={<DailyStatsPage />} />
+                    <Route path="/stats-workflow" element={<StatsWorkflowPage />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/accounts" element={<AccountsPage />} />
+                    <Route path="/data-sources" element={<DataSourcesPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/team-settings" element={<TeamSettingsPage />} />
+                    <Route path="/buyers" element={<BuyersPage />} />
+                    <Route path="/leads" element={<LeadsPage />} /> 
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+              <Toaster />
+              <Sonner />
+            </CampaignProvider>
+          </WorkspaceProvider>
+        </AccountTypeProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

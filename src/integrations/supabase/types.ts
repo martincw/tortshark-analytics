@@ -1048,6 +1048,7 @@ export type Database = {
       }
       workspace_members: {
         Row: {
+          account_type: Database["public"]["Enums"]["account_type"]
           created_at: string
           id: string
           role: Database["public"]["Enums"]["workspace_role"]
@@ -1056,6 +1057,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          account_type?: Database["public"]["Enums"]["account_type"]
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["workspace_role"]
@@ -1064,6 +1066,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          account_type?: Database["public"]["Enums"]["account_type"]
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["workspace_role"]
@@ -1122,9 +1125,17 @@ export type Database = {
           created_at: string
         }[]
       }
+      get_user_account_type: {
+        Args: { user_id?: string }
+        Returns: Database["public"]["Enums"]["account_type"]
+      }
       get_user_default_workspace: {
         Args: { p_user_id: string }
         Returns: string
+      }
+      is_contractor: {
+        Args: { user_id?: string }
+        Returns: boolean
       }
       is_workspace_admin: {
         Args: { workspace_id: string; user_id?: string }
@@ -1171,6 +1182,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_type: "admin" | "member" | "contractor"
       workspace_role: "owner" | "admin" | "member"
     }
     CompositeTypes: {
@@ -1287,6 +1299,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_type: ["admin", "member", "contractor"],
       workspace_role: ["owner", "admin", "member"],
     },
   },
