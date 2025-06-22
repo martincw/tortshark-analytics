@@ -31,7 +31,7 @@ interface ContractorSubmission {
   leads: number;
   cases: number;
   revenue: number;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string; // Changed from union type to string to match database
   notes: string;
   created_at: string;
   campaigns: {

@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
-import { NavItems } from "./NavItems";
 import { NavItem } from "@/types/navigation";
 import { WorkspaceSelector } from "../workspace/WorkspaceSelector";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -77,6 +76,30 @@ export const Navbar: React.FC = () => {
   if (accountType === 'contractor') {
     return null;
   }
+
+  // Create a simple NavItems component for rendering
+  const NavItems = ({ items, isActive, priority }: { items: NavItem[]; isActive: (href: string) => boolean; priority?: boolean }) => {
+    const filteredItems = priority !== undefined ? items.filter(item => !!item.priority === priority) : items;
+    
+    return (
+      <>
+        {filteredItems.map((item) => (
+          <Link
+            key={item.href}
+            to={item.href}
+            className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              isActive(item.href)
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            }`}
+          >
+            {item.icon}
+            {item.label}
+          </Link>
+        ))}
+      </>
+    );
+  };
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
