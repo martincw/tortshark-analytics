@@ -607,6 +607,71 @@ export type Database = {
           },
         ]
       }
+      contractor_submissions: {
+        Row: {
+          ad_spend: number
+          approved_at: string | null
+          approved_by: string | null
+          campaign_id: string
+          cases: number
+          contractor_email: string
+          contractor_name: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          leads: number
+          notes: string | null
+          revenue: number
+          status: string
+          submission_date: string
+          updated_at: string
+        }
+        Insert: {
+          ad_spend?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          campaign_id: string
+          cases?: number
+          contractor_email: string
+          contractor_name: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          leads?: number
+          notes?: string | null
+          revenue?: number
+          status?: string
+          submission_date: string
+          updated_at?: string
+        }
+        Update: {
+          ad_spend?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          campaign_id?: string
+          cases?: number
+          contractor_email?: string
+          contractor_name?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          leads?: number
+          notes?: string | null
+          revenue?: number
+          status?: string
+          submission_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_submissions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       external_lp_campaigns: {
         Row: {
           created_at: string | null

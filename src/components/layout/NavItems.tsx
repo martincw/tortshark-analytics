@@ -1,75 +1,80 @@
+import { 
+  Home, 
+  Target, 
+  TrendingUp, 
+  BarChart3, 
+  Settings, 
+  Users, 
+  UserCheck, 
+  Database,
+  Workflow,
+  FileText
+} from "lucide-react";
 
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { NavItem } from "@/types/navigation";
-import { Calendar } from "lucide-react";
-import { AddStatsDialog } from "@/components/dashboard/AddStatsDialog";
+export type NavItem = {
+  icon: any;
+  label: string;
+  href: string;
+};
 
-interface NavItemsProps {
-  items: NavItem[];
-  isActive: (href: string) => boolean;
-  priority?: boolean;
-}
+export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] => {
+  // If contractor, only show daily stats
+  if (accountType === 'contractor') {
+    return [
+      {
+        icon: BarChart3,
+        label: "Daily Stats",
+        href: "/daily-stats",
+      },
+    ];
+  }
 
-export const NavItems: React.FC<NavItemsProps> = ({ items, isActive, priority }) => {
-  const [isAddStatsDialogOpen, setIsAddStatsDialogOpen] = useState(false);
-  
-  const filteredItems = priority 
-    ? items.filter(item => item.priority)
-    : items.filter(item => !item.priority);
-
-  return (
-    <>
-      {filteredItems.map((item) => (
-        item.external ? (
-          <a
-            key={item.href}
-            href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`text-sm ${priority ? "font-medium" : ""} transition-colors hover:text-primary flex items-center ${
-              priority ? "px-3 py-1.5 rounded-md" : "text-muted-foreground"
-            }`}
-          >
-            {item.icon}
-            {item.label}
-          </a>
-        ) : (
-          <Link 
-            key={item.href} 
-            to={item.href} 
-            className={`text-sm transition-colors hover:text-primary flex items-center ${
-              isActive(item.href) 
-                ? priority 
-                  ? "bg-primary/10 text-primary font-medium" 
-                  : "font-medium text-primary" 
-                : priority 
-                  ? "font-medium" 
-                  : "text-muted-foreground"
-            } ${priority ? "px-3 py-1.5 rounded-md" : ""}`}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        )
-      ))}
-      
-      {priority && (
-        <>
-          <button
-            onClick={() => setIsAddStatsDialogOpen(true)}
-            className="text-sm font-medium transition-colors hover:text-primary flex items-center px-3 py-1.5 rounded-md"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            Add Stats
-          </button>
-          
-          <AddStatsDialog
-            open={isAddStatsDialogOpen}
-            onOpenChange={setIsAddStatsDialogOpen}
-          />
-        </>
-      )}
-    </>
-  );
+  // For regular users (members), show all nav items
+  return [
+    {
+      icon: Home,
+      label: "Dashboard",
+      href: "/",
+    },
+    {
+      icon: Target,
+      label: "Campaigns",
+      href: "/campaigns",
+    },
+    {
+      icon: BarChart3,
+      label: "Daily Stats",
+      href: "/daily-stats",
+    },
+    {
+      icon: TrendingUp,
+      label: "Bulk Stats",
+      href: "/bulk-stats",
+    },
+    {
+      icon: Workflow,
+      label: "Stats Workflow",
+      href: "/stats-workflow",
+    },
+    {
+      icon: Users,
+      label: "Buyers",
+      href: "/buyers",
+    },
+    {
+      icon: UserCheck,
+      label: "Leads",
+      href: "/leads",
+    },
+    {
+      icon: Database,
+      label: "Data Sources",
+      href: "/data-sources",
+    },
+    {
+      icon: FileText,
+      label: "Contractor Submissions",
+      href: "/contractor-submissions",
+    },
+  ];
 };

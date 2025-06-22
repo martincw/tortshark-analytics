@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -32,6 +31,8 @@ import BuyersPage from "./pages/BuyersPage";
 import LeadsPage from "./pages/LeadsPage";
 import TeamSettingsPage from "./pages/TeamSettingsPage";
 import StatsWorkflowPage from "./pages/StatsWorkflowPage";
+import ContractorBulkEntry from "./pages/ContractorBulkEntry";
+import ContractorSubmissionsPage from "./pages/ContractorSubmissionsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +106,9 @@ const App = () => (
                 <Routes>
                   {/* Auth page is public */}
                   <Route path="/auth" element={<AuthPage />} />
+                  
+                  {/* Public contractor bulk entry page - no authentication required */}
+                  <Route path="/bulk-entry" element={<ContractorBulkEntry />} />
                   
                   {/* Handle workspace invitations */}
                   <Route path="/invite" element={<InvitationAccepter />} />
@@ -197,6 +201,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <TeamSettingsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/contractor-submissions" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <ContractorSubmissionsPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />
