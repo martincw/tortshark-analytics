@@ -154,24 +154,28 @@ export default function ContractorBulkEntry() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="campaign">Campaign *</Label>
-                  <Select value={formData.campaignId} onValueChange={(value) => handleInputChange('campaignId', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a campaign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoading ? (
-                        <SelectItem value="" disabled>Loading campaigns...</SelectItem>
-                      ) : campaigns.length === 0 ? (
-                        <SelectItem value="" disabled>No campaigns available</SelectItem>
-                      ) : (
-                        campaigns.map((campaign) => (
+                  {isLoading ? (
+                    <div className="h-10 w-full flex items-center justify-center border border-input bg-background rounded-md text-sm text-muted-foreground">
+                      Loading campaigns...
+                    </div>
+                  ) : campaigns.length === 0 ? (
+                    <div className="h-10 w-full flex items-center justify-center border border-input bg-background rounded-md text-sm text-muted-foreground">
+                      No campaigns available
+                    </div>
+                  ) : (
+                    <Select value={formData.campaignId} onValueChange={(value) => handleInputChange('campaignId', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a campaign" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {campaigns.map((campaign) => (
                           <SelectItem key={campaign.id} value={campaign.id}>
                             {campaign.name}
                           </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 
                 <div>
@@ -248,7 +252,7 @@ export default function ContractorBulkEntry() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isSubmitting || isLoading}
+                disabled={isSubmitting || isLoading || campaigns.length === 0}
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Stats'}
               </Button>
