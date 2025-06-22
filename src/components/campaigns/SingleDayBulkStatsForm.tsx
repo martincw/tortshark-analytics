@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBulkStatsData } from "@/hooks/useBulkStatsData";
-import { formatDateForStorage } from "@/lib/utils/ManualDateUtils";
+import { formatDateForStorage, createDateAtUTCNoon, subDays } from "@/lib/utils/ManualDateUtils";
 import {
   Table,
   TableBody,

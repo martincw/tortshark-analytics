@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 const BulkStatsPage = () => {
   const initialDate = getWeekStartDate(createDateAtUTCNoon(new Date()));
   const [startDate, setStartDate] = useState<Date>(initialDate);
+  // Set single day date to yesterday by default
   const [singleDayDate, setSingleDayDate] = useState<Date>(subDays(createDateAtUTCNoon(new Date()), 1));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
