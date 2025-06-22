@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import {
   Table,
   TableBody,
@@ -51,7 +51,7 @@ export default function ContractorBulkEntry() {
   const [contractorInfo, setContractorInfo] = useState({
     contractorEmail: "",
     contractorName: "",
-    submissionDate: format(new Date(), 'yyyy-MM-dd'),
+    submissionDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'),
     notes: ""
   });
 
