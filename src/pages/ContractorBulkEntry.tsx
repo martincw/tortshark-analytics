@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SubmissionConfirmationDialog } from "@/components/contractors/SubmissionConfirmationDialog";
 
 interface Campaign {
   id: string;
@@ -47,6 +47,13 @@ export default function ContractorBulkEntry() {
   const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'adSpend' | null>(null);
   const [bulkPasteDialogOpen, setBulkPasteDialogOpen] = useState(false);
   const [pasteContent, setPasteContent] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [submissionData, setSubmissionData] = useState<{
+    contractorInfo: typeof contractorInfo;
+    campaigns: Campaign[];
+    statsData: Record<string, DailyStats>;
+    selectedCampaigns: Set<string>;
+  } | null>(null);
   
   const [contractorInfo, setContractorInfo] = useState({
     contractorEmail: "",
@@ -205,7 +212,16 @@ export default function ContractorBulkEntry() {
         if (error) throw error;
       }
 
-      toast.success(`Stats submitted for ${selectedCampaigns.size} campaign${selectedCampaigns.size > 1 ? 's' : ''}! Admin will review and approve.`);
+      // Store submission data for confirmation dialog
+      setSubmissionData({
+        contractorInfo: { ...contractorInfo },
+        campaigns: campaigns,
+        statsData: { ...statsData },
+        selectedCampaigns: new Set(selectedCampaigns)
+      });
+
+      // Show confirmation dialog instead of toast
+      setShowConfirmation(true);
       
       // Reset form
       setContractorInfo({
@@ -487,6 +503,18 @@ export default function ContractorBulkEntry() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Submission Confirmation Dialog */}
+      {submissionData && (
+        <SubmissionConfirmationDialog
+          open={showConfirmation}
+          onOpenChange={setShowConfirmation}
+          contractorInfo={submissionData.contractorInfo}
+          campaigns={submissionData.campaigns}
+          statsData={submissionData.statsData}
+          selectedCampaigns={submissionData.selectedCampaigns}
+        />
+      )}
     </div>
   );
 }
