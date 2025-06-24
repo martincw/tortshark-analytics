@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +16,6 @@ import {
   LogOut, 
   LayoutDashboard,
   CalendarIcon,
-  CreditCard,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,7 +25,6 @@ import { NavItem } from "@/types/navigation";
 // Main navigation items for top menu (reduced set)
 const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
-  { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
 ];
 
@@ -35,7 +32,6 @@ const navItems: NavItem[] = [
 const allNavItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" /> },
-  { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
 ];
 
