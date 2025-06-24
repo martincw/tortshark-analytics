@@ -33,6 +33,7 @@ import TeamSettingsPage from "./pages/TeamSettingsPage";
 import StatsWorkflowPage from "./pages/StatsWorkflowPage";
 import ContractorBulkEntry from "./pages/ContractorBulkEntry";
 import ContractorSubmissionsPage from "./pages/ContractorSubmissionsPage";
+import CasesRevenueEntryPage from "./pages/CasesRevenueEntryPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -208,6 +209,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <ContractorSubmissionsPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/cases-revenue-entry" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <CasesRevenueEntryPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />
