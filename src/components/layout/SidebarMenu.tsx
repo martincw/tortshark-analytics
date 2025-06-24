@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { PlusCircle, BarChart3, TrendingUp, Calendar, Users, Settings, ExternalLink } from "lucide-react";
+import { PlusCircle, BarChart3, Calendar, Users, ExternalLink } from "lucide-react";
 import { NavItem } from "@/types/navigation";
 
 interface SidebarMenuProps {
@@ -66,15 +66,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ navItems, externalNavI
         >
           <Calendar className="h-4 w-4 mr-2" />
           Daily Stats
-        </Link>
-        <Link 
-          to="/stats-workflow" 
-          className={`px-4 py-2 rounded-md hover:bg-secondary flex items-center ${
-            isActive("/stats-workflow") ? "bg-secondary font-medium" : ""
-          }`}
-        >
-          <TrendingUp className="h-4 w-4 mr-2" />
-          Stats Workflow
         </Link>
         <Link 
           to="/contractor-submissions" 

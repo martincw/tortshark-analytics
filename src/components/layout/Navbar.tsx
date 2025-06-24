@@ -19,14 +19,10 @@ import {
   CalendarIcon,
   CreditCard,
   Users,
-  ListFilter,
-  Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
 import { NavItem } from "@/types/navigation";
-import { WorkspaceSelector } from "../workspace/WorkspaceSelector";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // Main navigation items for top menu (reduced set)
 const navItems: NavItem[] = [
@@ -41,14 +37,12 @@ const allNavItems: NavItem[] = [
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" /> },
   { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
-  { href: "/leads", label: "Leads", icon: <ListFilter className="h-4 w-4 mr-2" /> },
-  { href: "/data-sources", label: "Data Sources", icon: <LinkIcon className="h-4 w-4 mr-2" /> },
 ];
 
 // Team and settings items - still needed for sidebar, but moved to sidebar
 const teamNavItems: NavItem[] = [
   { href: "/team-settings", label: "Team", icon: <Users className="h-4 w-4 mr-2" /> },
-  { href: "/settings", label: "Settings", icon: <LinkIcon className="h-4 w-4 mr-2" /> },
+  { href: "/settings", label: "Settings", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
 ];
 
 // External links that will only appear in sidebar
@@ -63,7 +57,6 @@ const LOGO_URL = "https://www.digitalnomad.com/wp-content/uploads/2025/04/TortSh
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const { signOut } = useAuth();
-  const { currentWorkspace } = useWorkspace();
   const { accountType } = useAccountType();
   const navigate = useNavigate();
   const [logoError, setLogoError] = useState(false);
@@ -143,9 +136,6 @@ export const Navbar: React.FC = () => {
               />
             )}
           </Link>
-          
-          {/* Add Workspace Selector */}
-          <WorkspaceSelector />
         </div>
         <nav className="md:flex items-center space-x-4 hidden">
           <NavItems items={navItems} isActive={isActive} />
