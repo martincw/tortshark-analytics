@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,10 +28,17 @@ import { NavItem } from "@/types/navigation";
 import { WorkspaceSelector } from "../workspace/WorkspaceSelector";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
-// Main navigation items (excluding external links that will only be in sidebar)
+// Main navigation items for top menu (reduced set)
 const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
-  { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" />, priority: true },
+  { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
+  { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+];
+
+// All navigation items for sidebar (includes everything)
+const allNavItems: NavItem[] = [
+  { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
+  { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" /> },
   { href: "/accounts", label: "Accounts", icon: <CreditCard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
   { href: "/leads", label: "Leads", icon: <ListFilter className="h-4 w-4 mr-2" /> },
@@ -78,12 +86,10 @@ export const Navbar: React.FC = () => {
   }
 
   // Create a simple NavItems component for rendering
-  const NavItems = ({ items, isActive, priority }: { items: NavItem[]; isActive: (href: string) => boolean; priority?: boolean }) => {
-    const filteredItems = priority !== undefined ? items.filter(item => !!item.priority === priority) : items;
-    
+  const NavItems = ({ items, isActive }: { items: NavItem[]; isActive: (href: string) => boolean }) => {
     return (
       <>
-        {filteredItems.map((item) => (
+        {items.map((item) => (
           <Link
             key={item.href}
             to={item.href}
@@ -119,7 +125,7 @@ export const Navbar: React.FC = () => {
                 </SheetDescription>
               </SheetHeader>
               <SidebarMenu 
-                navItems={[...navItems, ...teamNavItems]}
+                navItems={[...allNavItems, ...teamNavItems]}
                 externalNavItems={externalNavItems} 
                 isActive={isActive} 
               />
@@ -142,11 +148,7 @@ export const Navbar: React.FC = () => {
           <WorkspaceSelector />
         </div>
         <nav className="md:flex items-center space-x-4 hidden">
-          <NavItems items={navItems} isActive={isActive} priority={true} />
-          <div className="h-6 border-r mx-2"></div>
-          <NavItems items={navItems} isActive={isActive} priority={false} />
-          
-          {/* Team settings menu removed from here */}
+          <NavItems items={navItems} isActive={isActive} />
           
           <Button
             variant="ghost"
