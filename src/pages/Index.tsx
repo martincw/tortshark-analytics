@@ -159,28 +159,28 @@ const Index = () => {
         </div>
       )}
       
-      {/* Tabbed Interface */}
+      {/* Tabbed Interface with Tinted Styling */}
       <Tabs 
         defaultValue={activeTab} 
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="w-full border-b bg-background mb-4 h-12 rounded-none justify-start">
+        <TabsList className="w-full border-b bg-muted/30 mb-4 h-12 rounded-none justify-start">
           <TabsTrigger 
             value="overview" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
           >
             Overview
           </TabsTrigger>
           <TabsTrigger 
             value="leaderboard" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
           >
             Leaderboard
           </TabsTrigger>
           <TabsTrigger 
             value="campaigns" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
           >
             Campaigns
           </TabsTrigger>
