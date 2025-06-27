@@ -43,7 +43,18 @@ export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): Cam
   
   const previousWeekProfit = previousWeekStats.revenue - previousWeekStats.adSpend;
   const weekOverWeekChange = profit - previousWeekProfit;
-  const roi = adSpend > 0 ? (profit / adSpend) * 100 : 0;
+  
+  // Enhanced ROI calculation to handle zero ad spend cases
+  let roi: number;
+  if (adSpend > 0) {
+    roi = (profit / adSpend) * 100;
+  } else if (profit > 0) {
+    // Zero ad spend with positive profit should be treated as excellent performance
+    roi = 999999; // Very high ROI to ensure it shows as profitable
+  } else {
+    roi = 0; // Zero ad spend with zero or negative profit
+  }
+  
   const roas = adSpend > 0 ? (revenue / adSpend) * 100 : 0;
   const earningsPerLead = periodStats.leads > 0 ? revenue / periodStats.leads : 0;
   const revenuePerCase = periodStats.cases > 0 ? revenue / periodStats.cases : 0;
@@ -198,7 +209,14 @@ export const formatNumber = (value: number): string => {
   return value.toFixed(1);
 };
 
-export const getPerformanceClass = (roi: number): string => {
+export const getPerformanceClass = (roi: number, profit?: number, adSpend?: number): string => {
+  // Handle zero ad spend case - check profit directly
+  if (adSpend === 0) {
+    if (profit && profit > 0) return "text-success-DEFAULT font-bold";
+    if (profit && profit < 0) return "text-error-DEFAULT";
+    return "text-secondary";
+  }
+  
   if (roi > 200) return "text-success-DEFAULT font-bold";
   if (roi > 100) return "text-secondary font-bold";
   if (roi > 0) return "text-secondary";
@@ -218,14 +236,28 @@ export const getPerformanceLabel = (roi: number): string => {
   return "Needs Improvement";
 };
 
-export const getPerformanceBgClass = (roi: number): string => {
+export const getPerformanceBgClass = (roi: number, profit?: number, adSpend?: number): string => {
+  // Handle zero ad spend case - check profit directly
+  if (adSpend === 0) {
+    if (profit && profit > 0) return "bg-success-muted";
+    if (profit && profit < 0) return "bg-error-muted";
+    return "bg-secondary/10";
+  }
+  
   if (roi > 200) return "bg-success-muted";
   if (roi > 100) return "bg-secondary/15";
   if (roi > 0) return "bg-secondary/10";
   return "bg-error-muted";
 };
 
-export const getRoasClass = (roas: number | undefined): string => {
+export const getRoasClass = (roas: number | undefined, profit?: number, adSpend?: number): string => {
+  // Handle zero ad spend case - check profit directly
+  if (adSpend === 0) {
+    if (profit && profit > 0) return "text-success-DEFAULT font-bold";
+    if (profit && profit < 0) return "text-error-DEFAULT";
+    return "text-secondary";
+  }
+  
   if (!roas) return "";
   if (roas > 300) return "text-success-DEFAULT font-bold";
   if (roas > 200) return "text-secondary font-bold";

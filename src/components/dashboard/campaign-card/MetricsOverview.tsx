@@ -41,9 +41,24 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
   };
   
   const getProfitabilityClass = () => {
+    // Handle zero ad spend case - check profit directly
+    if (campaignStats.adSpend === 0) {
+      if (profit > 0) return "text-success-DEFAULT";
+      if (profit < 0) return "text-error-DEFAULT";
+      return "text-secondary";
+    }
+    
     if (metrics.roi > 300) return "text-success-DEFAULT";
     if (metrics.roi > 200) return "text-secondary"; 
     return "text-error-DEFAULT";
+  };
+  
+  const getRoasDisplay = () => {
+    if (campaignStats.adSpend === 0) {
+      if (manualStats.revenue > 0) return "∞";
+      return "N/A";
+    }
+    return ((manualStats.revenue / campaignStats.adSpend) * 100).toFixed(0);
   };
   
   const costPerLead = manualStats.leads > 0 ? campaignStats.adSpend / manualStats.leads : 0;
@@ -57,13 +72,13 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
 
   return (
     <>
-      <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi)}`}>
+      <div className={`grid grid-cols-2 gap-1 mb-4 p-3 rounded-md ${getPerformanceBgClass(metrics.roi, profit, campaignStats.adSpend)}`}>
         <div className="flex flex-col">
           <span className="text-xs font-medium text-muted-foreground">ROAS</span>
           <div className="flex items-center gap-1.5 mt-1">
             <Percent className="h-4 w-4 text-secondary" />
             <span className={`text-xl font-bold ${getProfitabilityClass()}`}>
-              {campaignStats.adSpend > 0 ? ((manualStats.revenue / campaignStats.adSpend) * 100).toFixed(0) : "0"}%
+              {getRoasDisplay()}%
             </span>
           </div>
         </div>
