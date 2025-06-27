@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Trash2, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Trash2, Edit } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { EditSubmissionDialog } from "@/components/contractors/EditSubmissionDialog";
 
 interface ContractorSubmission {
   id: string;
@@ -31,7 +32,7 @@ interface ContractorSubmission {
   leads: number;
   cases: number;
   revenue: number;
-  status: string; // Changed from union type to string to match database
+  status: string;
   notes: string;
   created_at: string;
   campaigns: {
@@ -43,6 +44,8 @@ export default function ContractorSubmissionsPage() {
   const [submissions, setSubmissions] = useState<ContractorSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [editingSubmission, setEditingSubmission] = useState<ContractorSubmission | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -69,6 +72,43 @@ export default function ContractorSubmissionsPage() {
       toast.error('Failed to load submissions');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateSubmission = async (submissionId: string, data: {
+    submission_date: string;
+    ad_spend: number;
+    leads: number;
+    cases: number;
+    revenue: number;
+    notes: string;
+  }) => {
+    setProcessingId(submissionId);
+    
+    try {
+      const { error } = await supabase
+        .from('contractor_submissions')
+        .update({
+          submission_date: data.submission_date,
+          ad_spend: data.ad_spend,
+          leads: data.leads,
+          cases: data.cases,
+          revenue: data.revenue,
+          notes: data.notes,
+        })
+        .eq('id', submissionId);
+
+      if (error) throw error;
+
+      toast.success('Submission updated successfully');
+      setIsEditDialogOpen(false);
+      setEditingSubmission(null);
+      fetchSubmissions();
+    } catch (error) {
+      console.error('Error updating submission:', error);
+      toast.error('Failed to update submission');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -162,6 +202,11 @@ export default function ContractorSubmissionsPage() {
     }
   };
 
+  const handleEditSubmission = (submission: ContractorSubmission) => {
+    setEditingSubmission(submission);
+    setIsEditDialogOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -245,8 +290,18 @@ export default function ContractorSubmissionsPage() {
                             <Button
                               size="sm"
                               variant="outline"
+                              onClick={() => handleEditSubmission(submission)}
+                              disabled={processingId === submission.id}
+                              title="Edit submission"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => approveSubmission(submission)}
                               disabled={processingId === submission.id}
+                              title="Approve submission"
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
@@ -255,6 +310,7 @@ export default function ContractorSubmissionsPage() {
                               variant="outline"
                               onClick={() => rejectSubmission(submission.id)}
                               disabled={processingId === submission.id}
+                              title="Reject submission"
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
@@ -267,6 +323,7 @@ export default function ContractorSubmissionsPage() {
                               size="sm"
                               variant="outline"
                               disabled={processingId === submission.id}
+                              title="Delete submission"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -298,6 +355,14 @@ export default function ContractorSubmissionsPage() {
           )}
         </CardContent>
       </Card>
+
+      <EditSubmissionDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        submission={editingSubmission}
+        onSave={updateSubmission}
+        isLoading={processingId !== null}
+      />
     </div>
   );
 }
