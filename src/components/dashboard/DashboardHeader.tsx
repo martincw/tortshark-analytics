@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "@/components/ui/button";
@@ -15,10 +14,13 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { AddStatsDialog } from "./AddStatsDialog";
 
 export function DashboardHeader() {
   const navigate = useNavigate();
   const { campaigns, selectedCampaignIds, setSelectedCampaignIds } = useCampaign();
+  const [isAddStatsDialogOpen, setIsAddStatsDialogOpen] = useState(false);
+  // Add state for controlling dropdown open state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   // Calculate active and inactive campaign counts
@@ -26,17 +28,21 @@ export function DashboardHeader() {
   const inactiveCampaigns = campaigns.filter(campaign => campaign.is_active === false).length;
   
   const handleCampaignToggle = (campaignId: string, e: React.MouseEvent) => {
+    // Prevent dropdown from closing
     e.preventDefault();
     e.stopPropagation();
     
+    // Fix: Clone the array first, then modify it, and set the new array directly
     const newSelectedIds = [...selectedCampaignIds];
     
     if (newSelectedIds.includes(campaignId)) {
+      // Remove the ID
       const index = newSelectedIds.indexOf(campaignId);
       if (index !== -1) {
         newSelectedIds.splice(index, 1);
       }
     } else {
+      // Add the ID
       newSelectedIds.push(campaignId);
     }
     
@@ -44,6 +50,7 @@ export function DashboardHeader() {
   };
   
   const handleSelectAll = (e: React.MouseEvent) => {
+    // Prevent dropdown from closing
     e.preventDefault();
     e.stopPropagation();
     
@@ -51,12 +58,14 @@ export function DashboardHeader() {
   };
   
   const handleClearAll = (e: React.MouseEvent) => {
+    // Prevent dropdown from closing
     e.preventDefault();
     e.stopPropagation();
     
     setSelectedCampaignIds([]);
   };
   
+  // Function to manually close the dropdown when done selecting
   const handleCloseDropdown = () => {
     setIsDropdownOpen(false);
   };
@@ -86,6 +95,7 @@ export function DashboardHeader() {
             <DropdownMenuContent 
               align="end" 
               className="w-72 bg-background" 
+              // Fix: Use the correct event type expected by onCloseAutoFocus
               onCloseAutoFocus={(event: Event) => {
                 event.preventDefault();
               }}
@@ -97,6 +107,7 @@ export function DashboardHeader() {
                   <DropdownMenuCheckboxItem
                     key={campaign.id}
                     checked={selectedCampaignIds.includes(campaign.id)}
+                    // Fix: Make sure we're passing the correct event type
                     onSelect={(e) => handleCampaignToggle(campaign.id, e as unknown as React.MouseEvent)}
                   >
                     {campaign.name}
@@ -136,7 +147,7 @@ export function DashboardHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
           <DateRangePicker />
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsAddStatsDialogOpen(true)}>
             <Calendar className="mr-2 h-4 w-4" /> Add Stats
           </Button>
           <Button className="w-full md:w-auto" onClick={() => navigate("/add-campaign")}>
@@ -147,24 +158,29 @@ export function DashboardHeader() {
       
       {/* Campaign Status Indicators */}
       <div className="flex flex-wrap gap-4">
-        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <span className="text-sm font-medium text-green-700">
+        <div className="flex items-center gap-2 px-3 py-2 bg-success-muted border border-success-DEFAULT/20 rounded-lg">
+          <CheckCircle className="h-4 w-4 text-success-DEFAULT" />
+          <span className="text-sm font-medium text-success-DEFAULT">
             Active: {activeCampaigns}
           </span>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-          <XCircle className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-600">
+        <div className="flex items-center gap-2 px-3 py-2 bg-muted border border-border rounded-lg">
+          <XCircle className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">
             Inactive: {inactiveCampaigns}
           </span>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium text-blue-700">
+        <div className="flex items-center gap-2 px-3 py-2 bg-accent border border-border rounded-lg">
+          <span className="text-sm font-medium text-foreground">
             Total: {campaigns.length}
           </span>
         </div>
       </div>
+      
+      <AddStatsDialog 
+        open={isAddStatsDialogOpen}
+        onOpenChange={setIsAddStatsDialogOpen}
+      />
     </div>
   );
 }

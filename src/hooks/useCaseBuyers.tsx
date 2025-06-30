@@ -11,7 +11,6 @@ export const useCaseBuyers = () => {
   const fetchBuyers = async () => {
     setLoading(true);
     try {
-      // Remove workspace filtering - admins see all buyers
       const { data, error } = await supabase
         .from('case_buyers')
         .select('*')

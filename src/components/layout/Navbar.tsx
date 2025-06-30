@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,9 +35,9 @@ const allNavItems: NavItem[] = [
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
 ];
 
-// Team settings items
+// Team and settings items - still needed for sidebar, but moved to sidebar
 const teamNavItems: NavItem[] = [
-  { href: "/team", label: "Team Members", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/team-settings", label: "Team", icon: <Users className="h-4 w-4 mr-2" /> },
   { href: "/settings", label: "Settings", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
 ];
 

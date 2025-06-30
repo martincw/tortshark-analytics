@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface UseStatsSubmissionProps {
   fetchCampaigns: () => Promise<void>;
@@ -11,6 +12,7 @@ interface UseStatsSubmissionProps {
 
 export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissionProps) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const { currentWorkspace } = useWorkspace();
 
   const submitStats = async (
     selectedCampaignId: string,
@@ -63,7 +65,7 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
         
         toast.success("Stats updated successfully");
       } else {
-        // Insert new record (without workspace_id)
+        // Insert new record
         const { error: insertError } = await supabase
           .from('campaign_stats_history')
           .insert({
@@ -74,7 +76,8 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases, // Using cases as retainers
             revenue,
-            ad_spend: adSpend
+            ad_spend: adSpend,
+            workspace_id: currentWorkspace?.id // Add workspace_id
           });
           
         if (insertError) {
@@ -114,7 +117,8 @@ export const useStatsSubmission = ({ fetchCampaigns, onClose }: UseStatsSubmissi
             cases,
             retainers: cases,
             revenue,
-            date: dateString
+            date: dateString,
+            workspace_id: currentWorkspace?.id // Add workspace_id
           }, {
             onConflict: 'campaign_id'
           });
