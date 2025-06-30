@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
@@ -29,6 +32,7 @@ import { SubmissionConfirmationDialog } from "@/components/contractors/Submissio
 interface Campaign {
   id: string;
   name: string;
+  is_active: boolean;
 }
 
 type DailyStats = {
@@ -40,6 +44,8 @@ type DailyStats = {
 
 export default function ContractorBulkEntry() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [filteredCampaigns, setFilteredCampaigns] = useState<Campaign[]>([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
@@ -66,13 +72,26 @@ export default function ContractorBulkEntry() {
     fetchCampaigns();
   }, []);
 
+  useEffect(() => {
+    if (showActiveOnly) {
+      setFilteredCampaigns(campaigns.filter(campaign => campaign.is_active));
+    } else {
+      // Sort campaigns with active ones first
+      const sortedCampaigns = [...campaigns].sort((a, b) => {
+        if (a.is_active && !b.is_active) return -1;
+        if (!a.is_active && b.is_active) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      setFilteredCampaigns(sortedCampaigns);
+    }
+  }, [campaigns, showActiveOnly]);
+
   const fetchCampaigns = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('campaigns')
-        .select('id, name')
-        .eq('is_active', true)
+        .select('id, name, is_active')
         .order('name');
 
       if (error) throw error;
@@ -174,6 +193,13 @@ export default function ContractorBulkEntry() {
     toast.success(`Pasted ${validValues.length} values for ${bulkPasteField}`);
   };
 
+  const hasInactiveCampaignsSelected = () => {
+    return Array.from(selectedCampaigns).some(campaignId => {
+      const campaign = campaigns.find(c => c.id === campaignId);
+      return campaign && !campaign.is_active;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -185,6 +211,22 @@ export default function ContractorBulkEntry() {
     if (selectedCampaigns.size === 0) {
       toast.error('Please select at least one campaign');
       return;
+    }
+
+    // Show warning if submitting for inactive campaigns
+    if (hasInactiveCampaignsSelected()) {
+      const inactiveCampaigns = Array.from(selectedCampaigns)
+        .map(id => campaigns.find(c => c.id === id))
+        .filter(c => c && !c.is_active)
+        .map(c => c!.name);
+      
+      const confirmed = window.confirm(
+        `You are submitting stats for inactive campaign(s): ${inactiveCampaigns.join(', ')}.\n\nAre you sure you want to continue?`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -303,22 +345,35 @@ export default function ContractorBulkEntry() {
                 </div>
               </div>
 
-              {/* Campaign Selection Table */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Select Campaigns & Enter Stats</h3>
+              {/* Campaign Filter Toggle */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Select Campaigns & Enter Stats</h3>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="show-active-only"
+                      checked={showActiveOnly}
+                      onCheckedChange={setShowActiveOnly}
+                    />
+                    <Label htmlFor="show-active-only" className="text-sm">
+                      Show active campaigns only
+                    </Label>
+                  </div>
                   {selectedCampaigns.size > 0 && (
-                    <span className="text-sm text-muted-foreground">
+                    <Badge variant="secondary">
                       {selectedCampaigns.size} campaign{selectedCampaigns.size > 1 ? 's' : ''} selected
-                    </span>
+                    </Badge>
                   )}
                 </div>
+              </div>
 
+              {/* Campaign Selection Table */}
+              <div className="space-y-4">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
                   </div>
-                ) : campaigns.length === 0 ? (
+                ) : filteredCampaigns.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No campaigns available
                   </div>
@@ -328,6 +383,7 @@ export default function ContractorBulkEntry() {
                       <TableRow>
                         <TableHead className="w-[50px]"></TableHead>
                         <TableHead>Campaign</TableHead>
+                        <TableHead className="w-[100px]">Status</TableHead>
                         <TableHead className="text-right">
                           Ad Spend ($)
                           <Button
@@ -395,12 +451,15 @@ export default function ContractorBulkEntry() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {campaigns.map((campaign) => {
+                      {filteredCampaigns.map((campaign) => {
                         const isSelected = selectedCampaigns.has(campaign.id);
                         const campaignStats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
                         
                         return (
-                          <TableRow key={campaign.id} className={isSelected ? "bg-muted/50" : ""}>
+                          <TableRow 
+                            key={campaign.id} 
+                            className={`${isSelected ? "bg-muted/50" : ""} ${!campaign.is_active ? "opacity-75" : ""}`}
+                          >
                             <TableCell>
                               <Checkbox
                                 id={`select-${campaign.id}`}
@@ -409,6 +468,11 @@ export default function ContractorBulkEntry() {
                               />
                             </TableCell>
                             <TableCell className="font-medium">{campaign.name}</TableCell>
+                            <TableCell>
+                              <Badge variant={campaign.is_active ? "default" : "secondary"}>
+                                {campaign.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
                             <TableCell className="text-right">
                               <Input
                                 type="number"
@@ -466,7 +530,7 @@ export default function ContractorBulkEntry() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isSubmitting || isLoading || campaigns.length === 0 || selectedCampaigns.size === 0}
+                disabled={isSubmitting || isLoading || filteredCampaigns.length === 0 || selectedCampaigns.size === 0}
               >
                 {isSubmitting ? 'Submitting...' : `Submit Stats for ${selectedCampaigns.size} Campaign${selectedCampaigns.size !== 1 ? 's' : ''}`}
               </Button>
