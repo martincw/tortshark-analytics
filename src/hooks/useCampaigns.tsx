@@ -126,10 +126,19 @@ export const useCampaigns = () => {
         const totalAdSpend = statsHistory.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
 
         const enrichedCampaign: Campaign = {
-          ...campaign,
+          id: campaign.id,
+          name: campaign.name,
+          userId: campaign.user_id,
+          platform: campaign.platform,
+          accountId: campaign.account_id || undefined,
+          accountName: campaign.account_name || undefined,
+          createdAt: campaign.created_at,
+          updatedAt: campaign.updated_at,
+          is_active: campaign.is_active,
           statsHistory,
           manualStats,
           targets,
+          buyerStack: [],
           stats: { 
             impressions: 0,
             clicks: 0,
