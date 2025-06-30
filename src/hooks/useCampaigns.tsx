@@ -130,7 +130,17 @@ export const useCampaigns = () => {
           statsHistory,
           manualStats,
           targets,
-          campaignStats: { adSpend: totalAdSpend }
+          stats: { 
+            impressions: 0,
+            clicks: 0,
+            conversions: 0,
+            cost: totalAdSpend,
+            ctr: 0,
+            cpc: 0,
+            conversionRate: 0,
+            adSpend: totalAdSpend,
+            averageCpc: 0
+          }
         };
 
         // Calculate and cache metrics

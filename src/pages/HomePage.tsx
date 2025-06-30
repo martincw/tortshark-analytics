@@ -11,7 +11,7 @@ const HomePage: React.FC = () => {
     <div className="container mx-auto px-4 py-6">
       <DashboardHeader />
       <div className="mt-6">
-        <CampaignGrid campaigns={campaigns} loading={loading} />
+        <CampaignGrid filteredCampaigns={campaigns} />
       </div>
     </div>
   );
