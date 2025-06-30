@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Campaign, CampaignStats } from "@/types/campaign";
+import { Campaign, StatHistoryEntry } from "@/types/campaign";
 import { calculateMetrics } from "@/utils/campaignUtils";
 import { toast } from "sonner";
 
@@ -70,7 +70,7 @@ export const useCampaigns = () => {
       }
 
       // Group stats by campaign
-      const campaignStatsMap = new Map<string, CampaignStats[]>();
+      const campaignStatsMap = new Map<string, StatHistoryEntry[]>();
       if (statsData) {
         statsData.forEach(stat => {
           const campaignId = stat.campaign_id;
@@ -80,10 +80,10 @@ export const useCampaigns = () => {
           
           campaignStatsMap.get(campaignId)!.push({
             id: stat.id,
+            campaignId: stat.campaign_id,
             date: stat.date,
             leads: stat.leads || 0,
             cases: stat.cases || 0,
-            retainers: stat.retainers || 0,
             revenue: stat.revenue || 0,
             adSpend: stat.ad_spend || 0
           });
