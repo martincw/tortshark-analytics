@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { useCampaigns } from '@/hooks/useCampaigns';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { CampaignGrid } from '@/components/dashboard/CampaignGrid';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 
 const HomePage: React.FC = () => {
-  const { campaigns, loading } = useCampaigns();
+  const { campaigns } = useCampaign();
 
   return (
     <div className="container mx-auto px-4 py-6">

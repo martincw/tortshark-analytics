@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { useCampaigns } from '@/hooks/useCampaigns';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { CampaignList } from '@/components/dashboard/CampaignList';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 
 const DashboardPage: React.FC = () => {
-  const { campaigns, loading } = useCampaigns();
+  const { campaigns } = useCampaign();
 
   const handleClearFilters = () => {
     // Clear filters functionality
