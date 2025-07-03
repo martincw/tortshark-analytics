@@ -4,6 +4,7 @@ import { Campaign } from "@/types/campaign";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WeeklyPerformanceChart } from "./WeeklyPerformanceChart";
+import { EnhancedPerformanceTrends } from "./EnhancedPerformanceTrends";
 import { calculateMetrics, formatCurrency, formatNumber, formatPercent } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 
@@ -23,11 +24,16 @@ export function CampaignPerformanceSection({ campaign }: CampaignPerformanceSect
 
   return (
     <div className="space-y-8">
-      <Tabs defaultValue="weekly" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="trends" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="trends">Performance Trends</TabsTrigger>
           <TabsTrigger value="weekly">Weekly Performance</TabsTrigger>
           <TabsTrigger value="monthly">Monthly Targets</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="trends" className="mt-4">
+          <EnhancedPerformanceTrends campaign={campaign} />
+        </TabsContent>
         
         <TabsContent value="weekly" className="mt-4">
           <WeeklyPerformanceChart campaign={campaign} />
