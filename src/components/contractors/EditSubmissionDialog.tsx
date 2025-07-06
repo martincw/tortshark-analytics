@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
 
 const editSubmissionSchema = z.object({
   submission_date: z.string().min(1, "Submission date is required"),
@@ -86,8 +85,13 @@ export function EditSubmissionDialog({
 
   React.useEffect(() => {
     if (submission && open) {
+      // Handle date string directly to avoid timezone shifts
+      const dateString = submission.submission_date.includes('T') 
+        ? submission.submission_date.split('T')[0] 
+        : submission.submission_date;
+      
       reset({
-        submission_date: format(new Date(submission.submission_date), 'yyyy-MM-dd'),
+        submission_date: dateString,
         ad_spend: submission.ad_spend.toString(),
         leads: submission.leads.toString(),
         cases: submission.cases.toString(),
