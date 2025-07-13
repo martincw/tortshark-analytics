@@ -259,6 +259,7 @@ export default function ContractorSubmissionsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Ad Spend</TableHead>
                   <TableHead>Leads</TableHead>
+                  <TableHead>Cost Per Lead</TableHead>
                   <TableHead>Cases</TableHead>
                   <TableHead>Revenue</TableHead>
                   <TableHead>Status</TableHead>
@@ -279,6 +280,12 @@ export default function ContractorSubmissionsPage() {
                     <TableCell>{format(new Date(submission.submission_date), 'MMM d, yyyy')}</TableCell>
                     <TableCell>{formatCurrency(submission.ad_spend)}</TableCell>
                     <TableCell>{submission.leads}</TableCell>
+                    <TableCell>
+                      {submission.leads > 0 
+                        ? formatCurrency(submission.ad_spend / submission.leads)
+                        : 'N/A'
+                      }
+                    </TableCell>
                     <TableCell>{submission.cases}</TableCell>
                     <TableCell>{formatCurrency(submission.revenue)}</TableCell>
                     <TableCell>{getStatusBadge(submission.status)}</TableCell>

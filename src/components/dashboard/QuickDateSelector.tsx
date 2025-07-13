@@ -1,8 +1,8 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Calendar, Clock, History } from "lucide-react";
-import { format, startOfWeek, endOfWeek, subDays, subWeeks, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { CalendarDays, Calendar, Clock, History, Globe } from "lucide-react";
+import { format, startOfWeek, endOfWeek, subDays, subWeeks, subMonths, startOfMonth, endOfMonth, subYears } from "date-fns";
 import { toast } from "sonner";
 
 export interface DateRange {
@@ -99,6 +99,19 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         // Start date is 30 days before end date
         start = subDays(end, 29);
         break;
+      case 'Last60Days':
+        end = yesterday;
+        start = subDays(end, 59);
+        break;
+      case 'Last90Days':
+        end = yesterday;
+        start = subDays(end, 89);
+        break;
+      case 'AllTime':
+        // Set a reasonable start date (2 years ago) for All Time
+        start = subYears(today, 2);
+        end = yesterday;
+        break;
       case 'Yesterday':
         start = new Date(today);
         start.setDate(today.getDate() - 1);
@@ -179,6 +192,26 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         return (
           format(startDate, "yyyy-MM-dd") === format(last30Start, "yyyy-MM-dd") &&
           format(endDate, "yyyy-MM-dd") === format(last30End, "yyyy-MM-dd")
+        );
+      case 'Last60Days':
+        const last60End = new Date(yesterday);
+        const last60Start = subDays(last60End, 59);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last60Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last60End, "yyyy-MM-dd")
+        );
+      case 'Last90Days':
+        const last90End = new Date(yesterday);
+        const last90Start = subDays(last90End, 89);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last90Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last90End, "yyyy-MM-dd")
+        );
+      case 'AllTime':
+        const allTimeStart = subYears(today, 2);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(allTimeStart, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(yesterday, "yyyy-MM-dd")
         );
       case 'ThisWeek':
         const thisWeekStart = getStartOfWeek(today);
@@ -309,6 +342,33 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         >
           <Clock className="mr-2 h-4 w-4" />
           Last 30 Days
+        </Button>
+        <Button 
+          variant={isSelected('Last60Days') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('Last60Days')}
+          className="w-full justify-start"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Last 60 Days
+        </Button>
+        <Button 
+          variant={isSelected('Last90Days') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('Last90Days')}
+          className="w-full justify-start"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Last 90 Days
+        </Button>
+        <Button 
+          variant={isSelected('AllTime') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('AllTime')}
+          className="w-full justify-start"
+        >
+          <Globe className="mr-2 h-4 w-4" />
+          All Time
         </Button>
       </div>
       
