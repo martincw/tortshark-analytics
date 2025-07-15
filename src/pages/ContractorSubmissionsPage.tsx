@@ -261,6 +261,7 @@ export default function ContractorSubmissionsPage() {
                   <TableHead>Leads</TableHead>
                   <TableHead>Cost Per Lead</TableHead>
                   <TableHead>Cases</TableHead>
+                  <TableHead>CVR</TableHead>
                   <TableHead>Revenue</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
@@ -287,6 +288,12 @@ export default function ContractorSubmissionsPage() {
                       }
                     </TableCell>
                     <TableCell>{submission.cases}</TableCell>
+                    <TableCell>
+                      {submission.leads > 0 
+                        ? `${((submission.cases / submission.leads) * 100).toFixed(1)}%`
+                        : 'N/A'
+                      }
+                    </TableCell>
                     <TableCell>{formatCurrency(submission.revenue)}</TableCell>
                     <TableCell>{getStatusBadge(submission.status)}</TableCell>
                     <TableCell>{format(new Date(submission.created_at), 'MMM d, HH:mm')}</TableCell>
