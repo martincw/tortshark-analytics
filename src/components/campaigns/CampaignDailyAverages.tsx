@@ -26,6 +26,7 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
         roas: 0,
         conversionRate: 0,
         costPerLead: 0,
+        cpa: 0,
         earningsPerLead: 0,
         daysInRange: 1,
         displayDateRange: ""
@@ -99,6 +100,7 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
     // Calculate additional metrics
     const conversionRate = dailyLeads > 0 ? (dailyCases / dailyLeads) * 100 : 0;
     const costPerLead = dailyLeads > 0 ? dailyAdSpend / dailyLeads : 0;
+    const cpa = dailyCases > 0 ? dailyAdSpend / dailyCases : 0;
     const earningsPerLead = dailyLeads > 0 ? dailyRevenue / dailyLeads : 0;
     
     return {
@@ -110,6 +112,7 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
       roas,
       conversionRate,
       costPerLead,
+      cpa,
       earningsPerLead,
       daysInRange: effectiveDays,
       displayDateRange,
@@ -256,6 +259,17 @@ const CampaignDailyAverages: React.FC<CampaignDailyAveragesProps> = ({ campaign 
             </div>
             <div className="text-xl font-bold text-metric-cost-dark">
               {formatCurrency(averages.costPerLead)}
+            </div>
+          </div>
+          
+          {/* CPA - Cost Per Acquisition (darker red) */}
+          <div className="metric-card-cost p-4 rounded-lg border shadow-sm">
+            <div className="flex items-center gap-2 mb-1 text-muted-foreground text-sm">
+              <DollarSign className="h-4 w-4 text-metric-cost-dark" />
+              CPA
+            </div>
+            <div className="text-xl font-bold text-metric-cost-dark">
+              {formatCurrency(averages.cpa)}
             </div>
           </div>
           
