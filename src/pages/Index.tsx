@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import LeadsTab from "@/components/dashboard/LeadsTab";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();
@@ -179,6 +180,12 @@ const Index = () => {
             Leaderboard
           </TabsTrigger>
           <TabsTrigger 
+            value="leads" 
+            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
+          >
+            Leads
+          </TabsTrigger>
+          <TabsTrigger 
             value="campaigns" 
             className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
           >
@@ -197,6 +204,11 @@ const Index = () => {
         {/* Leaderboard Tab Content */}
         <TabsContent value="leaderboard" className="space-y-6 mt-0">
           <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
+        </TabsContent>
+        
+        {/* Leads Tab Content */}
+        <TabsContent value="leads" className="space-y-6 mt-0">
+          <LeadsTab />
         </TabsContent>
         
         {/* Campaigns Tab Content */}
