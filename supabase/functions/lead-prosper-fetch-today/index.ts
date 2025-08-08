@@ -160,51 +160,69 @@ serve(async (req: Request) => {
 
         console.log(`Processing campaign: LP ID ${lpCampaignId} ("${campaignName}"), TS ID ${tsCampaignId}`);
 
-        // Fetch leads from Lead Prosper API
-        const apiUrl = `https://api.leadprosper.io/v1/campaigns/${lpCampaignId}/leads`;
-        const params = new URLSearchParams({
-          start_date: startDateFormatted,
-          end_date: endDateFormatted,
-          limit: '1000',
-        });
-
+        // Fetch leads from Lead Prosper API (use public/leads with pagination)
         const headers = {
           'Authorization': `Bearer ${credentials.apiKey}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         };
 
-        console.log(`Calling Lead Prosper API: ${apiUrl}?${params.toString()}`);
+        const baseUrl = 'https://api.leadprosper.io/public/leads';
+        let allLeads: any[] = [];
+        let searchAfter: string | null = null;
+        let hasMore = true;
 
-        const response = await fetch(`${apiUrl}?${params.toString()}`, {
-          method: 'GET',
-          headers,
-        });
+        while (hasMore) {
+          const params = new URLSearchParams({
+            campaign: String(lpCampaignId),
+            start_date: startDateFormatted,
+            end_date: endDateFormatted,
+            timezone: 'America/Denver',
+          });
+          if (searchAfter) params.set('search_after', searchAfter);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Lead Prosper API error for campaign ${lpCampaignId}: ${response.status} ${response.statusText} - ${errorText}`);
-          
-          debugInfo.push({
-            campaign_id: lpCampaignId,
-            campaign_name: campaignName,
-            ts_campaign_id: tsCampaignId,
-            api_error: `${response.status}: ${errorText}`,
-            api_url: `${apiUrl}?${params.toString()}`
-          });
-          
-          results.push({
-            campaign_id: lpCampaignId,
-            campaign_name: campaignName,
-            ts_campaign_id: tsCampaignId,
-            leads_count: 0,
-            status: "api_error",
-            error: `${response.status}: ${errorText}`
-          });
-          continue;
+          const url = `${baseUrl}?${params.toString()}`;
+          console.log(`Calling Lead Prosper API: ${url}`);
+
+          const response = await fetch(url, { method: 'GET', headers });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Lead Prosper API error for campaign ${lpCampaignId}: ${response.status} ${response.statusText} - ${errorText}`);
+
+            debugInfo.push({
+              campaign_id: lpCampaignId,
+              campaign_name: campaignName,
+              ts_campaign_id: tsCampaignId,
+              api_error: `${response.status}: ${errorText}`,
+              api_url: url,
+            });
+
+            results.push({
+              campaign_id: lpCampaignId,
+              campaign_name: campaignName,
+              ts_campaign_id: tsCampaignId,
+              leads_count: 0,
+              status: 'api_error',
+              error: `${response.status}: ${errorText}`,
+            });
+            // Stop pagination for this campaign on error
+            hasMore = false;
+            continue;
+          }
+
+          const respJson = await response.json();
+
+          const batch = Array.isArray(respJson?.data) ? respJson.data : [];
+          if (batch.length > 0) {
+            allLeads = allLeads.concat(batch);
+          }
+          searchAfter = respJson?.search_after || null;
+          hasMore = !!searchAfter;
         }
 
-        const data = await response.json();
+        // Normalize to previous structure for downstream logic
+        const data = { leads: allLeads };
         
         console.log(`API Response for campaign ${lpCampaignId}:`, {
           has_leads: !!data.leads,
