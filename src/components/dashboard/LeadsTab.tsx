@@ -27,7 +27,9 @@ const LeadsTab: React.FC = () => {
   const { dateRange, campaigns, selectedCampaignIds, setSelectedCampaignIds, updateCampaign } = useCampaign();
   const [rows, setRows] = useState<AggregatedLeadsRow[]>([]);
   const [loading, setLoading] = useState(false);
-  
+  // LeadProsper leaderboard state
+  const [lpRows, setLpRows] = useState<AggregatedLeadsRow[]>([]);
+  const [lpLoading, setLpLoading] = useState(false);
 
   const activeSelection = selectedCampaignIds.length > 0 ? new Set(selectedCampaignIds) : null;
 
@@ -91,9 +93,46 @@ const LeadsTab: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [dateRange.startDate, dateRange.endDate, campaigns, selectedCampaignIds]);
+useEffect(() => {
+  fetchData();
+}, [dateRange.startDate, dateRange.endDate, campaigns, selectedCampaignIds]);
+
+// Fetch LeadProsper leaderboard
+useEffect(() => {
+  const fetchLPData = async () => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return;
+    setLpLoading(true);
+    try {
+      const start = String(dateRange.startDate).slice(0, 10);
+      const end = String(dateRange.endDate).slice(0, 10);
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+      const { data, error } = await supabase.functions.invoke("leadprosper-fetch-leads", {
+        body: { startDate: start, endDate: end, timezone },
+      });
+      if (error) throw error;
+      const aggregated = (data?.campaigns || []).map((c: any) => ({
+        ts_campaign_id: String(c.campaign_id),
+        name: c.campaign_name,
+        leads: Number(c.leads || 0),
+        accepted: Number(c.accepted || 0),
+        failed: Number(c.failed || 0),
+        duplicated: Number(c.duplicated || 0),
+        revenue: Number(c.revenue || 0),
+        cost: Number(c.cost || 0),
+        profit: Number(c.profit || 0),
+      })) as AggregatedLeadsRow[];
+      // Sort by leads desc
+      aggregated.sort((a, b) => b.leads - a.leads);
+      setLpRows(aggregated);
+    } catch (e) {
+      console.error("Error loading LeadProsper leaderboard", e);
+      toast.error("Failed to load LeadProsper leaderboard");
+    } finally {
+      setLpLoading(false);
+    }
+  };
+  fetchLPData();
+}, [dateRange.startDate, dateRange.endDate]);
 
   const handleHide = (id: string) => {
     const next = new Set(selectedCampaignIds);
@@ -116,7 +155,8 @@ const LeadsTab: React.FC = () => {
   };
 
 
-  return (
+return (
+  <>
     <Card>
       <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <CardTitle className="text-md font-medium">Leads by Campaign</CardTitle>
@@ -179,7 +219,59 @@ const LeadsTab: React.FC = () => {
         )}
       </CardContent>
     </Card>
-  );
+
+    <Card className="mt-6">
+      <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <CardTitle className="text-md font-medium">LeadProsper Leaderboard</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {lpLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : lpRows.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">No LeadProsper leads in the selected range</div>
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>LP Campaign</TableHead>
+                  <TableHead className="text-right">Leads</TableHead>
+                  <TableHead className="text-right">Accepted</TableHead>
+                  <TableHead className="text-right">Duplicated</TableHead>
+                  <TableHead className="text-right">Failed</TableHead>
+                  <TableHead className="text-right">Profit</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lpRows.map(r => (
+                  <TableRow key={r.ts_campaign_id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">LP</Badge>
+                        <span className="font-medium">{r.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{formatNumber(r.leads)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className="text-success-DEFAULT font-medium">{formatNumber(r.accepted)}</span>
+                    </TableCell>
+                    <TableCell className="text-right">{formatNumber(r.duplicated)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(r.profit)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  </>
+);
 };
 
 export default LeadsTab;
