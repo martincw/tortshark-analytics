@@ -144,37 +144,43 @@ useEffect(() => {
           profit: Number(c.profit || 0),
         }));
 
-      const [currResult, prevResult, lwResult] = await Promise.allSettled([
-        supabase.functions.invoke("leadprosper-fetch-leads", {
-          body: { startDate: startStr, endDate: endStr, timezone: tz },
-        }),
-        supabase.functions.invoke("leadprosper-fetch-leads", {
-          body: { startDate: prevStart, endDate: prevEnd, timezone: tz },
-        }),
-        supabase.functions.invoke("leadprosper-fetch-leads", {
-          body: { startDate: lwStr, endDate: lwStr, timezone: tz },
-        }),
-      ]);
+      // Fetch sequentially to reduce API rate-limit pressure
+      const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-      if (currResult.status === 'fulfilled' && !currResult.value.error) {
-        const currAgg = toAgg(currResult.value.data);
+      // Current period
+      const currRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
+        body: { startDate: startStr, endDate: endStr, timezone: tz },
+      });
+      if (!currRes.error) {
+        const currAgg = toAgg(currRes.data);
         currAgg.sort((a, b) => b.leads - a.leads);
         setLpRows(currAgg);
       } else {
-        const err = currResult.status === 'rejected' ? currResult.reason : currResult.value.error;
-        console.error('LP current fetch error', err);
+        console.error('LP current fetch error', currRes.error);
         toast.error('Failed to load LeadProsper current period');
         setLpRows([]);
       }
 
-      if (prevResult.status === 'fulfilled' && !prevResult.value.error) {
-        setPrevLpRows(toAgg(prevResult.value.data));
+      await sleep(300);
+
+      // Previous period
+      const prevRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
+        body: { startDate: prevStart, endDate: prevEnd, timezone: tz },
+      });
+      if (!prevRes.error) {
+        setPrevLpRows(toAgg(prevRes.data));
       } else {
         setPrevLpRows([]);
       }
 
-      if (lwResult.status === 'fulfilled' && !lwResult.value.error) {
-        setLwRows(toAgg(lwResult.value.data));
+      await sleep(300);
+
+      // Same day last week
+      const lwRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
+        body: { startDate: lwStr, endDate: lwStr, timezone: tz },
+      });
+      if (!lwRes.error) {
+        setLwRows(toAgg(lwRes.data));
       } else {
         setLwRows([]);
       }

@@ -25,17 +25,37 @@ type Aggregated = {
   profit: number;
 };
 
+const MAX_RETRIES = 5;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, init: RequestInit, context: string): Promise<Response> {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const res = await fetch(url, init);
+    if (res.ok) return res;
+
+    const status = res.status;
+    const retryable = status === 429 || status >= 500;
+    if (!retryable) {
+      const t = await res.text();
+      throw new Error(`${context}: ${status} ${t}`);
+    }
+
+    const backoff = Math.min(2000, 300 * Math.pow(2, attempt)) + Math.floor(Math.random() * 100);
+    await sleep(backoff);
+  }
+  throw new Error(`${context}: exceeded retry limit`);
+}
+
 async function fetchAllCampaigns(): Promise<{ id: number; name: string }[]> {
-  const res = await fetch("https://api.leadprosper.io/public/campaigns", {
+  const res = await fetchWithRetry("https://api.leadprosper.io/public/campaigns", {
     method: "GET",
     headers: {
       Authorization: `Bearer ${LEADPROSPER_API_KEY}`,
     },
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Campaigns fetch failed: ${res.status} ${t}`);
-  }
+  }, "Campaigns fetch failed");
   const data = await res.json();
   if (!Array.isArray(data)) return [];
   return data.map((c: any) => ({ id: c.id, name: c.name || String(c.id) }));
@@ -53,14 +73,11 @@ async function fetchLeadsForCampaign(campaignId: number, startDate: string, endD
     url.searchParams.set("campaign", String(campaignId));
     if (searchAfter) url.searchParams.set("search_after", searchAfter);
 
-    const res = await fetch(url.toString(), {
+    const res = await fetchWithRetry(url.toString(), {
       method: "GET",
       headers: { Authorization: `Bearer ${LEADPROSPER_API_KEY}` },
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Leads fetch failed for ${campaignId}: ${res.status} ${t}`);
-    }
+    }, `Leads fetch failed for ${campaignId}`);
+
     const data = await res.json();
     const batch = Array.isArray(data?.leads) ? data.leads : [];
     leads.push(...batch);
@@ -73,6 +90,9 @@ async function fetchLeadsForCampaign(campaignId: number, startDate: string, endD
 
     // Safety: prevent excessive loops
     if (leads.length > 5000) break;
+
+    // Be kind to the API between pages
+    await sleep(150);
   }
 
   return leads;
@@ -162,6 +182,8 @@ serve(async (req) => {
       } catch (e) {
         console.error(`Failed for campaign ${c.id}:`, e);
       }
+      // Small delay between campaigns to avoid hitting rate limits
+      await sleep(200);
     }
 
     // Sort by total leads desc
