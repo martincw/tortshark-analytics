@@ -149,7 +149,7 @@ useEffect(() => {
 
       // Current period
       const currRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
-        body: { startDate: startStr, endDate: endStr, timezone: tz },
+        body: { startDate: startStr, endDate: endStr, timezone: tz, includeDQ: showDQ },
       });
       if (!currRes.error) {
         const currAgg = toAgg(currRes.data);
@@ -165,7 +165,7 @@ useEffect(() => {
 
       // Previous period
       const prevRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
-        body: { startDate: prevStart, endDate: prevEnd, timezone: tz },
+        body: { startDate: prevStart, endDate: prevEnd, timezone: tz, includeDQ: showDQ },
       });
       if (!prevRes.error) {
         setPrevLpRows(toAgg(prevRes.data));
@@ -177,7 +177,7 @@ useEffect(() => {
 
       // Same day last week
       const lwRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
-        body: { startDate: lwStr, endDate: lwStr, timezone: tz },
+        body: { startDate: lwStr, endDate: lwStr, timezone: tz, includeDQ: showDQ },
       });
       if (!lwRes.error) {
         setLwRows(toAgg(lwRes.data));
@@ -194,7 +194,7 @@ useEffect(() => {
     }
   };
   fetchLPData();
-}, [dateRange.startDate, dateRange.endDate]);
+}, [dateRange.startDate, dateRange.endDate, showDQ]);
 
   const handleHide = (id: string) => {
     const next = new Set(selectedCampaignIds);

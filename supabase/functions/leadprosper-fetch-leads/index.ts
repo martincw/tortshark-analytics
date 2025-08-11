@@ -148,7 +148,7 @@ serve(async (req) => {
       });
     }
 
-    const { startDate, endDate, timezone = "America/New_York", campaigns: onlyCampaignIds } = await req.json();
+    const { startDate, endDate, timezone = "America/New_York", campaigns: onlyCampaignIds, includeDQ = true } = await req.json();
 
     if (!LEADPROSPER_API_KEY) {
       return new Response(JSON.stringify({ error: "LeadProsper API key not configured" }), {
@@ -169,6 +169,11 @@ serve(async (req) => {
     if (Array.isArray(onlyCampaignIds) && onlyCampaignIds.length > 0) {
       const set = new Set(onlyCampaignIds.map((v: any) => Number(v)));
       campaigns = campaigns.filter((c) => set.has(Number(c.id)));
+    }
+
+    // Optionally exclude DQ campaigns to reduce API load
+    if (!includeDQ) {
+      campaigns = campaigns.filter((c) => !/dq/i.test(c.name));
     }
 
     // Fetch and aggregate serially to avoid rate-limits; simple and safe
