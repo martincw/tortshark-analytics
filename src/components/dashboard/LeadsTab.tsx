@@ -8,7 +8,7 @@ import { Loader2, Archive, EyeOff, ArrowUpRight, ArrowDownRight } from "lucide-r
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
-import { format as formatDate } from "date-fns";
+import { format as formatDate, parse, differenceInCalendarDays, subDays } from "date-fns";
 
 import { toast } from "sonner";
 
@@ -107,17 +107,15 @@ useEffect(() => {
     setLpLoading(true);
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
-      const startObj = new Date(dateRange.startDate as any);
-      const endObj = new Date(dateRange.endDate as any);
-      const start = formatDate(startObj, 'yyyy-MM-dd');
-      const end = formatDate(endObj, 'yyyy-MM-dd');
+      const startStr = String(dateRange.startDate);
+      const endStr = String(dateRange.endDate);
+      const startObj = parse(startStr, 'yyyy-MM-dd', new Date());
+      const endObj = parse(endStr, 'yyyy-MM-dd', new Date());
 
-      // Compute previous period with same length
-      const diffDays = Math.max(1, Math.round((endObj.getTime() - startObj.getTime()) / 86400000) + 1);
-      const prevEndObj = new Date(startObj);
-      prevEndObj.setUTCDate(prevEndObj.getUTCDate() - 1);
-      const prevStartObj = new Date(prevEndObj);
-      prevStartObj.setUTCDate(prevStartObj.getUTCDate() - (diffDays - 1));
+      // Compute previous period with same length (calendar days)
+      const diffDays = Math.max(1, differenceInCalendarDays(endObj, startObj) + 1);
+      const prevEndObj = subDays(startObj, 1);
+      const prevStartObj = subDays(prevEndObj, diffDays - 1);
 
       const prevStart = formatDate(prevStartObj, 'yyyy-MM-dd');
       const prevEnd = formatDate(prevEndObj, 'yyyy-MM-dd');
@@ -137,7 +135,7 @@ useEffect(() => {
 
       const [currResult, prevResult] = await Promise.allSettled([
         supabase.functions.invoke("leadprosper-fetch-leads", {
-          body: { startDate: start, endDate: end, timezone: tz },
+          body: { startDate: startStr, endDate: endStr, timezone: tz },
         }),
         supabase.functions.invoke("leadprosper-fetch-leads", {
           body: { startDate: prevStart, endDate: prevEnd, timezone: tz },
