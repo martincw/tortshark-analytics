@@ -8,6 +8,7 @@ import { Loader2, Archive, EyeOff, ArrowUpRight, ArrowDownRight } from "lucide-r
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
+import { format as formatDate } from "date-fns";
 
 import { toast } from "sonner";
 
@@ -105,33 +106,21 @@ useEffect(() => {
     if (!dateRange?.startDate || !dateRange?.endDate) return;
     setLpLoading(true);
     try {
-      const start = String(dateRange.startDate).slice(0, 10);
-      const end = String(dateRange.endDate).slice(0, 10);
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+      const startObj = new Date(dateRange.startDate as any);
+      const endObj = new Date(dateRange.endDate as any);
+      const start = formatDate(startObj, 'yyyy-MM-dd');
+      const end = formatDate(endObj, 'yyyy-MM-dd');
 
       // Compute previous period with same length
-      const startDate = new Date(start + "T00:00:00Z");
-      const endDate = new Date(end + "T00:00:00Z");
-      const diffDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
-      const prevEndDate = new Date(startDate);
-      prevEndDate.setUTCDate(prevEndDate.getUTCDate() - 1);
-      const prevStartDate = new Date(prevEndDate);
-      prevStartDate.setUTCDate(prevStartDate.getUTCDate() - (diffDays - 1));
+      const diffDays = Math.max(1, Math.round((endObj.getTime() - startObj.getTime()) / 86400000) + 1);
+      const prevEndObj = new Date(startObj);
+      prevEndObj.setUTCDate(prevEndObj.getUTCDate() - 1);
+      const prevStartObj = new Date(prevEndObj);
+      prevStartObj.setUTCDate(prevStartObj.getUTCDate() - (diffDays - 1));
 
-      const prevStart = prevStartDate.toISOString().slice(0, 10);
-      const prevEnd = prevEndDate.toISOString().slice(0, 10);
-
-      const [currRes, prevRes] = await Promise.all([
-        supabase.functions.invoke("leadprosper-fetch-leads", {
-          body: { startDate: start, endDate: end, timezone },
-        }),
-        supabase.functions.invoke("leadprosper-fetch-leads", {
-          body: { startDate: prevStart, endDate: prevEnd, timezone },
-        }),
-      ]);
-
-      if (currRes.error) throw currRes.error;
-      if (prevRes.error) throw prevRes.error;
+      const prevStart = formatDate(prevStartObj, 'yyyy-MM-dd');
+      const prevEnd = formatDate(prevEndObj, 'yyyy-MM-dd');
 
       const toAgg = (data: any): AggregatedLeadsRow[] =>
         (data?.campaigns || []).map((c: any) => ({
@@ -146,15 +135,36 @@ useEffect(() => {
           profit: Number(c.profit || 0),
         }));
 
-      const currAgg = toAgg(currRes.data);
-      const prevAgg = toAgg(prevRes.data);
+      const [currResult, prevResult] = await Promise.allSettled([
+        supabase.functions.invoke("leadprosper-fetch-leads", {
+          body: { startDate: start, endDate: end, timezone: tz },
+        }),
+        supabase.functions.invoke("leadprosper-fetch-leads", {
+          body: { startDate: prevStart, endDate: prevEnd, timezone: tz },
+        }),
+      ]);
 
-      currAgg.sort((a, b) => b.leads - a.leads);
-      setLpRows(currAgg);
-      setPrevLpRows(prevAgg);
+      if (currResult.status === 'fulfilled' && !currResult.value.error) {
+        const currAgg = toAgg(currResult.value.data);
+        currAgg.sort((a, b) => b.leads - a.leads);
+        setLpRows(currAgg);
+      } else {
+        const err = currResult.status === 'rejected' ? currResult.reason : currResult.value.error;
+        console.error('LP current fetch error', err);
+        toast.error('Failed to load LeadProsper current period');
+        setLpRows([]);
+      }
+
+      if (prevResult.status === 'fulfilled' && !prevResult.value.error) {
+        setPrevLpRows(toAgg(prevResult.value.data));
+      } else {
+        setPrevLpRows([]);
+      }
     } catch (e) {
       console.error("Error loading LeadProsper leaderboard", e);
       toast.error("Failed to load LeadProsper leaderboard");
+      setLpRows([]);
+      setPrevLpRows([]);
     } finally {
       setLpLoading(false);
     }
