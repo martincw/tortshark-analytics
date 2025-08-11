@@ -8,7 +8,7 @@ import { Loader2, Archive, EyeOff, ArrowUpRight, ArrowDownRight } from "lucide-r
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
-import { format as formatDate, parse, differenceInCalendarDays, subDays } from "date-fns";
+import { format as formatDate, parse, differenceInCalendarDays, subDays, eachDayOfInterval, isWeekend } from "date-fns";
 
 import { toast } from "sonner";
 
@@ -31,8 +31,18 @@ const LeadsTab: React.FC = () => {
   // LeadProsper leaderboard state
   const [lpRows, setLpRows] = useState<AggregatedLeadsRow[]>([]);
   const [prevLpRows, setPrevLpRows] = useState<AggregatedLeadsRow[]>([]);
+  const [lwRows, setLwRows] = useState<AggregatedLeadsRow[]>([]);
   const [lpLoading, setLpLoading] = useState(false);
   const [showDQ, setShowDQ] = useState(false);
+
+  // Count weekdays in selected range for Avg/Day (Mon–Fri)
+  const weekdaysInRange = useMemo(() => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return 0;
+    const startObj = parse(String(dateRange.startDate), 'yyyy-MM-dd', new Date());
+    const endObj = parse(String(dateRange.endDate), 'yyyy-MM-dd', new Date());
+    const days = eachDayOfInterval({ start: startObj, end: endObj });
+    return days.filter(d => !isWeekend(d)).length;
+  }, [dateRange.startDate, dateRange.endDate]);
 
   const activeSelection = selectedCampaignIds.length > 0 ? new Set(selectedCampaignIds) : null;
 
@@ -119,6 +129,7 @@ useEffect(() => {
 
       const prevStart = formatDate(prevStartObj, 'yyyy-MM-dd');
       const prevEnd = formatDate(prevEndObj, 'yyyy-MM-dd');
+      const lwStr = formatDate(subDays(endObj, 7), 'yyyy-MM-dd'); // Same day last week
 
       const toAgg = (data: any): AggregatedLeadsRow[] =>
         (data?.campaigns || []).map((c: any) => ({
@@ -133,12 +144,15 @@ useEffect(() => {
           profit: Number(c.profit || 0),
         }));
 
-      const [currResult, prevResult] = await Promise.allSettled([
+      const [currResult, prevResult, lwResult] = await Promise.allSettled([
         supabase.functions.invoke("leadprosper-fetch-leads", {
           body: { startDate: startStr, endDate: endStr, timezone: tz },
         }),
         supabase.functions.invoke("leadprosper-fetch-leads", {
           body: { startDate: prevStart, endDate: prevEnd, timezone: tz },
+        }),
+        supabase.functions.invoke("leadprosper-fetch-leads", {
+          body: { startDate: lwStr, endDate: lwStr, timezone: tz },
         }),
       ]);
 
@@ -157,6 +171,12 @@ useEffect(() => {
         setPrevLpRows(toAgg(prevResult.value.data));
       } else {
         setPrevLpRows([]);
+      }
+
+      if (lwResult.status === 'fulfilled' && !lwResult.value.error) {
+        setLwRows(toAgg(lwResult.value.data));
+      } else {
+        setLwRows([]);
       }
     } catch (e) {
       console.error("Error loading LeadProsper leaderboard", e);
@@ -228,6 +248,8 @@ return (
                       <TableHead className="text-right">Duplicated</TableHead>
                       <TableHead className="text-right">Failed</TableHead>
                       <TableHead className="text-right">Profit</TableHead>
+                      <TableHead className="text-right">Same Day LW</TableHead>
+                      <TableHead className="text-right">Avg/Day (M–F)</TableHead>
                       <TableHead className="text-right">Δ Leads</TableHead>
                       <TableHead className="text-right">Δ Profit</TableHead>
                     </TableRow>
@@ -235,6 +257,9 @@ return (
                   <TableBody>
                     {filtered.map(r => {
                       const prev = prevLpRows.find(p => p.ts_campaign_id === r.ts_campaign_id);
+                      const lw = lwRows.find(p => p.ts_campaign_id === r.ts_campaign_id);
+                      const lwLeads = lw?.leads ?? 0;
+                      const avgDay = weekdaysInRange > 0 ? Math.round(r.leads / weekdaysInRange) : r.leads;
                       const deltaLeads = r.leads - (prev?.leads ?? 0);
                       const deltaProfit = r.profit - (prev?.profit ?? 0);
                       const profitClass = r.profit > 0 ? "text-success-DEFAULT" : (r.profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
@@ -255,6 +280,8 @@ return (
                             <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
                           </TableCell>
                           <TableCell className={`text-right font-medium ${profitClass}`}>{formatCurrency(r.profit)}</TableCell>
+                          <TableCell className="text-right">{formatNumber(lwLeads)}</TableCell>
+                          <TableCell className="text-right">{formatNumber(avgDay)}</TableCell>
                           <TableCell className="text-right">
                             {(() => {
                               const delta = deltaLeads;
