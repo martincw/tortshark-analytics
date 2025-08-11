@@ -207,88 +207,95 @@ return (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : lpRows.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">No LeadProsper leads in the selected range</div>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>LP Campaign</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead className="text-right">Accepted</TableHead>
-                  <TableHead className="text-right">Duplicated</TableHead>
-                  <TableHead className="text-right">Failed</TableHead>
-                  <TableHead className="text-right">Profit</TableHead>
-                  <TableHead className="text-right">Δ Leads</TableHead>
-                  <TableHead className="text-right">Δ Profit</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(lpRows
-                  .filter(r => showDQ || !/dq/i.test(r.name))
-                ).map(r => {
-                  const prev = prevLpRows.find(p => p.ts_campaign_id === r.ts_campaign_id);
-                  const deltaLeads = r.leads - (prev?.leads ?? 0);
-                  const deltaProfit = r.profit - (prev?.profit ?? 0);
-                  const profitClass = r.profit > 0 ? "text-success-DEFAULT" : (r.profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
-                  return (
-                    <TableRow key={r.ts_campaign_id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">LP</Badge>
-                          <span className="font-medium">{r.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{formatNumber(r.leads)}</TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-success-DEFAULT font-medium">{formatNumber(r.accepted)}</span>
-                      </TableCell>
-                      <TableCell className="text-right">{formatNumber(r.duplicated)}</TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
-                      </TableCell>
-                      <TableCell className={`text-right font-medium ${profitClass}`}>{formatCurrency(r.profit)}</TableCell>
-                      <TableCell className="text-right">
-                        {(() => {
-                          const delta = deltaLeads;
-                          if (!delta) return <span className="text-muted-foreground">0</span>;
-                          const positive = delta > 0;
-                          const Icon = positive ? ArrowUpRight : ArrowDownRight;
-                          const cls = positive ? "text-success-DEFAULT" : "text-error-DEFAULT";
-                          return (
-                            <span className={`inline-flex items-center gap-1 font-medium ${cls}`}>
-                              <Icon className="h-4 w-4" />
-                              {positive ? `+${delta}` : delta}
-                            </span>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {(() => {
-                          const delta = Number(deltaProfit.toFixed(2));
-                          if (!delta) return <span className="text-muted-foreground">{formatCurrency(0)}</span>;
-                          const positive = delta > 0;
-                          const Icon = positive ? ArrowUpRight : ArrowDownRight;
-                          const cls = positive ? "text-success-DEFAULT" : "text-error-DEFAULT";
-                          return (
-                            <span className={`inline-flex items-center gap-1 font-medium ${cls}`}>
-                              <Icon className="h-4 w-4" />
-                              {positive ? 
-                                `+${formatCurrency(delta)}` : 
-                                formatCurrency(delta)
-                              }
-                            </span>
-                          );
-                        })()}
-                      </TableCell>
+          (() => {
+            const filtered = lpRows.filter(r => showDQ || !/dq/i.test(r.name));
+            if (filtered.length === 0) {
+              return (
+                <div className="text-center py-10 text-muted-foreground">
+                  No LeadProsper leads in the selected range{!showDQ ? " (DQ campaigns hidden)" : ""}
+                </div>
+              );
+            }
+            return (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>LP Campaign</TableHead>
+                      <TableHead className="text-right">Leads</TableHead>
+                      <TableHead className="text-right">Accepted</TableHead>
+                      <TableHead className="text-right">Duplicated</TableHead>
+                      <TableHead className="text-right">Failed</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                      <TableHead className="text-right">Δ Leads</TableHead>
+                      <TableHead className="text-right">Δ Profit</TableHead>
                     </TableRow>
-                  );
-                })}
-
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map(r => {
+                      const prev = prevLpRows.find(p => p.ts_campaign_id === r.ts_campaign_id);
+                      const deltaLeads = r.leads - (prev?.leads ?? 0);
+                      const deltaProfit = r.profit - (prev?.profit ?? 0);
+                      const profitClass = r.profit > 0 ? "text-success-DEFAULT" : (r.profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
+                      return (
+                        <TableRow key={r.ts_campaign_id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">LP</Badge>
+                              <span className="font-medium">{r.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">{formatNumber(r.leads)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-success-DEFAULT font-medium">{formatNumber(r.accepted)}</span>
+                          </TableCell>
+                          <TableCell className="text-right">{formatNumber(r.duplicated)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${profitClass}`}>{formatCurrency(r.profit)}</TableCell>
+                          <TableCell className="text-right">
+                            {(() => {
+                              const delta = deltaLeads;
+                              if (!delta) return <span className="text-muted-foreground">0</span>;
+                              const positive = delta > 0;
+                              const Icon = positive ? ArrowUpRight : ArrowDownRight;
+                              const cls = positive ? "text-success-DEFAULT" : "text-error-DEFAULT";
+                              return (
+                                <span className={`inline-flex items-center gap-1 font-medium ${cls}`}>
+                                  <Icon className="h-4 w-4" />
+                                  {positive ? `+${delta}` : delta}
+                                </span>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {(() => {
+                              const delta = Number(deltaProfit.toFixed(2));
+                              if (!delta) return <span className="text-muted-foreground">{formatCurrency(0)}</span>;
+                              const positive = delta > 0;
+                              const Icon = positive ? ArrowUpRight : ArrowDownRight;
+                              const cls = positive ? "text-success-DEFAULT" : "text-error-DEFAULT";
+                              return (
+                                <span className={`inline-flex items-center gap-1 font-medium ${cls}`}>
+                                  <Icon className="h-4 w-4" />
+                                  {positive ? 
+                                    `+${formatCurrency(delta)}` : 
+                                    formatCurrency(delta)
+                                  }
+                                </span>
+                              );
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })()
         )}
       </CardContent>
     </Card>
