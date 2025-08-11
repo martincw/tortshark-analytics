@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Archive, EyeOff } from "lucide-react";
+import { Loader2, Archive, EyeOff, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
@@ -29,7 +29,9 @@ const LeadsTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   // LeadProsper leaderboard state
   const [lpRows, setLpRows] = useState<AggregatedLeadsRow[]>([]);
+  const [prevLpRows, setPrevLpRows] = useState<AggregatedLeadsRow[]>([]);
   const [lpLoading, setLpLoading] = useState(false);
+  const [showDQ, setShowDQ] = useState(false);
 
   const activeSelection = selectedCampaignIds.length > 0 ? new Set(selectedCampaignIds) : null;
 
@@ -106,24 +108,50 @@ useEffect(() => {
       const start = String(dateRange.startDate).slice(0, 10);
       const end = String(dateRange.endDate).slice(0, 10);
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
-      const { data, error } = await supabase.functions.invoke("leadprosper-fetch-leads", {
-        body: { startDate: start, endDate: end, timezone },
-      });
-      if (error) throw error;
-      const aggregated = (data?.campaigns || []).map((c: any) => ({
-        ts_campaign_id: String(c.campaign_id),
-        name: c.campaign_name,
-        leads: Number(c.leads || 0),
-        accepted: Number(c.accepted || 0),
-        failed: Number(c.failed || 0),
-        duplicated: Number(c.duplicated || 0),
-        revenue: Number(c.revenue || 0),
-        cost: Number(c.cost || 0),
-        profit: Number(c.profit || 0),
-      })) as AggregatedLeadsRow[];
-      // Sort by leads desc
-      aggregated.sort((a, b) => b.leads - a.leads);
-      setLpRows(aggregated);
+
+      // Compute previous period with same length
+      const startDate = new Date(start + "T00:00:00Z");
+      const endDate = new Date(end + "T00:00:00Z");
+      const diffDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+      const prevEndDate = new Date(startDate);
+      prevEndDate.setUTCDate(prevEndDate.getUTCDate() - 1);
+      const prevStartDate = new Date(prevEndDate);
+      prevStartDate.setUTCDate(prevStartDate.getUTCDate() - (diffDays - 1));
+
+      const prevStart = prevStartDate.toISOString().slice(0, 10);
+      const prevEnd = prevEndDate.toISOString().slice(0, 10);
+
+      const [currRes, prevRes] = await Promise.all([
+        supabase.functions.invoke("leadprosper-fetch-leads", {
+          body: { startDate: start, endDate: end, timezone },
+        }),
+        supabase.functions.invoke("leadprosper-fetch-leads", {
+          body: { startDate: prevStart, endDate: prevEnd, timezone },
+        }),
+      ]);
+
+      if (currRes.error) throw currRes.error;
+      if (prevRes.error) throw prevRes.error;
+
+      const toAgg = (data: any): AggregatedLeadsRow[] =>
+        (data?.campaigns || []).map((c: any) => ({
+          ts_campaign_id: String(c.campaign_id),
+          name: c.campaign_name,
+          leads: Number(c.leads || 0),
+          accepted: Number(c.accepted || 0),
+          failed: Number(c.failed || 0),
+          duplicated: Number(c.duplicated || 0),
+          revenue: Number(c.revenue || 0),
+          cost: Number(c.cost || 0),
+          profit: Number(c.profit || 0),
+        }));
+
+      const currAgg = toAgg(currRes.data);
+      const prevAgg = toAgg(prevRes.data);
+
+      currAgg.sort((a, b) => b.leads - a.leads);
+      setLpRows(currAgg);
+      setPrevLpRows(prevAgg);
     } catch (e) {
       console.error("Error loading LeadProsper leaderboard", e);
       toast.error("Failed to load LeadProsper leaderboard");
@@ -223,6 +251,10 @@ return (
     <Card className="mt-6">
       <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <CardTitle className="text-md font-medium">LeadProsper Leaderboard</CardTitle>
+        <div className="flex items-center gap-2">
+          <Checkbox id="show-dq" checked={showDQ} onCheckedChange={(v) => setShowDQ(Boolean(v))} />
+          <label htmlFor="show-dq" className="text-sm text-muted-foreground">Show DQ campaigns</label>
+        </div>
       </CardHeader>
       <CardContent>
         {lpLoading ? (
@@ -242,28 +274,72 @@ return (
                   <TableHead className="text-right">Duplicated</TableHead>
                   <TableHead className="text-right">Failed</TableHead>
                   <TableHead className="text-right">Profit</TableHead>
+                  <TableHead className="text-right">Δ Leads</TableHead>
+                  <TableHead className="text-right">Δ Profit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lpRows.map(r => (
-                  <TableRow key={r.ts_campaign_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">LP</Badge>
-                        <span className="font-medium">{r.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">{formatNumber(r.leads)}</TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-success-DEFAULT font-medium">{formatNumber(r.accepted)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">{formatNumber(r.duplicated)}</TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(r.profit)}</TableCell>
-                  </TableRow>
-                ))}
+                {(lpRows
+                  .filter(r => showDQ || !/dq/i.test(r.name))
+                ).map(r => {
+                  const prev = prevLpRows.find(p => p.ts_campaign_id === r.ts_campaign_id);
+                  const deltaLeads = r.leads - (prev?.leads ?? 0);
+                  const deltaProfit = r.profit - (prev?.profit ?? 0);
+                  const profitClass = r.profit > 0 ? "text-success-DEFAULT" : (r.profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
+                  return (
+                    <TableRow key={r.ts_campaign_id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">LP</Badge>
+                          <span className="font-medium">{r.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{formatNumber(r.leads)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-success-DEFAULT font-medium">{formatNumber(r.accepted)}</span>
+                      </TableCell>
+                      <TableCell className="text-right">{formatNumber(r.duplicated)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
+                      </TableCell>
+                      <TableCell className={`text-right font-medium ${profitClass}`}>{formatCurrency(r.profit)}</TableCell>
+                      <TableCell className="text-right">
+                        {(() => {
+                          const delta = deltaLeads;
+                          if (!delta) return <span className="text-muted-foreground">0</span>;
+                          const positive = delta > 0;
+                          const Icon = positive ? ArrowUpRight : ArrowDownRight;
+                          const cls = positive ? "text-success-DEFAULT" : "text-error-DEFAULT";
+                          return (
+                            <span className={`inline-flex items-center gap-1 font-medium ${cls}`}>
+                              <Icon className="h-4 w-4" />
+                              {positive ? `+${delta}` : delta}
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(() => {
+                          const delta = Number(deltaProfit.toFixed(2));
+                          if (!delta) return <span className="text-muted-foreground">{formatCurrency(0)}</span>;
+                          const positive = delta > 0;
+                          const Icon = positive ? ArrowUpRight : ArrowDownRight;
+                          const cls = positive ? "text-success-DEFAULT" : "text-error-DEFAULT";
+                          return (
+                            <span className={`inline-flex items-center gap-1 font-medium ${cls}`}>
+                              <Icon className="h-4 w-4" />
+                              {positive ? 
+                                `+${formatCurrency(delta)}` : 
+                                formatCurrency(delta)
+                              }
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+
               </TableBody>
             </Table>
           </div>
