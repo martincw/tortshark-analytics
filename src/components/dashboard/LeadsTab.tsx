@@ -195,68 +195,6 @@ useEffect(() => {
 
 return (
   <>
-    <Card>
-      <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <CardTitle className="text-md font-medium">Leads by Campaign</CardTitle>
-        <div className="flex items-center gap-2">
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">No campaigns with leads in the selected range</div>
-        ) : (
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead className="text-right">Accepted</TableHead>
-                  <TableHead className="text-right">Failed</TableHead>
-                  <TableHead className="text-right">Profit</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map(r => (
-                  <TableRow key={r.ts_campaign_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{campaigns.find(c => c.id === r.ts_campaign_id)?.platform || "LP"}</Badge>
-                        <span className="font-medium">{r.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">{formatNumber(r.leads)}</TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-success-DEFAULT font-medium">{formatNumber(r.accepted)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-error-DEFAULT font-medium">{formatNumber(r.failed)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(r.profit)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleHide(r.ts_campaign_id)}>
-                          <EyeOff className="h-4 w-4 mr-2" />
-                          {activeSelection?.has(r.ts_campaign_id) ? "Unselect" : "Hide"}
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleArchive(r.ts_campaign_id)}>
-                          <Archive className="h-4 w-4 mr-2" /> Archive
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
 
     <Card className="mt-6">
       <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
