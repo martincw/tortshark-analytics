@@ -196,6 +196,7 @@ export default function CampaignMappingSection({ campaignId, availableAccounts }
             </div>
           )}
         </div>
-        
+      </CardContent>
+    </Card>
   );
 }
