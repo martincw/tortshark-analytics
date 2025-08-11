@@ -4,11 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, RefreshCw, Archive, EyeOff } from "lucide-react";
+import { Loader2, Archive, EyeOff } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
-import { leadProsperApi } from "@/integrations/leadprosper/client";
+
 import { toast } from "sonner";
 
 interface AggregatedLeadsRow {
@@ -27,7 +27,7 @@ const LeadsTab: React.FC = () => {
   const { dateRange, campaigns, selectedCampaignIds, setSelectedCampaignIds, updateCampaign } = useCampaign();
   const [rows, setRows] = useState<AggregatedLeadsRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  
 
   const activeSelection = selectedCampaignIds.length > 0 ? new Set(selectedCampaignIds) : null;
 
@@ -115,35 +115,12 @@ const LeadsTab: React.FC = () => {
     }
   };
 
-  const handleRefreshFromLP = async () => {
-    setRefreshing(true);
-    try {
-      const res = await leadProsperApi.fetchLeadsWithDateRange(dateRange.startDate, dateRange.endDate);
-      if (res?.success) {
-        toast.success("Leads synced from Lead Prosper", {
-          description: `${res.total_leads || 0} leads across ${res.campaigns_processed || 0} campaigns`,
-        });
-        await fetchData();
-      } else {
-        toast.warning("Sync completed with issues", { description: res?.error || "Unknown error" });
-      }
-    } catch (e) {
-      console.error("LP sync failed", e);
-      toast.error("Lead sync failed");
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <CardTitle className="text-md font-medium">Leads by Campaign</CardTitle>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefreshFromLP} disabled={refreshing}>
-            {refreshing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Sync from Lead Prosper
-          </Button>
         </div>
       </CardHeader>
       <CardContent>

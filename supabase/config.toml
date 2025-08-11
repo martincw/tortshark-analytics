@@ -75,11 +75,5 @@ redirect_uri = ""
 url = ""
 
 [functions]
-[functions.lead-prosper-backfill]
-verify_jwt = true
-[functions.lead-prosper-fetch-today]
-verify_jwt = true
-[functions.lead-prosper-verify]
-verify_jwt = true
 [functions.google-ads-mapping]
 verify_jwt = true

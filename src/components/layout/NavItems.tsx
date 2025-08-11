@@ -62,11 +62,6 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       href: "/buyers",
     },
     {
-      icon: UserCheck,
-      label: "Leads",
-      href: "/leads",
-    },
-    {
       icon: Database,
       label: "Data Sources",
       href: "/data-sources",

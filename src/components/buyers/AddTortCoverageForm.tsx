@@ -72,7 +72,7 @@ export function AddTortCoverageForm({
   // New campaign creation states
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState("");
-  const [newCampaignPlatform, setNewCampaignPlatform] = useState("leadprosper");
+  const [newCampaignPlatform, setNewCampaignPlatform] = useState("manual");
   const [creatingCampaign, setCreatingCampaign] = useState(false);
   
   // AI parsing states
@@ -177,7 +177,7 @@ export function AddTortCoverageForm({
         
         // Reset form
         setNewCampaignName("");
-        setNewCampaignPlatform("leadprosper");
+        setNewCampaignPlatform("manual");
       }
     } catch (error) {
       console.error("Error creating campaign:", error);
@@ -444,7 +444,7 @@ export function AddTortCoverageForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="leadprosper">Lead Prosper</SelectItem>
+                  
                   <SelectItem value="manual">Manual Entry</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>

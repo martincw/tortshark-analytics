@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Google from "@/components/integrations/Google";
-import LeadProsper from "@/components/integrations/LeadProsper";
+
 import Hyros from "@/components/integrations/Hyros";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +23,7 @@ export default function IntegrationsPage() {
     const searchParams = new URLSearchParams(location.search);
     const integrationParam = searchParams.get('integration');
     
-    if (integrationParam && ['hyros', 'google', 'leadprosper'].includes(integrationParam.toLowerCase())) {
+    if (integrationParam && ['hyros', 'google'].includes(integrationParam.toLowerCase())) {
       if (activeTab !== integrationParam.toLowerCase()) {
         setActiveTab(integrationParam.toLowerCase());
       }
@@ -91,16 +91,13 @@ export default function IntegrationsPage() {
         <TabsList className="mb-6">
           <TabsTrigger value="hyros">HYROS</TabsTrigger>
           <TabsTrigger value="google">Google Ads</TabsTrigger>
-          <TabsTrigger value="leadprosper">Lead Prosper</TabsTrigger>
+          
         </TabsList>
         <TabsContent value="hyros">
           <Hyros />
         </TabsContent>
         <TabsContent value="google">
           <Google />
-        </TabsContent>
-        <TabsContent value="leadprosper">
-          <LeadProsper />
         </TabsContent>
       </Tabs>
     </div>

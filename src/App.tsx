@@ -28,7 +28,7 @@ import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
-import LeadsPage from "./pages/LeadsPage";
+
 import TeamSettingsPage from "./pages/TeamSettingsPage";
 import StatsWorkflowPage from "./pages/StatsWorkflowPage";
 import ContractorBulkEntry from "./pages/ContractorBulkEntry";
@@ -223,13 +223,6 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <BuyersPage />
-                      </ContractorRoute>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/leads" element={
-                    <ProtectedRoute>
-                      <ContractorRoute>
-                        <LeadsPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />

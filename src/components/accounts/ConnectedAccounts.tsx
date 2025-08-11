@@ -45,20 +45,6 @@ export const ConnectedAccounts = ({
           </button>
         );
         
-      case 'leadprosper':
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/campaigns`); // Navigate to campaigns page where they can map Lead Prosper campaigns
-            }}
-          >
-            <LinkIcon className="h-4 w-4 mr-2" />
-            Map Lead Prosper Campaigns
-          </Button>
-        );
           
       default:
         return (

@@ -9,7 +9,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { CampaignMappingDialog } from "@/components/accounts/CampaignMappingDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { leadProsperApi } from "@/integrations/leadprosper/client";
+
 
 const AccountsPage = () => {
   const { user } = useAuth();
@@ -47,13 +47,6 @@ const AccountsPage = () => {
         // Fetch Google accounts
         await fetchGoogleAdsAccounts();
         
-        // Get Lead Prosper connections 
-        const lpConnections = await leadProsperApi.getAccountConnections();
-        
-        // Add Lead Prosper connections to the account connections
-        lpConnections.forEach(conn => {
-          addAccountConnection(conn);
-        });
         
       } catch (error) {
         console.error("Error loading connections:", error);
@@ -76,13 +69,6 @@ const AccountsPage = () => {
       // Fetch Google accounts
       await fetchGoogleAdsAccounts();
       
-      // Get Lead Prosper connections
-      const lpConnections = await leadProsperApi.getAccountConnections();
-      
-      // Add Lead Prosper connections to the account connections
-      lpConnections.forEach(conn => {
-        addAccountConnection(conn);
-      });
       
       toast.success("All platform connections refreshed");
     } catch (error) {

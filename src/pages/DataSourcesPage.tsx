@@ -3,14 +3,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import LeadProsperIntegration from "@/components/data-sources/LeadProsperIntegration";
+
 import GoogleAdsIntegration from "@/components/data-sources/GoogleAdsIntegration";
 import ClickMagickIntegration from "@/components/data-sources/ClickMagickIntegration";
 import { toast } from "sonner";
 import { processOAuthCallback } from "@/services/googleAdsConnection";
 
 export default function DataSourcesPage() {
-  const [activeTab, setActiveTab] = useState<string>("leadprosper");
+  const [activeTab, setActiveTab] = useState<string>("googleads");
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -41,16 +41,16 @@ export default function DataSourcesPage() {
       return;
     }
     
-    if (sourceParam && ['leadprosper', 'googleads', 'clickmagick'].includes(sourceParam.toLowerCase())) {
+    if (sourceParam && ['googleads', 'clickmagick'].includes(sourceParam.toLowerCase())) {
       if (activeTab !== sourceParam.toLowerCase()) {
         setActiveTab(sourceParam.toLowerCase());
       }
-    } else if (activeTab === 'leadprosper' && !sourceParam) {
+    } else if (activeTab === 'googleads' && !sourceParam) {
       // Update URL to match default tab without reload, but only if needed
       isNavigatingRef.current = true;
       navigate({
         pathname: location.pathname,
-        search: '?source=leadprosper'
+        search: '?source=googleads'
       }, { replace: true });
       
       // Reset navigation flag after a delay
@@ -125,13 +125,9 @@ export default function DataSourcesPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="leadprosper">Lead Prosper</TabsTrigger>
           <TabsTrigger value="googleads">Google Ads</TabsTrigger>
           <TabsTrigger value="clickmagick">ClickMagick</TabsTrigger>
         </TabsList>
-        <TabsContent value="leadprosper">
-          <LeadProsperIntegration />
-        </TabsContent>
         <TabsContent value="googleads">
           <GoogleAdsIntegration />
         </TabsContent>
