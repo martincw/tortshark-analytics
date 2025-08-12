@@ -894,6 +894,60 @@ export type Database = {
         }
         Relationships: []
       }
+      lp_campaign_daily_aggregates: {
+        Row: {
+          accepted: number
+          cost: number
+          created_at: string
+          date: string
+          duplicated: number
+          failed: number
+          id: string
+          last_fetched_at: string
+          leads: number
+          lp_campaign_id: number
+          lp_campaign_name: string
+          profit: number
+          revenue: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted?: number
+          cost?: number
+          created_at?: string
+          date: string
+          duplicated?: number
+          failed?: number
+          id?: string
+          last_fetched_at?: string
+          leads?: number
+          lp_campaign_id: number
+          lp_campaign_name: string
+          profit?: number
+          revenue?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted?: number
+          cost?: number
+          created_at?: string
+          date?: string
+          duplicated?: number
+          failed?: number
+          id?: string
+          last_fetched_at?: string
+          leads?: number
+          lp_campaign_id?: number
+          lp_campaign_name?: string
+          profit?: number
+          revenue?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lp_leads_raw: {
         Row: {
           cost: number | null

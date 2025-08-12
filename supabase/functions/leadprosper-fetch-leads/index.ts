@@ -162,6 +162,81 @@ function aggregateCampaign(campaignId: number, campaignName: string, leads: any[
   };
 }
 
+// Utilities for timezone-aware date handling and daily aggregation
+function formatYmdInTz(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date);
+  const get = (t: string) => parts.find(p => p.type === t)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function todayInTz(timezone: string): string {
+  return formatYmdInTz(new Date(), timezone);
+}
+
+function listDates(start: string, end: string): string[] {
+  const out: string[] = [];
+  const s = new Date(start + 'T00:00:00Z');
+  const e = new Date(end + 'T00:00:00Z');
+  for (let d = new Date(s); d <= e; d.setUTCDate(d.getUTCDate() + 1)) {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const da = String(d.getUTCDate()).padStart(2, '0');
+    out.push(`${y}-${m}-${da}`);
+  }
+  return out;
+}
+
+function getLeadDateInTz(lead: any, timezone: string): string | null {
+  // Try multiple fields to derive the timestamp
+  const candidates = [
+    lead.created_at_ms, lead.created_at, lead.timestamp, lead.lead_date_ms,
+    lead.lead_date, lead.date, lead.datetime, lead.received_at
+  ];
+  let ts: number | null = null;
+  for (const c of candidates) {
+    if (!c) continue;
+    if (typeof c === 'number') { ts = c; break; }
+    const parsed = Date.parse(String(c));
+    if (!isNaN(parsed)) { ts = parsed; break; }
+  }
+  if (ts == null) return null;
+  return formatYmdInTz(new Date(ts), timezone);
+}
+
+function aggregateDailyByDate(campaignId: number, campaignName: string, leads: any[], timezone: string) {
+  const daily: Record<string, Aggregated> = {};
+  for (const l of leads) {
+    const dateStr = getLeadDateInTz(l, timezone);
+    if (!dateStr) continue;
+    if (!daily[dateStr]) {
+      daily[dateStr] = {
+        campaign_id: campaignId,
+        campaign_name: campaignName,
+        leads: 0,
+        accepted: 0,
+        duplicated: 0,
+        failed: 0,
+        revenue: 0,
+        cost: 0,
+        profit: 0,
+      };
+    }
+    const row = daily[dateStr];
+    const status = String(l.status || '').toUpperCase();
+    if (status === 'ACCEPTED') row.accepted += 1;
+    else if (status === 'DUPLICATED') row.duplicated += 1;
+    else row.failed += 1;
+    row.leads += 1;
+    row.revenue += Number(l.revenue || 0);
+    row.cost += Number(l.cost || 0);
+    row.profit = Number((row.revenue - row.cost).toFixed(2));
+  }
+  return daily; // key: yyyy-MM-dd
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -186,6 +261,7 @@ serve(async (req) => {
       });
     }
 
+    const userId = userRes.user.id;
     const { startDate, endDate, timezone = "America/New_York", campaigns: onlyCampaignIds, includeDQ = true } = await req.json();
 
     if (!LEADPROSPER_API_KEY) {
@@ -213,50 +289,161 @@ serve(async (req) => {
       });
     }
 
-    // Filter campaigns
+    // Filter campaigns by selection and DQ flag
     if (Array.isArray(onlyCampaignIds) && onlyCampaignIds.length > 0) {
       const set = new Set(onlyCampaignIds.map((v: any) => Number(v)));
       campaigns = campaigns.filter((c) => set.has(Number(c.id)));
     }
-
     if (!includeDQ) {
       campaigns = campaigns.filter((c) => !/dq/i.test(c.name));
     }
 
-    // Limit number of campaigns to prevent timeout
+    // Limit number of campaigns to prevent timeout (still honored after cache)
     campaigns = campaigns.slice(0, MAX_CAMPAIGNS_PER_BATCH);
-    console.log(`Processing ${campaigns.length} campaigns`);
 
-    const aggregated: Aggregated[] = [];
-    
-    // Process campaigns with rate limiting
-    for (let i = 0; i < campaigns.length; i++) {
-      const c = campaigns[i];
-      console.log(`Processing campaign ${i + 1}/${campaigns.length}: ${c.name} (${c.id})`);
-      
+    const dates = listDates(startDate, endDate);
+    const todayStr = todayInTz(timezone);
+
+    // Load cached daily aggregates for user in range
+    const { data: cachedRows, error: cacheErr } = await supabase
+      .from('lp_campaign_daily_aggregates')
+      .select('lp_campaign_id, lp_campaign_name, date, leads, accepted, duplicated, failed, revenue, cost, profit, last_fetched_at')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (cacheErr) {
+      console.error('Cache read error:', cacheErr);
+    }
+
+    const cacheMap = new Map<string, any>();
+    (cachedRows || []).forEach(r => {
+      cacheMap.set(`${r.lp_campaign_id}:${r.date}`, r);
+    });
+
+    // Determine which campaigns require a refresh (missing any past day OR today's cache is stale >5min)
+    const toFetch: { id: number; name: string }[] = [];
+    for (const c of campaigns) {
+      let needsFetch = false;
+      for (const d of dates) {
+        const key = `${c.id}:${d}`;
+        const cached = cacheMap.get(key);
+        if (!cached) { needsFetch = true; break; }
+        const isToday = d === todayStr;
+        if (isToday) {
+          const last = new Date(cached.last_fetched_at).getTime();
+          if (Date.now() - last > 5 * 60 * 1000) { // 5 minutes
+            needsFetch = true; break;
+          }
+        }
+      }
+      if (needsFetch) toFetch.push(c);
+    }
+
+    console.log(`Campaigns needing refresh: ${toFetch.length}/${campaigns.length}`);
+
+    // Fetch and upsert daily aggregates for campaigns that need it
+    for (let i = 0; i < toFetch.length; i++) {
+      const c = toFetch[i];
+      console.log(`Refreshing campaign ${i + 1}/${toFetch.length}: ${c.name} (${c.id})`);
       try {
         const leads = await fetchLeadsForCampaign(c.id, startDate, endDate, timezone);
-        if (leads.length > 0) {
-          aggregated.push(aggregateCampaign(c.id, c.name, leads));
+        const daily = aggregateDailyByDate(c.id, c.name, leads, timezone);
+        const upsertPayload = Object.entries(daily).map(([date, agg]) => ({
+          user_id: userId,
+          lp_campaign_id: agg.campaign_id,
+          lp_campaign_name: agg.campaign_name,
+          date,
+          leads: agg.leads,
+          accepted: agg.accepted,
+          duplicated: agg.duplicated,
+          failed: agg.failed,
+          revenue: agg.revenue,
+          cost: agg.cost,
+          profit: agg.profit,
+          last_fetched_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+        if (upsertPayload.length > 0) {
+          const { error: upsertErr } = await supabase
+            .from('lp_campaign_daily_aggregates')
+            .upsert(upsertPayload, { onConflict: 'user_id,lp_campaign_id,date' });
+          if (upsertErr) console.error('Upsert error:', upsertErr);
         }
       } catch (e) {
-        console.error(`Failed for campaign ${c.id} (${c.name}):`, e);
-        // Continue with other campaigns instead of failing entirely
+        console.error(`Failed refresh for campaign ${c.id} (${c.name}):`, e);
       }
-      
-      // Rate limiting delay between campaigns
-      if (i < campaigns.length - 1) {
+      if (i < toFetch.length - 1) {
         await sleep(RATE_LIMIT_DELAY);
       }
     }
 
-    // Sort by total leads desc
-    aggregated.sort((a, b) => b.leads - a.leads);
+    // Re-read all rows to build response
+    const { data: finalRows, error: finalErr } = await supabase
+      .from('lp_campaign_daily_aggregates')
+      .select('lp_campaign_id, lp_campaign_name, date, leads, accepted, duplicated, failed, revenue, cost, profit, last_fetched_at')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate);
 
-    console.log(`Successfully processed ${aggregated.length} campaigns with leads`);
+    if (finalErr) {
+      console.error('Final cache read error:', finalErr);
+      return new Response(JSON.stringify({ error: 'Failed to read cached data' }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Aggregate by campaign
+    const byCampaign = new Map<number, Aggregated & { last_times: number[] }>();
+    for (const r of finalRows || []) {
+      const id = Number(r.lp_campaign_id);
+      const curr = byCampaign.get(id) || {
+        campaign_id: id,
+        campaign_name: r.lp_campaign_name,
+        leads: 0, accepted: 0, duplicated: 0, failed: 0,
+        revenue: 0, cost: 0, profit: 0,
+        last_times: [] as number[],
+      };
+      curr.campaign_name = r.lp_campaign_name; // keep latest name
+      curr.leads += Number(r.leads || 0);
+      curr.accepted += Number(r.accepted || 0);
+      curr.duplicated += Number(r.duplicated || 0);
+      curr.failed += Number(r.failed || 0);
+      curr.revenue += Number(r.revenue || 0);
+      curr.cost += Number(r.cost || 0);
+      curr.profit = Number((curr.revenue - curr.cost).toFixed(2));
+      if (r.last_fetched_at) curr.last_times.push(new Date(r.last_fetched_at).getTime());
+      byCampaign.set(id, curr);
+    }
+
+    let aggregated = Array.from(byCampaign.values()).map(({ last_times, ...rest }) => rest);
+
+    // Apply DQ filter post-aggregation as well (safety)
+    if (!includeDQ) {
+      aggregated = aggregated.filter(a => !/dq/i.test(a.campaign_name || ''));
+    }
+
+    // Sort and limit
+    aggregated.sort((a, b) => b.leads - a.leads);
+    aggregated = aggregated.slice(0, MAX_CAMPAIGNS_PER_BATCH);
+
+    // Compute last updated from rows
+    let lastUpdated: number = 0;
+    for (const r of finalRows || []) {
+      if (r.last_fetched_at) {
+        const t = new Date(r.last_fetched_at).getTime();
+        if (t > lastUpdated) lastUpdated = t;
+      }
+    }
+
+    const response = {
+      campaigns: aggregated,
+      last_updated: lastUpdated ? new Date(lastUpdated).toISOString() : new Date().toISOString(),
+    };
 
     return new Response(
-      JSON.stringify({ campaigns: aggregated }),
+      JSON.stringify(response),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {

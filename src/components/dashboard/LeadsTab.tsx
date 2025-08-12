@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,12 @@ const LeadsTab: React.FC = () => {
   const [lpLoading, setLpLoading] = useState(false);
   const [showDQ, setShowDQ] = useState(false);
   const [lpError, setLpError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const cacheKey = useMemo(() => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return null;
+    return `lpLeaderboard:${dateRange.startDate}-${dateRange.endDate}:dq-${showDQ ? 1 : 0}`;
+  }, [dateRange.startDate, dateRange.endDate, showDQ]);
 
   // Count weekdays in selected range for Avg/Day (Mon–Fri)
   const weekdaysInRange = useMemo(() => {
