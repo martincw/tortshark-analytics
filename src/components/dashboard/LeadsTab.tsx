@@ -1,10 +1,11 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Archive, EyeOff, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Loader2, Archive, EyeOff, ArrowUpRight, ArrowDownRight, AlertCircle } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
@@ -34,6 +35,7 @@ const LeadsTab: React.FC = () => {
   const [lwRows, setLwRows] = useState<AggregatedLeadsRow[]>([]);
   const [lpLoading, setLpLoading] = useState(false);
   const [showDQ, setShowDQ] = useState(false);
+  const [lpError, setLpError] = useState<string | null>(null);
 
   // Count weekdays in selected range for Avg/Day (Mon–Fri)
   const weekdaysInRange = useMemo(() => {
@@ -110,11 +112,13 @@ useEffect(() => {
   fetchData();
 }, [dateRange.startDate, dateRange.endDate, campaigns, selectedCampaignIds]);
 
-// Fetch LeadProsper leaderboard
+// Fetch LeadProsper leaderboard with improved error handling
 useEffect(() => {
   const fetchLPData = async () => {
     if (!dateRange?.startDate || !dateRange?.endDate) return;
     setLpLoading(true);
+    setLpError(null);
+    
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
       const startStr = String(dateRange.startDate);
@@ -122,14 +126,7 @@ useEffect(() => {
       const startObj = parse(startStr, 'yyyy-MM-dd', new Date());
       const endObj = parse(endStr, 'yyyy-MM-dd', new Date());
 
-      // Compute previous period with same length (calendar days)
-      const diffDays = Math.max(1, differenceInCalendarDays(endObj, startObj) + 1);
-      const prevEndObj = subDays(startObj, 1);
-      const prevStartObj = subDays(prevEndObj, diffDays - 1);
-
-      const prevStart = formatDate(prevStartObj, 'yyyy-MM-dd');
-      const prevEnd = formatDate(prevEndObj, 'yyyy-MM-dd');
-      const lwStr = formatDate(subDays(endObj, 7), 'yyyy-MM-dd'); // Same day last week
+      console.log('Fetching LP data for:', { startStr, endStr, showDQ });
 
       const toAgg = (data: any): AggregatedLeadsRow[] =>
         (data?.campaigns || []).map((c: any) => ({
@@ -144,51 +141,78 @@ useEffect(() => {
           profit: Number(c.profit || 0),
         }));
 
-      // Fetch sequentially to reduce API rate-limit pressure
-      const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-      // Current period
+      // Fetch only current period first
       const currRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
         body: { startDate: startStr, endDate: endStr, timezone: tz, includeDQ: showDQ },
       });
-      if (!currRes.error) {
-        const currAgg = toAgg(currRes.data);
-        currAgg.sort((a, b) => b.leads - a.leads);
-        setLpRows(currAgg);
-      } else {
-        console.error('LP current fetch error', currRes.error);
-        toast.error('Failed to load LeadProsper current period');
+      
+      if (currRes.error) {
+        console.error('LP current fetch error:', currRes.error);
+        setLpError('Failed to load LeadProsper data. The API may be experiencing high load.');
         setLpRows([]);
+        setPrevLpRows([]);
+        setLwRows([]);
+        return;
       }
 
-      await sleep(300);
+      const currAgg = toAgg(currRes.data);
+      currAgg.sort((a, b) => b.leads - a.leads);
+      setLpRows(currAgg);
 
-      // Previous period
-      const prevRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
-        body: { startDate: prevStart, endDate: prevEnd, timezone: tz, includeDQ: showDQ },
-      });
-      if (!prevRes.error) {
-        setPrevLpRows(toAgg(prevRes.data));
+      // Only fetch comparison data if current period succeeded and has data
+      if (currAgg.length > 0) {
+        // Compute previous period
+        const diffDays = Math.max(1, differenceInCalendarDays(endObj, startObj) + 1);
+        const prevEndObj = subDays(startObj, 1);
+        const prevStartObj = subDays(prevEndObj, diffDays - 1);
+        const prevStart = formatDate(prevStartObj, 'yyyy-MM-dd');
+        const prevEnd = formatDate(prevEndObj, 'yyyy-MM-dd');
+        const lwStr = formatDate(subDays(endObj, 7), 'yyyy-MM-dd');
+
+        // Add longer delays for comparison data
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        try {
+          const prevRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
+            body: { startDate: prevStart, endDate: prevEnd, timezone: tz, includeDQ: showDQ },
+          });
+          if (!prevRes.error) {
+            setPrevLpRows(toAgg(prevRes.data));
+          } else {
+            console.error('Previous period fetch failed:', prevRes.error);
+            setPrevLpRows([]);
+          }
+        } catch (e) {
+          console.error('Previous period error:', e);
+          setPrevLpRows([]);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        try {
+          const lwRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
+            body: { startDate: lwStr, endDate: lwStr, timezone: tz, includeDQ: showDQ },
+          });
+          if (!lwRes.error) {
+            setLwRows(toAgg(lwRes.data));
+          } else {
+            console.error('Last week fetch failed:', lwRes.error);
+            setLwRows([]);
+          }
+        } catch (e) {
+          console.error('Last week error:', e);
+          setLwRows([]);
+        }
       } else {
         setPrevLpRows([]);
-      }
-
-      await sleep(300);
-
-      // Same day last week
-      const lwRes = await supabase.functions.invoke("leadprosper-fetch-leads", {
-        body: { startDate: lwStr, endDate: lwStr, timezone: tz, includeDQ: showDQ },
-      });
-      if (!lwRes.error) {
-        setLwRows(toAgg(lwRes.data));
-      } else {
         setLwRows([]);
       }
     } catch (e) {
       console.error("Error loading LeadProsper leaderboard", e);
-      toast.error("Failed to load LeadProsper leaderboard");
+      setLpError('Failed to load LeadProsper data. Please try again later.');
       setLpRows([]);
       setPrevLpRows([]);
+      setLwRows([]);
     } finally {
       setLpLoading(false);
     }
@@ -219,7 +243,6 @@ useEffect(() => {
 
 return (
   <>
-
     <Card className="mt-6">
       <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <CardTitle className="text-md font-medium">LeadProsper Leaderboard</CardTitle>
@@ -232,6 +255,22 @@ return (
         {lpLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : lpError ? (
+          <div className="flex flex-col items-center py-12 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive mb-2" />
+            <p className="text-destructive font-medium mb-2">API Rate Limit</p>
+            <p className="text-sm text-muted-foreground max-w-md">
+              {lpError}
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
           </div>
         ) : (
           (() => {
