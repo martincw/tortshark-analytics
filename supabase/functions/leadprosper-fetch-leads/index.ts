@@ -341,6 +341,7 @@ serve(async (req) => {
     }
 
     console.log(`Campaigns needing refresh: ${toFetch.length}/${campaigns.length}`);
+    console.log('Cache rows found:', cachedRows?.length || 0);
 
     // Fetch and upsert daily aggregates for campaigns that need it
     for (let i = 0; i < toFetch.length; i++) {
@@ -365,10 +366,15 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         }));
         if (upsertPayload.length > 0) {
+          console.log(`Upserting ${upsertPayload.length} daily aggregates for campaign ${c.id}`);
           const { error: upsertErr } = await supabase
             .from('lp_campaign_daily_aggregates')
             .upsert(upsertPayload, { onConflict: 'user_id,lp_campaign_id,date' });
-          if (upsertErr) console.error('Upsert error:', upsertErr);
+          if (upsertErr) {
+            console.error('Upsert error:', upsertErr);
+          } else {
+            console.log('Upsert successful');
+          }
         }
       } catch (e) {
         console.error(`Failed refresh for campaign ${c.id} (${c.name}):`, e);
@@ -385,6 +391,8 @@ serve(async (req) => {
       .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate);
+
+    console.log('Final cache read:', finalRows?.length || 0, 'rows');
 
     if (finalErr) {
       console.error('Final cache read error:', finalErr);
