@@ -152,6 +152,8 @@ useEffect(() => {
         body: { startDate: startStr, endDate: endStr, timezone: tz, includeDQ: showDQ },
       });
       
+      console.log('LP response:', currRes);
+      
       if (currRes.error) {
         console.error('LP current fetch error:', currRes.error);
         setLpError('Failed to load LeadProsper data. The API may be experiencing high load.');
