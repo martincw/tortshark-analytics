@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -894,60 +894,6 @@ export type Database = {
         }
         Relationships: []
       }
-      lp_campaign_daily_aggregates: {
-        Row: {
-          accepted: number
-          cost: number
-          created_at: string
-          date: string
-          duplicated: number
-          failed: number
-          id: string
-          last_fetched_at: string
-          leads: number
-          lp_campaign_id: number
-          lp_campaign_name: string
-          profit: number
-          revenue: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          accepted?: number
-          cost?: number
-          created_at?: string
-          date: string
-          duplicated?: number
-          failed?: number
-          id?: string
-          last_fetched_at?: string
-          leads?: number
-          lp_campaign_id: number
-          lp_campaign_name: string
-          profit?: number
-          revenue?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          accepted?: number
-          cost?: number
-          created_at?: string
-          date?: string
-          duplicated?: number
-          failed?: number
-          id?: string
-          last_fetched_at?: string
-          leads?: number
-          lp_campaign_id?: number
-          lp_campaign_name?: string
-          profit?: number
-          revenue?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       lp_leads_raw: {
         Row: {
           cost: number | null
@@ -1242,11 +1188,11 @@ export type Database = {
         Returns: boolean
       }
       create_workspace_with_owner: {
-        Args: { p_workspace_name: string; p_owner_user_id?: string }
+        Args: { p_owner_user_id?: string; p_workspace_name: string }
         Returns: {
+          created_at: string
           workspace_id: string
           workspace_name: string
-          created_at: string
         }[]
       }
       get_user_account_type: {
@@ -1262,15 +1208,15 @@ export type Database = {
         Returns: boolean
       }
       is_workspace_admin: {
-        Args: { workspace_id: string; user_id?: string }
+        Args: { user_id?: string; workspace_id: string }
         Returns: boolean
       }
       is_workspace_member: {
-        Args: { workspace_id: string; user_id: string }
+        Args: { user_id: string; workspace_id: string }
         Returns: boolean
       }
       is_workspace_member_safe: {
-        Args: { workspace_id: string; user_id?: string }
+        Args: { user_id?: string; workspace_id: string }
         Returns: boolean
       }
       migrate_campaigns_from_localstorage: {
@@ -1283,24 +1229,24 @@ export type Database = {
       }
       upsert_daily_lead_metrics: {
         Args: {
-          p_ts_campaign_id: string
-          p_date: string
-          p_lead_count: number
           p_accepted: number
+          p_cost: number
+          p_date: string
           p_duplicated: number
           p_failed: number
-          p_cost: number
+          p_lead_count: number
           p_revenue: number
+          p_ts_campaign_id: string
         }
         Returns: undefined
       }
       upsert_hyros_daily_metrics: {
         Args: {
-          p_ts_campaign_id: string
+          p_cost: number
           p_date: string
           p_lead_count: number
-          p_cost: number
           p_revenue: number
+          p_ts_campaign_id: string
         }
         Returns: undefined
       }
