@@ -1,41 +1,17 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus } from "lucide-react";
+import { useBackendCases } from "@/hooks/useBackendCases";
+import { AddBackendCaseDialog } from "./AddBackendCaseDialog";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 const PortfolioTab = () => {
-  // Mock data for backend cases - replace with actual data fetching
-  const backendCases = [
-    {
-      id: 1,
-      caseNumber: "BC-2024-001",
-      client: "Johnson vs. MedCorp",
-      type: "Medical Malpractice",
-      status: "Active",
-      dateOpened: "2024-01-15",
-      estimatedValue: 250000,
-      progress: 65
-    },
-    {
-      id: 2,
-      caseNumber: "BC-2024-002", 
-      client: "Smith vs. AutoDealer",
-      type: "Lemon Law",
-      status: "Discovery",
-      dateOpened: "2024-02-03",
-      estimatedValue: 45000,
-      progress: 30
-    },
-    {
-      id: 3,
-      caseNumber: "BC-2024-003",
-      client: "Davis vs. Insurance Co",
-      type: "Bad Faith",
-      status: "Negotiation",
-      dateOpened: "2024-01-28",
-      estimatedValue: 180000,
-      progress: 85
-    }
-  ];
+  const { cases, isLoading, fetchCases } = useBackendCases();
+  const { campaigns } = useCampaign();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -57,8 +33,8 @@ const PortfolioTab = () => {
     }).format(amount);
   };
 
-  const totalValue = backendCases.reduce((sum, case_) => sum + case_.estimatedValue, 0);
-  const activeCases = backendCases.filter(case_ => case_.status !== 'Closed').length;
+  const totalValue = cases.reduce((sum, case_) => sum + case_.estimated_value, 0);
+  const activeCases = cases.filter(case_ => case_.status !== 'Closed').length;
 
   return (
     <div className="space-y-6">
@@ -70,7 +46,7 @@ const PortfolioTab = () => {
               Total Cases
             </CardTitle>
             <CardDescription className="text-2xl font-bold text-foreground">
-              {backendCases.length}
+              {cases.length}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -101,63 +77,96 @@ const PortfolioTab = () => {
       {/* Backend Cases Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Backend Cases</CardTitle>
-          <CardDescription>
-            Track and manage your backend case portfolio
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Backend Cases</CardTitle>
+              <CardDescription>
+                Track and manage your backend case portfolio
+              </CardDescription>
+            </div>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Case
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Case #</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date Opened</TableHead>
-                <TableHead>Progress</TableHead>
-                <TableHead className="text-right">Est. Value</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {backendCases.map((case_) => (
-                <TableRow key={case_.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium text-blue-600">
-                    {case_.caseNumber}
-                  </TableCell>
-                  <TableCell>{case_.client}</TableCell>
-                  <TableCell>{case_.type}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="outline" 
-                      className={getStatusBadge(case_.status)}
-                    >
-                      {case_.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{case_.dateOpened}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all" 
-                          style={{ width: `${case_.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-muted-foreground min-w-[3rem]">
-                        {case_.progress}%
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(case_.estimatedValue)}
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-32">
+              <p className="text-muted-foreground">Loading cases...</p>
+            </div>
+          ) : cases.length === 0 ? (
+            <div className="flex flex-col justify-center items-center h-32 text-center">
+              <p className="text-muted-foreground mb-4">No backend cases found</p>
+              <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Case
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Case #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date Opened</TableHead>
+                  <TableHead>Progress</TableHead>
+                  <TableHead className="text-right">Est. Value</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {cases.map((case_) => (
+                  <TableRow key={case_.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium text-primary">
+                      {case_.case_number}
+                    </TableCell>
+                    <TableCell>{case_.client_name}</TableCell>
+                    <TableCell>{case_.case_type}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {case_.campaigns?.name || 'No Campaign'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={getStatusBadge(case_.status)}
+                      >
+                        {case_.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(case_.date_opened).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all" 
+                            style={{ width: `${case_.progress}%` }}
+                          />
+                        </div>
+                        <span className="text-sm text-muted-foreground min-w-[3rem]">
+                          {case_.progress}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(case_.estimated_value)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <AddBackendCaseDialog
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        campaigns={campaigns}
+        onCaseAdded={fetchCases}
+      />
     </div>
   );
 };
