@@ -21,14 +21,67 @@ interface LeadProsperLead {
   updated_at: string;
 }
 
+interface CampaignSummary {
+  campaign_name: string;
+  campaign_id: string;
+  leads: number;
+  accepted: number;
+  failed: number;
+  profit: number;
+}
+
 const LeadsTab: React.FC = () => {
   const { dateRange } = useCampaign();
   const [lpLeads, setLpLeads] = useState<LeadProsperLead[]>([]);
+  const [campaignSummaries, setCampaignSummaries] = useState<CampaignSummary[]>([]);
   const [lpLoading, setLpLoading] = useState(false);
   const [lpSyncing, setLpSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [sortField, setSortField] = useState<keyof LeadProsperLead>('date');
+  const [sortField, setSortField] = useState<keyof CampaignSummary>('leads');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const aggregateCampaignData = (leads: LeadProsperLead[]): CampaignSummary[] => {
+    const campaignMap = new Map<string, CampaignSummary>();
+
+    leads.forEach(lead => {
+      const key = lead.campaign_id;
+      if (!campaignMap.has(key)) {
+        campaignMap.set(key, {
+          campaign_name: lead.campaign_name,
+          campaign_id: lead.campaign_id,
+          leads: 0,
+          accepted: 0,
+          failed: 0,
+          profit: 0
+        });
+      }
+
+      const summary = campaignMap.get(key)!;
+      summary.leads += 1;
+      
+      // Count accepted (qualified, converted, contacted statuses)
+      if (['qualified', 'converted', 'contacted'].includes(lead.status.toLowerCase())) {
+        summary.accepted += 1;
+      }
+      
+      // Count failed (rejected, failed statuses)
+      if (['rejected', 'failed'].includes(lead.status.toLowerCase())) {
+        summary.failed += 1;
+      }
+      
+      // Add to profit calculation
+      summary.profit += (lead.revenue - lead.cost);
+    });
+
+    return Array.from(campaignMap.values()).sort((a, b) => {
+      if (sortField === 'leads') return sortDirection === 'desc' ? b.leads - a.leads : a.leads - b.leads;
+      if (sortField === 'accepted') return sortDirection === 'desc' ? b.accepted - a.accepted : a.accepted - b.accepted;
+      if (sortField === 'failed') return sortDirection === 'desc' ? b.failed - a.failed : a.failed - b.failed;
+      if (sortField === 'profit') return sortDirection === 'desc' ? b.profit - a.profit : a.profit - b.profit;
+      if (sortField === 'campaign_name') return sortDirection === 'desc' ? b.campaign_name.localeCompare(a.campaign_name) : a.campaign_name.localeCompare(b.campaign_name);
+      return 0;
+    });
+  };
 
   const fetchLeadProsperData = async () => {
     if (!dateRange?.startDate || !dateRange?.endDate) return;
@@ -38,11 +91,14 @@ const LeadsTab: React.FC = () => {
         .from("leadprosper_leads")
         .select("*")
         .gte("date", dateRange.startDate)
-        .lte("date", dateRange.endDate)
-        .order(sortField, { ascending: sortDirection === 'asc' });
+        .lte("date", dateRange.endDate);
 
       if (error) throw error;
       setLpLeads(data || []);
+      
+      // Aggregate data by campaign
+      const summaries = aggregateCampaignData(data || []);
+      setCampaignSummaries(summaries);
     } catch (e) {
       console.error("Error loading LeadProsper data", e);
       toast.error("Failed to load LeadProsper data");
@@ -73,13 +129,17 @@ const LeadsTab: React.FC = () => {
     }
   };
 
-  const handleSort = (field: keyof LeadProsperLead) => {
+  const handleSort = (field: keyof CampaignSummary) => {
     if (field === sortField) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortDirection('desc');
     }
+    
+    // Re-sort existing data
+    const sortedSummaries = aggregateCampaignData(lpLeads);
+    setCampaignSummaries(sortedSummaries);
   };
 
   // Auto-sync today's data every 5 minutes
@@ -96,12 +156,15 @@ const LeadsTab: React.FC = () => {
     fetchLeadProsperData();
   }, [dateRange.startDate, dateRange.endDate]);
 
-  // Re-fetch LeadProsper data when sort changes
+  // Re-aggregate data when sort changes (no need to re-fetch)
   useEffect(() => {
-    fetchLeadProsperData();
+    if (lpLeads.length > 0) {
+      const sortedSummaries = aggregateCampaignData(lpLeads);
+      setCampaignSummaries(sortedSummaries);
+    }
   }, [sortField, sortDirection]);
 
-  const getSortIcon = (field: keyof LeadProsperLead) => {
+  const getSortIcon = (field: keyof CampaignSummary) => {
     if (field !== sortField) return null;
     return sortDirection === 'asc' ? '↑' : '↓';
   };
@@ -143,9 +206,9 @@ const LeadsTab: React.FC = () => {
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : lpLeads.length === 0 ? (
+        ) : campaignSummaries.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground">
-            <p>No LeadProsper leads found</p>
+            <p>No LeadProsper campaigns found</p>
             <p className="text-sm mt-2">Click "Sync Historical" to load past data</p>
           </div>
         ) : (
@@ -155,60 +218,47 @@ const LeadsTab: React.FC = () => {
                 <TableRow>
                   <TableHead 
                     className="cursor-pointer select-none"
-                    onClick={() => handleSort('date')}
-                  >
-                    Date {getSortIcon('date')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer select-none"
                     onClick={() => handleSort('campaign_name')}
                   >
                     Campaign {getSortIcon('campaign_name')}
                   </TableHead>
-                  <TableHead>Lead ID</TableHead>
                   <TableHead 
-                    className="cursor-pointer select-none"
-                    onClick={() => handleSort('status')}
+                    className="text-right cursor-pointer select-none"
+                    onClick={() => handleSort('leads')}
                   >
-                    Status {getSortIcon('status')}
+                    Leads {getSortIcon('leads')}
                   </TableHead>
                   <TableHead 
                     className="text-right cursor-pointer select-none"
-                    onClick={() => handleSort('revenue')}
+                    onClick={() => handleSort('accepted')}
                   >
-                    Revenue {getSortIcon('revenue')}
+                    Accepted {getSortIcon('accepted')}
                   </TableHead>
                   <TableHead 
                     className="text-right cursor-pointer select-none"
-                    onClick={() => handleSort('cost')}
+                    onClick={() => handleSort('failed')}
                   >
-                    Cost {getSortIcon('cost')}
+                    Failed {getSortIcon('failed')}
                   </TableHead>
-                  <TableHead className="text-right">Profit</TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer select-none"
+                    onClick={() => handleSort('profit')}
+                  >
+                    Profit {getSortIcon('profit')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lpLeads.map(lead => {
-                  const profit = lead.revenue - lead.cost;
-                  const profitClass = profit > 0 ? "text-success-DEFAULT" : (profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
+                {campaignSummaries.map(campaign => {
+                  const profitClass = campaign.profit > 0 ? "text-success-DEFAULT" : (campaign.profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
                   return (
-                    <TableRow key={lead.id}>
-                      <TableCell>{new Date(lead.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="font-medium">{lead.campaign_name}</TableCell>
-                      <TableCell className="font-mono text-sm">{lead.lead_id}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          lead.status === 'active' ? 'bg-success-DEFAULT/10 text-success-DEFAULT' :
-                          lead.status === 'failed' ? 'bg-error-DEFAULT/10 text-error-DEFAULT' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
-                          {lead.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(lead.revenue)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(lead.cost)}</TableCell>
+                    <TableRow key={campaign.campaign_id}>
+                      <TableCell className="font-medium text-primary">{campaign.campaign_name}</TableCell>
+                      <TableCell className="text-right font-medium">{campaign.leads}</TableCell>
+                      <TableCell className="text-right text-success-DEFAULT font-medium">{campaign.accepted}</TableCell>
+                      <TableCell className="text-right text-error-DEFAULT font-medium">{campaign.failed}</TableCell>
                       <TableCell className={`text-right font-medium ${profitClass}`}>
-                        {formatCurrency(profit)}
+                        {formatCurrency(campaign.profit)}
                       </TableCell>
                     </TableRow>
                   );
