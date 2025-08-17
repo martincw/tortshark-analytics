@@ -59,13 +59,13 @@ const LeadsTab: React.FC = () => {
       const summary = campaignMap.get(key)!;
       summary.leads += 1;
       
-      // Count accepted (qualified, converted, contacted statuses)
-      if (['qualified', 'converted', 'contacted'].includes(lead.status.toLowerCase())) {
+      // Count accepted leads based on actual LeadProsper status
+      if (lead.status.toLowerCase() === 'accepted') {
         summary.accepted += 1;
       }
       
-      // Count failed (rejected, failed statuses)
-      if (['rejected', 'failed'].includes(lead.status.toLowerCase())) {
+      // Count failed leads (error, duplicated, rejected, failed statuses)
+      if (['error', 'duplicated', 'rejected', 'failed'].includes(lead.status.toLowerCase())) {
         summary.failed += 1;
       }
       
