@@ -57,10 +57,10 @@ const LeadsTab: React.FC = () => {
       }
 
       const summary = campaignMap.get(key)!;
+      summary.leads += 1;
       
-      // Only count accepted leads as "leads" to match LeadProsper display
+      // Count accepted leads based on actual LeadProsper status
       if (lead.status.toLowerCase() === 'accepted') {
-        summary.leads += 1;
         summary.accepted += 1;
       }
       
@@ -227,7 +227,13 @@ const LeadsTab: React.FC = () => {
                     className="text-right cursor-pointer select-none"
                     onClick={() => handleSort('leads')}
                   >
-                    Accepted Leads {getSortIcon('leads')}
+                    Leads {getSortIcon('leads')}
+                  </TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer select-none"
+                    onClick={() => handleSort('accepted')}
+                  >
+                    Accepted {getSortIcon('accepted')}
                   </TableHead>
                   <TableHead 
                     className="text-right cursor-pointer select-none"
@@ -250,7 +256,8 @@ const LeadsTab: React.FC = () => {
                     <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
                       <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                       <TableCell className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">{campaign.leads}</TableCell>
+                      <TableCell className="text-right font-medium">{campaign.leads}</TableCell>
+                      <TableCell className="text-right font-semibold text-green-600">{campaign.accepted}</TableCell>
                       <TableCell className="text-right font-semibold text-red-600">{campaign.failed}</TableCell>
                       <TableCell className={`text-right ${profitClass}`}>
                         {formatCurrency(campaign.profit)}
