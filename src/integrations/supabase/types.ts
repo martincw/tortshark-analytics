@@ -894,6 +894,48 @@ export type Database = {
         }
         Relationships: []
       }
+      leadprosper_leads: {
+        Row: {
+          campaign_id: string | null
+          campaign_name: string | null
+          cost: number | null
+          created_at: string | null
+          date: string
+          id: string
+          lead_id: string
+          raw_data: Json | null
+          revenue: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          cost?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          lead_id: string
+          raw_data?: Json | null
+          revenue?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          cost?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          lead_id?: string
+          raw_data?: Json | null
+          revenue?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lp_leads_raw: {
         Row: {
           cost: number | null
