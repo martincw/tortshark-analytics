@@ -64,58 +64,46 @@ export type Database = {
           },
         ]
       }
-      backend_cases: {
+      backend_case_stats: {
         Row: {
-          campaign_id: string | null
-          case_number: string
-          case_type: string
-          client_name: string
+          campaign_id: string
+          case_count: number
           created_at: string
-          date_opened: string
-          estimated_value: number
+          date: string
           id: string
-          notes: string | null
-          progress: number
-          status: string
+          price_per_case: number
+          total_value: number | null
           updated_at: string
           user_id: string
           workspace_id: string
         }
         Insert: {
-          campaign_id?: string | null
-          case_number: string
-          case_type: string
-          client_name: string
+          campaign_id: string
+          case_count?: number
           created_at?: string
-          date_opened: string
-          estimated_value?: number
+          date: string
           id?: string
-          notes?: string | null
-          progress?: number
-          status?: string
+          price_per_case?: number
+          total_value?: number | null
           updated_at?: string
           user_id?: string
           workspace_id: string
         }
         Update: {
-          campaign_id?: string | null
-          case_number?: string
-          case_type?: string
-          client_name?: string
+          campaign_id?: string
+          case_count?: number
           created_at?: string
-          date_opened?: string
-          estimated_value?: number
+          date?: string
           id?: string
-          notes?: string | null
-          progress?: number
-          status?: string
+          price_per_case?: number
+          total_value?: number | null
           updated_at?: string
           user_id?: string
           workspace_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "backend_cases_campaign_id_fkey"
+            foreignKeyName: "backend_case_stats_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"

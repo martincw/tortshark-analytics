@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Campaign } from "@/types/campaign-base";
@@ -23,19 +22,17 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
   campaigns,
   onCaseAdded
 }) => {
-  const [clientName, setClientName] = useState("");
-  const [caseType, setCaseType] = useState("");
   const [campaignId, setCampaignId] = useState("");
-  const [estimatedValue, setEstimatedValue] = useState("");
-  const [dateOpened, setDateOpened] = useState<Date | undefined>(new Date());
-  const [notes, setNotes] = useState("");
+  const [caseCount, setCaseCount] = useState("");
+  const [pricePerCase, setPricePerCase] = useState("");
+  const [date, setDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!clientName || !caseType || !campaignId || !dateOpened || !estimatedValue) {
+    if (!campaignId || !date || !caseCount || !pricePerCase) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -51,7 +48,7 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
       if (!user) {
         toast({
           title: "Error",
-          description: "You must be logged in to add a case.",
+          description: "You must be logged in to add case stats.",
           variant: "destructive",
         });
         return;
@@ -74,29 +71,24 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
         return;
       }
 
-      // Generate case number
-      const year = new Date().getFullYear();
-      const caseNumber = `BC-${year}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-
       const { error } = await supabase
-        .from('backend_cases')
-        .insert([{
-          case_number: caseNumber,
-          client_name: clientName,
-          case_type: caseType,
+        .from('backend_case_stats')
+        .upsert([{
+          date: date.toISOString().split('T')[0],
           campaign_id: campaignId,
-          estimated_value: parseFloat(estimatedValue),
-          date_opened: dateOpened.toISOString().split('T')[0],
-          notes,
+          case_count: parseInt(caseCount),
+          price_per_case: parseFloat(pricePerCase),
           user_id: user.id,
           workspace_id: workspaceData.workspace_id,
-        }]);
+        }], {
+          onConflict: 'date,campaign_id,workspace_id'
+        });
 
       if (error) {
-        console.error('Error adding case:', error);
+        console.error('Error adding case stats:', error);
         toast({
           title: "Error",
-          description: "Failed to add case. Please try again.",
+          description: "Failed to add case stats. Please try again.",
           variant: "destructive",
         });
         return;
@@ -104,16 +96,14 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
 
       toast({
         title: "Success",
-        description: "Backend case added successfully!",
+        description: "Backend case stats added successfully!",
       });
 
       // Reset form
-      setClientName("");
-      setCaseType("");
       setCampaignId("");
-      setEstimatedValue("");
-      setDateOpened(new Date());
-      setNotes("");
+      setCaseCount("");
+      setPricePerCase("");
+      setDate(new Date());
       
       onCaseAdded();
       onClose();
@@ -133,31 +123,18 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Backend Case</DialogTitle>
+          <DialogTitle>Add Backend Case Stats</DialogTitle>
           <DialogDescription>
-            Add a new backend case to your portfolio.
+            Add daily backend case statistics for a campaign.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="client-name">Client Name *</Label>
-            <Input
-              id="client-name"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              placeholder="Johnson vs. MedCorp"
-              required
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="case-type">Case Type *</Label>
-            <Input
-              id="case-type"
-              value={caseType}
-              onChange={(e) => setCaseType(e.target.value)}
-              placeholder="Medical Malpractice"
-              required
+            <Label>Date *</Label>
+            <DatePicker
+              date={date}
+              setDate={setDate}
+              className="w-full"
             />
           </div>
 
@@ -178,36 +155,29 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="estimated-value">Estimated Value ($) *</Label>
+            <Label htmlFor="case-count"># of Cases *</Label>
             <Input
-              id="estimated-value"
+              id="case-count"
               type="number"
-              step="0.01"
               min="0"
-              value={estimatedValue}
-              onChange={(e) => setEstimatedValue(e.target.value)}
-              placeholder="250000"
+              value={caseCount}
+              onChange={(e) => setCaseCount(e.target.value)}
+              placeholder="3"
               required
             />
           </div>
 
           <div className="grid gap-2">
-            <Label>Date Opened *</Label>
-            <DatePicker
-              date={dateOpened}
-              setDate={setDateOpened}
-              className="w-full"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional case details..."
-              rows={3}
+            <Label htmlFor="price-per-case">$ per Case *</Label>
+            <Input
+              id="price-per-case"
+              type="number"
+              step="0.01"
+              min="0"
+              value={pricePerCase}
+              onChange={(e) => setPricePerCase(e.target.value)}
+              placeholder="5000.00"
+              required
             />
           </div>
 
@@ -216,7 +186,7 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Adding..." : "Add Case"}
+              {isLoading ? "Adding..." : "Add Stats"}
             </Button>
           </DialogFooter>
         </form>

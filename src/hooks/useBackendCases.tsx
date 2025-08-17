@@ -2,17 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
-export interface BackendCase {
+export interface BackendCaseStats {
   id: string;
-  case_number: string;
-  client_name: string;
-  case_type: string;
-  campaign_id: string | null;
-  estimated_value: number;
-  date_opened: string;
-  status: string;
-  progress: number;
-  notes: string | null;
+  date: string;
+  campaign_id: string;
+  case_count: number;
+  price_per_case: number;
+  total_value: number;
   created_at: string;
   updated_at: string;
   campaigns?: {
@@ -21,34 +17,34 @@ export interface BackendCase {
 }
 
 export const useBackendCases = () => {
-  const [cases, setCases] = useState<BackendCase[]>([]);
+  const [caseStats, setCaseStats] = useState<BackendCaseStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchCases = async () => {
+  const fetchCaseStats = async () => {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from('backend_cases')
+        .from('backend_case_stats')
         .select(`
           *,
           campaigns (
             name
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('date', { ascending: false });
 
       if (error) {
-        console.error('Error fetching backend cases:', error);
+        console.error('Error fetching backend case stats:', error);
         toast({
           title: "Error",
-          description: "Failed to load backend cases.",
+          description: "Failed to load backend case stats.",
           variant: "destructive",
         });
         return;
       }
 
-      setCases(data || []);
+      setCaseStats(data || []);
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -62,12 +58,12 @@ export const useBackendCases = () => {
   };
 
   useEffect(() => {
-    fetchCases();
+    fetchCaseStats();
   }, []);
 
   return {
-    cases,
+    caseStats,
     isLoading,
-    fetchCases,
+    fetchCaseStats,
   };
 };

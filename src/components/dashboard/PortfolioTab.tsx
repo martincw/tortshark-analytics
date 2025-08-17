@@ -9,7 +9,7 @@ import { AddBackendCaseDialog } from "./AddBackendCaseDialog";
 import { useCampaign } from "@/contexts/CampaignContext";
 
 const PortfolioTab = () => {
-  const { cases, isLoading, fetchCases } = useBackendCases();
+  const { caseStats, isLoading, fetchCaseStats } = useBackendCases();
   const { campaigns } = useCampaign();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
@@ -33,8 +33,8 @@ const PortfolioTab = () => {
     }).format(amount);
   };
 
-  const totalValue = cases.reduce((sum, case_) => sum + case_.estimated_value, 0);
-  const activeCases = cases.filter(case_ => case_.status !== 'Closed').length;
+  const totalValue = caseStats.reduce((sum, stat) => sum + stat.total_value, 0);
+  const totalCases = caseStats.reduce((sum, stat) => sum + stat.case_count, 0);
 
   return (
     <div className="space-y-6">
@@ -46,7 +46,7 @@ const PortfolioTab = () => {
               Total Cases
             </CardTitle>
             <CardDescription className="text-2xl font-bold text-foreground">
-              {cases.length}
+              {totalCases}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -54,10 +54,10 @@ const PortfolioTab = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Cases
+              Avg. Case Value
             </CardTitle>
             <CardDescription className="text-2xl font-bold text-green-600">
-              {activeCases}
+              {totalCases > 0 ? formatCurrency(totalValue / totalCases) : formatCurrency(0)}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -79,79 +79,54 @@ const PortfolioTab = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Backend Cases</CardTitle>
+              <CardTitle>Backend Case Stats</CardTitle>
               <CardDescription>
-                Track and manage your backend case portfolio
+                Daily backend case statistics by campaign
               </CardDescription>
             </div>
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Case
+              Add Stats
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center items-center h-32">
-              <p className="text-muted-foreground">Loading cases...</p>
+              <p className="text-muted-foreground">Loading case stats...</p>
             </div>
-          ) : cases.length === 0 ? (
+          ) : caseStats.length === 0 ? (
             <div className="flex flex-col justify-center items-center h-32 text-center">
-              <p className="text-muted-foreground mb-4">No backend cases found</p>
+              <p className="text-muted-foreground mb-4">No backend case stats found</p>
               <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Your First Case
+                Add Your First Stats
               </Button>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Case #</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date Opened</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead className="text-right">Est. Value</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Campaign Type</TableHead>
+                  <TableHead># of Cases</TableHead>
+                  <TableHead>$/Case</TableHead>
+                  <TableHead className="text-right">Total Value</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cases.map((case_) => (
-                  <TableRow key={case_.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-primary">
-                      {case_.case_number}
+                {caseStats.map((stat) => (
+                  <TableRow key={stat.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      {new Date(stat.date).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>{case_.client_name}</TableCell>
-                    <TableCell>{case_.case_type}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {case_.campaigns?.name || 'No Campaign'}
+                    <TableCell className="text-primary">
+                      {stat.campaigns?.name || 'Unknown Campaign'}
                     </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={getStatusBadge(case_.status)}
-                      >
-                        {case_.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{new Date(case_.date_opened).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div 
-                            className="bg-primary h-2 rounded-full transition-all" 
-                            style={{ width: `${case_.progress}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-muted-foreground min-w-[3rem]">
-                          {case_.progress}%
-                        </span>
-                      </div>
-                    </TableCell>
+                    <TableCell>{stat.case_count}</TableCell>
+                    <TableCell>{formatCurrency(stat.price_per_case)}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(case_.estimated_value)}
+                      {formatCurrency(stat.total_value)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -165,7 +140,7 @@ const PortfolioTab = () => {
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
         campaigns={campaigns}
-        onCaseAdded={fetchCases}
+        onCaseAdded={fetchCaseStats}
       />
     </div>
   );
