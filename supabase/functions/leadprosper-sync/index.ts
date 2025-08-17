@@ -69,7 +69,9 @@ Deno.serve(async (req) => {
       .eq('platform', 'leadprosper')
       .eq('is_connected', true)
       .eq('user_id', user.id)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (connectionError) {
       console.error('Database error fetching LeadProsper connection:', connectionError);
