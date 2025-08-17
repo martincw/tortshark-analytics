@@ -1,19 +1,29 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-interface LeadProsperResponse {
-  leads: Array<{
-    id: string;
-    campaign_id: string;
-    campaign_name: string;
-    date: string;
-    status: string;
-    revenue: number;
-    cost: number;
-    [key: string]: any;
-  }>;
-  success: boolean;
-  error?: string;
+interface LeadProsperCampaign {
+  id: number;
+  name: string;
+  public_name: string;
+  suppliers: any[];
+  buyers: any[];
+  fields: string[];
+}
+
+interface LeadProsperLead {
+  id: string;
+  lead_date_ms: string;
+  status: string;
+  error_code: number;
+  error_message: string;
+  test: boolean;
+  cost: number;
+  revenue: number;
+  campaign_id: number;
+  campaign_name: string;
+  lead_data: Record<string, any>;
+  supplier: any;
+  buyers: any[];
 }
 
 const supabase = createClient(
@@ -31,24 +41,32 @@ Deno.serve(async (req) => {
     const { type = 'today' } = await req.json();
     console.log('LeadProsper sync request:', { type });
     
-    // Get the API key from account_connections table instead of environment
+    // Get the API key from account_connections table
     const { data: connections, error: connectionError } = await supabase
       .from('account_connections')
       .select('credentials')
       .eq('platform', 'leadprosper')
       .eq('is_connected', true)
-      .maybeSingle(); // Use maybeSingle instead of single to handle no results
+      .maybeSingle();
 
     if (connectionError) {
       console.error('Database error fetching LeadProsper connection:', connectionError);
+      return new Response(
+        JSON.stringify({ error: 'Database error fetching connection details' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (!connections?.credentials?.apiKey) {
-      console.log('LeadProsper connection not found in database, proceeding with mock data for testing');
+      console.error('LeadProsper connection not found or API key missing');
+      return new Response(
+        JSON.stringify({ error: 'LeadProsper connection not found. Please connect your LeadProsper account first.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const apiKey = connections?.credentials?.apiKey || 'mock-api-key-for-testing';
-    console.log('Using API key:', connections?.credentials?.apiKey ? 'Real API Key' : 'Mock API Key for Testing');
+    const apiKey = connections.credentials.apiKey;
+    console.log('Using LeadProsper API key for real data sync');
 
     // Determine date range based on sync type
     let startDate: string;
@@ -56,9 +74,9 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
 
     if (type === 'historical') {
-      // For historical sync, get data from 90 days ago to yesterday
+      // For historical sync, get data from 30 days ago to yesterday
       const historicalStart = new Date();
-      historicalStart.setDate(historicalStart.getDate() - 90);
+      historicalStart.setDate(historicalStart.getDate() - 30);
       startDate = historicalStart.toISOString().split('T')[0];
       
       const yesterday = new Date();
@@ -72,55 +90,125 @@ Deno.serve(async (req) => {
 
     console.log('Fetching LeadProsper data:', { startDate, endDate });
 
-    // Check if API key exists and log it (without showing the actual key for security)
-    console.log('API key configured:', apiKey ? 'Yes' : 'No', apiKey ? `(${apiKey.length} chars)` : '');
+    // Step 1: Get all campaigns
+    console.log('Fetching campaigns from LeadProsper API...');
+    const campaignsResponse = await fetch('https://api.leadprosper.io/public/campaigns', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-    // Try multiple potential API endpoints and methods
-    let lpResponse;
-    let apiError = null;
-
-    // Create mock data for testing since LeadProsper API endpoints don't seem to exist
-    console.log('Creating mock LeadProsper data for testing...');
-    
-    const mockLeads = [];
-    const numMockLeads = type === 'historical' ? 50 : 5; // More historical data
-    
-    for (let i = 0; i < numMockLeads; i++) {
-      const leadDate = type === 'historical' 
-        ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000) // Random date in last 30 days
-        : new Date(); // Today for daily sync
-      
-      mockLeads.push({
-        id: `LP-${Date.now()}-${i}`,
-        campaign_id: `camp_${Math.floor(Math.random() * 10) + 1}`,
-        campaign_name: [
-          'Personal Injury Campaign',
-          'Medical Malpractice',
-          'Auto Accident Leads',
-          'Slip & Fall',
-          'Product Liability'
-        ][Math.floor(Math.random() * 5)],
-        date: leadDate.toISOString().split('T')[0],
-        status: ['qualified', 'contacted', 'converted', 'rejected'][Math.floor(Math.random() * 4)],
-        revenue: Math.random() > 0.7 ? Math.floor(Math.random() * 5000) + 1000 : 0,
-        cost: Math.floor(Math.random() * 200) + 50,
-        created_at: leadDate.toISOString(),
-        lead_source: 'LeadProsper',
-        phone: `555-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-        email: `lead${i}@example.com`
-      });
+    if (!campaignsResponse.ok) {
+      console.error('LeadProsper campaigns API error:', campaignsResponse.status, campaignsResponse.statusText);
+      const errorText = await campaignsResponse.text();
+      console.error('Error response:', errorText);
+      return new Response(
+        JSON.stringify({ error: `LeadProsper API error: ${campaignsResponse.statusText}` }),
+        { status: campaignsResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Generated ${mockLeads.length} mock leads for testing`);
+    const campaigns: LeadProsperCampaign[] = await campaignsResponse.json();
+    console.log(`Found ${campaigns.length} campaigns`);
 
-    // Process and store leads data with flexible field mapping
-    const processedLeads = mockLeads.map((lead, index) => {
+    if (!campaigns || campaigns.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          dateRange: { startDate, endDate },
+          type,
+          message: 'No campaigns found in LeadProsper account'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step 2: Fetch leads for each campaign
+    let allLeads: LeadProsperLead[] = [];
+    let processedCampaigns = 0;
+
+    for (const campaign of campaigns) {
+      try {
+        console.log(`Fetching leads for campaign: ${campaign.name} (ID: ${campaign.id})`);
+        
+        const leadsUrl = new URL('https://api.leadprosper.io/public/leads');
+        leadsUrl.searchParams.set('start_date', startDate);
+        leadsUrl.searchParams.set('end_date', endDate);
+        leadsUrl.searchParams.set('campaign', campaign.id.toString());
+        leadsUrl.searchParams.set('timezone', 'America/New_York');
+
+        const leadsResponse = await fetch(leadsUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!leadsResponse.ok) {
+          console.warn(`Failed to fetch leads for campaign ${campaign.id}:`, leadsResponse.status);
+          continue;
+        }
+
+        const leadsData = await leadsResponse.json();
+        
+        // Handle pagination if needed
+        let leads: LeadProsperLead[] = [];
+        if (Array.isArray(leadsData)) {
+          leads = leadsData;
+        } else if (leadsData.data && Array.isArray(leadsData.data)) {
+          leads = leadsData.data;
+        } else if (leadsData.leads && Array.isArray(leadsData.leads)) {
+          leads = leadsData.leads;
+        }
+
+        if (leads.length > 0) {
+          console.log(`Found ${leads.length} leads for campaign ${campaign.name}`);
+          allLeads = allLeads.concat(leads);
+        }
+
+        processedCampaigns++;
+        
+        // Add a small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.warn(`Error processing campaign ${campaign.id}:`, error);
+        continue;
+      }
+    }
+
+    console.log(`Total leads found across all campaigns: ${allLeads.length}`);
+
+    if (allLeads.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          dateRange: { startDate, endDate },
+          type,
+          message: `No leads found for the specified date range across ${processedCampaigns} campaigns`
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step 3: Process and store leads data
+    const processedLeads = allLeads.map((lead) => {
+      // Convert lead_date_ms to date
+      const leadDate = lead.lead_date_ms 
+        ? new Date(parseInt(lead.lead_date_ms)).toISOString().split('T')[0]
+        : startDate;
+
       return {
         lead_id: lead.id,
-        campaign_id: lead.campaign_id,
-        campaign_name: lead.campaign_name,
-        date: lead.date,
-        status: lead.status,
+        campaign_id: lead.campaign_id.toString(),
+        campaign_name: lead.campaign_name || 'Unknown Campaign',
+        date: leadDate,
+        status: lead.status?.toLowerCase() || 'unknown',
         revenue: Number(lead.revenue || 0),
         cost: Number(lead.cost || 0),
         raw_data: lead,
@@ -128,7 +216,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Upsert leads data
+    // Step 4: Upsert leads data
     const { error: upsertError } = await supabase
       .from('leadprosper_leads')
       .upsert(processedLeads, {
@@ -139,17 +227,18 @@ Deno.serve(async (req) => {
     if (upsertError) {
       console.error('Database upsert error:', upsertError);
       return new Response(
-        JSON.stringify({ error: 'Failed to store leads data' }),
+        JSON.stringify({ error: 'Failed to store leads data in database' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Successfully processed ${processedLeads.length} leads`);
+    console.log(`Successfully processed and stored ${processedLeads.length} leads from ${processedCampaigns} campaigns`);
 
     return new Response(
       JSON.stringify({
         success: true,
         processed: processedLeads.length,
+        campaigns_processed: processedCampaigns,
         dateRange: { startDate, endDate },
         type
       }),
@@ -159,7 +248,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in leadprosper-sync function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

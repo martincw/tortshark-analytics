@@ -60,7 +60,7 @@ const LeadsTab: React.FC = () => {
 
       if (error) throw error;
 
-      toast.success(`LeadProsper ${type} sync completed - ${data.processed} ${type === 'historical' ? 'mock ' : ''}leads processed`);
+      toast.success(`LeadProsper ${type} sync completed - ${data.processed} leads processed from ${data.campaigns_processed || 'multiple'} campaigns`);
       setLastSyncTime(new Date());
       
       // Refresh the data after sync
@@ -110,12 +110,7 @@ const LeadsTab: React.FC = () => {
     <Card className="mt-6">
       <CardHeader>
         <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-md font-medium">LeadProsper Leads</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Currently using mock data for testing • Real API integration coming soon
-            </p>
-          </div>
+          <CardTitle className="text-md font-medium">LeadProsper Leads</CardTitle>
           <div className="flex gap-2">
             <Button
               variant="outline"
