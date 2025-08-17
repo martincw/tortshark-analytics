@@ -216,6 +216,7 @@ const LeadsTab: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead 
                     className="cursor-pointer select-none"
                     onClick={() => handleSort('campaign_name')}
@@ -249,15 +250,16 @@ const LeadsTab: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {campaignSummaries.map(campaign => {
-                  const profitClass = campaign.profit > 0 ? "text-success-DEFAULT" : (campaign.profit < 0 ? "text-error-DEFAULT" : "text-muted-foreground");
+                {campaignSummaries.map((campaign, index) => {
+                  const profitClass = campaign.profit > 0 ? "text-green-600 font-semibold" : (campaign.profit < 0 ? "text-red-600 font-semibold" : "text-muted-foreground");
                   return (
-                    <TableRow key={campaign.campaign_id}>
-                      <TableCell className="font-medium text-primary">{campaign.campaign_name}</TableCell>
+                    <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
+                      <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
+                      <TableCell className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
                       <TableCell className="text-right font-medium">{campaign.leads}</TableCell>
-                      <TableCell className="text-right text-success-DEFAULT font-medium">{campaign.accepted}</TableCell>
-                      <TableCell className="text-right text-error-DEFAULT font-medium">{campaign.failed}</TableCell>
-                      <TableCell className={`text-right font-medium ${profitClass}`}>
+                      <TableCell className="text-right font-semibold text-green-600">{campaign.accepted}</TableCell>
+                      <TableCell className="text-right font-semibold text-red-600">{campaign.failed}</TableCell>
+                      <TableCell className={`text-right ${profitClass}`}>
                         {formatCurrency(campaign.profit)}
                       </TableCell>
                     </TableRow>
