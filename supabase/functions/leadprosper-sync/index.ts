@@ -41,13 +41,35 @@ Deno.serve(async (req) => {
     const { type = 'today' } = await req.json();
     console.log('LeadProsper sync request:', { type });
     
-    // Get the API key from account_connections table
+    // Get user from authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      console.error('Authentication error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Get the API key from account_connections table for this user
     const { data: connections, error: connectionError } = await supabase
       .from('account_connections')
       .select('credentials')
       .eq('platform', 'leadprosper')
       .eq('is_connected', true)
-      .maybeSingle();
+      .eq('user_id', user.id)
+      .single();
 
     if (connectionError) {
       console.error('Database error fetching LeadProsper connection:', connectionError);
