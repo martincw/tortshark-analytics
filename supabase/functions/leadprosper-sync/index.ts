@@ -62,18 +62,87 @@ Deno.serve(async (req) => {
 
     console.log('Fetching LeadProsper data:', { startDate, endDate });
 
-    // Fetch data from LeadProsper API
-    const lpResponse = await fetch('https://api.leadprosper.io/v1/leads', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        start_date: startDate,
-        end_date: endDate
-      })
-    });
+    // Check if API key exists and log it (without showing the actual key for security)
+    console.log('API key configured:', apiKey ? 'Yes' : 'No', apiKey ? `(${apiKey.length} chars)` : '');
+
+    // Try multiple potential API endpoints and methods
+    let lpResponse;
+    let apiError = null;
+
+    // First try: GET method with query parameters
+    try {
+      console.log('Trying GET method with query parameters...');
+      const url = new URL('https://api.leadprosper.io/api/leads');
+      url.searchParams.set('start_date', startDate);
+      url.searchParams.set('end_date', endDate);
+      
+      lpResponse = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey
+        }
+      });
+      
+      console.log('GET response status:', lpResponse.status);
+      
+      if (lpResponse.ok) {
+        console.log('GET method successful');
+      } else {
+        throw new Error(`GET failed with status ${lpResponse.status}`);
+      }
+    } catch (error) {
+      console.log('GET method failed:', error);
+      apiError = error;
+      
+      // Second try: POST method
+      try {
+        console.log('Trying POST method...');
+        lpResponse = await fetch('https://api.leadprosper.io/api/leads', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          },
+          body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate
+          })
+        });
+        
+        console.log('POST response status:', lpResponse.status);
+        
+        if (!lpResponse.ok) {
+          throw new Error(`POST failed with status ${lpResponse.status}`);
+        }
+      } catch (postError) {
+        console.log('POST method also failed:', postError);
+        
+        // Third try: Different endpoint structure
+        try {
+          console.log('Trying alternative endpoint structure...');
+          lpResponse = await fetch('https://leadprosper.io/api/v1/leads', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          console.log('Alternative endpoint status:', lpResponse.status);
+          
+          if (!lpResponse.ok) {
+            throw new Error(`Alternative endpoint failed with status ${lpResponse.status}`);
+          }
+        } catch (altError) {
+          console.log('All API attempts failed');
+          console.error('Final error:', altError);
+          throw new Error(`All API endpoint attempts failed. Last error: ${altError.message}`);
+        }
+      }
+    }
 
     if (!lpResponse.ok) {
       console.error('LeadProsper API error:', lpResponse.status, lpResponse.statusText);
@@ -83,30 +152,66 @@ Deno.serve(async (req) => {
       );
     }
 
-    const lpData: LeadProsperResponse = await lpResponse.json();
-    
-    if (!lpData.success) {
-      console.error('LeadProsper API returned error:', lpData.error);
+    let lpData;
+    try {
+      lpData = await lpResponse.json();
+      console.log('API Response received:', Object.keys(lpData), 'Keys in response');
+      console.log('Response sample:', JSON.stringify(lpData).substring(0, 500) + '...');
+    } catch (parseError) {
+      console.error('Failed to parse API response:', parseError);
       return new Response(
-        JSON.stringify({ error: lpData.error || 'LeadProsper API returned an error' }),
+        JSON.stringify({ error: 'Invalid response format from LeadProsper API' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Handle different possible response structures
+    let leads = [];
+    if (lpData.leads && Array.isArray(lpData.leads)) {
+      leads = lpData.leads;
+    } else if (lpData.data && Array.isArray(lpData.data)) {
+      leads = lpData.data;
+    } else if (Array.isArray(lpData)) {
+      leads = lpData;
+    } else {
+      console.error('Unexpected response structure:', lpData);
+      return new Response(
+        JSON.stringify({ error: 'Unexpected response format from LeadProsper API' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Processing ${lpData.leads.length} leads from LeadProsper`);
+    console.log(`Processing ${leads.length} leads from LeadProsper`);
 
-    // Process and store leads data
-    const processedLeads = lpData.leads.map(lead => ({
-      lead_id: lead.id,
-      campaign_id: lead.campaign_id,
-      campaign_name: lead.campaign_name,
-      date: lead.date,
-      status: lead.status,
-      revenue: lead.revenue || 0,
-      cost: lead.cost || 0,
-      raw_data: lead,
-      updated_at: new Date().toISOString()
-    }));
+    if (leads.length === 0) {
+      console.log('No leads found in response');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          dateRange: { startDate, endDate },
+          type,
+          message: 'No leads found for the specified date range'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Process and store leads data with flexible field mapping
+    const processedLeads = leads.map((lead, index) => {
+      console.log(`Processing lead ${index}:`, Object.keys(lead));
+      return {
+        lead_id: lead.id || lead.lead_id || lead.leadId || `unknown_${index}`,
+        campaign_id: lead.campaign_id || lead.campaignId || 'unknown',
+        campaign_name: lead.campaign_name || lead.campaignName || lead.name || 'Unknown Campaign',
+        date: lead.date || lead.created_at || lead.createdAt || startDate,
+        status: lead.status || 'unknown',
+        revenue: Number(lead.revenue || lead.value || 0),
+        cost: Number(lead.cost || lead.spend || 0),
+        raw_data: lead,
+        updated_at: new Date().toISOString()
+      };
+    });
 
     // Upsert leads data
     const { error: upsertError } = await supabase
