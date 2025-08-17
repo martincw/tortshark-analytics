@@ -13,6 +13,7 @@ import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import LeadsTab from "@/components/dashboard/LeadsTab";
+import PortfolioTab from "@/components/dashboard/PortfolioTab";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();
@@ -174,6 +175,18 @@ const Index = () => {
             Overview
           </TabsTrigger>
           <TabsTrigger 
+            value="campaigns" 
+            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
+          >
+            Campaigns
+          </TabsTrigger>
+          <TabsTrigger 
+            value="portfolio" 
+            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
+          >
+            Portfolio
+          </TabsTrigger>
+          <TabsTrigger 
             value="leaderboard" 
             className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
           >
@@ -185,12 +198,6 @@ const Index = () => {
           >
             Leads
           </TabsTrigger>
-          <TabsTrigger 
-            value="campaigns" 
-            className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
-          >
-            Campaigns
-          </TabsTrigger>
         </TabsList>
         
         {/* Overview Tab Content */}
@@ -199,16 +206,6 @@ const Index = () => {
             <DashboardFinancialStats />
             <DailyAveragesSection filteredCampaigns={filteredCampaigns} />
           </div>
-        </TabsContent>
-        
-        {/* Leaderboard Tab Content */}
-        <TabsContent value="leaderboard" className="space-y-6 mt-0">
-          <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
-        </TabsContent>
-        
-        {/* Leads Tab Content */}
-        <TabsContent value="leads" className="space-y-6 mt-0">
-          <LeadsTab />
         </TabsContent>
         
         {/* Campaigns Tab Content */}
@@ -223,6 +220,21 @@ const Index = () => {
             campaignTypes={campaignTypes}
           />
           <CampaignGrid filteredCampaigns={sortedAndFilteredCampaigns} />
+        </TabsContent>
+        
+        {/* Portfolio Tab Content */}
+        <TabsContent value="portfolio" className="space-y-6 mt-0">
+          <PortfolioTab />
+        </TabsContent>
+        
+        {/* Leaderboard Tab Content */}
+        <TabsContent value="leaderboard" className="space-y-6 mt-0">
+          <CampaignLeaderboard filteredCampaigns={filteredCampaigns} />
+        </TabsContent>
+        
+        {/* Leads Tab Content */}
+        <TabsContent value="leads" className="space-y-6 mt-0">
+          <LeadsTab />
         </TabsContent>
       </Tabs>
     </div>
