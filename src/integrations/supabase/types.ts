@@ -1308,6 +1308,10 @@ export type Database = {
         Args: { user_id?: string; workspace_id: string }
         Returns: boolean
       }
+      is_workspace_owner_safe: {
+        Args: { user_id?: string; workspace_id: string }
+        Returns: boolean
+      }
       migrate_campaigns_from_localstorage: {
         Args: Record<PropertyKey, never>
         Returns: string

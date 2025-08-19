@@ -60,12 +60,23 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
         .select('workspace_id')
         .eq('user_id', user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (workspaceError || !workspaceData) {
+      if (workspaceError) {
+        console.error('Error fetching workspace:', workspaceError);
         toast({
           title: "Error",
-          description: "Could not find workspace.",
+          description: "Could not find workspace. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!workspaceData) {
+        console.error('No workspace found for user:', user.id);
+        toast({
+          title: "Error", 
+          description: "No workspace found. Please contact support.",
           variant: "destructive",
         });
         return;
