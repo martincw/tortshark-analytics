@@ -29,6 +29,9 @@ interface ContractorSubmission {
   campaign_id: string;
   submission_date: string;
   ad_spend: number;
+  youtube_spend?: number;
+  meta_spend?: number;
+  newsbreak_spend?: number;
   leads: number;
   cases: number;
   revenue: number;
@@ -78,6 +81,9 @@ export default function ContractorSubmissionsPage() {
   const updateSubmission = async (submissionId: string, data: {
     submission_date: string;
     ad_spend: number;
+    youtube_spend?: number;
+    meta_spend?: number; 
+    newsbreak_spend?: number;
     leads: number;
     cases: number;
     revenue: number;
@@ -86,16 +92,19 @@ export default function ContractorSubmissionsPage() {
     setProcessingId(submissionId);
     
     try {
-      const { error } = await supabase
-        .from('contractor_submissions')
-        .update({
-          submission_date: data.submission_date,
-          ad_spend: data.ad_spend,
-          leads: data.leads,
-          cases: data.cases,
-          revenue: data.revenue,
-          notes: data.notes,
-        })
+        const { error } = await supabase
+          .from('contractor_submissions')
+          .update({
+            submission_date: data.submission_date,
+            ad_spend: data.ad_spend,
+            youtube_spend: data.youtube_spend || 0,
+            meta_spend: data.meta_spend || 0,
+            newsbreak_spend: data.newsbreak_spend || 0,
+            leads: data.leads,
+            cases: data.cases,
+            revenue: data.revenue,
+            notes: data.notes,
+          })
         .eq('id', submissionId);
 
       if (error) throw error;
@@ -125,6 +134,9 @@ export default function ContractorSubmissionsPage() {
           campaign_id: submission.campaign_id,
           date: submission.submission_date,
           ad_spend: submission.ad_spend,
+          youtube_spend: submission.youtube_spend || 0,
+          meta_spend: submission.meta_spend || 0,
+          newsbreak_spend: submission.newsbreak_spend || 0,
           leads: submission.leads,
           cases: submission.cases,
           revenue: submission.revenue

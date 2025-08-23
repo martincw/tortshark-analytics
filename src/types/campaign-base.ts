@@ -36,7 +36,11 @@ export interface StatHistoryEntry {
   leads: number;
   cases: number;
   revenue: number;
+  retainers?: number;
   adSpend?: number;
+  youtube_spend?: number;
+  meta_spend?: number;
+  newsbreak_spend?: number;
   createdAt?: string;
   // updatedAt property removed as it doesn't exist in the database
 }

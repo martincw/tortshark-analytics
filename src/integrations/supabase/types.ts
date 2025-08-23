@@ -396,9 +396,12 @@ export type Database = {
           date: string
           id: string
           leads: number
+          meta_spend: number | null
+          newsbreak_spend: number | null
           retainers: number
           revenue: number
           workspace_id: string | null
+          youtube_spend: number | null
         }
         Insert: {
           ad_spend?: number | null
@@ -408,9 +411,12 @@ export type Database = {
           date: string
           id?: string
           leads?: number
+          meta_spend?: number | null
+          newsbreak_spend?: number | null
           retainers?: number
           revenue?: number
           workspace_id?: string | null
+          youtube_spend?: number | null
         }
         Update: {
           ad_spend?: number | null
@@ -420,9 +426,12 @@ export type Database = {
           date?: string
           id?: string
           leads?: number
+          meta_spend?: number | null
+          newsbreak_spend?: number | null
           retainers?: number
           revenue?: number
           workspace_id?: string | null
+          youtube_spend?: number | null
         }
         Relationships: [
           {
@@ -672,11 +681,14 @@ export type Database = {
           id: string
           ip_address: string | null
           leads: number
+          meta_spend: number | null
+          newsbreak_spend: number | null
           notes: string | null
           revenue: number
           status: string
           submission_date: string
           updated_at: string
+          youtube_spend: number | null
         }
         Insert: {
           ad_spend?: number
@@ -690,11 +702,14 @@ export type Database = {
           id?: string
           ip_address?: string | null
           leads?: number
+          meta_spend?: number | null
+          newsbreak_spend?: number | null
           notes?: string | null
           revenue?: number
           status?: string
           submission_date: string
           updated_at?: string
+          youtube_spend?: number | null
         }
         Update: {
           ad_spend?: number
@@ -708,11 +723,14 @@ export type Database = {
           id?: string
           ip_address?: string | null
           leads?: number
+          meta_spend?: number | null
+          newsbreak_spend?: number | null
           notes?: string | null
           revenue?: number
           status?: string
           submission_date?: string
           updated_at?: string
+          youtube_spend?: number | null
         }
         Relationships: [
           {

@@ -68,6 +68,7 @@ import CampaignDailyAverages from "@/components/campaigns/CampaignDailyAverages"
 import { BuyerStackSection } from "@/components/campaigns/BuyerStackSection";
 import { FlexibleTimeComparison } from "@/components/campaigns/FlexibleTimeComparison";
 import { MultiDayStatsDialog } from "@/components/dashboard/campaign-card/MultiDayStatsDialog";
+import { ChannelSpendBreakdown } from "@/components/campaigns/ChannelSpendBreakdown";
 import { useMultiDayStats } from "@/components/dashboard/campaign-card/useMultiDayStats";
 
 const CampaignDetail = () => {
@@ -112,7 +113,10 @@ const CampaignDetail = () => {
     leads: "0",
     cases: "0",
     revenue: "0",
-    adSpend: "0"
+    adSpend: "0",
+    youtubeSpend: "0",
+    metaSpend: "0",
+    newsbreakSpend: "0"
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -122,7 +126,10 @@ const CampaignDetail = () => {
     leads: "0",
     cases: "0",
     revenue: "0",
-    adSpend: "0"
+    adSpend: "0",
+    youtubeSpend: "0",
+    metaSpend: "0",
+    newsbreakSpend: "0"
   });
   const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
@@ -300,8 +307,11 @@ const CampaignDetail = () => {
     const newCases = parseInt(dailyStats.cases) || 0;
     const newRevenue = parseFloat(dailyStats.revenue) || 0;
     const newAdSpend = parseFloat(dailyStats.adSpend) || 0;
+    const newYoutubeSpend = parseFloat(dailyStats.youtubeSpend) || 0;
+    const newMetaSpend = parseFloat(dailyStats.metaSpend) || 0;
+    const newNewsbreakSpend = parseFloat(dailyStats.newsbreakSpend) || 0;
     
-    if (newLeads === 0 && newCases === 0 && newRevenue === 0 && newAdSpend === 0) {
+    if (newLeads === 0 && newCases === 0 && newRevenue === 0 && newAdSpend === 0 && newYoutubeSpend === 0 && newMetaSpend === 0 && newNewsbreakSpend === 0) {
       toast.error("Please enter at least one value greater than 0");
       return;
     }
@@ -332,7 +342,10 @@ const CampaignDetail = () => {
       cases: newCases,
       retainers: newCases,
       revenue: newRevenue,
-      adSpend: newAdSpend
+      adSpend: newAdSpend,
+      youtubeSpend: newYoutubeSpend,
+      metaSpend: newMetaSpend,
+      newsbreakSpend: newNewsbreakSpend
     });
     
     setIsDailyStatsDialogOpen(false);
@@ -342,7 +355,10 @@ const CampaignDetail = () => {
       leads: "0",
       cases: "0",
       revenue: "0",
-      adSpend: "0"
+      adSpend: "0",
+      youtubeSpend: "0",
+      metaSpend: "0",
+      newsbreakSpend: "0"
     });
     
     setLeadCount((parseInt(leadCount) + newLeads).toString());
@@ -362,7 +378,10 @@ const CampaignDetail = () => {
         leads: entry.leads.toString(),
         cases: entry.cases.toString(), 
         revenue: entry.revenue.toString(),
-        adSpend: (entry.adSpend || 0).toString()
+        adSpend: (entry.adSpend || 0).toString(),
+        youtubeSpend: (entry.youtube_spend || 0).toString(),
+        metaSpend: (entry.meta_spend || 0).toString(),
+        newsbreakSpend: (entry.newsbreak_spend || 0).toString()
       });
       
       let entryDate: Date;
@@ -435,7 +454,10 @@ const CampaignDetail = () => {
       cases: parseInt(editEntryData.cases) || 0,
       retainers: parseInt(editEntryData.cases) || 0,
       revenue: parseFloat(editEntryData.revenue) || 0,
-      adSpend: parseFloat(editEntryData.adSpend) || 0
+      adSpend: parseFloat(editEntryData.adSpend) || 0,
+      youtube_spend: parseFloat(editEntryData.youtubeSpend) || 0,
+      meta_spend: parseFloat(editEntryData.metaSpend) || 0,
+      newsbreak_spend: parseFloat(editEntryData.newsbreakSpend) || 0
     };
     
     console.log("Full entry being updated:", updatedEntry);
@@ -659,6 +681,8 @@ const CampaignDetail = () => {
       
       <BuyerStackSection campaign={campaign} />
       
+      <ChannelSpendBreakdown campaign={campaign} dateRange={dateRange} />
+      
       {/* Replace TimeComparisonSection with FlexibleTimeComparison */}
       <FlexibleTimeComparison campaign={campaign} />
 
@@ -809,7 +833,7 @@ const CampaignDetail = () => {
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="adSpend" className="text-right">Ad Spend</Label>
+              <Label htmlFor="adSpend" className="text-right">Total Ad Spend</Label>
               <Input
                 id="adSpend"
                 type="number"
@@ -817,6 +841,42 @@ const CampaignDetail = () => {
                 onChange={(e) => setDailyStats({...dailyStats, adSpend: e.target.value})}
                 className="col-span-3"
                 placeholder="e.g. 1000"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="youtubeSpend" className="text-right">YouTube Spend</Label>
+              <Input
+                id="youtubeSpend"
+                type="number"
+                value={dailyStats.youtubeSpend}
+                onChange={(e) => setDailyStats({...dailyStats, youtubeSpend: e.target.value})}
+                className="col-span-3"
+                placeholder="e.g. 300"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="metaSpend" className="text-right">Meta Spend</Label>
+              <Input
+                id="metaSpend"
+                type="number"
+                value={dailyStats.metaSpend}
+                onChange={(e) => setDailyStats({...dailyStats, metaSpend: e.target.value})}
+                className="col-span-3"
+                placeholder="e.g. 400"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="newsbreakSpend" className="text-right">Newsbreak Spend</Label>
+              <Input
+                id="newsbreakSpend"
+                type="number"
+                value={dailyStats.newsbreakSpend}
+                onChange={(e) => setDailyStats({...dailyStats, newsbreakSpend: e.target.value})}
+                className="col-span-3"
+                placeholder="e.g. 300"
               />
             </div>
             
@@ -897,12 +957,45 @@ const CampaignDetail = () => {
             </div>
             
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-adSpend" className="text-right">Ad Spend</Label>
+              <Label htmlFor="edit-adSpend" className="text-right">Total Ad Spend</Label>
               <Input
                 id="edit-adSpend"
                 type="number"
                 value={editEntryData.adSpend}
                 onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-youtubeSpend" className="text-right">YouTube Spend</Label>
+              <Input
+                id="edit-youtubeSpend"
+                type="number"
+                value={editEntryData.youtubeSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, youtubeSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-metaSpend" className="text-right">Meta Spend</Label>
+              <Input
+                id="edit-metaSpend"
+                type="number"
+                value={editEntryData.metaSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, metaSpend: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-newsbreakSpend" className="text-right">Newsbreak Spend</Label>
+              <Input
+                id="edit-newsbreakSpend"
+                type="number"
+                value={editEntryData.newsbreakSpend}
+                onChange={(e) => setEditEntryData({...editEntryData, newsbreakSpend: e.target.value})}
                 className="col-span-3"
               />
             </div>
