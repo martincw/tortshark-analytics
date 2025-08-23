@@ -29,7 +29,9 @@ type DailyStats = {
   leads: number;
   cases: number;
   revenue: number;
-  adSpend: number;
+  youtubeSpend: number;
+  metaSpend: number;
+  newsbreakSpend: number;
 };
 
 interface SubmissionConfirmationDialogProps {
@@ -60,9 +62,10 @@ export function SubmissionConfirmationDialog({
 
   const totals = submittedCampaigns.reduce(
     (acc, campaign) => {
-      const stats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
+      const stats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+      const totalAdSpend = (stats.youtubeSpend || 0) + (stats.metaSpend || 0) + (stats.newsbreakSpend || 0);
       return {
-        adSpend: acc.adSpend + (stats.adSpend || 0),
+        adSpend: acc.adSpend + totalAdSpend,
         leads: acc.leads + (stats.leads || 0),
         cases: acc.cases + (stats.cases || 0),
         revenue: acc.revenue + (stats.revenue || 0),
@@ -170,28 +173,35 @@ export function SubmissionConfirmationDialog({
             </CardHeader>
             <CardContent>
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead className="text-right">Ad Spend</TableHead>
-                    <TableHead className="text-right">Leads</TableHead>
-                    <TableHead className="text-right">Cases</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {submittedCampaigns.map((campaign) => {
-                    const stats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, adSpend: 0 };
-                    return (
-                      <TableRow key={campaign.id}>
-                        <TableCell className="font-medium">{campaign.name}</TableCell>
-                        <TableCell className="text-right">${(stats.adSpend || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">{(stats.leads || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">{(stats.cases || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${(stats.revenue || 0).toLocaleString()}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Campaign</TableHead>
+                     <TableHead className="text-right">YouTube</TableHead>
+                     <TableHead className="text-right">Meta</TableHead>
+                     <TableHead className="text-right">Newsbreak</TableHead>
+                     <TableHead className="text-right">Total Ad Spend</TableHead>
+                     <TableHead className="text-right">Leads</TableHead>
+                     <TableHead className="text-right">Cases</TableHead>
+                     <TableHead className="text-right">Revenue</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {submittedCampaigns.map((campaign) => {
+                     const stats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+                     const totalAdSpend = (stats.youtubeSpend || 0) + (stats.metaSpend || 0) + (stats.newsbreakSpend || 0);
+                     return (
+                       <TableRow key={campaign.id}>
+                         <TableCell className="font-medium">{campaign.name}</TableCell>
+                         <TableCell className="text-right">${(stats.youtubeSpend || 0).toLocaleString()}</TableCell>
+                         <TableCell className="text-right">${(stats.metaSpend || 0).toLocaleString()}</TableCell>
+                         <TableCell className="text-right">${(stats.newsbreakSpend || 0).toLocaleString()}</TableCell>
+                         <TableCell className="text-right font-medium">${totalAdSpend.toLocaleString()}</TableCell>
+                         <TableCell className="text-right">{(stats.leads || 0).toLocaleString()}</TableCell>
+                         <TableCell className="text-right">{(stats.cases || 0).toLocaleString()}</TableCell>
+                         <TableCell className="text-right">${(stats.revenue || 0).toLocaleString()}</TableCell>
+                       </TableRow>
+                     );
+                   })}
                 </TableBody>
               </Table>
             </CardContent>

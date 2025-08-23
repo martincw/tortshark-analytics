@@ -39,7 +39,6 @@ type DailyStats = {
   leads: number;
   cases: number;
   revenue: number;
-  adSpend: number;
   youtubeSpend: number;
   metaSpend: number;
   newsbreakSpend: number;
@@ -53,7 +52,7 @@ export default function ContractorBulkEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
   const [statsData, setStatsData] = useState<Record<string, DailyStats>>({});
-  const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'adSpend' | 'youtubeSpend' | 'metaSpend' | 'newsbreakSpend' | null>(null);
+  const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'youtubeSpend' | 'metaSpend' | 'newsbreakSpend' | null>(null);
   const [bulkPasteDialogOpen, setBulkPasteDialogOpen] = useState(false);
   const [pasteContent, setPasteContent] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -126,7 +125,6 @@ export default function ContractorBulkEntry() {
           leads: 0,
           cases: 0,
           revenue: 0,
-          adSpend: 0,
           youtubeSpend: 0,
           metaSpend: 0,
           newsbreakSpend: 0
@@ -150,7 +148,7 @@ export default function ContractorBulkEntry() {
     setStatsData(prev => ({
       ...prev,
       [campaignId]: {
-        ...(prev[campaignId] || { leads: 0, cases: 0, revenue: 0, adSpend: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 }),
+        ...(prev[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 }),
         [field]: numValue
       }
     }));
@@ -184,7 +182,7 @@ export default function ContractorBulkEntry() {
         if (index < campaignArray.length) {
           const campaignId = campaignArray[index];
           newData[campaignId] = {
-            ...(newData[campaignId] || { leads: 0, cases: 0, revenue: 0, adSpend: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 }),
+            ...(newData[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 }),
             [bulkPasteField]: value
           };
         }
@@ -240,7 +238,10 @@ export default function ContractorBulkEntry() {
     try {
       // Submit stats for each selected campaign
       for (const campaignId of selectedCampaigns) {
-        const campaignStats = statsData[campaignId] || { leads: 0, cases: 0, revenue: 0, adSpend: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+        const campaignStats = statsData[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+        
+        // Calculate total ad spend from channel breakdown
+        const totalAdSpend = (campaignStats.youtubeSpend || 0) + (campaignStats.metaSpend || 0) + (campaignStats.newsbreakSpend || 0);
         
         const { error } = await supabase
           .from('contractor_submissions')
@@ -249,7 +250,7 @@ export default function ContractorBulkEntry() {
             contractor_name: contractorInfo.contractorName,
             campaign_id: campaignId,
             submission_date: contractorInfo.submissionDate,
-            ad_spend: campaignStats.adSpend || 0,
+            ad_spend: totalAdSpend,
             youtube_spend: campaignStats.youtubeSpend || 0,
             meta_spend: campaignStats.metaSpend || 0,
             newsbreak_spend: campaignStats.newsbreakSpend || 0,
@@ -393,38 +394,22 @@ export default function ContractorBulkEntry() {
                         <TableHead className="w-[50px]"></TableHead>
                         <TableHead>Campaign</TableHead>
                         <TableHead className="w-[100px]">Status</TableHead>
-                        <TableHead className="text-right">
-                          Total Ad Spend ($)
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="ml-2"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={() => {
-                              setBulkPasteField('adSpend');
-                              setBulkPasteDialogOpen(true);
-                            }}
-                            type="button"
-                          >
-                            Bulk Paste
-                          </Button>
-                        </TableHead>
-                        <TableHead className="text-right">
-                          YouTube ($)
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="ml-2"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={() => {
-                              setBulkPasteField('youtubeSpend');
-                              setBulkPasteDialogOpen(true);
-                            }}
-                            type="button"
-                          >
-                            Bulk Paste
-                          </Button>
-                        </TableHead>
+                         <TableHead className="text-right">
+                           YouTube ($)
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="ml-2"
+                             disabled={selectedCampaigns.size === 0}
+                             onClick={() => {
+                               setBulkPasteField('youtubeSpend');
+                               setBulkPasteDialogOpen(true);
+                             }}
+                             type="button"
+                           >
+                             Bulk Paste
+                           </Button>
+                         </TableHead>
                         <TableHead className="text-right">
                           Meta ($)
                           <Button
@@ -510,7 +495,7 @@ export default function ContractorBulkEntry() {
                     <TableBody>
                       {filteredCampaigns.map((campaign) => {
                         const isSelected = selectedCampaigns.has(campaign.id);
-                        const campaignStats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, adSpend: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+                        const campaignStats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
                         
                         return (
                           <TableRow 
@@ -530,30 +515,18 @@ export default function ContractorBulkEntry() {
                                 {campaign.is_active ? "Active" : "Inactive"}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={isSelected ? (campaignStats.adSpend || '') : ''}
-                                onChange={(e) => handleInputChange(campaign.id, 'adSpend', e.target.value)}
-                                className="w-24 ml-auto"
-                                placeholder="0"
-                                disabled={!isSelected}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={isSelected ? (campaignStats.youtubeSpend || '') : ''}
-                                onChange={(e) => handleInputChange(campaign.id, 'youtubeSpend', e.target.value)}
-                                className="w-24 ml-auto"
-                                placeholder="0"
-                                disabled={!isSelected}
-                              />
-                            </TableCell>
+                             <TableCell className="text-right">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 step="0.01"
+                                 value={isSelected ? (campaignStats.youtubeSpend || '') : ''}
+                                 onChange={(e) => handleInputChange(campaign.id, 'youtubeSpend', e.target.value)}
+                                 className="w-24 ml-auto"
+                                 placeholder="0"
+                                 disabled={!isSelected}
+                               />
+                             </TableCell>
                             <TableCell className="text-right">
                               <Input
                                 type="number"
