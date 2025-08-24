@@ -55,7 +55,7 @@ export default function ContractorBulkEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
   const [statsData, setStatsData] = useState<Record<string, DailyStats>>({});
-  const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'youtubeSpend' | 'metaSpend' | 'newsbreakSpend' | 'youtubeLeads' | 'metaLeads' | 'newsbreakLeads' | null>(null);
+  const [bulkPasteField, setBulkPasteField] = useState<'cases' | 'revenue' | 'youtubeSpend' | 'metaSpend' | 'newsbreakSpend' | 'youtubeLeads' | 'metaLeads' | 'newsbreakLeads' | null>(null);
   const [bulkPasteDialogOpen, setBulkPasteDialogOpen] = useState(false);
   const [pasteContent, setPasteContent] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -249,6 +249,9 @@ export default function ContractorBulkEntry() {
         // Calculate total ad spend from channel breakdown
         const totalAdSpend = (campaignStats.youtubeSpend || 0) + (campaignStats.metaSpend || 0) + (campaignStats.newsbreakSpend || 0);
         
+        // Calculate total leads from channel breakdown
+        const totalLeads = (campaignStats.youtubeLeads || 0) + (campaignStats.metaLeads || 0) + (campaignStats.newsbreakLeads || 0);
+        
         const { error } = await supabase
           .from('contractor_submissions')
           .insert({
@@ -260,7 +263,7 @@ export default function ContractorBulkEntry() {
             youtube_spend: campaignStats.youtubeSpend || 0,
             meta_spend: campaignStats.metaSpend || 0,
             newsbreak_spend: campaignStats.newsbreakSpend || 0,
-            leads: campaignStats.leads || 0,
+            leads: totalLeads,
             youtube_leads: campaignStats.youtubeLeads || 0,
             meta_leads: campaignStats.metaLeads || 0,
             newsbreak_leads: campaignStats.newsbreakLeads || 0,
@@ -451,38 +454,22 @@ export default function ContractorBulkEntry() {
                             Bulk Paste
                           </Button>
                         </TableHead>
-                         <TableHead className="text-right">
-                           Leads
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             className="ml-2"
-                             disabled={selectedCampaigns.size === 0}
-                             onClick={() => {
-                               setBulkPasteField('leads');
-                               setBulkPasteDialogOpen(true);
-                             }}
-                             type="button"
-                           >
-                             Bulk Paste
-                           </Button>
-                         </TableHead>
-                         <TableHead className="text-right">
-                           YouTube Leads
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             className="ml-2"
-                             disabled={selectedCampaigns.size === 0}
-                             onClick={() => {
-                               setBulkPasteField('youtubeLeads');
-                               setBulkPasteDialogOpen(true);
-                             }}
-                             type="button"
-                           >
-                             Bulk Paste
-                           </Button>
-                         </TableHead>
+                          <TableHead className="text-right">
+                            YouTube Leads
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="ml-2"
+                              disabled={selectedCampaigns.size === 0}
+                              onClick={() => {
+                                setBulkPasteField('youtubeLeads');
+                                setBulkPasteDialogOpen(true);
+                              }}
+                              type="button"
+                            >
+                              Bulk Paste
+                            </Button>
+                          </TableHead>
                          <TableHead className="text-right">
                            Meta Leads
                            <Button
@@ -608,17 +595,6 @@ export default function ContractorBulkEntry() {
                                 disabled={!isSelected}
                               />
                             </TableCell>
-                             <TableCell className="text-right">
-                               <Input
-                                 type="number"
-                                 min="0"
-                                 value={isSelected ? (campaignStats.leads || '') : ''}
-                                 onChange={(e) => handleInputChange(campaign.id, 'leads', e.target.value)}
-                                 className="w-24 ml-auto"
-                                 placeholder="0"
-                                 disabled={!isSelected}
-                               />
-                             </TableCell>
                              <TableCell className="text-right">
                                <Input
                                  type="number"
