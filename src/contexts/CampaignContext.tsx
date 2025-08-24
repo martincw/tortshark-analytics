@@ -199,6 +199,9 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             cases: entry.cases || 0,
             revenue: entry.revenue || 0,
             adSpend: entry.ad_spend || 0,
+            youtube_spend: entry.youtube_spend || 0,
+            meta_spend: entry.meta_spend || 0,
+            newsbreak_spend: entry.newsbreak_spend || 0,
             createdAt: entry.created_at || ''
           })) || [];
 

@@ -29,26 +29,7 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
 
   // Calculate channel totals
   const channelTotals = React.useMemo(() => {
-    console.log('=== CHANNEL SPEND BREAKDOWN DEBUG ===');
-    console.log('Campaign:', campaign.name);
-    console.log('Total history entries:', campaign.statsHistory.length);
-    console.log('Filtered history entries:', filteredHistory.length);
-    console.log('Date range:', dateRange);
-    
-    filteredHistory.forEach((entry, index) => {
-      console.log(`Entry ${index + 1}:`, {
-        date: entry.date,
-        youtube_spend: entry.youtube_spend,
-        meta_spend: entry.meta_spend,
-        newsbreak_spend: entry.newsbreak_spend,
-        adSpend: entry.adSpend,
-        hasYoutube: !!entry.youtube_spend && entry.youtube_spend > 0,
-        hasMeta: !!entry.meta_spend && entry.meta_spend > 0,
-        hasNewsbreak: !!entry.newsbreak_spend && entry.newsbreak_spend > 0
-      });
-    });
-    
-    const totals = filteredHistory.reduce(
+    return filteredHistory.reduce(
       (totals, entry) => ({
         youtube: totals.youtube + (entry.youtube_spend || 0),
         meta: totals.meta + (entry.meta_spend || 0),
@@ -57,13 +38,7 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
       }),
       { youtube: 0, meta: 0, newsbreak: 0, total: 0 }
     );
-    
-    console.log('Calculated totals:', totals);
-    console.log('Has channel data:', totals.youtube > 0 || totals.meta > 0 || totals.newsbreak > 0);
-    console.log('=== END DEBUG ===');
-    
-    return totals;
-  }, [filteredHistory, campaign.name, dateRange]);
+  }, [filteredHistory]);
 
   const hasChannelData = channelTotals.youtube > 0 || channelTotals.meta > 0 || channelTotals.newsbreak > 0;
 
@@ -76,12 +51,6 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
         <CardContent>
           <div className="text-center py-4 text-muted-foreground">
             No channel-specific ad spend data available
-          </div>
-          <div className="text-xs text-muted-foreground mt-2 space-y-1">
-            <div>Debug: Filtered entries: {filteredHistory.length}</div>
-            <div>Date range: {dateRange?.startDate} to {dateRange?.endDate}</div>
-            <div>Channel totals: YT: {channelTotals.youtube}, Meta: {channelTotals.meta}, NB: {channelTotals.newsbreak}</div>
-            <div>Total ad spend: {channelTotals.total}</div>
           </div>
         </CardContent>
       </Card>
