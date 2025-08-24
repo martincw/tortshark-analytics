@@ -51,6 +51,10 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
           <div className="text-center py-4 text-muted-foreground">
             No channel-specific ad spend data available
           </div>
+          <div className="text-xs text-muted-foreground mt-2">
+            Debug: Filtered entries: {filteredHistory.length}, 
+            Date range: {dateRange?.startDate} to {dateRange?.endDate}
+          </div>
         </CardContent>
       </Card>
     );
