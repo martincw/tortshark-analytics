@@ -69,6 +69,7 @@ import { BuyerStackSection } from "@/components/campaigns/BuyerStackSection";
 import { FlexibleTimeComparison } from "@/components/campaigns/FlexibleTimeComparison";
 import { MultiDayStatsDialog } from "@/components/dashboard/campaign-card/MultiDayStatsDialog";
 import { ChannelSpendBreakdown } from "@/components/campaigns/ChannelSpendBreakdown";
+import { ChannelLeadBreakdown } from "@/components/campaigns/ChannelLeadBreakdown";
 import { useMultiDayStats } from "@/components/dashboard/campaign-card/useMultiDayStats";
 
 const CampaignDetail = () => {
@@ -682,6 +683,8 @@ const CampaignDetail = () => {
       <BuyerStackSection campaign={campaign} />
       
       <ChannelSpendBreakdown campaign={campaign} dateRange={dateRange} />
+      
+      <ChannelLeadBreakdown campaign={campaign} dateRange={dateRange} />
       
       {/* Replace TimeComparisonSection with FlexibleTimeComparison */}
       <FlexibleTimeComparison campaign={campaign} />

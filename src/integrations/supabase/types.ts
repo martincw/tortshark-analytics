@@ -396,11 +396,14 @@ export type Database = {
           date: string
           id: string
           leads: number
+          meta_leads: number | null
           meta_spend: number | null
+          newsbreak_leads: number | null
           newsbreak_spend: number | null
           retainers: number
           revenue: number
           workspace_id: string | null
+          youtube_leads: number | null
           youtube_spend: number | null
         }
         Insert: {
@@ -411,11 +414,14 @@ export type Database = {
           date: string
           id?: string
           leads?: number
+          meta_leads?: number | null
           meta_spend?: number | null
+          newsbreak_leads?: number | null
           newsbreak_spend?: number | null
           retainers?: number
           revenue?: number
           workspace_id?: string | null
+          youtube_leads?: number | null
           youtube_spend?: number | null
         }
         Update: {
@@ -426,11 +432,14 @@ export type Database = {
           date?: string
           id?: string
           leads?: number
+          meta_leads?: number | null
           meta_spend?: number | null
+          newsbreak_leads?: number | null
           newsbreak_spend?: number | null
           retainers?: number
           revenue?: number
           workspace_id?: string | null
+          youtube_leads?: number | null
           youtube_spend?: number | null
         }
         Relationships: [
@@ -681,13 +690,16 @@ export type Database = {
           id: string
           ip_address: string | null
           leads: number
+          meta_leads: number | null
           meta_spend: number | null
+          newsbreak_leads: number | null
           newsbreak_spend: number | null
           notes: string | null
           revenue: number
           status: string
           submission_date: string
           updated_at: string
+          youtube_leads: number | null
           youtube_spend: number | null
         }
         Insert: {
@@ -702,13 +714,16 @@ export type Database = {
           id?: string
           ip_address?: string | null
           leads?: number
+          meta_leads?: number | null
           meta_spend?: number | null
+          newsbreak_leads?: number | null
           newsbreak_spend?: number | null
           notes?: string | null
           revenue?: number
           status?: string
           submission_date: string
           updated_at?: string
+          youtube_leads?: number | null
           youtube_spend?: number | null
         }
         Update: {
@@ -723,13 +738,16 @@ export type Database = {
           id?: string
           ip_address?: string | null
           leads?: number
+          meta_leads?: number | null
           meta_spend?: number | null
+          newsbreak_leads?: number | null
           newsbreak_spend?: number | null
           notes?: string | null
           revenue?: number
           status?: string
           submission_date?: string
           updated_at?: string
+          youtube_leads?: number | null
           youtube_spend?: number | null
         }
         Relationships: [

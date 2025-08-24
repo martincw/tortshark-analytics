@@ -42,6 +42,9 @@ type DailyStats = {
   youtubeSpend: number;
   metaSpend: number;
   newsbreakSpend: number;
+  youtubeLeads: number;
+  metaLeads: number;
+  newsbreakLeads: number;
 };
 
 export default function ContractorBulkEntry() {
@@ -52,7 +55,7 @@ export default function ContractorBulkEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
   const [statsData, setStatsData] = useState<Record<string, DailyStats>>({});
-  const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'youtubeSpend' | 'metaSpend' | 'newsbreakSpend' | null>(null);
+  const [bulkPasteField, setBulkPasteField] = useState<'leads' | 'cases' | 'revenue' | 'youtubeSpend' | 'metaSpend' | 'newsbreakSpend' | 'youtubeLeads' | 'metaLeads' | 'newsbreakLeads' | null>(null);
   const [bulkPasteDialogOpen, setBulkPasteDialogOpen] = useState(false);
   const [pasteContent, setPasteContent] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -127,7 +130,10 @@ export default function ContractorBulkEntry() {
           revenue: 0,
           youtubeSpend: 0,
           metaSpend: 0,
-          newsbreakSpend: 0
+          newsbreakSpend: 0,
+          youtubeLeads: 0,
+          metaLeads: 0,
+          newsbreakLeads: 0
         }
       }));
     } else {
@@ -148,7 +154,7 @@ export default function ContractorBulkEntry() {
     setStatsData(prev => ({
       ...prev,
       [campaignId]: {
-        ...(prev[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 }),
+        ...(prev[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0, youtubeLeads: 0, metaLeads: 0, newsbreakLeads: 0 }),
         [field]: numValue
       }
     }));
@@ -182,7 +188,7 @@ export default function ContractorBulkEntry() {
         if (index < campaignArray.length) {
           const campaignId = campaignArray[index];
           newData[campaignId] = {
-            ...(newData[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 }),
+            ...(newData[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0, youtubeLeads: 0, metaLeads: 0, newsbreakLeads: 0 }),
             [bulkPasteField]: value
           };
         }
@@ -238,7 +244,7 @@ export default function ContractorBulkEntry() {
     try {
       // Submit stats for each selected campaign
       for (const campaignId of selectedCampaigns) {
-        const campaignStats = statsData[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+        const campaignStats = statsData[campaignId] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0, youtubeLeads: 0, metaLeads: 0, newsbreakLeads: 0 };
         
         // Calculate total ad spend from channel breakdown
         const totalAdSpend = (campaignStats.youtubeSpend || 0) + (campaignStats.metaSpend || 0) + (campaignStats.newsbreakSpend || 0);
@@ -255,6 +261,9 @@ export default function ContractorBulkEntry() {
             meta_spend: campaignStats.metaSpend || 0,
             newsbreak_spend: campaignStats.newsbreakSpend || 0,
             leads: campaignStats.leads || 0,
+            youtube_leads: campaignStats.youtubeLeads || 0,
+            meta_leads: campaignStats.metaLeads || 0,
+            newsbreak_leads: campaignStats.newsbreakLeads || 0,
             cases: campaignStats.cases || 0,
             revenue: campaignStats.revenue || 0,
             notes: contractorInfo.notes,
@@ -442,22 +451,70 @@ export default function ContractorBulkEntry() {
                             Bulk Paste
                           </Button>
                         </TableHead>
-                        <TableHead className="text-right">
-                          Leads
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="ml-2"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={() => {
-                              setBulkPasteField('leads');
-                              setBulkPasteDialogOpen(true);
-                            }}
-                            type="button"
-                          >
-                            Bulk Paste
-                          </Button>
-                        </TableHead>
+                         <TableHead className="text-right">
+                           Leads
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="ml-2"
+                             disabled={selectedCampaigns.size === 0}
+                             onClick={() => {
+                               setBulkPasteField('leads');
+                               setBulkPasteDialogOpen(true);
+                             }}
+                             type="button"
+                           >
+                             Bulk Paste
+                           </Button>
+                         </TableHead>
+                         <TableHead className="text-right">
+                           YouTube Leads
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="ml-2"
+                             disabled={selectedCampaigns.size === 0}
+                             onClick={() => {
+                               setBulkPasteField('youtubeLeads');
+                               setBulkPasteDialogOpen(true);
+                             }}
+                             type="button"
+                           >
+                             Bulk Paste
+                           </Button>
+                         </TableHead>
+                         <TableHead className="text-right">
+                           Meta Leads
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="ml-2"
+                             disabled={selectedCampaigns.size === 0}
+                             onClick={() => {
+                               setBulkPasteField('metaLeads');
+                               setBulkPasteDialogOpen(true);
+                             }}
+                             type="button"
+                           >
+                             Bulk Paste
+                           </Button>
+                         </TableHead>
+                         <TableHead className="text-right">
+                           Newsbreak Leads
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="ml-2"
+                             disabled={selectedCampaigns.size === 0}
+                             onClick={() => {
+                               setBulkPasteField('newsbreakLeads');
+                               setBulkPasteDialogOpen(true);
+                             }}
+                             type="button"
+                           >
+                             Bulk Paste
+                           </Button>
+                         </TableHead>
                         <TableHead className="text-right">
                           Cases
                           <Button
@@ -495,7 +552,7 @@ export default function ContractorBulkEntry() {
                     <TableBody>
                       {filteredCampaigns.map((campaign) => {
                         const isSelected = selectedCampaigns.has(campaign.id);
-                        const campaignStats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0 };
+                        const campaignStats = statsData[campaign.id] || { leads: 0, cases: 0, revenue: 0, youtubeSpend: 0, metaSpend: 0, newsbreakSpend: 0, youtubeLeads: 0, metaLeads: 0, newsbreakLeads: 0 };
                         
                         return (
                           <TableRow 
@@ -551,17 +608,50 @@ export default function ContractorBulkEntry() {
                                 disabled={!isSelected}
                               />
                             </TableCell>
-                            <TableCell className="text-right">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={isSelected ? (campaignStats.leads || '') : ''}
-                                onChange={(e) => handleInputChange(campaign.id, 'leads', e.target.value)}
-                                className="w-24 ml-auto"
-                                placeholder="0"
-                                disabled={!isSelected}
-                              />
-                            </TableCell>
+                             <TableCell className="text-right">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 value={isSelected ? (campaignStats.leads || '') : ''}
+                                 onChange={(e) => handleInputChange(campaign.id, 'leads', e.target.value)}
+                                 className="w-24 ml-auto"
+                                 placeholder="0"
+                                 disabled={!isSelected}
+                               />
+                             </TableCell>
+                             <TableCell className="text-right">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 value={isSelected ? (campaignStats.youtubeLeads || '') : ''}
+                                 onChange={(e) => handleInputChange(campaign.id, 'youtubeLeads', e.target.value)}
+                                 className="w-24 ml-auto"
+                                 placeholder="0"
+                                 disabled={!isSelected}
+                               />
+                             </TableCell>
+                             <TableCell className="text-right">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 value={isSelected ? (campaignStats.metaLeads || '') : ''}
+                                 onChange={(e) => handleInputChange(campaign.id, 'metaLeads', e.target.value)}
+                                 className="w-24 ml-auto"
+                                 placeholder="0"
+                                 disabled={!isSelected}
+                               />
+                             </TableCell>
+                             <TableCell className="text-right">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 value={isSelected ? (campaignStats.newsbreakLeads || '') : ''}
+                                 onChange={(e) => handleInputChange(campaign.id, 'newsbreakLeads', e.target.value)}
+                                 className="w-24 ml-auto"
+                                 placeholder="0"
+                                 disabled={!isSelected}
+                               />
+                             </TableCell>
                             <TableCell className="text-right">
                               <Input
                                 type="number"

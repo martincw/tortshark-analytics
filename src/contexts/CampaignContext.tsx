@@ -202,6 +202,9 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             youtube_spend: entry.youtube_spend || 0,
             meta_spend: entry.meta_spend || 0,
             newsbreak_spend: entry.newsbreak_spend || 0,
+            youtube_leads: entry.youtube_leads || 0,
+            meta_leads: entry.meta_leads || 0,
+            newsbreak_leads: entry.newsbreak_leads || 0,
             createdAt: entry.created_at || ''
           })) || [];
 
