@@ -680,11 +680,11 @@ const CampaignDetail = () => {
       
       <CampaignDailyAverages campaign={campaign} />
       
-      <BuyerStackSection campaign={campaign} />
-      
       <ChannelSpendBreakdown campaign={campaign} dateRange={dateRange} />
       
       <ChannelLeadBreakdown campaign={campaign} dateRange={dateRange} />
+      
+      <BuyerStackSection campaign={campaign} />
       
       {/* Replace TimeComparisonSection with FlexibleTimeComparison */}
       <FlexibleTimeComparison campaign={campaign} />
