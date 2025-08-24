@@ -28,6 +28,14 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
 
   // Calculate channel totals
   const channelTotals = React.useMemo(() => {
+    console.log('Filtered history entries:', filteredHistory.map(entry => ({
+      date: entry.date,
+      youtube_spend: entry.youtube_spend,
+      meta_spend: entry.meta_spend,
+      newsbreak_spend: entry.newsbreak_spend,
+      adSpend: entry.adSpend
+    })));
+    
     return filteredHistory.reduce(
       (totals, entry) => ({
         youtube: totals.youtube + (entry.youtube_spend || 0),
