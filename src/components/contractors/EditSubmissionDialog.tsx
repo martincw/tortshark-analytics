@@ -20,6 +20,15 @@ const editSubmissionSchema = z.object({
   ad_spend: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
     message: "Ad spend must be a valid number >= 0"
   }),
+  youtube_spend: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+    message: "YouTube spend must be a valid number >= 0"
+  }).optional(),
+  meta_spend: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+    message: "Meta spend must be a valid number >= 0"
+  }).optional(),
+  newsbreak_spend: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+    message: "Newsbreak spend must be a valid number >= 0"
+  }).optional(),
   leads: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number.isInteger(Number(val)), {
     message: "Leads must be a valid integer >= 0"
   }),
@@ -41,6 +50,9 @@ interface ContractorSubmission {
   campaign_id: string;
   submission_date: string;
   ad_spend: number;
+  youtube_spend?: number;
+  meta_spend?: number;
+  newsbreak_spend?: number;
   leads: number;
   cases: number;
   revenue: number;
@@ -59,6 +71,9 @@ interface EditSubmissionDialogProps {
   onSave: (submissionId: string, data: {
     submission_date: string;
     ad_spend: number;
+    youtube_spend?: number;
+    meta_spend?: number;
+    newsbreak_spend?: number;
     leads: number;
     cases: number;
     revenue: number;
@@ -93,6 +108,9 @@ export function EditSubmissionDialog({
       reset({
         submission_date: dateString,
         ad_spend: submission.ad_spend.toString(),
+        youtube_spend: (submission.youtube_spend || 0).toString(),
+        meta_spend: (submission.meta_spend || 0).toString(),
+        newsbreak_spend: (submission.newsbreak_spend || 0).toString(),
         leads: submission.leads.toString(),
         cases: submission.cases.toString(),
         revenue: submission.revenue.toString(),
@@ -107,6 +125,9 @@ export function EditSubmissionDialog({
     await onSave(submission.id, {
       submission_date: data.submission_date,
       ad_spend: Number(data.ad_spend),
+      youtube_spend: data.youtube_spend ? Number(data.youtube_spend) : 0,
+      meta_spend: data.meta_spend ? Number(data.meta_spend) : 0,
+      newsbreak_spend: data.newsbreak_spend ? Number(data.newsbreak_spend) : 0,
       leads: Number(data.leads),
       cases: Number(data.cases),
       revenue: Number(data.revenue),
@@ -143,7 +164,7 @@ export function EditSubmissionDialog({
             </div>
 
             <div>
-              <Label htmlFor="ad_spend">Ad Spend ($)</Label>
+              <Label htmlFor="ad_spend">Total Ad Spend ($)</Label>
               <Input
                 id="ad_spend"
                 type="number"
@@ -157,6 +178,62 @@ export function EditSubmissionDialog({
                   {errors.ad_spend.message}
                 </p>
               )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Platform-Specific Ad Spend</Label>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="youtube_spend">YouTube Spend ($)</Label>
+                <Input
+                  id="youtube_spend"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...register("youtube_spend")}
+                />
+                {errors.youtube_spend && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.youtube_spend.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="meta_spend">Meta Spend ($)</Label>
+                <Input
+                  id="meta_spend"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...register("meta_spend")}
+                />
+                {errors.meta_spend && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.meta_spend.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="newsbreak_spend">Newsbreak Spend ($)</Label>
+                <Input
+                  id="newsbreak_spend"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...register("newsbreak_spend")}
+                />
+                {errors.newsbreak_spend && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.newsbreak_spend.message}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
