@@ -41,8 +41,9 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
   }, [filteredHistory]);
 
   const hasChannelData = channelTotals.youtube > 0 || channelTotals.meta > 0 || channelTotals.newsbreak > 0;
+  const hasTotalData = channelTotals.total > 0;
 
-  if (!hasChannelData) {
+  if (!hasChannelData && !hasTotalData) {
     return (
       <Card>
         <CardHeader>
@@ -50,7 +51,28 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-muted-foreground">
-            No channel-specific ad spend data available
+            No ad spend data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If we only have total data but no channel breakdown, show total as a single entry
+  if (!hasChannelData && hasTotalData) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Channel Ad Spend Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-lg font-semibold">
+              Total Ad Spend: {formatCurrency(channelTotals.total)}
+            </div>
+            <div className="text-center py-4 text-muted-foreground">
+              Channel-specific breakdown not available. Edit entries to add platform-specific data.
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -59,8 +59,9 @@ export function ChannelLeadBreakdown({ campaign, dateRange }: ChannelLeadBreakdo
   const hasChannelData = channelTotals.youtube.leads > 0 || 
                          channelTotals.meta.leads > 0 || 
                          channelTotals.newsbreak.leads > 0;
+  const hasTotalData = channelTotals.total.leads > 0;
 
-  if (!hasChannelData) {
+  if (!hasChannelData && !hasTotalData) {
     return (
       <Card>
         <CardHeader>
@@ -68,7 +69,41 @@ export function ChannelLeadBreakdown({ campaign, dateRange }: ChannelLeadBreakdo
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-muted-foreground">
-            No channel-specific lead data available
+            No lead data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If we only have total data but no channel breakdown, show total summary
+  if (!hasChannelData && hasTotalData) {
+    const avgCpl = channelTotals.total.spend > 0 ? channelTotals.total.spend / channelTotals.total.leads : 0;
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Channel Lead Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="text-center">
+                <div className="font-semibold text-lg">{channelTotals.total.leads}</div>
+                <div className="text-muted-foreground">Total Leads</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-lg">{formatCurrency(channelTotals.total.spend)}</div>
+                <div className="text-muted-foreground">Total Spend</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-lg">{formatCurrency(avgCpl)}</div>
+                <div className="text-muted-foreground">Avg CPL</div>
+              </div>
+            </div>
+            <div className="text-center py-4 text-muted-foreground">
+              Channel-specific breakdown not available. Edit entries to add platform-specific data.
+            </div>
           </div>
         </CardContent>
       </Card>
