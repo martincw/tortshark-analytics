@@ -26,27 +26,38 @@ export function ChannelLeadBreakdown({ campaign, dateRange }: ChannelLeadBreakdo
     });
   }, [campaign.statsHistory, dateRange]);
 
-  // Calculate channel totals
+  // Calculate channel totals with migration logic
   const channelTotals = React.useMemo(() => {
     return filteredHistory.reduce(
-      (totals, entry) => ({
-        youtube: {
-          leads: totals.youtube.leads + (entry.youtube_leads || 0),
-          spend: totals.youtube.spend + (entry.youtube_spend || 0)
-        },
-        meta: {
-          leads: totals.meta.leads + (entry.meta_leads || 0),
-          spend: totals.meta.spend + (entry.meta_spend || 0)
-        },
-        newsbreak: {
-          leads: totals.newsbreak.leads + (entry.newsbreak_leads || 0),
-          spend: totals.newsbreak.spend + (entry.newsbreak_spend || 0)
-        },
-        total: {
-          leads: totals.total.leads + (entry.leads || 0),
-          spend: totals.total.spend + (entry.adSpend || 0)
-        }
-      }),
+      (totals, entry) => {
+        // Handle migration case: if no platform breakdown but has total data, treat as YouTube
+        const hasLeads = entry.leads && entry.leads > 0;
+        const hasAdSpend = entry.adSpend && entry.adSpend > 0;
+        const hasPlatformBreakdown = (entry.youtube_leads || 0) + (entry.meta_leads || 0) + (entry.newsbreak_leads || 0) > 0 ||
+                                   (entry.youtube_spend || 0) + (entry.meta_spend || 0) + (entry.newsbreak_spend || 0) > 0;
+        
+        const youtubeLeads = hasPlatformBreakdown ? (entry.youtube_leads || 0) : (hasLeads ? entry.leads : 0);
+        const youtubeSpend = hasPlatformBreakdown ? (entry.youtube_spend || 0) : (hasAdSpend ? entry.adSpend : 0);
+        
+        return {
+          youtube: {
+            leads: totals.youtube.leads + youtubeLeads,
+            spend: totals.youtube.spend + youtubeSpend
+          },
+          meta: {
+            leads: totals.meta.leads + (entry.meta_leads || 0),
+            spend: totals.meta.spend + (entry.meta_spend || 0)
+          },
+          newsbreak: {
+            leads: totals.newsbreak.leads + (entry.newsbreak_leads || 0),
+            spend: totals.newsbreak.spend + (entry.newsbreak_spend || 0)
+          },
+          total: {
+            leads: totals.total.leads + (entry.leads || 0),
+            spend: totals.total.spend + (entry.adSpend || 0)
+          }
+        };
+      },
       { 
         youtube: { leads: 0, spend: 0 },
         meta: { leads: 0, spend: 0 },

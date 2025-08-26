@@ -27,15 +27,25 @@ export function ChannelSpendBreakdown({ campaign, dateRange }: ChannelSpendBreak
     });
   }, [campaign.statsHistory, dateRange]);
 
-  // Calculate channel totals
+  // Calculate channel totals with migration logic
   const channelTotals = React.useMemo(() => {
     return filteredHistory.reduce(
-      (totals, entry) => ({
-        youtube: totals.youtube + (entry.youtube_spend || 0),
-        meta: totals.meta + (entry.meta_spend || 0),
-        newsbreak: totals.newsbreak + (entry.newsbreak_spend || 0),
-        total: totals.total + (entry.adSpend || 0)
-      }),
+      (totals, entry) => {
+        // Handle migration case: if no platform breakdown but has total spend, treat as YouTube
+        const hasAdSpend = entry.adSpend && entry.adSpend > 0;
+        const hasPlatformBreakdown = (entry.youtube_spend || 0) + (entry.meta_spend || 0) + (entry.newsbreak_spend || 0) > 0;
+        
+        const youtubeSpend = hasPlatformBreakdown ? (entry.youtube_spend || 0) : (hasAdSpend ? entry.adSpend : 0);
+        const metaSpend = entry.meta_spend || 0;
+        const newsbreakSpend = entry.newsbreak_spend || 0;
+        
+        return {
+          youtube: totals.youtube + youtubeSpend,
+          meta: totals.meta + metaSpend,
+          newsbreak: totals.newsbreak + newsbreakSpend,
+          total: totals.total + (entry.adSpend || 0)
+        };
+      },
       { youtube: 0, meta: 0, newsbreak: 0, total: 0 }
     );
   }, [filteredHistory]);
