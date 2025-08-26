@@ -683,7 +683,13 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
           cases: entry.cases,
           retainers: entry.retainers,
           revenue: entry.revenue,
-          ad_spend: entry.adSpend
+          ad_spend: entry.adSpend,
+          youtube_spend: entry.youtube_spend,
+          meta_spend: entry.meta_spend,
+          newsbreak_spend: entry.newsbreak_spend,
+          youtube_leads: entry.youtube_leads,
+          meta_leads: entry.meta_leads,
+          newsbreak_leads: entry.newsbreak_leads
         })
         .eq('id', entry.id);
         
