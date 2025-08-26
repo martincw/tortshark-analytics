@@ -455,7 +455,9 @@ const CampaignDetail = () => {
       cases: parseInt(editEntryData.cases) || 0,
       retainers: parseInt(editEntryData.cases) || 0,
       revenue: parseFloat(editEntryData.revenue) || 0,
-      adSpend: parseFloat(editEntryData.adSpend) || 0,
+      adSpend: (parseFloat(editEntryData.youtubeSpend) || 0) + 
+               (parseFloat(editEntryData.metaSpend) || 0) + 
+               (parseFloat(editEntryData.newsbreakSpend) || 0),
       youtube_spend: parseFloat(editEntryData.youtubeSpend) || 0,
       meta_spend: parseFloat(editEntryData.metaSpend) || 0,
       newsbreak_spend: parseFloat(editEntryData.newsbreakSpend) || 0
@@ -960,14 +962,12 @@ const CampaignDetail = () => {
             </div>
             
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-adSpend" className="text-right">Total Ad Spend</Label>
-              <Input
-                id="edit-adSpend"
-                type="number"
-                value={editEntryData.adSpend}
-                onChange={(e) => setEditEntryData({...editEntryData, adSpend: e.target.value})}
-                className="col-span-3"
-              />
+              <Label className="text-right">Total Ad Spend</Label>
+              <div className="col-span-3 px-3 py-2 bg-muted rounded-md text-sm">
+                ${((parseFloat(editEntryData.youtubeSpend) || 0) + 
+                   (parseFloat(editEntryData.metaSpend) || 0) + 
+                   (parseFloat(editEntryData.newsbreakSpend) || 0)).toFixed(2)}
+              </div>
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
