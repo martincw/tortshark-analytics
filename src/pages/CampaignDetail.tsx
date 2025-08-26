@@ -70,6 +70,7 @@ import { FlexibleTimeComparison } from "@/components/campaigns/FlexibleTimeCompa
 import { MultiDayStatsDialog } from "@/components/dashboard/campaign-card/MultiDayStatsDialog";
 import { ChannelSpendBreakdown } from "@/components/campaigns/ChannelSpendBreakdown";
 import { ChannelLeadBreakdown } from "@/components/campaigns/ChannelLeadBreakdown";
+import { WeeklyReturnsSection } from "@/components/campaigns/WeeklyReturnsSection";
 import { useMultiDayStats } from "@/components/dashboard/campaign-card/useMultiDayStats";
 
 const CampaignDetail = () => {
@@ -690,6 +691,11 @@ const CampaignDetail = () => {
       <ChannelSpendBreakdown campaign={campaign} dateRange={dateRange} />
       
       <ChannelLeadBreakdown campaign={campaign} dateRange={dateRange} />
+      
+      <WeeklyReturnsSection 
+        campaignId={campaign.id}
+        workspaceId={campaign.workspace_id}
+      />
       
       <BuyerStackSection campaign={campaign} />
       

@@ -346,6 +346,39 @@ export type Database = {
           },
         ]
       }
+      campaign_returns: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          return_amount: number
+          updated_at: string
+          week_start_date: string
+          workspace_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          return_amount?: number
+          updated_at?: string
+          week_start_date: string
+          workspace_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          return_amount?: number
+          updated_at?: string
+          week_start_date?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       campaign_stats: {
         Row: {
           ad_spend: number
