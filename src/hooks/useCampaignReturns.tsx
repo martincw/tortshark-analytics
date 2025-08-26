@@ -5,14 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 interface CampaignReturn {
   id: string;
   campaign_id: string;
-  week_start_date: string;
   return_amount: number;
   notes?: string;
   created_at: string;
 }
 
 export function useCampaignReturns(campaignId: string) {
-  const [returns, setReturns] = useState<CampaignReturn[]>([]);
+  const [campaignReturn, setCampaignReturn] = useState<CampaignReturn | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -29,10 +28,10 @@ export function useCampaignReturns(campaignId: string) {
         .from('campaign_returns')
         .select('*')
         .eq('campaign_id', campaignId)
-        .order('week_start_date', { ascending: false });
+        .maybeSingle();
 
       if (error) throw error;
-      setReturns(data || []);
+      setCampaignReturn(data);
     } catch (error) {
       console.error('Error fetching returns:', error);
       toast({
@@ -45,31 +44,14 @@ export function useCampaignReturns(campaignId: string) {
     }
   };
 
-  const getTotalReturns = (startDate?: Date, endDate?: Date) => {
-    let filteredReturns = returns;
-    
-    if (startDate && endDate) {
-      filteredReturns = returns.filter(returnItem => {
-        const returnDate = new Date(returnItem.week_start_date);
-        return returnDate >= startDate && returnDate <= endDate;
-      });
-    }
-    
-    return filteredReturns.reduce((total, returnItem) => total + returnItem.return_amount, 0);
-  };
-
-  const getReturnsForDateRange = (startDate: Date, endDate: Date) => {
-    return returns.filter(returnItem => {
-      const returnDate = new Date(returnItem.week_start_date);
-      return returnDate >= startDate && returnDate <= endDate;
-    });
+  const getTotalReturns = () => {
+    return campaignReturn?.return_amount || 0;
   };
 
   return {
-    returns,
+    campaignReturn,
     loading,
     getTotalReturns,
-    getReturnsForDateRange,
     refetch: fetchReturns
   };
 }

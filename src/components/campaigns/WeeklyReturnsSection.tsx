@@ -8,30 +8,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/campaignUtils";
-import { Plus, Calendar, DollarSign, Edit2, Trash2 } from "lucide-react";
-import { format, startOfWeek, endOfWeek } from "date-fns";
+import { DollarSign, Edit2 } from "lucide-react";
 
-interface WeeklyReturn {
+interface CampaignReturn {
   id: string;
   campaign_id: string;
-  week_start_date: string;
   return_amount: number;
   notes?: string;
   created_at: string;
 }
 
-interface WeeklyReturnsSectionProps {
+interface CampaignReturnsProps {
   campaignId: string;
   workspaceId?: string;
 }
 
-export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsSectionProps) {
-  const [returns, setReturns] = useState<WeeklyReturn[]>([]);
+export function WeeklyReturnsSection({ campaignId, workspaceId }: CampaignReturnsProps) {
+  const [campaignReturn, setCampaignReturn] = useState<CampaignReturn | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [editingReturn, setEditingReturn] = useState<WeeklyReturn | null>(null);
   const [formData, setFormData] = useState({
-    weekStartDate: format(startOfWeek(new Date()), 'yyyy-MM-dd'),
     returnAmount: "",
     notes: ""
   });
@@ -47,10 +43,17 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
         .from('campaign_returns')
         .select('*')
         .eq('campaign_id', campaignId)
-        .order('week_start_date', { ascending: false });
+        .maybeSingle();
 
       if (error) throw error;
-      setReturns(data || []);
+      setCampaignReturn(data);
+      
+      if (data) {
+        setFormData({
+          returnAmount: data.return_amount.toString(),
+          notes: data.notes || ""
+        });
+      }
     } catch (error) {
       console.error('Error fetching returns:', error);
       toast({
@@ -69,21 +72,20 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
       const returnData = {
         campaign_id: campaignId,
         workspace_id: workspaceId,
-        week_start_date: formData.weekStartDate,
         return_amount: parseFloat(formData.returnAmount) || 0,
         notes: formData.notes || null
       };
 
-      if (editingReturn) {
+      if (campaignReturn) {
         const { error } = await supabase
           .from('campaign_returns')
           .update(returnData)
-          .eq('id', editingReturn.id);
+          .eq('id', campaignReturn.id);
 
         if (error) throw error;
         toast({
           title: "Success",
-          description: "Return updated successfully"
+          description: "Returns updated successfully"
         });
       } else {
         const { error } = await supabase
@@ -93,23 +95,17 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
         if (error) throw error;
         toast({
           title: "Success",
-          description: "Return added successfully"
+          description: "Returns added successfully"
         });
       }
 
       setIsDialogOpen(false);
-      setEditingReturn(null);
-      setFormData({
-        weekStartDate: format(startOfWeek(new Date()), 'yyyy-MM-dd'),
-        returnAmount: "",
-        notes: ""
-      });
       fetchReturns();
     } catch (error) {
-      console.error('Error saving return:', error);
+      console.error('Error saving returns:', error);
       toast({
         title: "Error",
-        description: "Failed to save return",
+        description: "Failed to save returns",
         variant: "destructive"
       });
     } finally {
@@ -117,48 +113,19 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
     }
   };
 
-  const handleEdit = (returnItem: WeeklyReturn) => {
-    setEditingReturn(returnItem);
-    setFormData({
-      weekStartDate: returnItem.week_start_date,
-      returnAmount: returnItem.return_amount.toString(),
-      notes: returnItem.notes || ""
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = async (returnId: string) => {
-    if (!confirm("Are you sure you want to delete this return entry?")) return;
-
-    try {
-      const { error } = await supabase
-        .from('campaign_returns')
-        .delete()
-        .eq('id', returnId);
-
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Return deleted successfully"
+  const handleEdit = () => {
+    if (campaignReturn) {
+      setFormData({
+        returnAmount: campaignReturn.return_amount.toString(),
+        notes: campaignReturn.notes || ""
       });
-      fetchReturns();
-    } catch (error) {
-      console.error('Error deleting return:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete return",
-        variant: "destructive"
+    } else {
+      setFormData({
+        returnAmount: "",
+        notes: ""
       });
     }
-  };
-
-  const getTotalReturns = () => {
-    return returns.reduce((total, returnItem) => total + returnItem.return_amount, 0);
-  };
-
-  const getWeekEndDate = (weekStartDate: string) => {
-    return format(endOfWeek(new Date(weekStartDate)), 'MMM dd, yyyy');
+    setIsDialogOpen(true);
   };
 
   return (
@@ -167,41 +134,24 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="w-5 h-5" />
-            Weekly Returns & Markdowns
+            Campaign Returns & Markdowns
           </CardTitle>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" onClick={() => {
-                setEditingReturn(null);
-                setFormData({
-                  weekStartDate: format(startOfWeek(new Date()), 'yyyy-MM-dd'),
-                  returnAmount: "",
-                  notes: ""
-                });
-              }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Return
+              <Button size="sm" onClick={handleEdit}>
+                <Edit2 className="w-4 h-4 mr-2" />
+                {campaignReturn ? "Edit Returns" : "Add Returns"}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {editingReturn ? "Edit Weekly Return" : "Add Weekly Return"}
+                  {campaignReturn ? "Edit Campaign Returns" : "Add Campaign Returns"}
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="weekStartDate">Week Starting Date</Label>
-                  <Input
-                    id="weekStartDate"
-                    type="date"
-                    value={formData.weekStartDate}
-                    onChange={(e) => setFormData({...formData, weekStartDate: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="returnAmount">Return Amount ($)</Label>
+                  <Label htmlFor="returnAmount">Total Returns Amount ($)</Label>
                   <Input
                     id="returnAmount"
                     type="number"
@@ -218,7 +168,7 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
                     id="notes"
                     value={formData.notes}
                     onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    placeholder="Add any notes about this return..."
+                    placeholder="Add any notes about these returns..."
                     rows={3}
                   />
                 </div>
@@ -231,7 +181,7 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Saving..." : (editingReturn ? "Update" : "Add Return")}
+                    {isLoading ? "Saving..." : (campaignReturn ? "Update" : "Add Returns")}
                   </Button>
                 </div>
               </form>
@@ -240,57 +190,24 @@ export function WeeklyReturnsSection({ campaignId, workspaceId }: WeeklyReturnsS
         </div>
       </CardHeader>
       <CardContent>
-        {returns.length > 0 ? (
+        {campaignReturn ? (
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="font-medium">Total Returns:</span>
-              <span className="font-bold text-lg">{formatCurrency(getTotalReturns())}</span>
+            <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+              <span className="font-medium">Total Campaign Returns:</span>
+              <span className="font-bold text-lg">{formatCurrency(campaignReturn.return_amount)}</span>
             </div>
-            
-            <div className="space-y-3">
-              {returns.map((returnItem) => (
-                <div key={returnItem.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">
-                        {format(new Date(returnItem.week_start_date), 'MMM dd')} - {getWeekEndDate(returnItem.week_start_date)}
-                      </span>
-                    </div>
-                    {returnItem.notes && (
-                      <p className="text-sm text-muted-foreground">{returnItem.notes}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-lg">
-                      {formatCurrency(returnItem.return_amount)}
-                    </span>
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEdit(returnItem)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleDelete(returnItem.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {campaignReturn.notes && (
+              <div className="p-3 border rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Notes:</p>
+                <p className="text-sm">{campaignReturn.notes}</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No returns recorded yet</p>
-            <p className="text-sm">Add your first weekly return above</p>
+            <p className="text-sm">Add your campaign returns above</p>
           </div>
         )}
       </CardContent>

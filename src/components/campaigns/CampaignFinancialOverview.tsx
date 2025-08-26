@@ -44,7 +44,7 @@ const CampaignFinancialOverview: React.FC<CampaignFinancialOverviewProps> = ({ c
     });
     
     // Calculate returns for the date range
-    const totalReturns = getTotalReturns(new Date(dateRange.startDate), new Date(dateRange.endDate));
+    const totalReturns = getTotalReturns();
     
     // Ensure profit is calculated correctly
     const profit = totalRevenue - totalCost;

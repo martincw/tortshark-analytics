@@ -354,7 +354,6 @@ export type Database = {
           notes: string | null
           return_amount: number
           updated_at: string
-          week_start_date: string
           workspace_id: string | null
         }
         Insert: {
@@ -364,7 +363,6 @@ export type Database = {
           notes?: string | null
           return_amount?: number
           updated_at?: string
-          week_start_date: string
           workspace_id?: string | null
         }
         Update: {
@@ -374,7 +372,6 @@ export type Database = {
           notes?: string | null
           return_amount?: number
           updated_at?: string
-          week_start_date?: string
           workspace_id?: string | null
         }
         Relationships: []
