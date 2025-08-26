@@ -375,12 +375,17 @@ const CampaignDetail = () => {
     
     setTimeout(() => {
       setEditingEntryId(entry.id);
+      // Handle migration case: if platform fields are all 0 but adSpend has value,
+      // put the total adSpend in YouTube field for editing
+      const hasAdSpend = entry.adSpend && entry.adSpend > 0;
+      const hasPlatformBreakdown = (entry.youtube_spend || 0) + (entry.meta_spend || 0) + (entry.newsbreak_spend || 0) > 0;
+      
       setEditEntryData({
         leads: entry.leads.toString(),
         cases: entry.cases.toString(), 
         revenue: entry.revenue.toString(),
         adSpend: (entry.adSpend || 0).toString(),
-        youtubeSpend: (entry.youtube_spend || 0).toString(),
+        youtubeSpend: (hasPlatformBreakdown ? (entry.youtube_spend || 0) : (hasAdSpend ? entry.adSpend : 0)).toString(),
         metaSpend: (entry.meta_spend || 0).toString(),
         newsbreakSpend: (entry.newsbreak_spend || 0).toString()
       });
