@@ -122,7 +122,9 @@ export function EditSubmissionDialog({
   const onSubmit = async (data: EditSubmissionFormData) => {
     if (!submission) return;
 
-    await onSave(submission.id, {
+    console.log('Form data being submitted:', data);
+    
+    const submissionData = {
       submission_date: data.submission_date,
       ad_spend: Number(data.ad_spend),
       youtube_spend: data.youtube_spend ? Number(data.youtube_spend) : 0,
@@ -132,7 +134,11 @@ export function EditSubmissionDialog({
       cases: Number(data.cases),
       revenue: Number(data.revenue),
       notes: data.notes || '',
-    });
+    };
+    
+    console.log('Processed submission data:', submissionData);
+    
+    await onSave(submission.id, submissionData);
   };
 
   if (!submission) return null;
