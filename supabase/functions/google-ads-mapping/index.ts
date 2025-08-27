@@ -12,6 +12,110 @@ const corsHeaders = {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const GOOGLE_ADS_API_VERSION = "v16";
+const GOOGLE_ADS_DEVELOPER_TOKEN =
+  Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+
+async function refreshGoogleToken(refreshToken: string): Promise<any> {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to refresh token: ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+async function getGoogleAdsToken(userId: string): Promise<{
+  accessToken: string;
+  refreshToken?: string;
+} | null> {
+  const { data, error } = await supabase
+    .from("google_ads_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("Error fetching token:", error);
+    return null;
+  }
+
+  const isExpired = new Date(data.expires_at) <= new Date();
+
+  if (isExpired && data.refresh_token) {
+    const refreshed = await refreshGoogleToken(data.refresh_token);
+
+    await supabase
+      .from("google_ads_tokens")
+      .update({
+        access_token: refreshed.access_token,
+        expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+      })
+      .eq("user_id", userId)
+      .eq("provider", "google");
+
+    return { accessToken: refreshed.access_token, refreshToken: data.refresh_token };
+  }
+
+  return { accessToken: data.access_token, refreshToken: data.refresh_token };
+}
+
+async function listCampaigns(
+  accessToken: string,
+  customerId: string,
+  developerToken: string,
+): Promise<any[]> {
+  const query = `
+    SELECT
+      campaign.id,
+      campaign.name,
+      campaign.status
+    FROM campaign
+    WHERE campaign.status != 'REMOVED'
+    ORDER BY campaign.id
+  `;
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "developer-token": developerToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to fetch campaigns: ${text}`);
+  }
+
+  const data = await response.json();
+  return (data.results || []).map((r: any) => ({
+    id: r.campaign.id,
+    name: r.campaign.name,
+    status: r.campaign.status,
+  }));
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -100,21 +204,48 @@ serve(async (req) => {
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
       }
 
       try {
-        // Mock campaigns for testing purposes
-        const mockCampaigns = [
-          { id: "campaign-1", name: "Campaign 1", status: "RUNNING" },
-          { id: "campaign-2", name: "Campaign 2", status: "PAUSED" },
-        ];
+        const tokens = await getGoogleAdsToken(user.id);
 
-        console.log(`Successfully listed available campaigns for account ${googleAccountId}`);
+        if (!tokens) {
+          return new Response(
+            JSON.stringify({ error: "Google Ads authentication not found" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        let campaigns = await listCampaigns(
+          tokens.accessToken,
+          googleAccountId,
+          GOOGLE_ADS_DEVELOPER_TOKEN,
+        );
+
+        if (campaigns.length === 0 && tokens.refreshToken) {
+          const refreshed = await refreshGoogleToken(tokens.refreshToken);
+
+          await supabase
+            .from("google_ads_tokens")
+            .update({
+              access_token: refreshed.access_token,
+              expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+            })
+            .eq("user_id", user.id)
+            .eq("provider", "google");
+
+          campaigns = await listCampaigns(
+            refreshed.access_token,
+            googleAccountId,
+            GOOGLE_ADS_DEVELOPER_TOKEN,
+          );
+        }
+
         return new Response(
-          JSON.stringify({ campaigns: mockCampaigns }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ campaigns }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       } catch (error) {
         console.error("Error listing available campaigns:", error);
@@ -123,7 +254,7 @@ serve(async (req) => {
           {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
       }
     }
