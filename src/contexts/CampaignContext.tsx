@@ -663,6 +663,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       // Ensure the date is in the correct format (YYYY-MM-DD)
       let formattedDate = entry.date;
       
+      console.log("UpdateStatHistoryEntry - Entry being updated:", entry);
       console.log("Entry date before formatting:", entry.date);
       console.log("Entry date type:", typeof entry.date);
       
@@ -674,6 +675,18 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         formattedDate = format(entry.date, 'yyyy-MM-dd');
         console.log("Formatted date from Date object:", formattedDate);
       }
+      
+      console.log("Updating database with:", {
+        date: formattedDate,
+        leads: entry.leads,
+        cases: entry.cases,
+        retainers: entry.retainers,
+        revenue: entry.revenue,
+        ad_spend: entry.adSpend,
+        youtube_spend: entry.youtube_spend,
+        meta_spend: entry.meta_spend,
+        newsbreak_spend: entry.newsbreak_spend
+      });
       
       const { error } = await supabase
         .from('campaign_stats_history')
@@ -698,8 +711,10 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         setError(error.message);
         toast.error("Failed to update stat history entry");
       } else {
+        console.log("Database update successful, refreshing campaigns...");
         toast.success("Stat history entry updated successfully");
         await fetchCampaigns();
+        console.log("Campaigns refreshed after update");
       }
     } catch (err) {
       setError((err as Error).message);

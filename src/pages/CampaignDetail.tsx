@@ -452,6 +452,14 @@ const CampaignDetail = () => {
     
     console.log("Saving edited entry date:", formattedDate);
     console.log("Original edit date object:", editDate);
+    console.log("Edit entry data being saved:", editEntryData);
+    
+    const youtubeSpend = parseFloat(editEntryData.youtubeSpend) || 0;
+    const metaSpend = parseFloat(editEntryData.metaSpend) || 0;
+    const newsbreakSpend = parseFloat(editEntryData.newsbreakSpend) || 0;
+    const totalAdSpend = youtubeSpend + metaSpend + newsbreakSpend;
+    
+    console.log("Platform spends:", { youtubeSpend, metaSpend, newsbreakSpend, totalAdSpend });
     
     const updatedEntry = {
       ...entry,
@@ -461,12 +469,10 @@ const CampaignDetail = () => {
       cases: parseInt(editEntryData.cases) || 0,
       retainers: parseInt(editEntryData.cases) || 0,
       revenue: parseFloat(editEntryData.revenue) || 0,
-      adSpend: (parseFloat(editEntryData.youtubeSpend) || 0) + 
-               (parseFloat(editEntryData.metaSpend) || 0) + 
-               (parseFloat(editEntryData.newsbreakSpend) || 0),
-      youtube_spend: parseFloat(editEntryData.youtubeSpend) || 0,
-      meta_spend: parseFloat(editEntryData.metaSpend) || 0,
-      newsbreak_spend: parseFloat(editEntryData.newsbreakSpend) || 0
+      adSpend: totalAdSpend,
+      youtube_spend: youtubeSpend,
+      meta_spend: metaSpend,
+      newsbreak_spend: newsbreakSpend
     };
     
     console.log("Full entry being updated:", updatedEntry);
