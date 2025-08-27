@@ -126,12 +126,15 @@ const CampaignDetail = () => {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntryData, setEditEntryData] = useState({
     leads: "0",
-    cases: "0",
+    cases: "0", 
     revenue: "0",
     adSpend: "0",
     youtubeSpend: "0",
     metaSpend: "0",
-    newsbreakSpend: "0"
+    newsbreakSpend: "0",
+    youtubeLeads: "0",
+    metaLeads: "0", 
+    newsbreakLeads: "0"
   });
   const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
@@ -380,6 +383,7 @@ const CampaignDetail = () => {
       // put the total adSpend in YouTube field for editing
       const hasAdSpend = entry.adSpend && entry.adSpend > 0;
       const hasPlatformBreakdown = (entry.youtube_spend || 0) + (entry.meta_spend || 0) + (entry.newsbreak_spend || 0) > 0;
+      const hasLeadBreakdown = (entry.youtube_leads || 0) + (entry.meta_leads || 0) + (entry.newsbreak_leads || 0) > 0;
       
       setEditEntryData({
         leads: entry.leads.toString(),
@@ -388,7 +392,10 @@ const CampaignDetail = () => {
         adSpend: (entry.adSpend || 0).toString(),
         youtubeSpend: (hasPlatformBreakdown ? (entry.youtube_spend || 0) : (hasAdSpend ? entry.adSpend : 0)).toString(),
         metaSpend: (entry.meta_spend || 0).toString(),
-        newsbreakSpend: (entry.newsbreak_spend || 0).toString()
+        newsbreakSpend: (entry.newsbreak_spend || 0).toString(),
+        youtubeLeads: (hasLeadBreakdown ? (entry.youtube_leads || 0) : (entry.leads || 0)).toString(),
+        metaLeads: (entry.meta_leads || 0).toString(),
+        newsbreakLeads: (entry.newsbreak_leads || 0).toString()
       });
       
       let entryDate: Date;
@@ -459,20 +466,29 @@ const CampaignDetail = () => {
     const newsbreakSpend = parseFloat(editEntryData.newsbreakSpend) || 0;
     const totalAdSpend = youtubeSpend + metaSpend + newsbreakSpend;
     
+    const youtubeLeads = parseInt(editEntryData.youtubeLeads) || 0;
+    const metaLeads = parseInt(editEntryData.metaLeads) || 0;
+    const newsbreakLeads = parseInt(editEntryData.newsbreakLeads) || 0;
+    const totalLeads = youtubeLeads + metaLeads + newsbreakLeads || parseInt(editEntryData.leads) || 0;
+    
     console.log("Platform spends:", { youtubeSpend, metaSpend, newsbreakSpend, totalAdSpend });
+    console.log("Platform leads:", { youtubeLeads, metaLeads, newsbreakLeads, totalLeads });
     
     const updatedEntry = {
       ...entry,
       id: editingEntryId,
       date: formattedDate,
-      leads: parseInt(editEntryData.leads) || 0,
+      leads: totalLeads,
       cases: parseInt(editEntryData.cases) || 0,
       retainers: parseInt(editEntryData.cases) || 0,
       revenue: parseFloat(editEntryData.revenue) || 0,
       adSpend: totalAdSpend,
       youtube_spend: youtubeSpend,
       meta_spend: metaSpend,
-      newsbreak_spend: newsbreakSpend
+      newsbreak_spend: newsbreakSpend,
+      youtube_leads: youtubeLeads,
+      meta_leads: metaLeads,
+      newsbreak_leads: newsbreakLeads
     };
     
     console.log("Full entry being updated:", updatedEntry);
@@ -1021,12 +1037,43 @@ const CampaignDetail = () => {
             </div>
             
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-leads" className="text-right">Leads</Label>
+              <Label className="text-right">Total Leads</Label>
+              <div className="col-span-3 px-3 py-2 bg-muted rounded-md text-sm">
+                {((parseInt(editEntryData.youtubeLeads) || 0) + 
+                  (parseInt(editEntryData.metaLeads) || 0) + 
+                  (parseInt(editEntryData.newsbreakLeads) || 0)) || parseInt(editEntryData.leads) || 0}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-youtubeLeads" className="text-right">YouTube Leads</Label>
               <Input
-                id="edit-leads"
+                id="edit-youtubeLeads"
                 type="number"
-                value={editEntryData.leads}
-                onChange={(e) => setEditEntryData({...editEntryData, leads: e.target.value})}
+                value={editEntryData.youtubeLeads}
+                onChange={(e) => setEditEntryData({...editEntryData, youtubeLeads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-metaLeads" className="text-right">Meta Leads</Label>
+              <Input
+                id="edit-metaLeads"
+                type="number"
+                value={editEntryData.metaLeads}
+                onChange={(e) => setEditEntryData({...editEntryData, metaLeads: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-newsbreakLeads" className="text-right">Newsbreak Leads</Label>
+              <Input
+                id="edit-newsbreakLeads"
+                type="number"
+                value={editEntryData.newsbreakLeads}
+                onChange={(e) => setEditEntryData({...editEntryData, newsbreakLeads: e.target.value})}
                 className="col-span-3"
               />
             </div>
