@@ -92,27 +92,50 @@ export default function ContractorSubmissionsPage() {
     setProcessingId(submissionId);
     
     try {
-        const { error } = await supabase
-          .from('contractor_submissions')
-          .update({
-            submission_date: data.submission_date,
-            ad_spend: data.ad_spend,
-            youtube_spend: data.youtube_spend || 0,
-            meta_spend: data.meta_spend || 0,
-            newsbreak_spend: data.newsbreak_spend || 0,
-            leads: data.leads,
-            cases: data.cases,
-            revenue: data.revenue,
-            notes: data.notes,
-          })
-        .eq('id', submissionId);
+      const { data: updatedData, error } = await supabase
+        .from('contractor_submissions')
+        .update({
+          submission_date: data.submission_date,
+          ad_spend: data.ad_spend,
+          youtube_spend: data.youtube_spend || 0,
+          meta_spend: data.meta_spend || 0,
+          newsbreak_spend: data.newsbreak_spend || 0,
+          leads: data.leads,
+          cases: data.cases,
+          revenue: data.revenue,
+          notes: data.notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', submissionId)
+        .select();
 
       if (error) throw error;
+
+      // Update local state immediately with the returned data
+      setSubmissions(prev => prev.map(submission => 
+        submission.id === submissionId 
+          ? { ...submission, 
+              submission_date: data.submission_date,
+              ad_spend: data.ad_spend,
+              youtube_spend: data.youtube_spend || 0,
+              meta_spend: data.meta_spend || 0,
+              newsbreak_spend: data.newsbreak_spend || 0,
+              leads: data.leads,
+              cases: data.cases,
+              revenue: data.revenue,
+              notes: data.notes,
+            }
+          : submission
+      ));
 
       toast.success('Submission updated successfully');
       setIsEditDialogOpen(false);
       setEditingSubmission(null);
-      fetchSubmissions();
+      
+      // Refresh from database after a short delay to ensure consistency
+      setTimeout(() => {
+        fetchSubmissions();
+      }, 100);
     } catch (error) {
       console.error('Error updating submission:', error);
       toast.error('Failed to update submission');
