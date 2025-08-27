@@ -109,7 +109,8 @@ export default function ContractorSubmissionsPage() {
           updated_at: new Date().toISOString()
         })
         .eq('id', submissionId)
-        .select();
+        .select('*, campaigns(name)')
+        .single();
 
       if (error) {
         console.error('Database update error:', error);
@@ -117,6 +118,32 @@ export default function ContractorSubmissionsPage() {
       }
 
       console.log('Database update successful:', updatedData);
+
+      // If this submission was already approved, also update the campaign_stats_history
+      if (updatedData.status === 'approved') {
+        console.log('Submission is approved, updating campaign_stats_history...');
+        
+        const { error: historyError } = await supabase
+          .from('campaign_stats_history')
+          .update({
+            ad_spend: data.ad_spend,
+            youtube_spend: data.youtube_spend || 0,
+            meta_spend: data.meta_spend || 0,
+            newsbreak_spend: data.newsbreak_spend || 0,
+            leads: data.leads,
+            cases: data.cases,
+            revenue: data.revenue
+          })
+          .eq('campaign_id', updatedData.campaign_id)
+          .eq('date', data.submission_date);
+
+        if (historyError) {
+          console.error('Error updating campaign stats history:', historyError);
+          toast.error('Updated submission but failed to sync with campaign stats');
+        } else {
+          console.log('Successfully synced with campaign stats history');
+        }
+      }
 
       toast.success('Submission updated successfully');
       setIsEditDialogOpen(false);
