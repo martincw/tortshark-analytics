@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { formatSafeDate } from "@/lib/utils/ManualDateUtils";
 import { CheckCircle, XCircle, Trash2, Edit } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -329,7 +330,7 @@ export default function ContractorSubmissionsPage() {
                       </div>
                     </TableCell>
                     <TableCell>{submission.campaigns?.name}</TableCell>
-                    <TableCell>{format(new Date(submission.submission_date), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>{formatSafeDate(submission.submission_date, 'MMM d, yyyy')}</TableCell>
                     <TableCell>{formatCurrency(submission.ad_spend)}</TableCell>
                     <TableCell>{submission.leads}</TableCell>
                     <TableCell>
