@@ -53,7 +53,10 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
     
     setLoading(true);
     try {
-      // Fetch all buyers that have tort coverage for this campaign
+      // Fetch the campaign buyer stack
+      const stack = await getCampaignBuyerStack(campaign.id);
+      
+      // Fetch all tort coverage for this campaign to include buyers not yet in stack
       const { data: coverageData, error: coverageError } = await supabase
         .from('buyer_tort_coverage')
         .select(`
@@ -74,25 +77,43 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
 
       if (coverageError) throw coverageError;
 
-      // Also fetch the campaign_buyer_stack to get stack_order
-      const stack = await getCampaignBuyerStack(campaign.id);
-      
-      // Create a map of buyer_id to stack_order
-      const stackOrderMap = new Map(
-        stack.map(item => [item.buyers?.id, item.stack_order])
-      );
+      // Get buyer IDs that are already in the stack
+      const stackedBuyerIds = new Set(stack.map(item => item.buyers?.id).filter(Boolean));
 
-      // Format all buyers with tort coverage
-      const formattedStack: BuyerStackItem[] = (coverageData || []).map((item, index) => ({
-        id: item.id,
-        campaign_id: campaign.id,
-        buyer_id: item.buyer_id,
-        stack_order: stackOrderMap.get(item.buyer_id) ?? index,
-        payout_amount: item.payout_amount,
-        is_active: item.is_active,
-        buyers: item.buyers as CaseBuyer,
-        coverage_id: item.id
-      }));
+      // Format stack items - prioritize items from campaign_buyer_stack
+      const formattedStack: BuyerStackItem[] = [];
+      
+      // First, add all items from the stack
+      stack.forEach(item => {
+        if (item.buyers) {
+          formattedStack.push({
+            id: item.id,
+            campaign_id: campaign.id,
+            buyer_id: item.buyers.id,
+            stack_order: item.stack_order,
+            payout_amount: item.payout_amount,
+            is_active: item.is_active,
+            buyers: item.buyers as CaseBuyer
+          });
+        }
+      });
+
+      // Then, add buyers with tort coverage that aren't in the stack yet
+      (coverageData || []).forEach((coverage, index) => {
+        if (!stackedBuyerIds.has(coverage.buyer_id)) {
+          // Create a temporary stack item for buyers with coverage but not in stack
+          formattedStack.push({
+            id: `temp-${coverage.id}`, // Temporary ID until added to stack
+            campaign_id: campaign.id,
+            buyer_id: coverage.buyer_id,
+            stack_order: stack.length + index,
+            payout_amount: coverage.payout_amount,
+            is_active: coverage.is_active,
+            buyers: coverage.buyers as CaseBuyer,
+            coverage_id: coverage.id
+          });
+        }
+      });
 
       // Sort by stack_order
       formattedStack.sort((a, b) => (a.stack_order || 0) - (b.stack_order || 0));
