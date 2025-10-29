@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useBuyers } from "@/hooks/useBuyers";
 import { formatCurrency } from "@/utils/campaignUtils";
-import { 
+import { supabase } from "@/integrations/supabase/client";
+import {
   GripVertical, 
   Plus, 
   Trash2, 
@@ -48,20 +49,54 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
   }, [campaign?.id]);
 
   const loadBuyerStack = async () => {
-    if (!campaign?.id) return; // Add safety check
+    if (!campaign?.id) return;
     
     setLoading(true);
     try {
+      // Fetch all buyers that have tort coverage for this campaign
+      const { data: coverageData, error: coverageError } = await supabase
+        .from('buyer_tort_coverage')
+        .select(`
+          id,
+          buyer_id,
+          campaign_id,
+          payout_amount,
+          is_active,
+          buyers:buyer_id (
+            id,
+            name,
+            email,
+            url,
+            user_id
+          )
+        `)
+        .eq('campaign_id', campaign.id);
+
+      if (coverageError) throw coverageError;
+
+      // Also fetch the campaign_buyer_stack to get stack_order
       const stack = await getCampaignBuyerStack(campaign.id);
-      const formattedStack: BuyerStackItem[] = stack.map(item => ({
+      
+      // Create a map of buyer_id to stack_order
+      const stackOrderMap = new Map(
+        stack.map(item => [item.buyers?.id, item.stack_order])
+      );
+
+      // Format all buyers with tort coverage
+      const formattedStack: BuyerStackItem[] = (coverageData || []).map((item, index) => ({
         id: item.id,
         campaign_id: campaign.id,
-        buyer_id: item.buyers?.id || '',
-        stack_order: item.stack_order,
+        buyer_id: item.buyer_id,
+        stack_order: stackOrderMap.get(item.buyer_id) ?? index,
         payout_amount: item.payout_amount,
         is_active: item.is_active,
-        buyers: item.buyers as CaseBuyer
+        buyers: item.buyers as CaseBuyer,
+        coverage_id: item.id
       }));
+
+      // Sort by stack_order
+      formattedStack.sort((a, b) => (a.stack_order || 0) - (b.stack_order || 0));
+      
       setStackItems(formattedStack);
     } catch (error) {
       console.error("Error loading buyer stack:", error);

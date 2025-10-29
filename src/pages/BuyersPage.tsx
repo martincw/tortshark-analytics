@@ -21,8 +21,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BuyerCard } from "@/components/buyers/BuyerCard";
+import { BuyerListItem } from "@/components/buyers/BuyerListItem";
 import { useBuyers } from "@/hooks/useBuyers";
-import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Plus, Filter, Shield, ChevronUp, ChevronDown, LayoutGrid, List } from "lucide-react";
 import { BuyerRankingsTable } from "@/components/buyers/BuyerRankingsTable";
 import { BuyerFilterMenu } from "@/components/buyers/BuyerFilterMenu";
 import { BuyerDetailDialog } from "@/components/buyers/BuyerDetailDialog";
@@ -44,6 +45,7 @@ export default function BuyersPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Form state
   const [name, setName] = useState("");
@@ -157,6 +159,18 @@ export default function BuyersPage() {
             <ChevronDown className="h-4 w-4" />
           )}
         </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10"
+          onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+        >
+          {viewMode === "grid" ? (
+            <List className="h-4 w-4" />
+          ) : (
+            <LayoutGrid className="h-4 w-4" />
+          )}
+        </Button>
         <BuyerFilterMenu />
       </div>
 
@@ -190,10 +204,20 @@ export default function BuyersPage() {
                 </Button>
               </CardContent>
             </Card>
-          ) : (
+          ) : viewMode === "grid" ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {sortedBuyers.map((buyer) => (
                 <BuyerCard
+                  key={buyer.id}
+                  buyer={buyer}
+                  onViewDetail={openBuyerDetail}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sortedBuyers.map((buyer) => (
+                <BuyerListItem
                   key={buyer.id}
                   buyer={buyer}
                   onViewDetail={openBuyerDetail}
