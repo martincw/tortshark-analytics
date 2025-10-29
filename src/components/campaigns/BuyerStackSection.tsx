@@ -77,22 +77,28 @@ export function BuyerStackSection({ campaign }: BuyerStackSectionProps) {
 
       if (coverageError) throw coverageError;
 
+      // Create a map of buyer_id to tort coverage data (source of truth for payout)
+      const coverageMap = new Map(
+        (coverageData || []).map(item => [item.buyer_id, item])
+      );
+
       // Get buyer IDs that are already in the stack
       const stackedBuyerIds = new Set(stack.map(item => item.buyers?.id).filter(Boolean));
 
-      // Format stack items - prioritize items from campaign_buyer_stack
+      // Format stack items - use tort coverage payout as source of truth
       const formattedStack: BuyerStackItem[] = [];
       
       // First, add all items from the stack
       stack.forEach(item => {
         if (item.buyers) {
+          const coverage = coverageMap.get(item.buyers.id);
           formattedStack.push({
             id: item.id,
             campaign_id: campaign.id,
             buyer_id: item.buyers.id,
             stack_order: item.stack_order,
-            payout_amount: item.payout_amount,
-            is_active: item.is_active,
+            payout_amount: coverage?.payout_amount ?? item.payout_amount, // Use tort coverage payout if available
+            is_active: coverage?.is_active ?? item.is_active, // Use tort coverage active status if available
             buyers: item.buyers as CaseBuyer
           });
         }
