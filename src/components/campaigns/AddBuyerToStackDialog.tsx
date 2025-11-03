@@ -97,36 +97,47 @@ export function AddBuyerToStackDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedCoverage) {
+    if (!selectedCoverage || loading) {
       return;
     }
     
     setLoading(true);
     
-    // Get the next available stack_order
-    const { data } = await supabase
-      .from('campaign_buyer_stack')
-      .select('stack_order')
-      .eq('campaign_id', campaignId)
-      .order('stack_order', { ascending: false })
-      .limit(1);
-    
-    const nextOrder = data && data.length > 0 ? (data[0].stack_order + 1) : 0;
-    
-    const selectedCoverageData = coverages.find(c => c.id === selectedCoverage);
-    if (!selectedCoverageData) return;
-    
-    // Add the buyer to the stack
-    await addBuyerToStack(
-      campaignId,
-      selectedCoverageData.buyer_id,
-      selectedCoverageData.payout_amount,
-      nextOrder,
-      selectedCoverageData.id
-    );
-    
-    setLoading(false);
-    onSuccess();
+    try {
+      // Get the next available stack_order
+      const { data } = await supabase
+        .from('campaign_buyer_stack')
+        .select('stack_order')
+        .eq('campaign_id', campaignId)
+        .order('stack_order', { ascending: false })
+        .limit(1);
+      
+      const nextOrder = data && data.length > 0 ? (data[0].stack_order + 1) : 0;
+      
+      const selectedCoverageData = coverages.find(c => c.id === selectedCoverage);
+      if (!selectedCoverageData) {
+        setLoading(false);
+        return;
+      }
+      
+      // Add the buyer to the stack
+      const result = await addBuyerToStack(
+        campaignId,
+        selectedCoverageData.buyer_id,
+        selectedCoverageData.payout_amount,
+        nextOrder,
+        selectedCoverageData.id
+      );
+      
+      if (result) {
+        onSuccess();
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error adding buyer to stack:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

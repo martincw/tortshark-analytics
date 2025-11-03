@@ -318,6 +318,20 @@ export const useBuyers = () => {
   // Add buyer to campaign stack
   const addBuyerToStack = async (campaignId: string, buyerId: string, payoutAmount: number, stackOrder: number, coverageId: string) => {
     try {
+      // Check if this buyer is already in the stack for this campaign
+      const { data: existingStack, error: checkError } = await supabase
+        .from('campaign_buyer_stack')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('buyer_id', buyerId);
+
+      if (checkError) throw checkError;
+
+      if (existingStack && existingStack.length > 0) {
+        toast.error('This buyer is already in the stack');
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('campaign_buyer_stack')
         .insert([{
