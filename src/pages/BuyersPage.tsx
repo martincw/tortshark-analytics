@@ -39,7 +39,7 @@ const PLATFORM_OPTIONS = [
 ];
 
 export default function BuyersPage() {
-  const { buyers, loading, addBuyer } = useBuyers();
+  const { buyers, loading, addBuyer, deleteBuyer } = useBuyers();
   const [isAddBuyerOpen, setIsAddBuyerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -118,6 +118,13 @@ export default function BuyersPage() {
 
   const openBuyerDetail = (buyerId: string) => {
     setSelectedBuyerId(buyerId);
+  };
+
+  const handleDeleteBuyer = async (buyerId: string) => {
+    await deleteBuyer(buyerId);
+    if (selectedBuyerId === buyerId) {
+      setSelectedBuyerId(null);
+    }
   };
 
   return (
@@ -211,6 +218,7 @@ export default function BuyersPage() {
                   key={buyer.id}
                   buyer={buyer}
                   onViewDetail={openBuyerDetail}
+                  onDelete={handleDeleteBuyer}
                 />
               ))}
             </div>
@@ -383,6 +391,7 @@ export default function BuyersPage() {
           buyerId={selectedBuyerId} 
           isOpen={!!selectedBuyerId}
           onClose={() => setSelectedBuyerId(null)}
+          onDelete={handleDeleteBuyer}
         />
       )}
     </div>

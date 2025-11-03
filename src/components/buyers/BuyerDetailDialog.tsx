@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,10 +54,11 @@ interface BuyerDetailDialogProps {
   buyerId: string;
   isOpen: boolean;
   onClose: () => void;
+  onDelete?: (id: string) => void;
 }
 
-export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialogProps) {
-  const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage, toggleTortCoverageActive } = useBuyers();
+export function BuyerDetailDialog({ buyerId, isOpen, onClose, onDelete }: BuyerDetailDialogProps) {
+  const { getBuyerTortCoverage, updateBuyer, removeBuyerTortCoverage, updateBuyerTortCoverage, toggleTortCoverageActive, deleteBuyer } = useBuyers();
   const [buyer, setBuyer] = useState<CaseBuyer | null>(null);
   const [coverages, setCoverages] = useState<BuyerTortCoverage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +68,7 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCoverageId, setEditingCoverageId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<string>("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   // Edit form state
   const [name, setName] = useState("");
@@ -217,6 +229,15 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
     toast.success("Coverage added successfully");
   };
 
+  const handleDeleteBuyer = async () => {
+    await deleteBuyer(buyerId);
+    setShowDeleteDialog(false);
+    onClose();
+    if (onDelete) {
+      onDelete(buyerId);
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -262,12 +283,25 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl">{buyer.name}</DialogTitle>
-            {!editMode && activeTab === "details" && (
-              <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
-                <FileEdit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {!editMode && activeTab === "details" && (
+                <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
+                  <FileEdit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+              {!editMode && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
         
@@ -714,6 +748,26 @@ export function BuyerDetailDialog({ buyerId, isOpen, onClose }: BuyerDetailDialo
           </div>
         )}
       </DialogContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Buyer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{buyer.name}</strong>? This will also remove all associated tort coverage and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBuyer}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

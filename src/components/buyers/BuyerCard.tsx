@@ -11,8 +11,18 @@ import {
   Globe, Mail, MoreHorizontal, 
   BadgeDollarSign, ExternalLink, 
   Building2, MessageSquare, Phone, 
-  AlertCircle, ToggleLeft, ToggleRight
+  AlertCircle, ToggleLeft, ToggleRight, Trash2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CaseBuyer, BuyerTortCoverage } from "@/types/buyer";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { 
@@ -28,12 +38,14 @@ interface BuyerCardProps {
   buyer: CaseBuyer;
   onViewDetail: (id: string) => void;
   onClick?: () => void;
+  onDelete?: (id: string) => void;
 }
 
-export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
+export function BuyerCard({ buyer, onViewDetail, onDelete }: BuyerCardProps) {
   const [tortCoverage, setTortCoverage] = useState<BuyerTortCoverage[]>([]);
   const [loadingCoverage, setLoadingCoverage] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   useEffect(() => {
     // Always fetch tort coverage on initial load
@@ -138,120 +150,157 @@ export function BuyerCard({ buyer, onViewDetail }: BuyerCardProps) {
   };
 
   return (
-    <Card 
-      className="overflow-hidden transition-all duration-200 cursor-pointer hover:border-primary/50" 
-      onClick={() => onViewDetail(buyer.id)}
-    >
-      <CardContent className="p-0">
-        {/* Header Section with solid blue background */}
-        <div className="bg-[#0EA5E9] p-4 border-b">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center">
-              {getBuyerIcon()}
-              <h3 className="font-semibold truncate max-w-[200px] text-white">{buyer.name}</h3>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-blue-600">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  onViewDetail(buyer.id);
-                }}>
-                  Edit Details
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          {buyer.platform && (
-            <span className="text-xs text-white/80 mt-1 flex items-center">
-              Platform: {buyer.platform}
-            </span>
-          )}
-        </div>
-
-        {/* Main Section */}
-        <div className="p-4">
-          {/* Contact Info - Only show website as button */}
-          <div className="space-y-2 mb-4">
-            {buyer.url && (
-              <div className="flex items-center justify-between">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 w-full flex items-center justify-center gap-1 text-xs"
-                  onClick={openWebsite}
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  Visit Website
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </Button>
+    <>
+      <Card 
+        className="overflow-hidden transition-all duration-200 cursor-pointer hover:border-primary/50" 
+        onClick={() => onViewDetail(buyer.id)}
+      >
+        <CardContent className="p-0">
+          {/* Header Section with solid blue background */}
+          <div className="bg-[#0EA5E9] p-4 border-b">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center">
+                {getBuyerIcon()}
+                <h3 className="font-semibold truncate max-w-[200px] text-white">{buyer.name}</h3>
               </div>
-            )}
-            
-            {buyer.email && (
-              <div className="flex items-center text-sm text-muted-foreground mt-2">
-                <Mail className="h-3.5 w-3.5 mr-1.5" />
-                <span className="truncate max-w-[200px]">{buyer.email}</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Tort Coverage Summary */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Tort Coverage</h4>
-              <Badge variant="secondary">{tortCoverage.length} torts</Badge>
-            </div>
-            
-            {loadingCoverage ? (
-              <div className="flex justify-center py-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-              </div>
-            ) : tortCoverage.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                {tortCoverage.map((coverage) => (
-                  <div 
-                    key={coverage.id} 
-                    className={`flex items-center justify-between text-sm border-b pb-2 ${!coverage.is_active ? 'opacity-60' : ''}`}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-blue-600">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onViewDetail(buyer.id);
+                  }}>
+                    Edit Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeleteDialog(true);
+                    }}
+                    className="text-destructive focus:text-destructive"
                   >
-                    <div className="flex items-center space-x-1 truncate max-w-[120px]">
-                      {coverage.is_active ? (
-                        <ToggleRight className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                      ) : (
-                        <ToggleLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="truncate">{coverage.campaigns?.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center text-xs">
-                        <BadgeDollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                        <span>{formatCurrency(coverage.payout_amount)}</span>
-                      </div>
-                      <div onClick={(e) => e.stopPropagation()} className="relative z-10">
-                        <Switch
-                          size="sm"
-                          checked={coverage.is_active}
-                          onClick={(e) => handleToggleActive(e, coverage.id, coverage.is_active)}
-                          className={`scale-75 origin-right ${updatingId === coverage.id ? 'opacity-50' : ''}`}
-                          disabled={updatingId === coverage.id}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center p-3 border border-dashed rounded-md">
-                <p className="text-sm text-muted-foreground">No tort coverage</p>
-              </div>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Buyer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {buyer.platform && (
+              <span className="text-xs text-white/80 mt-1 flex items-center">
+                Platform: {buyer.platform}
+              </span>
             )}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          {/* Main Section */}
+          <div className="p-4">
+            {/* Contact Info - Only show website as button */}
+            <div className="space-y-2 mb-4">
+              {buyer.url && (
+                <div className="flex items-center justify-between">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 w-full flex items-center justify-center gap-1 text-xs"
+                    onClick={openWebsite}
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Visit Website
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              )}
+              
+              {buyer.email && (
+                <div className="flex items-center text-sm text-muted-foreground mt-2">
+                  <Mail className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="truncate max-w-[200px]">{buyer.email}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Tort Coverage Summary */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Tort Coverage</h4>
+                <Badge variant="secondary">{tortCoverage.length} torts</Badge>
+              </div>
+              
+              {loadingCoverage ? (
+                <div className="flex justify-center py-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                </div>
+              ) : tortCoverage.length > 0 ? (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {tortCoverage.map((coverage) => (
+                    <div 
+                      key={coverage.id} 
+                      className={`flex items-center justify-between text-sm border-b pb-2 ${!coverage.is_active ? 'opacity-60' : ''}`}
+                    >
+                      <div className="flex items-center space-x-1 truncate max-w-[120px]">
+                        {coverage.is_active ? (
+                          <ToggleRight className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                        ) : (
+                          <ToggleLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="truncate">{coverage.campaigns?.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center text-xs">
+                          <BadgeDollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                          <span>{formatCurrency(coverage.payout_amount)}</span>
+                        </div>
+                        <div onClick={(e) => e.stopPropagation()} className="relative z-10">
+                          <Switch
+                            size="sm"
+                            checked={coverage.is_active}
+                            onClick={(e) => handleToggleActive(e, coverage.id, coverage.is_active)}
+                            className={`scale-75 origin-right ${updatingId === coverage.id ? 'opacity-50' : ''}`}
+                            disabled={updatingId === coverage.id}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-3 border border-dashed rounded-md">
+                  <p className="text-sm text-muted-foreground">No tort coverage</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Buyer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{buyer.name}</strong>? This will also remove all associated tort coverage and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (onDelete) {
+                  onDelete(buyer.id);
+                }
+                setShowDeleteDialog(false);
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
