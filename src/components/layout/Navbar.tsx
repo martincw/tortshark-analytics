@@ -26,6 +26,7 @@ import { NavItem } from "@/types/navigation";
 const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "https://sales.tortshark.com", label: "Sales", external: true },
 ];
 
 // All navigation items for sidebar (includes everything)
@@ -78,20 +79,36 @@ export const Navbar: React.FC = () => {
   const NavItems = ({ items, isActive }: { items: NavItem[]; isActive: (href: string) => boolean }) => {
     return (
       <>
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            to={item.href}
-            className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              isActive(item.href)
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            }`}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        ))}
+        {items.map((item) => {
+          if (item.external) {
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                {item.icon}
+                {item.label}
+              </a>
+            );
+          }
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isActive(item.href)
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          );
+        })}
       </>
     );
   };
