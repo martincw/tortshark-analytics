@@ -3,7 +3,6 @@ import { Percent, DollarSign, Users, AlertCircle, TrendingUp } from "lucide-reac
 import { BadgeStat } from "@/components/ui/badge-stat";
 import { CampaignMetrics } from "@/types/metrics";
 import { getPerformanceBgClass } from "@/utils/campaignUtils";
-import { CustomProgressBar } from "@/components/ui/custom-progress-bar";
 import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
 
 interface MetricsOverviewProps {
@@ -16,29 +15,17 @@ interface MetricsOverviewProps {
     cases: number;
     revenue: number;
   };
-  targetProfit: number;
 }
 
 export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
   metrics,
   campaignStats,
-  manualStats,
-  targetProfit
+  manualStats
 }) => {
   // Calculate profit directly from the core values
   const profit = manualStats.revenue - campaignStats.adSpend;
   
   console.log(`MetricsOverview - Campaign revenue: ${manualStats.revenue}, adSpend: ${campaignStats.adSpend}, calculated profit: ${profit}`);
-  
-  const profitProgress = targetProfit > 0 
-    ? Math.max(Math.min((profit / targetProfit) * 100, 100), 0)
-    : 0;
-    
-  const getProfitVariant = () => {
-    if (profitProgress >= 100) return "success";
-    if (profitProgress >= 50) return "warning";
-    return "error";
-  };
   
   const getProfitabilityClass = () => {
     // Handle zero ad spend case - check profit directly
@@ -166,22 +153,6 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
         </div>
       </div>
       
-      <div className="border-t pt-2 mt-2">
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Profit Progress</span>
-            <span className="font-medium">
-              {formatCurrency(profit)} of {formatCurrency(targetProfit)}
-            </span>
-          </div>
-          <CustomProgressBar 
-            value={profitProgress} 
-            size="sm" 
-            variant={getProfitVariant()} 
-            className="w-full" 
-          />
-        </div>
-      </div>
     </>
   );
 };

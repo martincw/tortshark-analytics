@@ -8,7 +8,7 @@ import { useBuyers } from "@/hooks/useBuyers";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { OptimalSpendBadge } from "@/components/ui/optimal-spend-badge";
+
 
 import { CampaignCardHeader } from "./CampaignCardHeader";
 import { MetricsOverview } from "./MetricsOverview";
@@ -60,17 +60,49 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     setIsActive(campaign.is_active !== false);
   }, [campaign.is_active]);
   
-  // Fetch buyer stack when component mounts
+  // Fetch buyer stack when component mounts - include all buyers with tort coverage
   useEffect(() => {
     const fetchBuyerStack = async () => {
-      const stackData = await getActiveBuyerStackShort(campaign.id, 3);
-      if (Array.isArray(stackData)) {
-        setBuyerStack(stackData);
+      try {
+        // Fetch all tort coverage for this campaign
+        const { data: coverageData, error } = await supabase
+          .from('buyer_tort_coverage')
+          .select(`
+            id,
+            buyer_id,
+            payout_amount,
+            is_active,
+            buyers:buyer_id (
+              id,
+              name
+            )
+          `)
+          .eq('campaign_id', campaign.id)
+          .eq('is_active', true)
+          .order('payout_amount', { ascending: false })
+          .limit(3);
+
+        if (error) throw error;
+
+        // Format the data to match BuyerStackItem structure
+        const formattedStack = (coverageData || []).map((item, index) => ({
+          id: item.id,
+          campaign_id: campaign.id,
+          buyer_id: item.buyer_id,
+          stack_order: index,
+          payout_amount: item.payout_amount,
+          is_active: item.is_active,
+          buyers: item.buyers
+        }));
+
+        setBuyerStack(formattedStack);
+      } catch (error) {
+        console.error('Error fetching buyer stack:', error);
       }
     };
     
     fetchBuyerStack();
-  }, [campaign.id, getActiveBuyerStackShort]);
+  }, [campaign.id]);
   
   const handleViewDetails = () => {
     setSelectedCampaignId(campaign.id);
@@ -132,28 +164,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             metrics={metrics}
             campaignStats={campaign.stats}
             manualStats={campaign.manualStats}
-            targetProfit={campaign.targets.targetProfit}
           />
-          
-          {/* Always show optimal spend section - now with enhanced states */}
-          <div className="mt-3 border-t pt-2">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-muted-foreground">Spend Optimization</span>
-              <OptimalSpendBadge
-                optimalSpend={metrics.optimalDailySpend}
-                currentSpend={campaign.stats.adSpend}
-                efficiency={metrics.currentEfficiency}
-                confidence={metrics.spendConfidenceScore}
-                recommendation={metrics.spendRecommendation}
-                projectedIncrease={metrics.projectedLeadIncrease}
-                analysisType={
-                  metrics.optimalDailySpend ? 
-                    (metrics.spendConfidenceScore && metrics.spendConfidenceScore >= 65 ? 'advanced' : 'low_confidence')
-                    : 'gathering'
-                }
-              />
-            </div>
-          </div>
           
           {buyerStack.length > 0 && (
             <div className="mt-3 border-t pt-2 animate-fade-in">
