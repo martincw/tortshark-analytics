@@ -167,24 +167,81 @@ export default function ContractorSubmissionsPage() {
     setProcessingId(submission.id);
     
     try {
+      // Get the latest submission data to ensure we have the most recent values
+      const { data: latestSubmission, error: fetchError } = await supabase
+        .from('contractor_submissions')
+        .select('*')
+        .eq('id', submission.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!latestSubmission) throw new Error('Submission not found');
+
       // First, add the stats to campaign_stats_history
       const { error: statsError } = await supabase
         .from('campaign_stats_history')
         .insert({
-          campaign_id: submission.campaign_id,
-          date: submission.submission_date,
-          ad_spend: submission.ad_spend,
-          youtube_spend: submission.youtube_spend || 0,
-          meta_spend: submission.meta_spend || 0,
-          newsbreak_spend: submission.newsbreak_spend || 0,
-          leads: submission.leads,
-          cases: submission.cases,
-          revenue: submission.revenue
+          campaign_id: latestSubmission.campaign_id,
+          date: latestSubmission.submission_date,
+          ad_spend: latestSubmission.ad_spend,
+          youtube_spend: latestSubmission.youtube_spend || 0,
+          meta_spend: latestSubmission.meta_spend || 0,
+          newsbreak_spend: latestSubmission.newsbreak_spend || 0,
+          leads: latestSubmission.leads,
+          cases: latestSubmission.cases,
+          revenue: latestSubmission.revenue
         });
 
       if (statsError) throw statsError;
 
-      // Then update the submission status
+      // Update daily lead metrics using the RPC function
+      const { error: metricsError } = await supabase.rpc('upsert_daily_lead_metrics', {
+        p_ts_campaign_id: latestSubmission.campaign_id,
+        p_date: latestSubmission.submission_date,
+        p_lead_count: latestSubmission.leads,
+        p_accepted: latestSubmission.leads, // Assuming all leads are accepted initially
+        p_duplicated: 0,
+        p_failed: 0,
+        p_cost: latestSubmission.ad_spend,
+        p_revenue: latestSubmission.revenue
+      });
+
+      if (metricsError) {
+        console.error('Error updating daily metrics:', metricsError);
+        // Don't throw - continue with approval even if metrics update fails
+      }
+
+      // Check if we need to update campaign_manual_stats (if this is the most recent date)
+      const { data: manualStats } = await supabase
+        .from('campaign_manual_stats')
+        .select('date')
+        .eq('campaign_id', latestSubmission.campaign_id)
+        .single();
+
+      const shouldUpdateManualStats = !manualStats || 
+        new Date(latestSubmission.submission_date) > new Date(manualStats.date);
+
+      if (shouldUpdateManualStats) {
+        const { error: manualStatsError } = await supabase
+          .from('campaign_manual_stats')
+          .upsert({
+            campaign_id: latestSubmission.campaign_id,
+            date: latestSubmission.submission_date,
+            ad_spend: latestSubmission.ad_spend,
+            youtube_spend: latestSubmission.youtube_spend || 0,
+            meta_spend: latestSubmission.meta_spend || 0,
+            newsbreak_spend: latestSubmission.newsbreak_spend || 0,
+            leads: latestSubmission.leads,
+            cases: latestSubmission.cases,
+            revenue: latestSubmission.revenue
+          });
+
+        if (manualStatsError) {
+          console.error('Error updating manual stats:', manualStatsError);
+        }
+      }
+
+      // Finally, update the submission status
       const { error: updateError } = await supabase
         .from('contractor_submissions')
         .update({
@@ -196,7 +253,7 @@ export default function ContractorSubmissionsPage() {
 
       if (updateError) throw updateError;
 
-      toast.success('Submission approved and added to campaign stats');
+      toast.success('Submission approved and stats updated');
       fetchSubmissions();
     } catch (error) {
       console.error('Error approving submission:', error);
