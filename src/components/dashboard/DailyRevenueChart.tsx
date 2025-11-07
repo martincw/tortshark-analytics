@@ -2,21 +2,35 @@ import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Campaign } from "@/types/campaign";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isWithinInterval } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
+import { useCampaign } from "@/contexts/CampaignContext";
 
 interface DailyRevenueChartProps {
   campaigns: Campaign[];
 }
 
 export const DailyRevenueChart = ({ campaigns }: DailyRevenueChartProps) => {
+  const { dateRange } = useCampaign();
+
   const chartData = useMemo(() => {
     // Aggregate revenue by date across all campaigns
     const revenueByDate = new Map<string, number>();
 
     campaigns.forEach(campaign => {
       campaign.statsHistory.forEach(stat => {
-        const dateStr = format(parseISO(stat.date), "yyyy-MM-dd");
+        const statDate = parseISO(stat.date);
+        
+        // Filter by date range if provided
+        if (dateRange?.startDate && dateRange?.endDate) {
+          const isInRange = isWithinInterval(statDate, {
+            start: parseISO(dateRange.startDate),
+            end: parseISO(dateRange.endDate)
+          });
+          if (!isInRange) return;
+        }
+        
+        const dateStr = format(statDate, "yyyy-MM-dd");
         const currentRevenue = revenueByDate.get(dateStr) || 0;
         revenueByDate.set(dateStr, currentRevenue + (stat.revenue || 0));
       });
@@ -32,7 +46,7 @@ export const DailyRevenueChart = ({ campaigns }: DailyRevenueChartProps) => {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     return data;
-  }, [campaigns]);
+  }, [campaigns, dateRange]);
 
   const totalRevenue = useMemo(() => {
     return chartData.reduce((sum, day) => sum + day.revenue, 0);
