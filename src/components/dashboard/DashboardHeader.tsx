@@ -103,7 +103,7 @@ export function DashboardHeader() {
               <DropdownMenuLabel>Select Campaigns for Dashboard</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
-                {campaigns.map(campaign => (
+                {[...campaigns].sort((a, b) => a.name.localeCompare(b.name)).map(campaign => (
                   <DropdownMenuCheckboxItem
                     key={campaign.id}
                     checked={selectedCampaignIds.includes(campaign.id)}
