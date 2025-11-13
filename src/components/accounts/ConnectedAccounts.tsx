@@ -36,7 +36,9 @@ export const ConnectedAccounts = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onMapCampaigns(account.id);
+              // Pass the Google Ads customer ID so the mapping dialog can
+              // correctly load campaigns for this account
+              onMapCampaigns(account.customerId || account.id);
             }}
             className="px-3 py-1.5 text-sm border rounded hover:bg-muted flex items-center gap-2"
           >
