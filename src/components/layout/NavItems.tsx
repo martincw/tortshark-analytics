@@ -8,7 +8,8 @@ import {
   UserCheck, 
   Database,
   Workflow,
-  FileText
+  FileText,
+  LayoutDashboard
 } from "lucide-react";
 
 export type NavItem = {
@@ -55,6 +56,11 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       icon: Workflow,
       label: "Stats Workflow",
       href: "/stats-workflow",
+    },
+    {
+      icon: LayoutDashboard,
+      label: "Buyer Dashboard",
+      href: "/buyer-dashboard",
     },
     {
       icon: Users,

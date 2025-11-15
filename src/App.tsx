@@ -28,6 +28,7 @@ import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
+import BuyerDashboard from "./pages/BuyerDashboard";
 
 import TeamSettingsPage from "./pages/TeamSettingsPage";
 import StatsWorkflowPage from "./pages/StatsWorkflowPage";
@@ -223,6 +224,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <BuyersPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/buyer-dashboard" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <BuyerDashboard />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />
