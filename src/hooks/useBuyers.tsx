@@ -13,6 +13,7 @@ export const useBuyers = () => {
       const { data, error } = await supabase
         .from('case_buyers')
         .select('*')
+        .order('display_order', { ascending: true })
         .order('name');
 
       if (error) throw error;
@@ -110,6 +111,58 @@ export const useBuyers = () => {
     } catch (error) {
       console.error('Error deleting buyer:', error);
       toast.error('Failed to delete buyer');
+    }
+  };
+
+  const toggleBuyerActive = async (id: string, isActive: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from('case_buyers')
+        .update({ is_active: isActive })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setBuyers(buyers.map(buyer => 
+        buyer.id === id ? { ...buyer, is_active: isActive } : buyer
+      ));
+      
+      toast.success(`Buyer ${isActive ? 'activated' : 'deactivated'}`);
+      return true;
+    } catch (error) {
+      console.error('Error toggling buyer status:', error);
+      toast.error('Failed to update buyer status');
+      return false;
+    }
+  };
+
+  const updateBuyerOrder = async (buyerOrders: { id: string; display_order: number }[]) => {
+    try {
+      // Update each buyer's display_order
+      const updates = buyerOrders.map(({ id, display_order }) =>
+        supabase
+          .from('case_buyers')
+          .update({ display_order })
+          .eq('id', id)
+      );
+
+      await Promise.all(updates);
+
+      // Update local state
+      setBuyers(prevBuyers =>
+        prevBuyers.map(buyer => {
+          const orderUpdate = buyerOrders.find(o => o.id === buyer.id);
+          return orderUpdate ? { ...buyer, display_order: orderUpdate.display_order } : buyer;
+        })
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Error updating buyer order:', error);
+      toast.error('Failed to update buyer order');
+      return false;
     }
   };
 
@@ -430,6 +483,8 @@ export const useBuyers = () => {
     addBuyer, 
     updateBuyer, 
     deleteBuyer,
+    toggleBuyerActive,
+    updateBuyerOrder,
     getBuyerTortCoverage,
     addBuyerTortCoverage,
     removeBuyerTortCoverage,

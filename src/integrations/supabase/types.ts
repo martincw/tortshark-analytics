@@ -655,8 +655,10 @@ export type Database = {
         Row: {
           contact_name: string | null
           created_at: string | null
+          display_order: number | null
           email: string | null
           id: string
+          is_active: boolean | null
           name: string
           notes: string | null
           payout_terms: string | null
@@ -670,8 +672,10 @@ export type Database = {
         Insert: {
           contact_name?: string | null
           created_at?: string | null
+          display_order?: number | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           name: string
           notes?: string | null
           payout_terms?: string | null
@@ -685,8 +689,10 @@ export type Database = {
         Update: {
           contact_name?: string | null
           created_at?: string | null
+          display_order?: number | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           name?: string
           notes?: string | null
           payout_terms?: string | null

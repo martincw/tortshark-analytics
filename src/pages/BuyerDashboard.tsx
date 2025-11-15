@@ -6,16 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, GripVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 
 const BuyerDashboard = () => {
-  const { buyers, loading, addBuyer, getBuyerTortCoverage, addBuyerTortCoverage, toggleTortCoverageActive, removeBuyerTortCoverage } = useBuyers();
+  const { 
+    buyers, 
+    loading, 
+    addBuyer, 
+    toggleBuyerActive,
+    updateBuyerOrder,
+    getBuyerTortCoverage, 
+    addBuyerTortCoverage, 
+    toggleTortCoverageActive, 
+    removeBuyerTortCoverage 
+  } = useBuyers();
   const { campaigns } = useCampaign();
   const [buyerCoverages, setBuyerCoverages] = useState<Record<string, any[]>>({});
   const [loadingCoverages, setLoadingCoverages] = useState<Record<string, boolean>>({});
@@ -25,9 +36,8 @@ const BuyerDashboard = () => {
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, string>>({});
   const [payoutAmounts, setPayoutAmounts] = useState<Record<string, string>>({});
 
-  const activeBuyers = buyers.filter(b => 
-    buyerCoverages[b.id]?.some(c => c.is_active) || !buyerCoverages[b.id]
-  );
+  // Filter to only show active buyers
+  const activeBuyers = buyers.filter(b => b.is_active !== false);
 
   const loadBuyerCoverage = async (buyerId: string) => {
     if (buyerCoverages[buyerId]) return;
@@ -83,6 +93,10 @@ const BuyerDashboard = () => {
     }
   };
 
+  const handleToggleBuyer = async (buyerId: string, isActive: boolean) => {
+    await toggleBuyerActive(buyerId, isActive);
+  };
+
   const handleRemoveCampaign = async (coverageId: string, buyerId: string) => {
     const success = await removeBuyerTortCoverage(coverageId);
     if (success) {
@@ -92,6 +106,22 @@ const BuyerDashboard = () => {
         [buyerId]: prev[buyerId]?.filter(c => c.id !== coverageId)
       }));
     }
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+
+    const items = Array.from(activeBuyers);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update display_order for all items
+    const updates = items.map((buyer, index) => ({
+      id: buyer.id,
+      display_order: index
+    }));
+
+    await updateBuyerOrder(updates);
   };
 
   // Load all buyer coverages on mount
@@ -158,138 +188,177 @@ const BuyerDashboard = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {activeBuyers.map(buyer => {
-              const coverage = buyerCoverages[buyer.id] || [];
-              const activeCampaigns = coverage.filter(c => c.is_active);
-              const isLoadingCoverage = loadingCoverages[buyer.id];
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="buyers">
+              {(provided) => (
+                <div 
+                  {...provided.droppableProps} 
+                  ref={provided.innerRef}
+                  className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+                >
+                  {activeBuyers.map((buyer, index) => {
+                    const coverage = buyerCoverages[buyer.id] || [];
+                    const activeCampaigns = coverage.filter(c => c.is_active);
+                    const isLoadingCoverage = loadingCoverages[buyer.id];
 
-              return (
-                <Card key={buyer.id} className="flex flex-col">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-xl mb-1">{buyer.name}</CardTitle>
-                        {buyer.email && (
-                          <p className="text-sm text-muted-foreground">{buyer.email}</p>
-                        )}
-                      </div>
-                      <Badge variant="secondary">
-                        {activeCampaigns.length} Active
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 space-y-4">
-                    <div className="space-y-2">
-                      {isLoadingCoverage ? (
-                        <div className="space-y-2">
-                          <Skeleton className="h-12 w-full" />
-                          <Skeleton className="h-12 w-full" />
-                        </div>
-                      ) : coverage.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">
-                          No campaigns added yet
-                        </p>
-                      ) : (
-                        coverage.map(cov => (
-                          <div
-                            key={cov.id}
-                            className="flex items-center justify-between p-3 border rounded-lg"
+                    return (
+                      <Draggable key={buyer.id} draggableId={buyer.id} index={index}>
+                        {(provided, snapshot) => (
+                          <Card 
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`flex flex-col transition-shadow ${
+                              snapshot.isDragging ? 'shadow-lg' : ''
+                            }`}
                           >
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">
-                                {cov.campaigns?.name || 'Unknown Campaign'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                ${cov.payout_amount} payout
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 ml-2">
-                              <Switch
-                                checked={cov.is_active}
-                                onCheckedChange={(checked) => 
-                                  handleToggleCampaign(cov.id, buyer.id, checked)
-                                }
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveCampaign(cov.id, buyer.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    <Dialog
-                      open={addCampaignDialogs[buyer.id]}
-                      onOpenChange={(open) => 
-                        setAddCampaignDialogs(prev => ({ ...prev, [buyer.id]: open }))
-                      }
-                    >
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full" size="sm">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Campaign
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add Campaign to {buyer.name}</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor={`campaign-${buyer.id}`}>Campaign</Label>
-                            <Select
-                              value={selectedCampaigns[buyer.id] || ""}
-                              onValueChange={(value) =>
-                                setSelectedCampaigns(prev => ({ ...prev, [buyer.id]: value }))
-                              }
-                            >
-                              <SelectTrigger id={`campaign-${buyer.id}`}>
-                                <SelectValue placeholder="Select a campaign" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {campaigns
-                                  .filter(c => !coverage.some(cov => cov.campaign_id === c.id))
-                                  .sort((a, b) => a.name.localeCompare(b.name))
-                                  .map(campaign => (
-                                    <SelectItem key={campaign.id} value={campaign.id}>
-                                      {campaign.name}
-                                    </SelectItem>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start gap-2">
+                                <div 
+                                  {...provided.dragHandleProps}
+                                  className="mt-1 cursor-grab active:cursor-grabbing"
+                                >
+                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <CardTitle className="text-xl mb-1">{buyer.name}</CardTitle>
+                                  {buyer.email && (
+                                    <p className="text-sm text-muted-foreground truncate">{buyer.email}</p>
+                                  )}
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                  <Badge variant="secondary">
+                                    {activeCampaigns.length} Active
+                                  </Badge>
+                                  <div className="flex items-center gap-2">
+                                    <Label htmlFor={`buyer-toggle-${buyer.id}`} className="text-xs text-muted-foreground">
+                                      Active
+                                    </Label>
+                                    <Switch
+                                      id={`buyer-toggle-${buyer.id}`}
+                                      checked={buyer.is_active !== false}
+                                      onCheckedChange={(checked) => handleToggleBuyer(buyer.id, checked)}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 space-y-4">
+                              <div className="space-y-2">
+                                {isLoadingCoverage ? (
+                                  <div className="space-y-2">
+                                    <Skeleton className="h-12 w-full" />
+                                    <Skeleton className="h-12 w-full" />
+                                  </div>
+                                ) : activeCampaigns.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground py-4 text-center">
+                                    No active campaigns
+                                  </p>
+                                ) : (
+                                  activeCampaigns.map(cov => (
+                                    <div
+                                      key={cov.id}
+                                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm truncate">
+                                          {cov.campaigns?.name || 'Unknown Campaign'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          ${cov.payout_amount} payout
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2 ml-2">
+                                        <Switch
+                                          checked={cov.is_active}
+                                          onCheckedChange={(checked) => 
+                                            handleToggleCampaign(cov.id, buyer.id, checked)
+                                          }
+                                        />
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-destructive hover:text-destructive"
+                                          onClick={() => handleRemoveCampaign(cov.id, buyer.id)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
                                   ))
+                                )}
+                              </div>
+
+                              <Dialog
+                                open={addCampaignDialogs[buyer.id]}
+                                onOpenChange={(open) => 
+                                  setAddCampaignDialogs(prev => ({ ...prev, [buyer.id]: open }))
                                 }
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor={`payout-${buyer.id}`}>Payout Amount</Label>
-                            <Input
-                              id={`payout-${buyer.id}`}
-                              type="number"
-                              step="0.01"
-                              value={payoutAmounts[buyer.id] || ""}
-                              onChange={(e) =>
-                                setPayoutAmounts(prev => ({ ...prev, [buyer.id]: e.target.value }))
-                              }
-                              placeholder="0.00"
-                            />
-                          </div>
-                          <Button onClick={() => handleAddCampaign(buyer.id)} className="w-full">
-                            Add Campaign
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                              >
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="w-full" size="sm">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Campaign
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Add Campaign to {buyer.name}</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <Label htmlFor={`campaign-${buyer.id}`}>Campaign</Label>
+                                      <Select
+                                        value={selectedCampaigns[buyer.id] || ""}
+                                        onValueChange={(value) =>
+                                          setSelectedCampaigns(prev => ({ ...prev, [buyer.id]: value }))
+                                        }
+                                      >
+                                        <SelectTrigger id={`campaign-${buyer.id}`}>
+                                          <SelectValue placeholder="Select a campaign" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {campaigns
+                                            .filter(c => !coverage.some(cov => cov.campaign_id === c.id))
+                                            .sort((a, b) => a.name.localeCompare(b.name))
+                                            .map(campaign => (
+                                              <SelectItem key={campaign.id} value={campaign.id}>
+                                                {campaign.name}
+                                              </SelectItem>
+                                            ))
+                                          }
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div>
+                                      <Label htmlFor={`payout-${buyer.id}`}>Payout Amount</Label>
+                                      <Input
+                                        id={`payout-${buyer.id}`}
+                                        type="number"
+                                        step="0.01"
+                                        value={payoutAmounts[buyer.id] || ""}
+                                        onChange={(e) =>
+                                          setPayoutAmounts(prev => ({ ...prev, [buyer.id]: e.target.value }))
+                                        }
+                                        placeholder="0.00"
+                                      />
+                                    </div>
+                                    <Button onClick={() => handleAddCampaign(buyer.id)} className="w-full">
+                                      Add Campaign
+                                    </Button>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
       </div>
     </MainLayout>

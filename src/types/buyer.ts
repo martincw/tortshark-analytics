@@ -12,6 +12,8 @@ export interface CaseBuyer {
   platform?: string;
   notes?: string;
   payout_terms?: string;
+  is_active?: boolean;
+  display_order?: number;
   created_at?: string;
   updated_at?: string;
 }
