@@ -1338,10 +1338,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_google_ads_tokens_if_not_exists: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      create_google_ads_tokens_if_not_exists: { Args: never; Returns: boolean }
       create_workspace_with_owner: {
         Args: { p_owner_user_id?: string; p_workspace_name: string }
         Returns: {
@@ -1358,10 +1355,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
-      is_contractor: {
-        Args: { user_id?: string }
-        Returns: boolean
-      }
+      is_contractor: { Args: { user_id?: string }; Returns: boolean }
       is_workspace_admin: {
         Args: { user_id?: string; workspace_id: string }
         Returns: boolean
@@ -1378,14 +1372,8 @@ export type Database = {
         Args: { user_id?: string; workspace_id: string }
         Returns: boolean
       }
-      migrate_campaigns_from_localstorage: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      migrate_data_to_workspaces: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      migrate_campaigns_from_localstorage: { Args: never; Returns: string }
+      migrate_data_to_workspaces: { Args: never; Returns: undefined }
       upsert_daily_lead_metrics: {
         Args: {
           p_accepted: number
