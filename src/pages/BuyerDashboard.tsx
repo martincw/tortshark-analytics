@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
+import { EditTortCoverageForm } from "@/components/buyers/EditTortCoverageForm";
 
 const BuyerDashboard = () => {
   const { 
@@ -35,6 +36,7 @@ const BuyerDashboard = () => {
   const [addCampaignDialogs, setAddCampaignDialogs] = useState<Record<string, boolean>>({});
   const [selectedCampaigns, setSelectedCampaigns] = useState<Record<string, string>>({});
   const [payoutAmounts, setPayoutAmounts] = useState<Record<string, string>>({});
+  const [editingCoverage, setEditingCoverage] = useState<{ coverage: any; buyerId: string } | null>(null);
 
   // Filter to only show active buyers
   const activeBuyers = buyers.filter(b => b.is_active !== false);
@@ -106,6 +108,23 @@ const BuyerDashboard = () => {
         [buyerId]: prev[buyerId]?.filter(c => c.id !== coverageId)
       }));
     }
+  };
+
+  const handleEditCoverage = (coverage: any, buyerId: string) => {
+    setEditingCoverage({ coverage, buyerId });
+  };
+
+  const handleSaveCoverage = (updatedCoverage: any) => {
+    // Update local state
+    if (editingCoverage) {
+      setBuyerCoverages(prev => ({
+        ...prev,
+        [editingCoverage.buyerId]: prev[editingCoverage.buyerId]?.map(c => 
+          c.id === updatedCoverage.id ? updatedCoverage : c
+        )
+      }));
+    }
+    setEditingCoverage(null);
   };
 
   const handleDragEnd = async (result: DropResult) => {
@@ -359,6 +378,23 @@ const BuyerDashboard = () => {
               )}
             </Droppable>
           </DragDropContext>
+        )}
+
+        {/* Edit Coverage Dialog */}
+        {editingCoverage && (
+          <Dialog open={!!editingCoverage} onOpenChange={() => setEditingCoverage(null)}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Campaign Coverage</DialogTitle>
+              </DialogHeader>
+              <EditTortCoverageForm
+                coverage={editingCoverage.coverage}
+                onSave={handleSaveCoverage}
+                onCancel={() => setEditingCoverage(null)}
+                existingCoverages={buyerCoverages[editingCoverage.buyerId] || []}
+              />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </MainLayout>
