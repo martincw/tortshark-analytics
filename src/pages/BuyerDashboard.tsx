@@ -38,8 +38,10 @@ const BuyerDashboard = () => {
   const [payoutAmounts, setPayoutAmounts] = useState<Record<string, string>>({});
   const [editingCoverage, setEditingCoverage] = useState<{ coverage: any; buyerId: string } | null>(null);
 
-  // Filter to only show active buyers
-  const activeBuyers = buyers.filter(b => b.is_active !== false);
+  // Filter to only show active buyers and sort by display_order
+  const activeBuyers = buyers
+    .filter(b => b.is_active !== false)
+    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
   const loadBuyerCoverage = async (buyerId: string) => {
     if (buyerCoverages[buyerId]) return;
@@ -234,7 +236,8 @@ const BuyerDashboard = () => {
                               <div className="flex items-start gap-2">
                                 <div 
                                   {...provided.dragHandleProps}
-                                  className="mt-1 cursor-grab active:cursor-grabbing"
+                                  className="mt-1 cursor-grab active:cursor-grabbing hover:text-primary transition-colors"
+                                  title="Drag to reorder"
                                 >
                                   <GripVertical className="h-5 w-5 text-muted-foreground" />
                                 </div>
@@ -276,7 +279,8 @@ const BuyerDashboard = () => {
                                   activeCampaigns.map(cov => (
                                     <div
                                       key={cov.id}
-                                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 hover:border-primary/50 transition-all cursor-pointer"
+                                      onClick={() => handleEditCoverage(cov, buyer.id)}
                                     >
                                       <div className="flex-1 min-w-0">
                                         <p className="font-medium text-sm truncate">
@@ -292,12 +296,16 @@ const BuyerDashboard = () => {
                                           onCheckedChange={(checked) => 
                                             handleToggleCampaign(cov.id, buyer.id, checked)
                                           }
+                                          onClick={(e) => e.stopPropagation()}
                                         />
                                         <Button
                                           variant="ghost"
                                           size="icon"
                                           className="h-8 w-8 text-destructive hover:text-destructive"
-                                          onClick={() => handleRemoveCampaign(cov.id, buyer.id)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveCampaign(cov.id, buyer.id);
+                                          }}
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
