@@ -225,13 +225,12 @@ const BuyerDashboard = () => {
                     return (
                       <Draggable key={buyer.id} draggableId={buyer.id} index={index}>
                         {(provided, snapshot) => (
-                          <Card 
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`flex flex-col transition-shadow ${
-                              snapshot.isDragging ? 'shadow-lg' : ''
-                            }`}
-                          >
+                          <div ref={provided.innerRef} {...provided.draggableProps}>
+                            <Card 
+                              className={`flex flex-col transition-shadow ${
+                                snapshot.isDragging ? 'shadow-lg' : ''
+                              }`}
+                            >
                             <CardHeader className="pb-3">
                               <div className="flex items-start gap-2">
                                 <div 
@@ -377,6 +376,7 @@ const BuyerDashboard = () => {
                               </Dialog>
                             </CardContent>
                           </Card>
+                        </div>
                         )}
                       </Draggable>
                     );
