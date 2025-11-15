@@ -211,11 +211,11 @@ const BuyerDashboard = () => {
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="buyers">
-              {(provided) => (
+              {(provided, snapshot) => (
                 <div 
                   {...provided.droppableProps} 
                   ref={provided.innerRef}
-                  className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+                  className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8"
                 >
                   {activeBuyers.map((buyer, index) => {
                     const coverage = buyerCoverages[buyer.id] || [];
@@ -225,10 +225,16 @@ const BuyerDashboard = () => {
                     return (
                       <Draggable key={buyer.id} draggableId={buyer.id} index={index}>
                         {(provided, snapshot) => (
-                          <div ref={provided.innerRef} {...provided.draggableProps}>
+                          <div 
+                            ref={provided.innerRef} 
+                            {...provided.draggableProps}
+                            className="mb-4"
+                          >
                             <Card 
-                              className={`flex flex-col transition-shadow ${
-                                snapshot.isDragging ? 'shadow-lg' : ''
+                              className={`flex flex-col transition-all duration-200 ${
+                                snapshot.isDragging 
+                                  ? 'shadow-2xl scale-105 rotate-2 opacity-90 ring-2 ring-primary border-primary' 
+                                  : 'shadow-sm'
                               }`}
                             >
                             <CardHeader className="pb-3">
