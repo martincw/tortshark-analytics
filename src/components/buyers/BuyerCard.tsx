@@ -11,7 +11,8 @@ import {
   Globe, Mail, MoreHorizontal, 
   BadgeDollarSign, ExternalLink, 
   Building2, MessageSquare, Phone, 
-  AlertCircle, ToggleLeft, ToggleRight, Trash2
+  AlertCircle, ToggleLeft, ToggleRight, Trash2,
+  ChevronUp, ChevronDown
 } from "lucide-react";
 import {
   AlertDialog,
@@ -39,9 +40,13 @@ interface BuyerCardProps {
   onViewDetail: (id: string) => void;
   onClick?: () => void;
   onDelete?: (id: string) => void;
+  onMoveUp?: (id: string) => void;
+  onMoveDown?: (id: string) => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
-export function BuyerCard({ buyer, onViewDetail, onDelete }: BuyerCardProps) {
+export function BuyerCard({ buyer, onViewDetail, onDelete, onMoveUp, onMoveDown, isFirst, isLast }: BuyerCardProps) {
   const [tortCoverage, setTortCoverage] = useState<BuyerTortCoverage[]>([]);
   const [loadingCoverage, setLoadingCoverage] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -159,35 +164,65 @@ export function BuyerCard({ buyer, onViewDetail, onDelete }: BuyerCardProps) {
           {/* Header Section with solid blue background */}
           <div className="bg-[#0EA5E9] p-4 border-b">
             <div className="flex justify-between items-start">
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 {getBuyerIcon()}
                 <h3 className="font-semibold truncate max-w-[200px] text-white">{buyer.name}</h3>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-blue-600">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onViewDetail(buyer.id);
-                  }}>
-                    Edit Details
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
+              <div className="flex items-center gap-1">
+                {onMoveUp && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-white hover:bg-blue-600"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowDeleteDialog(true);
+                      onMoveUp(buyer.id);
                     }}
-                    className="text-destructive focus:text-destructive"
+                    disabled={isFirst}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Buyer
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                )}
+                {onMoveDown && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-white hover:bg-blue-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMoveDown(buyer.id);
+                    }}
+                    disabled={isLast}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-blue-600">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetail(buyer.id);
+                    }}>
+                      Edit Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeleteDialog(true);
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Buyer
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
             {buyer.platform && (
               <span className="text-xs text-white/80 mt-1 flex items-center">
