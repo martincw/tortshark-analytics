@@ -9,7 +9,8 @@ import {
   Database,
   Workflow,
   FileText,
-  LayoutDashboard
+  LayoutDashboard,
+  List
 } from "lucide-react";
 
 export type NavItem = {
@@ -41,6 +42,11 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       icon: Target,
       label: "Campaigns",
       href: "/campaigns",
+    },
+    {
+      icon: List,
+      label: "Campaign List",
+      href: "/campaign-list",
     },
     {
       icon: BarChart3,

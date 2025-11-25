@@ -29,6 +29,7 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
 import BuyerDashboard from "./pages/BuyerDashboard";
+import CampaignListPage from "./pages/CampaignListPage";
 
 import TeamSettingsPage from "./pages/TeamSettingsPage";
 import StatsWorkflowPage from "./pages/StatsWorkflowPage";
@@ -231,6 +232,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <BuyerDashboard />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/campaign-list" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <CampaignListPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />
