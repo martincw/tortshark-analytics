@@ -278,11 +278,80 @@ const CampaignList: React.FC<CampaignListProps> = ({ selectedDate, campaigns, lo
   );
 };
 
+// All Campaigns Component
+interface AllCampaignsProps {
+  campaigns: Campaign[];
+}
+
+const AllCampaignsList: React.FC<AllCampaignsProps> = ({ campaigns }) => {
+  return (
+    <Card className="shadow-md mt-6">
+      <CardHeader className="pb-2 border-b">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary" />
+          All Campaigns ({campaigns.length} total)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-4">
+        {campaigns.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Campaign</th>
+                  <th className="text-right p-2">Platform</th>
+                  <th className="text-right p-2">Total Spend</th>
+                  <th className="text-right p-2">Total Leads</th>
+                  <th className="text-right p-2">Total Cases</th>
+                  <th className="text-right p-2">Total Revenue</th>
+                  <th className="text-right p-2">ROI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map(campaign => {
+                  const roi = campaign.adSpend > 0 
+                    ? ((campaign.revenue / campaign.adSpend) * 100).toFixed(1) 
+                    : "N/A";
+                  
+                  return (
+                    <tr key={campaign.id} className="border-b hover:bg-accent/5">
+                      <td className="p-2 font-medium">{campaign.name}</td>
+                      <td className="text-right p-2">
+                        <Badge variant="outline">{campaign.platform}</Badge>
+                      </td>
+                      <td className="text-right p-2">{formatCurrency(campaign.adSpend)}</td>
+                      <td className="text-right p-2">{campaign.leads}</td>
+                      <td className="text-right p-2">{campaign.cases}</td>
+                      <td className="text-right p-2">{formatCurrency(campaign.revenue)}</td>
+                      <td className="text-right p-2">
+                        <span className={campaign.revenue > campaign.adSpend ? "text-success-DEFAULT" : "text-error-DEFAULT"}>
+                          {typeof roi === "string" ? roi : `${roi}%`}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center text-muted-foreground">
+            <Info className="h-10 w-10 mb-4" />
+            <h3 className="text-lg font-medium mb-2">No campaigns found</h3>
+            <p>There are no campaigns in the system.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // Main Dashboard Component
 const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [financialData, setFinancialData] = useState<FinancialOverviewData | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const { campaigns: contextCampaigns } = useCampaign();
   
@@ -366,10 +435,31 @@ const Dashboard: React.FC = () => {
         
         setCampaigns(filteredCampaigns);
         console.log("Filtered campaigns:", filteredCampaigns.length);
+        
+        // Calculate all-time stats for all campaigns
+        const allCampaignsStats = contextCampaigns.map(campaign => {
+          const adSpend = campaign.statsHistory.reduce((sum, stat) => sum + (stat.adSpend || 0), 0);
+          const leads = campaign.statsHistory.reduce((sum, stat) => sum + (stat.leads || 0), 0);
+          const cases = campaign.statsHistory.reduce((sum, stat) => sum + (stat.cases || 0), 0);
+          const revenue = campaign.statsHistory.reduce((sum, stat) => sum + (stat.revenue || 0), 0);
+          
+          return {
+            id: campaign.id,
+            name: campaign.name,
+            platform: campaign.platform,
+            adSpend,
+            leads,
+            cases,
+            revenue
+          };
+        });
+        
+        setAllCampaigns(allCampaignsStats);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         setFinancialData(null);
         setCampaigns([]);
+        setAllCampaigns([]);
       } finally {
         setLoading(false);
       }
@@ -407,6 +497,8 @@ const Dashboard: React.FC = () => {
         campaigns={campaigns} 
         loading={loading} 
       />
+      
+      <AllCampaignsList campaigns={allCampaigns} />
     </div>
   );
 };
