@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { formatSafeDate } from "@/lib/utils/ManualDateUtils";
 import { CheckCircle, XCircle, Trash2, Edit } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCampaign } from "@/contexts/CampaignContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +52,7 @@ export default function ContractorSubmissionsPage() {
   const [editingSubmission, setEditingSubmission] = useState<ContractorSubmission | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { user } = useAuth();
+  const { fetchCampaigns: refreshCampaigns } = useCampaign();
 
   useEffect(() => {
     fetchSubmissions();
@@ -258,6 +260,10 @@ export default function ContractorSubmissionsPage() {
       if (updateError) throw updateError;
 
       toast.success('Submission approved and stats updated');
+      
+      // Refresh campaign data in context so homepage shows updated stats
+      await refreshCampaigns();
+      
       fetchSubmissions();
     } catch (error) {
       console.error('Error approving submission:', error);
