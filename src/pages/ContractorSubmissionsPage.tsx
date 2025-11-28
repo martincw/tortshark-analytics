@@ -120,6 +120,13 @@ export default function ContractorSubmissionsPage() {
 
       console.log('Database update successful:', updatedData);
 
+      // Optimistically update local state immediately
+      setSubmissions(prevSubmissions => 
+        prevSubmissions.map(sub => 
+          sub.id === submissionId ? updatedData : sub
+        )
+      );
+
       // If this submission was already approved, also update the campaign_stats_history
       if (updatedData.status === 'approved') {
         console.log('Submission is approved, updating campaign_stats_history...');
@@ -149,9 +156,6 @@ export default function ContractorSubmissionsPage() {
       toast.success('Submission updated successfully');
       setIsEditDialogOpen(false);
       setEditingSubmission(null);
-      
-      // Force refresh from database
-      await fetchSubmissions();
       
     } catch (error) {
       console.error('Error updating submission:', error);
