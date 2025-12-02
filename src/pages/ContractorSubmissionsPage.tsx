@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { formatSafeDate } from "@/lib/utils/ManualDateUtils";
 import { CheckCircle, XCircle, Trash2, Edit } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCampaign } from "@/contexts/CampaignContext";
 import {
@@ -51,6 +52,8 @@ export default function ContractorSubmissionsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<ContractorSubmission | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const { user } = useAuth();
   const { fetchCampaigns: refreshCampaigns } = useCampaign();
 
@@ -167,10 +170,10 @@ export default function ContractorSubmissionsPage() {
     }
   };
 
-  const approveSubmission = async (submission: ContractorSubmission) => {
+  const approveSubmission = async (submission: ContractorSubmission, silent = false) => {
     if (!user) return;
     
-    setProcessingId(submission.id);
+    if (!silent) setProcessingId(submission.id);
     
     try {
       // Get the latest submission data to ensure we have the most recent values
@@ -205,7 +208,7 @@ export default function ContractorSubmissionsPage() {
         p_ts_campaign_id: latestSubmission.campaign_id,
         p_date: latestSubmission.submission_date,
         p_lead_count: latestSubmission.leads,
-        p_accepted: latestSubmission.leads, // Assuming all leads are accepted initially
+        p_accepted: latestSubmission.leads,
         p_duplicated: 0,
         p_failed: 0,
         p_cost: latestSubmission.ad_spend,
@@ -214,7 +217,6 @@ export default function ContractorSubmissionsPage() {
 
       if (metricsError) {
         console.error('Error updating daily metrics:', metricsError);
-        // Don't throw - continue with approval even if metrics update fails
       }
 
       // Check if we need to update campaign_manual_stats (if this is the most recent date)
@@ -259,17 +261,17 @@ export default function ContractorSubmissionsPage() {
 
       if (updateError) throw updateError;
 
-      toast.success('Submission approved and stats updated');
-      
-      // Refresh campaign data in context so homepage shows updated stats
-      await refreshCampaigns();
-      
-      fetchSubmissions();
+      if (!silent) {
+        toast.success('Submission approved and stats updated');
+        await refreshCampaigns();
+        fetchSubmissions();
+      }
     } catch (error) {
       console.error('Error approving submission:', error);
-      toast.error('Failed to approve submission');
+      if (!silent) toast.error('Failed to approve submission');
+      throw error; // Re-throw for bulk handling
     } finally {
-      setProcessingId(null);
+      if (!silent) setProcessingId(null);
     }
   };
 
@@ -326,6 +328,60 @@ export default function ContractorSubmissionsPage() {
     setIsEditDialogOpen(true);
   };
 
+  const pendingSubmissions = submissions.filter(s => s.status === 'pending');
+  const allPendingSelected = pendingSubmissions.length > 0 && 
+    pendingSubmissions.every(s => selectedIds.has(s.id));
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingSubmissions.map(s => s.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const bulkApprove = async () => {
+    if (!user || selectedIds.size === 0) return;
+    
+    setIsBulkProcessing(true);
+    const toApprove = submissions.filter(s => selectedIds.has(s.id) && s.status === 'pending');
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const submission of toApprove) {
+      try {
+        await approveSubmission(submission, true); // silent mode
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setSelectedIds(new Set());
+    setIsBulkProcessing(false);
+    
+    // Refresh data once after all approvals
+    await refreshCampaigns();
+    fetchSubmissions();
+    
+    if (failCount === 0) {
+      toast.success(`${successCount} submission(s) approved`);
+    } else {
+      toast.error(`${successCount} approved, ${failCount} failed`);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -357,11 +413,23 @@ export default function ContractorSubmissionsPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Contractor Submissions</CardTitle>
-          <CardDescription>
-            Review and manage stats submissions from contractors
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Contractor Submissions</CardTitle>
+            <CardDescription>
+              Review and manage stats submissions from contractors
+            </CardDescription>
+          </div>
+          {selectedIds.size > 0 && (
+            <Button 
+              onClick={bulkApprove} 
+              disabled={isBulkProcessing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Approve {selectedIds.size} Selected
+            </Button>
+          )}
         </CardHeader>
         
         <CardContent>
@@ -373,6 +441,13 @@ export default function ContractorSubmissionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox 
+                      checked={allPendingSelected}
+                      onCheckedChange={toggleSelectAll}
+                      disabled={pendingSubmissions.length === 0}
+                    />
+                  </TableHead>
                   <TableHead>Contractor</TableHead>
                   <TableHead>Campaign</TableHead>
                   <TableHead>Date</TableHead>
@@ -390,6 +465,14 @@ export default function ContractorSubmissionsPage() {
               <TableBody>
                 {submissions.map((submission) => (
                   <TableRow key={submission.id}>
+                    <TableCell>
+                      {submission.status === 'pending' && (
+                        <Checkbox 
+                          checked={selectedIds.has(submission.id)}
+                          onCheckedChange={() => toggleSelect(submission.id)}
+                        />
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{submission.contractor_name}</div>
