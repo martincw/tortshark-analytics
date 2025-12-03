@@ -145,7 +145,7 @@ const PortfolioTab = () => {
       <AddBackendCaseDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        campaigns={campaigns}
+        campaigns={[...campaigns].sort((a, b) => a.name.localeCompare(b.name))}
         onCaseAdded={fetchPortfolioData}
       />
     </div>
