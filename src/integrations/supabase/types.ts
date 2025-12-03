@@ -346,6 +346,48 @@ export type Database = {
           },
         ]
       }
+      campaign_portfolio_settings: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          settlement_value: number
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          settlement_value?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          settlement_value?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_portfolio_settings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_portfolio_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_returns: {
         Row: {
           campaign_id: string
