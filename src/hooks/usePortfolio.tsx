@@ -174,10 +174,10 @@ export const usePortfolio = () => {
         };
       });
 
-      // Sort: enabled first, then by NAV descending
+      // Sort: enabled first, then alphabetically by name
       portfolioItems.sort((a, b) => {
         if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
-        return b.totalValue - a.totalValue;
+        return a.campaignName.localeCompare(b.campaignName);
       });
 
       setPortfolioData(portfolioItems);
@@ -276,10 +276,10 @@ export const usePortfolio = () => {
           : item
       );
       
-      // Re-sort: enabled first
+      // Re-sort: enabled first, then alphabetically
       updatedData.sort((a, b) => {
         if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
-        return b.totalValue - a.totalValue;
+        return a.campaignName.localeCompare(b.campaignName);
       });
       
       setPortfolioData(updatedData);
