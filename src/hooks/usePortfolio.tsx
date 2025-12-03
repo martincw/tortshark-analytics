@@ -34,6 +34,7 @@ interface PortfolioSetting {
   campaign_id: string;
   settlement_value: number;
   split_percentage?: number;
+  is_enabled?: boolean;
 }
 
 export const usePortfolio = () => {
@@ -115,10 +116,10 @@ export const usePortfolio = () => {
         throw caseError;
       }
 
-      // Fetch portfolio settings
+      // Fetch portfolio settings - include is_enabled
       const { data: portfolioSettings, error: settingsError } = await supabase
         .from('campaign_portfolio_settings')
-        .select('campaign_id, settlement_value, split_percentage')
+        .select('*')
         .eq('workspace_id', currentWorkspace.id);
 
       if (settingsError) {
@@ -126,11 +127,12 @@ export const usePortfolio = () => {
       }
 
       // Create settings map
-      const settingsMap = new Map<string, { settlement: number; split: number }>();
+      const settingsMap = new Map<string, { settlement: number; split: number; enabled: boolean }>();
       (portfolioSettings as PortfolioSetting[] | null)?.forEach(setting => {
         settingsMap.set(setting.campaign_id, {
           settlement: setting.settlement_value || 0,
           split: setting.split_percentage ?? 100,
+          enabled: setting.is_enabled !== false, // Default true if not set
         });
       });
 
@@ -156,6 +158,8 @@ export const usePortfolio = () => {
         const settings = settingsMap.get(campaign.id);
         const settlement = settings?.settlement || 0;
         const split = settings?.split ?? 100;
+        // If no setting exists for this campaign, default to enabled
+        const isEnabled = settings ? settings.enabled : true;
         
         return {
           campaignId: campaign.id,
@@ -166,12 +170,15 @@ export const usePortfolio = () => {
           splitPercentage: split,
           yourShare: settlement * (split / 100),
           hasSettlementSetting: settingsMap.has(campaign.id),
-          isEnabled: true,
+          isEnabled,
         };
       });
 
-      // Sort by NAV descending
-      portfolioItems.sort((a, b) => b.totalValue - a.totalValue);
+      // Sort: enabled first, then by NAV descending
+      portfolioItems.sort((a, b) => {
+        if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
+        return b.totalValue - a.totalValue;
+      });
 
       setPortfolioData(portfolioItems);
       calculateSummary(portfolioItems);
@@ -196,12 +203,15 @@ export const usePortfolio = () => {
     if (!currentWorkspace?.id) return;
 
     try {
+      const existingSetting = portfolioData.find(p => p.campaignId === campaignId);
+      
       const { error } = await supabase
         .from('campaign_portfolio_settings')
         .upsert({
           campaign_id: campaignId,
           settlement_value: settlementValue,
           split_percentage: splitPercentage,
+          is_enabled: existingSetting?.isEnabled ?? true,
           workspace_id: currentWorkspace.id,
         }, {
           onConflict: 'campaign_id',
@@ -239,24 +249,54 @@ export const usePortfolio = () => {
   };
 
   const toggleCampaignEnabled = async (campaignId: string, enabled: boolean) => {
-    const updatedData = portfolioData.map(item => 
-      item.campaignId === campaignId 
-        ? { ...item, isEnabled: enabled }
-        : item
-    );
-    
-    updatedData.sort((a, b) => {
-      if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
-      return b.totalValue - a.totalValue;
-    });
-    
-    setPortfolioData(updatedData);
-    calculateSummary(updatedData);
+    if (!currentWorkspace?.id) return;
 
-    toast({
-      title: enabled ? "Activated" : "Deactivated",
-      description: `Campaign ${enabled ? 'added to' : 'removed from'} portfolio view.`,
-    });
+    try {
+      const existingSetting = portfolioData.find(p => p.campaignId === campaignId);
+      
+      // Persist to database
+      const { error } = await supabase
+        .from('campaign_portfolio_settings')
+        .upsert({
+          campaign_id: campaignId,
+          settlement_value: existingSetting?.settlementValue || 0,
+          split_percentage: existingSetting?.splitPercentage ?? 100,
+          is_enabled: enabled,
+          workspace_id: currentWorkspace.id,
+        }, {
+          onConflict: 'campaign_id',
+        });
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedData = portfolioData.map(item => 
+        item.campaignId === campaignId 
+          ? { ...item, isEnabled: enabled, hasSettlementSetting: true }
+          : item
+      );
+      
+      // Re-sort: enabled first
+      updatedData.sort((a, b) => {
+        if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
+        return b.totalValue - a.totalValue;
+      });
+      
+      setPortfolioData(updatedData);
+      calculateSummary(updatedData);
+
+      toast({
+        title: enabled ? "Activated" : "Deactivated",
+        description: `Campaign ${enabled ? 'added to' : 'removed from'} portfolio.`,
+      });
+    } catch (error) {
+      console.error('Error toggling campaign:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update campaign status.",
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => {
