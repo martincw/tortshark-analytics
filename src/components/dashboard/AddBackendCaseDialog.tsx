@@ -24,7 +24,6 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
 }) => {
   const [campaignId, setCampaignId] = useState("");
   const [caseCount, setCaseCount] = useState("");
-  const [pricePerCase, setPricePerCase] = useState("");
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -32,7 +31,7 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!campaignId || !date || !caseCount || !pricePerCase) {
+    if (!campaignId || !date || !caseCount) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -88,7 +87,7 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
           date: date.toISOString().split('T')[0],
           campaign_id: campaignId,
           case_count: parseInt(caseCount),
-          price_per_case: parseFloat(pricePerCase),
+          price_per_case: 0,
           user_id: user.id,
           workspace_id: workspaceData.workspace_id,
         }], {
@@ -113,7 +112,6 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
       // Reset form
       setCampaignId("");
       setCaseCount("");
-      setPricePerCase("");
       setDate(new Date());
       
       onCaseAdded();
@@ -174,20 +172,6 @@ export const AddBackendCaseDialog: React.FC<AddBackendCaseDialogProps> = ({
               value={caseCount}
               onChange={(e) => setCaseCount(e.target.value)}
               placeholder="3"
-              required
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="price-per-case">$ per Case *</Label>
-            <Input
-              id="price-per-case"
-              type="number"
-              step="0.01"
-              min="0"
-              value={pricePerCase}
-              onChange={(e) => setPricePerCase(e.target.value)}
-              placeholder="5000.00"
               required
             />
           </div>
