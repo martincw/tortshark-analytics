@@ -21,7 +21,7 @@ const PortfolioTab = () => {
     dateRange, 
     setDateRange, 
     fetchPortfolioData,
-    updateSettlementValue,
+    updatePortfolioSettings,
     toggleCampaignEnabled
   } = usePortfolio();
   const { campaigns } = useCampaign();
@@ -122,7 +122,7 @@ const PortfolioTab = () => {
                   portfolio={item}
                   isEnabled={item.isEnabled}
                   onToggle={toggleCampaignEnabled}
-                  onSettlementUpdate={updateSettlementValue}
+                  onSettingsUpdate={updatePortfolioSettings}
                 />
               ))}
             </div>
@@ -134,7 +134,7 @@ const PortfolioTab = () => {
                   portfolio={item}
                   isEnabled={item.isEnabled}
                   onToggle={toggleCampaignEnabled}
-                  onSettlementUpdate={updateSettlementValue}
+                  onSettingsUpdate={updatePortfolioSettings}
                 />
               ))}
             </div>

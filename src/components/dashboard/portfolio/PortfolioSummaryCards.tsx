@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Briefcase, DollarSign, TrendingUp, PieChart } from "lucide-react";
+import { Briefcase, DollarSign, TrendingUp, PieChart, Percent } from "lucide-react";
 import { PortfolioSummary } from "@/hooks/usePortfolio";
 
 interface PortfolioSummaryCardsProps {
@@ -8,6 +8,9 @@ interface PortfolioSummaryCardsProps {
 
 export function PortfolioSummaryCards({ summary }: PortfolioSummaryCardsProps) {
   const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -17,31 +20,17 @@ export function PortfolioSummaryCards({ summary }: PortfolioSummaryCardsProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <Briefcase className="h-4 w-4 text-primary" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Total Cases
             </CardTitle>
           </div>
-          <CardDescription className="text-3xl font-bold text-foreground">
+          <CardDescription className="text-2xl font-bold text-foreground">
             {summary.totalCases.toLocaleString()}
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-green-600" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total NAV
-            </CardTitle>
-          </div>
-          <CardDescription className="text-3xl font-bold text-green-600">
-            {formatCurrency(summary.totalNAV)}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -50,11 +39,11 @@ export function PortfolioSummaryCards({ summary }: PortfolioSummaryCardsProps) {
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-blue-600" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Avg Settlement
             </CardTitle>
           </div>
-          <CardDescription className="text-3xl font-bold text-blue-600">
+          <CardDescription className="text-2xl font-bold text-blue-600">
             {formatCurrency(summary.avgSettlement)}
           </CardDescription>
         </CardHeader>
@@ -63,14 +52,43 @@ export function PortfolioSummaryCards({ summary }: PortfolioSummaryCardsProps) {
       <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
-            <PieChart className="h-4 w-4 text-purple-600" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Torts
+            <Percent className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Avg Split
             </CardTitle>
           </div>
-          <CardDescription className="text-3xl font-bold text-purple-600">
-            {summary.campaignCount}
+          <CardDescription className="text-2xl font-bold text-purple-600">
+            {summary.avgSplit.toFixed(1)}%
           </CardDescription>
+        </CardHeader>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-amber-600" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Current NAV
+            </CardTitle>
+          </div>
+          <CardDescription className="text-2xl font-bold text-amber-600">
+            {formatCurrency(summary.totalNAV)}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20 col-span-2 md:col-span-1">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <PieChart className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Projected Value
+            </CardTitle>
+          </div>
+          <CardDescription className="text-2xl font-bold text-green-600">
+            {formatCurrency(summary.projectedValue)}
+          </CardDescription>
+          <p className="text-xs text-muted-foreground">Cases × Settlement × Split</p>
         </CardHeader>
       </Card>
     </div>

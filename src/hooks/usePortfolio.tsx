@@ -10,6 +10,8 @@ export interface CampaignPortfolio {
   totalCases: number;
   totalValue: number; // NAV
   settlementValue: number;
+  splitPercentage: number;
+  yourShare: number; // settlement × split %
   hasSettlementSetting: boolean;
   isEnabled: boolean;
 }
@@ -18,6 +20,8 @@ export interface PortfolioSummary {
   totalCases: number;
   totalNAV: number;
   avgSettlement: number;
+  avgSplit: number;
+  projectedValue: number; // Sum of (cases × settlement × split)
   campaignCount: number;
 }
 
@@ -29,7 +33,7 @@ interface DateRange {
 interface PortfolioSetting {
   campaign_id: string;
   settlement_value: number;
-  is_enabled?: boolean;
+  split_percentage?: number;
 }
 
 export const usePortfolio = () => {
@@ -38,6 +42,8 @@ export const usePortfolio = () => {
     totalCases: 0,
     totalNAV: 0,
     avgSettlement: 0,
+    avgSplit: 0,
+    projectedValue: 0,
     campaignCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -50,15 +56,30 @@ export const usePortfolio = () => {
     const enabledData = data.filter(item => item.isEnabled);
     const totalCases = enabledData.reduce((sum, item) => sum + item.totalCases, 0);
     const totalNAV = enabledData.reduce((sum, item) => sum + item.totalValue, 0);
+    
     const settlementsWithValue = enabledData.filter(item => item.settlementValue > 0);
     const avgSettlement = settlementsWithValue.length > 0
       ? settlementsWithValue.reduce((sum, item) => sum + item.settlementValue, 0) / settlementsWithValue.length
       : 0;
+    
+    const avgSplit = settlementsWithValue.length > 0
+      ? settlementsWithValue.reduce((sum, item) => sum + item.splitPercentage, 0) / settlementsWithValue.length
+      : 0;
+    
+    // Projected value = sum of (cases × settlement × split%)
+    const projectedValue = enabledData.reduce((sum, item) => {
+      if (item.settlementValue > 0) {
+        return sum + (item.totalCases * item.settlementValue * (item.splitPercentage / 100));
+      }
+      return sum;
+    }, 0);
 
     setSummary({
       totalCases,
       totalNAV,
       avgSettlement,
+      avgSplit,
+      projectedValue,
       campaignCount: enabledData.length,
     });
   }, []);
@@ -94,10 +115,10 @@ export const usePortfolio = () => {
         throw caseError;
       }
 
-      // Fetch portfolio settings using raw query to handle new column
+      // Fetch portfolio settings
       const { data: portfolioSettings, error: settingsError } = await supabase
         .from('campaign_portfolio_settings')
-        .select('campaign_id, settlement_value')
+        .select('campaign_id, settlement_value, split_percentage')
         .eq('workspace_id', currentWorkspace.id);
 
       if (settingsError) {
@@ -105,11 +126,11 @@ export const usePortfolio = () => {
       }
 
       // Create settings map
-      const settingsMap = new Map<string, { settlement: number; enabled: boolean }>();
+      const settingsMap = new Map<string, { settlement: number; split: number }>();
       (portfolioSettings as PortfolioSetting[] | null)?.forEach(setting => {
         settingsMap.set(setting.campaign_id, {
           settlement: setting.settlement_value || 0,
-          enabled: true, // Default all to enabled for now
+          split: setting.split_percentage ?? 100,
         });
       });
 
@@ -133,23 +154,24 @@ export const usePortfolio = () => {
       const portfolioItems: CampaignPortfolio[] = campaigns.map(campaign => {
         const caseData = caseAggregates.get(campaign.id) || { cases: 0, value: 0 };
         const settings = settingsMap.get(campaign.id);
+        const settlement = settings?.settlement || 0;
+        const split = settings?.split ?? 100;
         
         return {
           campaignId: campaign.id,
           campaignName: campaign.name,
           totalCases: caseData.cases,
           totalValue: caseData.value,
-          settlementValue: settings?.settlement || 0,
+          settlementValue: settlement,
+          splitPercentage: split,
+          yourShare: settlement * (split / 100),
           hasSettlementSetting: settingsMap.has(campaign.id),
-          isEnabled: settings?.enabled !== false, // Default to enabled
+          isEnabled: true,
         };
       });
 
-      // Sort: enabled first, then by NAV descending
-      portfolioItems.sort((a, b) => {
-        if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
-        return b.totalValue - a.totalValue;
-      });
+      // Sort by NAV descending
+      portfolioItems.sort((a, b) => b.totalValue - a.totalValue);
 
       setPortfolioData(portfolioItems);
       calculateSummary(portfolioItems);
@@ -166,16 +188,20 @@ export const usePortfolio = () => {
     }
   }, [currentWorkspace?.id, dateRange, campaigns, toast, calculateSummary]);
 
-  const updateSettlementValue = async (campaignId: string, value: number) => {
+  const updatePortfolioSettings = async (
+    campaignId: string, 
+    settlementValue: number, 
+    splitPercentage: number
+  ) => {
     if (!currentWorkspace?.id) return;
 
     try {
-      // Upsert the settlement value
       const { error } = await supabase
         .from('campaign_portfolio_settings')
         .upsert({
           campaign_id: campaignId,
-          settlement_value: value,
+          settlement_value: settlementValue,
+          split_percentage: splitPercentage,
           workspace_id: currentWorkspace.id,
         }, {
           onConflict: 'campaign_id',
@@ -186,7 +212,13 @@ export const usePortfolio = () => {
       // Update local state
       const updatedData = portfolioData.map(item => 
         item.campaignId === campaignId 
-          ? { ...item, settlementValue: value, hasSettlementSetting: true }
+          ? { 
+              ...item, 
+              settlementValue, 
+              splitPercentage,
+              yourShare: settlementValue * (splitPercentage / 100),
+              hasSettlementSetting: true 
+            }
           : item
       );
       setPortfolioData(updatedData);
@@ -194,27 +226,25 @@ export const usePortfolio = () => {
 
       toast({
         title: "Updated",
-        description: "Settlement value saved.",
+        description: "Portfolio settings saved.",
       });
     } catch (error) {
-      console.error('Error updating settlement value:', error);
+      console.error('Error updating portfolio settings:', error);
       toast({
         title: "Error",
-        description: "Failed to update settlement value.",
+        description: "Failed to update settings.",
         variant: "destructive",
       });
     }
   };
 
   const toggleCampaignEnabled = async (campaignId: string, enabled: boolean) => {
-    // For now, just update local state since is_enabled column might not be in schema cache yet
     const updatedData = portfolioData.map(item => 
       item.campaignId === campaignId 
         ? { ...item, isEnabled: enabled }
         : item
     );
     
-    // Re-sort: enabled first
     updatedData.sort((a, b) => {
       if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
       return b.totalValue - a.totalValue;
@@ -242,7 +272,7 @@ export const usePortfolio = () => {
     dateRange,
     setDateRange,
     fetchPortfolioData,
-    updateSettlementValue,
+    updatePortfolioSettings,
     toggleCampaignEnabled,
   };
 };
