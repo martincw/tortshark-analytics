@@ -131,7 +131,7 @@ export const usePortfolio = () => {
       (portfolioSettings as PortfolioSetting[] | null)?.forEach(setting => {
         settingsMap.set(setting.campaign_id, {
           settlement: setting.settlement_value || 0,
-          split: setting.split_percentage ?? 100,
+          split: setting.split_percentage ?? 42.5,
           enabled: setting.is_enabled !== false, // Default true if not set
         });
       });
@@ -157,7 +157,7 @@ export const usePortfolio = () => {
         const caseData = caseAggregates.get(campaign.id) || { cases: 0, value: 0 };
         const settings = settingsMap.get(campaign.id);
         const settlement = settings?.settlement || 0;
-        const split = settings?.split ?? 100;
+        const split = settings?.split ?? 42.5;
         // If no setting exists for this campaign, default to enabled
         const isEnabled = settings ? settings.enabled : true;
         
@@ -260,7 +260,7 @@ export const usePortfolio = () => {
         .upsert({
           campaign_id: campaignId,
           settlement_value: existingSetting?.settlementValue || 0,
-          split_percentage: existingSetting?.splitPercentage ?? 100,
+          split_percentage: existingSetting?.splitPercentage ?? 42.5,
           is_enabled: enabled,
           workspace_id: currentWorkspace.id,
         }, {

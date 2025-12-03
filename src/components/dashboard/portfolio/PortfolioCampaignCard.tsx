@@ -21,7 +21,7 @@ export function PortfolioCampaignCard({
 }: PortfolioCampaignCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editSettlement, setEditSettlement] = useState(portfolio.settlementValue.toString());
-  const [editSplit, setEditSplit] = useState(portfolio.splitPercentage.toString());
+  const [editSplit, setEditSplit] = useState(portfolio.splitPercentage?.toString() || "42.5");
   const [isToggling, setIsToggling] = useState(false);
 
   const formatCurrency = (amount: number) => {
