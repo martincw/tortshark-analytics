@@ -353,6 +353,7 @@ export type Database = {
           id: string
           is_enabled: boolean
           settlement_value: number
+          split_percentage: number
           updated_at: string
           workspace_id: string | null
         }
@@ -362,6 +363,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           settlement_value?: number
+          split_percentage?: number
           updated_at?: string
           workspace_id?: string | null
         }
@@ -371,6 +373,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           settlement_value?: number
+          split_percentage?: number
           updated_at?: string
           workspace_id?: string | null
         }
