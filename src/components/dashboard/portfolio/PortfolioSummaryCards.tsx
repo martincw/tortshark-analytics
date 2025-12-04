@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Briefcase, DollarSign, TrendingUp, PieChart, Percent } from "lucide-react";
+import { Briefcase, TrendingUp, PieChart, Percent } from "lucide-react";
 import { PortfolioSummary } from "@/hooks/usePortfolio";
 
 interface PortfolioSummaryCardsProps {
@@ -20,7 +20,7 @@ export function PortfolioSummaryCards({ summary }: PortfolioSummaryCardsProps) {
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
@@ -63,21 +63,7 @@ export function PortfolioSummaryCards({ summary }: PortfolioSummaryCardsProps) {
         </CardHeader>
       </Card>
 
-      <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-amber-600" />
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              Current NAV
-            </CardTitle>
-          </div>
-          <CardDescription className="text-2xl font-bold text-amber-600">
-            {formatCurrency(summary.totalNAV)}
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20 col-span-2 md:col-span-1">
+      <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <PieChart className="h-4 w-4 text-green-600" />
