@@ -177,14 +177,8 @@ export function PortfolioCampaignCard({
           </>
         )}
 
-        {/* NAV */}
-        <div className="flex items-center justify-between pt-2 border-t bg-muted/20 -mx-6 px-6 py-2">
-          <span className="text-sm font-medium text-muted-foreground">Current NAV</span>
-          <span className="font-bold text-green-600">{formatCurrency(portfolio.totalValue)}</span>
-        </div>
-
         {/* Total Projected Value */}
-        <div className="flex items-center justify-between bg-primary/10 -mx-6 px-6 py-3 -mb-3">
+        <div className="flex items-center justify-between pt-2 border-t bg-primary/10 -mx-6 px-6 py-3 -mb-3">
           <span className="text-sm font-semibold">Total Projected</span>
           <span className="font-bold text-lg text-primary">
             {totalProjectedValue > 0 ? formatCurrency(totalProjectedValue) : '-'}
