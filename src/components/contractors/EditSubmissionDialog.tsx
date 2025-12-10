@@ -105,6 +105,7 @@ export function EditSubmissionDialog({
         ? submission.submission_date.split('T')[0] 
         : submission.submission_date;
       
+      // Force reset with the latest submission data
       reset({
         submission_date: dateString,
         ad_spend: submission.ad_spend.toString(),
@@ -117,7 +118,7 @@ export function EditSubmissionDialog({
         notes: submission.notes || '',
       });
     }
-  }, [submission, open, reset]);
+  }, [submission?.id, submission?.ad_spend, submission?.youtube_spend, submission?.meta_spend, submission?.newsbreak_spend, submission?.leads, submission?.cases, submission?.revenue, submission?.notes, submission?.submission_date, open, reset]);
 
   const onSubmit = async (data: EditSubmissionFormData) => {
     if (!submission) return;
