@@ -125,11 +125,16 @@ export default function ContractorSubmissionsPage() {
 
       console.log('Database update successful:', updatedData);
 
-      // Optimistically update local state immediately
+      // Update local state with the new data
       setSubmissions(prevSubmissions => 
         prevSubmissions.map(sub => 
-          sub.id === submissionId ? updatedData : sub
+          sub.id === submissionId ? { ...updatedData } : sub
         )
+      );
+      
+      // Also update editingSubmission if it's the same submission
+      setEditingSubmission(prev => 
+        prev?.id === submissionId ? { ...updatedData } : prev
       );
 
       // If this submission was already approved, also update the campaign_stats_history
