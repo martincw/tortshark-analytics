@@ -38,9 +38,9 @@ const Progress = React.forwardRef<
   
   const getVariantClass = () => {
     switch (variant) {
-      case "success": return "bg-success-DEFAULT";
-      case "warning": return "bg-warning-DEFAULT";
-      case "error": return "bg-error-DEFAULT";
+      case "success": return "bg-success";
+      case "warning": return "bg-warning";
+      case "error": return "bg-error";
       default: return "bg-primary";
     }
   }
