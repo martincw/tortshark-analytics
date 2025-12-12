@@ -123,17 +123,17 @@ export const useBuyerBudgetCapacity = () => {
 
   const getUtilization = useCallback(async (startDate: string, endDate: string) => {
     try {
-      // Get total ad spend from campaign_stats_history within date range
+      // Get total revenue from campaign_stats_history within date range
       const { data, error } = await supabase
         .from('campaign_stats_history')
-        .select('ad_spend')
+        .select('revenue')
         .gte('date', startDate)
         .lte('date', endDate);
 
       if (error) throw error;
 
-      const totalSpend = data?.reduce((sum, stat) => sum + (stat.ad_spend || 0), 0) ?? 0;
-      return totalSpend;
+      const totalRevenue = data?.reduce((sum, stat) => sum + (stat.revenue || 0), 0) ?? 0;
+      return totalRevenue;
     } catch (error) {
       console.error('Error calculating utilization:', error);
       return 0;
