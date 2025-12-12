@@ -121,7 +121,7 @@ export const useBuyerBudgetCapacity = () => {
     }
   };
 
-  const getUtilization = async (startDate: string, endDate: string) => {
+  const getUtilization = useCallback(async (startDate: string, endDate: string) => {
     try {
       // Get total ad spend from campaign_stats_history within date range
       const { data, error } = await supabase
@@ -138,7 +138,7 @@ export const useBuyerBudgetCapacity = () => {
       console.error('Error calculating utilization:', error);
       return 0;
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBuyersWithCapacity();
