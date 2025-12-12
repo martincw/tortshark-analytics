@@ -111,6 +111,54 @@ export type Database = {
           },
         ]
       }
+      buyer_budget_capacity: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          effective_date: string
+          id: string
+          monthly_capacity: number
+          notes: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          effective_date?: string
+          id?: string
+          monthly_capacity?: number
+          notes?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          effective_date?: string
+          id?: string
+          monthly_capacity?: number
+          notes?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_budget_capacity_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "case_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_budget_capacity_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_tort_coverage: {
         Row: {
           buyer_id: string

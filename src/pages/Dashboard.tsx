@@ -3,7 +3,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, TrendingUp, Users, Wallet, Info } from "lucide-react";
+import { Calendar, Clock, TrendingUp, Users, Wallet, Info, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,6 +12,7 @@ import { formatCurrency, formatNumber } from "@/utils/campaignUtils";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { parseISO, isWithinInterval, format } from "date-fns";
+import BudgetCapacityTab from "@/components/dashboard/BudgetCapacityTab";
 
 // Converts a "YYYY-MM-DD" string to a local Date
 function createLocalDate(dateString: string): Date {
@@ -472,33 +473,53 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Daily Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            View campaign performance data for a specific date
+            View campaign performance and budget capacity
           </p>
-        </div>
-        <div className="w-full md:w-auto">
-          <DatePicker
-            date={selectedDate}
-            setDate={handleDateChange}
-            className="w-[180px]"
-          />
         </div>
       </div>
       
-      <FinancialOverview 
-        selectedDate={selectedDate} 
-        data={financialData} 
-        loading={loading} 
-      />
-      
-      <CampaignList 
-        selectedDate={selectedDate} 
-        campaigns={campaigns} 
-        loading={loading} 
-      />
-      
-      <AllCampaignsList campaigns={allCampaigns} />
+      <Tabs defaultValue="daily" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Daily Stats
+          </TabsTrigger>
+          <TabsTrigger value="capacity" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Budget Capacity
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily" className="space-y-6">
+          <div className="flex justify-end">
+            <DatePicker
+              date={selectedDate}
+              setDate={handleDateChange}
+              className="w-[180px]"
+            />
+          </div>
+          
+          <FinancialOverview 
+            selectedDate={selectedDate} 
+            data={financialData} 
+            loading={loading} 
+          />
+          
+          <CampaignList 
+            selectedDate={selectedDate} 
+            campaigns={campaigns} 
+            loading={loading} 
+          />
+          
+          <AllCampaignsList campaigns={allCampaigns} />
+        </TabsContent>
+
+        <TabsContent value="capacity">
+          <BudgetCapacityTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
