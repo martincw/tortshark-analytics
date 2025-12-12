@@ -162,8 +162,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <CardContent className="pb-0">
           <MetricsOverview 
             metrics={metrics}
-            campaignStats={campaign.stats}
-            manualStats={campaign.manualStats}
+            campaignStats={{ adSpend: metrics.adSpend }}
+            manualStats={{ 
+              leads: metrics.leads, 
+              cases: metrics.cases, 
+              revenue: metrics.revenue 
+            }}
           />
           
           {buyerStack.length > 0 && (
