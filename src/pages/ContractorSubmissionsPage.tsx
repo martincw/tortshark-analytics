@@ -98,14 +98,12 @@ export default function ContractorSubmissionsPage() {
     setProcessingId(submissionId);
     
     try {
-      console.log('=== UPDATE SUBMISSION START ===');
-      console.log('Submission ID:', submissionId);
-      console.log('Data received:', JSON.stringify(data, null, 2));
-      console.log('ad_spend value:', data.ad_spend, 'type:', typeof data.ad_spend);
+      // Calculate total ad_spend from platform-specific spends
+      const calculatedAdSpend = (data.youtube_spend || 0) + (data.meta_spend || 0) + (data.newsbreak_spend || 0);
       
       const updatePayload = {
         submission_date: data.submission_date,
-        ad_spend: data.ad_spend,
+        ad_spend: calculatedAdSpend,
         youtube_spend: data.youtube_spend || 0,
         meta_spend: data.meta_spend || 0,
         newsbreak_spend: data.newsbreak_spend || 0,
@@ -116,8 +114,6 @@ export default function ContractorSubmissionsPage() {
         updated_at: new Date().toISOString()
       };
       
-      console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
-      
       const { data: updatedData, error } = await supabase
         .from('contractor_submissions')
         .update(updatePayload)
@@ -125,18 +121,13 @@ export default function ContractorSubmissionsPage() {
         .select('*, campaigns(name)')
         .single();
 
-      console.log('Update response - data:', updatedData);
-      console.log('Update response - error:', error);
-
       if (error) {
         console.error('Database update error:', error);
         throw error;
       }
 
-      console.log('Database update successful:', updatedData);
-
       // Update local state with the new data
-      setSubmissions(prevSubmissions => 
+      setSubmissions(prevSubmissions =>
         prevSubmissions.map(sub => 
           sub.id === submissionId ? { ...updatedData } : sub
         )
