@@ -6,6 +6,11 @@ import { calculateOptimalSpend } from "./spendOptimization";
 // Create a cache for metric calculations to avoid recalculating
 const metricsCache = new Map<string, CampaignMetrics>();
 
+// Function to clear the metrics cache when data is updated
+export const clearMetricsCache = () => {
+  metricsCache.clear();
+};
+
 export const calculateMetrics = (campaign: Campaign, dateRange?: DateRange): CampaignMetrics => {
   // Create a cache key combining campaign ID and date range
   const cacheKey = campaign.id + (dateRange ? `_${dateRange.startDate}_${dateRange.endDate}` : '_all');
