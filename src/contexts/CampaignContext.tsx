@@ -5,6 +5,7 @@ import { addDays, subDays, format, startOfWeek, endOfWeek, parseISO, subWeeks } 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { clearMetricsCache } from "@/utils/campaignUtils";
 
 
 interface CampaignContextType {
@@ -129,6 +130,9 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const fetchCampaigns = useCallback(async () => {
+    // Clear metrics cache before fetching to ensure fresh calculations
+    clearMetricsCache();
+    
     setIsLoading(true);
     setError(null);
     
