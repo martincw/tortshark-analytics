@@ -90,12 +90,6 @@ const BudgetCapacityTab: React.FC = () => {
 
   const capacityPercentage = BUDGET_GOAL > 0 ? (totalCapacity / BUDGET_GOAL) * 100 : 0;
   const utilizationPercentage = totalCapacity > 0 ? (utilization / totalCapacity) * 100 : 0;
-  
-  console.log('=== BUDGET DEBUG ===');
-  console.log('utilization:', utilization);
-  console.log('totalCapacity:', totalCapacity);
-  console.log('utilizationPercentage:', utilizationPercentage);
-  console.log('Math.min(utilizationPercentage, 100):', Math.min(utilizationPercentage, 100));
 
   // Quick date range presets
   const setCurrentMonth = () => {
@@ -146,7 +140,7 @@ const BudgetCapacityTab: React.FC = () => {
               <Progress 
                 value={Math.min(capacityPercentage, 100)} 
                 className="h-2"
-                indicatorColor={capacityPercentage >= 100 ? "bg-success-DEFAULT" : "bg-primary"}
+                indicatorColor={capacityPercentage >= 100 ? "bg-success" : "bg-primary"}
               />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
@@ -176,9 +170,9 @@ const BudgetCapacityTab: React.FC = () => {
                 value={Math.min(utilizationPercentage, 100)} 
                 className="h-2"
                 indicatorColor={
-                  utilizationPercentage >= 90 ? "bg-success-DEFAULT" : 
-                  utilizationPercentage >= 70 ? "bg-warning-DEFAULT" : 
-                  "bg-error-DEFAULT"
+                  utilizationPercentage >= 90 ? "bg-success" : 
+                  utilizationPercentage >= 70 ? "bg-warning" : 
+                  "bg-error"
                 }
               />
             </div>
@@ -314,7 +308,7 @@ const BudgetCapacityTab: React.FC = () => {
                               className="h-8 w-8"
                               onClick={() => handleEditSave(buyer.id)}
                             >
-                              <Check className="h-4 w-4 text-success-DEFAULT" />
+                              <Check className="h-4 w-4 text-success" />
                             </Button>
                             <Button 
                               size="icon" 
@@ -322,7 +316,7 @@ const BudgetCapacityTab: React.FC = () => {
                               className="h-8 w-8"
                               onClick={handleEditCancel}
                             >
-                              <X className="h-4 w-4 text-error-DEFAULT" />
+                              <X className="h-4 w-4 text-error" />
                             </Button>
                           </div>
                         ) : (
