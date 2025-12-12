@@ -167,6 +167,9 @@ export default function ContractorSubmissionsPage() {
       setIsEditDialogOpen(false);
       setEditingSubmission(null);
       
+      // Refresh campaigns to reflect the updated stats in the campaign view
+      await refreshCampaigns();
+      
     } catch (error) {
       console.error('Error updating submission:', error);
       toast.error('Failed to update submission');
