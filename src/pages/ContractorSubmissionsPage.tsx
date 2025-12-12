@@ -98,25 +98,35 @@ export default function ContractorSubmissionsPage() {
     setProcessingId(submissionId);
     
     try {
-      console.log('Updating submission with data:', data);
+      console.log('=== UPDATE SUBMISSION START ===');
+      console.log('Submission ID:', submissionId);
+      console.log('Data received:', JSON.stringify(data, null, 2));
+      console.log('ad_spend value:', data.ad_spend, 'type:', typeof data.ad_spend);
+      
+      const updatePayload = {
+        submission_date: data.submission_date,
+        ad_spend: data.ad_spend,
+        youtube_spend: data.youtube_spend || 0,
+        meta_spend: data.meta_spend || 0,
+        newsbreak_spend: data.newsbreak_spend || 0,
+        leads: data.leads,
+        cases: data.cases,
+        revenue: data.revenue,
+        notes: data.notes,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
       
       const { data: updatedData, error } = await supabase
         .from('contractor_submissions')
-        .update({
-          submission_date: data.submission_date,
-          ad_spend: data.ad_spend,
-          youtube_spend: data.youtube_spend || 0,
-          meta_spend: data.meta_spend || 0,
-          newsbreak_spend: data.newsbreak_spend || 0,
-          leads: data.leads,
-          cases: data.cases,
-          revenue: data.revenue,
-          notes: data.notes,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', submissionId)
         .select('*, campaigns(name)')
         .single();
+
+      console.log('Update response - data:', updatedData);
+      console.log('Update response - error:', error);
 
       if (error) {
         console.error('Database update error:', error);
