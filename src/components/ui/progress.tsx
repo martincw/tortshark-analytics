@@ -48,13 +48,17 @@ const Progress = React.forwardRef<
   const heightClass = getHeightClass();
   const variantClass = getVariantClass();
   
+  // Extract height class from className if provided (e.g., "h-2")
+  const hasCustomHeight = className?.includes('h-');
+  
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className="flex items-center gap-2">
       <ProgressPrimitive.Root
         ref={ref}
         className={cn(
           "relative w-full overflow-hidden rounded-full bg-muted",
-          heightClass
+          hasCustomHeight ? className : heightClass,
+          !hasCustomHeight && className
         )}
         {...props}
       >
