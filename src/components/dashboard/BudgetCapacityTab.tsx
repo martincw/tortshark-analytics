@@ -90,6 +90,12 @@ const BudgetCapacityTab: React.FC = () => {
 
   const capacityPercentage = BUDGET_GOAL > 0 ? (totalCapacity / BUDGET_GOAL) * 100 : 0;
   const utilizationPercentage = totalCapacity > 0 ? (utilization / totalCapacity) * 100 : 0;
+  
+  console.log('=== BUDGET DEBUG ===');
+  console.log('utilization:', utilization);
+  console.log('totalCapacity:', totalCapacity);
+  console.log('utilizationPercentage:', utilizationPercentage);
+  console.log('Math.min(utilizationPercentage, 100):', Math.min(utilizationPercentage, 100));
 
   // Quick date range presets
   const setCurrentMonth = () => {
