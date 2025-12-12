@@ -163,7 +163,7 @@ const BudgetCapacityTab: React.FC = () => {
             </div>
             <div className="mt-2">
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Spend vs Capacity</span>
+                <span>Revenue vs Capacity</span>
                 <span>{utilizationPercentage.toFixed(1)}%</span>
               </div>
               <Progress 
@@ -191,12 +191,12 @@ const BudgetCapacityTab: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{buyersWithCapacity.length}</div>
+            <div className="text-2xl font-bold">{buyersWithCapacity.filter(b => b.monthly_capacity > 0).length}</div>
             <p className="text-xs text-muted-foreground mt-2">
-              {buyersWithCapacity.filter(b => b.monthly_capacity > 0).length} with capacity set
+              {buyersWithCapacity.length} total buyers
             </p>
             <p className="text-xs text-muted-foreground">
-              Avg: {formatCurrency(buyersWithCapacity.length > 0 ? totalCapacity / buyersWithCapacity.length : 0)}/buyer
+              Avg: {formatCurrency(buyersWithCapacity.filter(b => b.monthly_capacity > 0).length > 0 ? totalCapacity / buyersWithCapacity.filter(b => b.monthly_capacity > 0).length : 0)}/buyer
             </p>
           </CardContent>
         </Card>
