@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,13 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { useBuyerBudgetCapacity, BuyerWithCapacity } from "@/hooks/useBuyerBudgetCapacity";
-import { format, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { format, startOfMonth, subDays } from "date-fns";
 
 const BUDGET_GOAL = 10_000_000; // $10M/month
+
+// Initialize dates outside component to prevent re-creation
+const getInitialStartDate = () => startOfMonth(new Date());
+const getInitialEndDate = () => new Date();
 
 interface EditingState {
   buyerId: string | null;
@@ -39,23 +43,36 @@ const BudgetCapacityTab: React.FC = () => {
   const [editing, setEditing] = useState<EditingState>({ buyerId: null, value: "" });
   const [utilization, setUtilization] = useState<number>(0);
   const [utilizationLoading, setUtilizationLoading] = useState(false);
+  const [hasFetchedUtilization, setHasFetchedUtilization] = useState(false);
   
-  // Date range for utilization
-  const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
-  const [endDate, setEndDate] = useState<Date>(new Date());
+  // Date range for utilization - use lazy initializer
+  const [startDate, setStartDate] = useState<Date>(getInitialStartDate);
+  const [endDate, setEndDate] = useState<Date>(getInitialEndDate);
+
+  // Memoize date strings to prevent unnecessary effect triggers
+  const startDateStr = useMemo(() => format(startDate, 'yyyy-MM-dd'), [startDate]);
+  const endDateStr = useMemo(() => format(endDate, 'yyyy-MM-dd'), [endDate]);
 
   // Calculate utilization when date range changes
   useEffect(() => {
-    const fetchUtilization = async () => {
+    let isMounted = true;
+    
+    const fetchUtilizationData = async () => {
       setUtilizationLoading(true);
-      const start = format(startDate, 'yyyy-MM-dd');
-      const end = format(endDate, 'yyyy-MM-dd');
-      const spend = await getUtilization(start, end);
-      setUtilization(spend);
-      setUtilizationLoading(false);
+      const spend = await getUtilization(startDateStr, endDateStr);
+      if (isMounted) {
+        setUtilization(spend);
+        setUtilizationLoading(false);
+        setHasFetchedUtilization(true);
+      }
     };
-    fetchUtilization();
-  }, [startDate, endDate, getUtilization]);
+    
+    fetchUtilizationData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [startDateStr, endDateStr, getUtilization]);
 
   const handleEditStart = (buyer: BuyerWithCapacity) => {
     setEditing({ buyerId: buyer.id, value: buyer.monthly_capacity.toString() });
