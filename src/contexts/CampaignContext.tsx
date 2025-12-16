@@ -156,16 +156,21 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         `)
         .eq('user_id', user.id);
 
-      // Then fetch stats history separately with date filter (last 90 days)
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-      const dateFilter = ninetyDaysAgo.toISOString().split('T')[0];
-      
-      const { data: statsHistoryData, error: statsHistoryError } = await supabase
+      // Fetch stats history - use date range if set, otherwise fetch all
+      let statsHistoryQuery = supabase
         .from('campaign_stats_history')
         .select('*')
-        .gte('date', dateFilter)
         .order('date', { ascending: false });
+      
+      // Only filter by date if we have a valid start date (not "all time")
+      if (dateRange.startDate) {
+        statsHistoryQuery = statsHistoryQuery.gte('date', dateRange.startDate);
+      }
+      if (dateRange.endDate) {
+        statsHistoryQuery = statsHistoryQuery.lte('date', dateRange.endDate);
+      }
+      
+      const { data: statsHistoryData, error: statsHistoryError } = await statsHistoryQuery;
 
       if (statsHistoryError) {
         console.error("Error fetching stats history:", statsHistoryError);
@@ -294,7 +299,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, dateRange]);
 
   const fetchHyrosAccounts = async () => {
     try {
@@ -494,7 +499,7 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
       fetchCampaigns();
       fetchGoogleAdsAccounts();
     }
-  }, [fetchCampaigns, user]);
+  }, [fetchCampaigns, user, dateRange]);
 
   const addCampaign = useCallback(async (campaignData: Omit<Campaign, "id">) => {
     try {
