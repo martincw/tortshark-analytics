@@ -271,7 +271,7 @@ export default function ContractorSubmissionsPage() {
 
       if (!silent) {
         toast.success('Submission approved and stats updated');
-        await refreshCampaigns();
+        // Only refresh submissions list, not full campaign data
         fetchSubmissions();
       }
     } catch (error) {

@@ -145,16 +145,42 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     try {
       console.log("Fetching campaigns for user:", user.id);
       
+      // First, fetch campaigns with basic relations (not stats history)
       const { data, error } = await supabase
         .from('campaigns')
         .select(`
           *,
           campaign_stats(*),
           campaign_manual_stats(*),
-          campaign_stats_history(*),
           campaign_targets(*)
         `)
         .eq('user_id', user.id);
+
+      // Then fetch stats history separately with date filter (last 90 days)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const dateFilter = ninetyDaysAgo.toISOString().split('T')[0];
+      
+      const { data: statsHistoryData, error: statsHistoryError } = await supabase
+        .from('campaign_stats_history')
+        .select('*')
+        .gte('date', dateFilter)
+        .order('date', { ascending: false });
+
+      if (statsHistoryError) {
+        console.error("Error fetching stats history:", statsHistoryError);
+      }
+
+      // Group stats history by campaign_id
+      const statsHistoryByCampaign: Record<string, any[]> = {};
+      if (statsHistoryData) {
+        statsHistoryData.forEach(entry => {
+          if (!statsHistoryByCampaign[entry.campaign_id]) {
+            statsHistoryByCampaign[entry.campaign_id] = [];
+          }
+          statsHistoryByCampaign[entry.campaign_id].push(entry);
+        });
+      }
 
       if (error) {
         console.error("Error fetching campaigns:", error);
@@ -195,7 +221,8 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             }
             : { leads: 0, cases: 0, retainers: 0, revenue: 0, date: '' };
 
-          const statsHistory = campaign.campaign_stats_history?.map(entry => ({
+          const campaignStatsHistory = statsHistoryByCampaign[campaign.id] || [];
+          const statsHistory = campaignStatsHistory.map(entry => ({
             id: entry.id || '',
             campaignId: entry.campaign_id || '',
             date: entry.date || '',
