@@ -107,6 +107,14 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         end = yesterday;
         start = subDays(end, 89);
         break;
+      case 'Last180Days':
+        end = yesterday;
+        start = subDays(end, 179);
+        break;
+      case 'Last270Days':
+        end = yesterday;
+        start = subDays(end, 269);
+        break;
       case 'AllTime':
         // Set a reasonable start date (2 years ago) for All Time
         start = subYears(today, 2);
@@ -362,7 +370,25 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
           Last 90 Days
         </Button>
         <Button 
-          variant={isSelected('AllTime') ? "default" : "outline"} 
+          variant={isSelected('Last180Days') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('Last180Days')}
+          className="w-full justify-start"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Last 180 Days
+        </Button>
+        <Button 
+          variant={isSelected('Last270Days') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('Last270Days')}
+          className="w-full justify-start"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Last 270 Days
+        </Button>
+        <Button 
+          variant={isSelected('AllTime') ? "default" : "outline"}
           size="sm" 
           onClick={() => handleQuickSelect('AllTime')}
           className="w-full justify-start"
