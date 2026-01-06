@@ -116,10 +116,11 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         start = subDays(end, 269);
         break;
       case 'AllTime':
-        // Set a reasonable start date (2 years ago) for All Time
-        start = subYears(today, 2);
-        end = yesterday;
-        break;
+        // Set empty dates to indicate no filtering
+        onSelect({ startDate: '', endDate: '' });
+        toast.success('Showing all time data');
+        console.log('Selected AllTime: no date filter');
+        return; // Return early to skip the normal date formatting
       case 'Yesterday':
         start = new Date(today);
         start.setDate(today.getDate() - 1);
