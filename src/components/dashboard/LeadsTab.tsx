@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Download } from "lucide-react";
+import { Loader2, RefreshCw, Download, TrendingUp, Users, DollarSign, BarChart3, Zap } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface LeadProsperLead {
   id: string;
@@ -28,6 +29,8 @@ interface CampaignSummary {
   accepted: number;
   failed: number;
   profit: number;
+  revenue: number;
+  cost: number;
 }
 
 const LeadsTab: React.FC = () => {
@@ -39,6 +42,29 @@ const LeadsTab: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [sortField, setSortField] = useState<keyof CampaignSummary>('leads');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isRealtime, setIsRealtime] = useState(true);
+
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const totalLeads = campaignSummaries.reduce((sum, c) => sum + c.leads, 0);
+    const totalAccepted = campaignSummaries.reduce((sum, c) => sum + c.accepted, 0);
+    const totalFailed = campaignSummaries.reduce((sum, c) => sum + c.failed, 0);
+    const totalRevenue = campaignSummaries.reduce((sum, c) => sum + c.revenue, 0);
+    const totalCost = campaignSummaries.reduce((sum, c) => sum + c.cost, 0);
+    const totalProfit = totalRevenue - totalCost;
+    const acceptRate = totalLeads > 0 ? ((totalAccepted / totalLeads) * 100).toFixed(1) : '0';
+    
+    return {
+      campaignsCount: campaignSummaries.length,
+      totalLeads,
+      totalAccepted,
+      totalFailed,
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      acceptRate
+    };
+  }, [campaignSummaries]);
 
   const aggregateCampaignData = (leads: LeadProsperLead[]): CampaignSummary[] => {
     const campaignMap = new Map<string, CampaignSummary>();
@@ -52,12 +78,16 @@ const LeadsTab: React.FC = () => {
           leads: 0,
           accepted: 0,
           failed: 0,
-          profit: 0
+          profit: 0,
+          revenue: 0,
+          cost: 0
         });
       }
 
       const summary = campaignMap.get(key)!;
       summary.leads += 1;
+      summary.revenue += lead.revenue || 0;
+      summary.cost += lead.cost || 0;
       
       // Count accepted leads based on actual LeadProsper status
       if (lead.status.toLowerCase() === 'accepted') {
@@ -136,20 +166,42 @@ const LeadsTab: React.FC = () => {
       setSortField(field);
       setSortDirection('desc');
     }
-    
-    // Re-sort existing data
-    const sortedSummaries = aggregateCampaignData(lpLeads);
-    setCampaignSummaries(sortedSummaries);
   };
 
-  // Auto-sync today's data every 5 minutes
+  // Real-time subscription for leadprosper_leads
   useEffect(() => {
-    const interval = setInterval(() => {
-      syncLeadProsperData('today');
-    }, 5 * 60 * 1000); // 5 minutes
+    if (!isRealtime) return;
 
-    return () => clearInterval(interval);
-  }, []);
+    console.log('Setting up real-time subscription for leadprosper_leads');
+    
+    const channel = supabase
+      .channel('leadprosper-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'leadprosper_leads'
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          // Refresh data when changes occur
+          fetchLeadProsperData();
+          setLastSyncTime(new Date());
+        }
+      )
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          toast.success('Real-time updates enabled', { duration: 2000 });
+        }
+      });
+
+    return () => {
+      console.log('Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [isRealtime, dateRange.startDate, dateRange.endDate]);
 
   // Initial data fetch
   useEffect(() => {
@@ -170,107 +222,193 @@ const LeadsTab: React.FC = () => {
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-md font-medium">LeadProsper Leads</CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => syncLeadProsperData('today')}
-              disabled={lpSyncing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${lpSyncing ? 'animate-spin' : ''}`} />
-              Sync Today
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => syncLeadProsperData('historical')}
-              disabled={lpSyncing}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Sync Historical
-            </Button>
+    <div className="space-y-6">
+      {/* Summary Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">Campaigns</span>
+            </div>
+            <p className="text-2xl font-bold">{summaryStats.campaignsCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="h-4 w-4 text-blue-500" />
+              <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
+            </div>
+            <p className="text-2xl font-bold">{summaryStats.totalLeads.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              <span className="text-xs font-medium text-muted-foreground">Accepted</span>
+            </div>
+            <p className="text-2xl font-bold text-green-600">{summaryStats.totalAccepted.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">{summaryStats.acceptRate}% rate</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="h-4 w-4 text-red-500" />
+              <span className="text-xs font-medium text-muted-foreground">Failed</span>
+            </div>
+            <p className="text-2xl font-bold text-red-600">{summaryStats.totalFailed.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="h-4 w-4 text-amber-500" />
+              <span className="text-xs font-medium text-muted-foreground">Revenue</span>
+            </div>
+            <p className="text-2xl font-bold">{formatCurrency(summaryStats.totalRevenue)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className={`bg-gradient-to-br ${summaryStats.totalProfit >= 0 ? 'from-emerald-500/10 to-emerald-500/5 border-emerald-500/20' : 'from-red-500/10 to-red-500/5 border-red-500/20'}`}>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className={`h-4 w-4 ${summaryStats.totalProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+              <span className="text-xs font-medium text-muted-foreground">Profit</span>
+            </div>
+            <p className={`text-2xl font-bold ${summaryStats.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {formatCurrency(summaryStats.totalProfit)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Table Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-md font-medium">LeadProsper Leads</CardTitle>
+              {isRealtime && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Live
+                </Badge>
+              )}
+            </div>
+            <div className="flex gap-2 items-center">
+              <Button
+                variant={isRealtime ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIsRealtime(!isRealtime)}
+                className="gap-1"
+              >
+                <Zap className={`h-4 w-4 ${isRealtime ? 'text-yellow-300' : ''}`} />
+                {isRealtime ? 'Live' : 'Paused'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncLeadProsperData('today')}
+                disabled={lpSyncing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${lpSyncing ? 'animate-spin' : ''}`} />
+                Sync Today
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncLeadProsperData('historical')}
+                disabled={lpSyncing}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Sync Historical
+              </Button>
+            </div>
           </div>
-        </div>
-        {lastSyncTime && (
-          <p className="text-sm text-muted-foreground mt-2">
-            Last sync: {lastSyncTime.toLocaleTimeString()}
-          </p>
-        )}
-      </CardHeader>
-      <CardContent>
-        {lpLoading || lpSyncing ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : campaignSummaries.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">
-            <p>No LeadProsper campaigns found</p>
-            <p className="text-sm mt-2">Click "Sync Historical" to load past data</p>
-          </div>
-        ) : (
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead 
-                    className="cursor-pointer select-none"
-                    onClick={() => handleSort('campaign_name')}
-                  >
-                    Campaign {getSortIcon('campaign_name')}
-                  </TableHead>
-                  <TableHead 
-                    className="text-right cursor-pointer select-none"
-                    onClick={() => handleSort('leads')}
-                  >
-                    Leads {getSortIcon('leads')}
-                  </TableHead>
-                  <TableHead 
-                    className="text-right cursor-pointer select-none"
-                    onClick={() => handleSort('accepted')}
-                  >
-                    Accepted {getSortIcon('accepted')}
-                  </TableHead>
-                  <TableHead 
-                    className="text-right cursor-pointer select-none"
-                    onClick={() => handleSort('failed')}
-                  >
-                    Failed {getSortIcon('failed')}
-                  </TableHead>
-                  <TableHead 
-                    className="text-right cursor-pointer select-none"
-                    onClick={() => handleSort('profit')}
-                  >
-                    Profit {getSortIcon('profit')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaignSummaries.map((campaign, index) => {
-                  const profitClass = campaign.profit > 0 ? "text-green-600 font-semibold" : (campaign.profit < 0 ? "text-red-600 font-semibold" : "text-muted-foreground");
-                  return (
-                    <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                      <TableCell className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
-                      <TableCell className="text-right font-medium">{campaign.leads}</TableCell>
-                      <TableCell className="text-right font-semibold text-green-600">{campaign.accepted}</TableCell>
-                      <TableCell className="text-right font-semibold text-red-600">{campaign.failed}</TableCell>
-                      <TableCell className={`text-right ${profitClass}`}>
-                        {formatCurrency(campaign.profit)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {lastSyncTime && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Last updated: {lastSyncTime.toLocaleTimeString()}
+            </p>
+          )}
+        </CardHeader>
+        <CardContent>
+          {lpLoading || lpSyncing ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : campaignSummaries.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <p>No LeadProsper campaigns found</p>
+              <p className="text-sm mt-2">Click "Sync Historical" to load past data</p>
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort('campaign_name')}
+                    >
+                      Campaign {getSortIcon('campaign_name')}
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('leads')}
+                    >
+                      Leads {getSortIcon('leads')}
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('accepted')}
+                    >
+                      Accepted {getSortIcon('accepted')}
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('failed')}
+                    >
+                      Failed {getSortIcon('failed')}
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('profit')}
+                    >
+                      Profit {getSortIcon('profit')}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaignSummaries.map((campaign, index) => {
+                    const profitClass = campaign.profit > 0 ? "text-green-600 font-semibold" : (campaign.profit < 0 ? "text-red-600 font-semibold" : "text-muted-foreground");
+                    return (
+                      <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
+                        <TableCell className="text-right font-medium">{campaign.leads}</TableCell>
+                        <TableCell className="text-right font-semibold text-green-600">{campaign.accepted}</TableCell>
+                        <TableCell className="text-right font-semibold text-red-600">{campaign.failed}</TableCell>
+                        <TableCell className={`text-right ${profitClass}`}>
+                          {formatCurrency(campaign.profit)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
