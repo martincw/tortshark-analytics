@@ -31,6 +31,11 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
+// Helper to get date string in Eastern Time
+function getEasternDateString(date: Date): string {
+  return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -38,8 +43,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { type = 'today' } = await req.json();
-    console.log('LeadProsper sync request:', { type });
+    const { type = 'today', forceRefresh = false } = await req.json();
+    console.log('LeadProsper sync request:', { type, forceRefresh });
     
     // Get user from authorization header
     const authHeader = req.headers.get('authorization');
@@ -92,27 +97,45 @@ Deno.serve(async (req) => {
     const apiKey = connections.credentials.apiKey;
     console.log('Using LeadProsper API key for real data sync');
 
-    // Determine date range based on sync type
+    // Determine date range based on sync type - using Eastern Time to match LeadProsper
+    const now = new Date();
+    const todayET = getEasternDateString(now);
+    
     let startDate: string;
     let endDate: string;
-    const today = new Date().toISOString().split('T')[0];
 
     if (type === 'historical') {
       // For historical sync, get data from 30 days ago to yesterday
-      const historicalStart = new Date();
+      const historicalStart = new Date(now);
       historicalStart.setDate(historicalStart.getDate() - 30);
-      startDate = historicalStart.toISOString().split('T')[0];
+      startDate = getEasternDateString(historicalStart);
       
-      const yesterday = new Date();
+      const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
-      endDate = yesterday.toISOString().split('T')[0];
+      endDate = getEasternDateString(yesterday);
     } else {
       // For daily sync, only get today's data
-      startDate = today;
-      endDate = today;
+      startDate = todayET;
+      endDate = todayET;
     }
 
-    console.log('Fetching LeadProsper data:', { startDate, endDate });
+    console.log('Date range for sync:', { startDate, endDate, todayET });
+
+    // If forceRefresh is true, delete existing data for the date range first
+    if (forceRefresh) {
+      console.log('Force refresh enabled - deleting existing data for date range');
+      const { error: deleteError } = await supabase
+        .from('leadprosper_leads')
+        .delete()
+        .gte('date', startDate)
+        .lte('date', endDate);
+      
+      if (deleteError) {
+        console.error('Error deleting existing data:', deleteError);
+      } else {
+        console.log('Successfully deleted existing data for date range');
+      }
+    }
 
     // Step 1: Get all campaigns
     console.log('Fetching campaigns from LeadProsper API...');
@@ -221,11 +244,15 @@ Deno.serve(async (req) => {
     }
 
     // Step 3: Process and store leads data
+    // Use the date from lead_date_ms converted to Eastern Time
     const processedLeads = allLeads.map((lead) => {
-      // Convert lead_date_ms to date
-      const leadDate = lead.lead_date_ms 
-        ? new Date(parseInt(lead.lead_date_ms)).toISOString().split('T')[0]
-        : startDate;
+      // Convert lead_date_ms to Eastern Time date string
+      let leadDate = startDate;
+      if (lead.lead_date_ms) {
+        const leadTimestamp = parseInt(lead.lead_date_ms);
+        const leadDateTime = new Date(leadTimestamp);
+        leadDate = getEasternDateString(leadDateTime);
+      }
 
       return {
         lead_id: lead.id,
@@ -264,7 +291,8 @@ Deno.serve(async (req) => {
         processed: processedLeads.length,
         campaigns_processed: processedCampaigns,
         dateRange: { startDate, endDate },
-        type
+        type,
+        forceRefresh
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
