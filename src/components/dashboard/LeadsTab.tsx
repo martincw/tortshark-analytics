@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { format, subDays } from "date-fns";
+import { addDays, format, parseISO, subDays } from "date-fns";
 
 interface LeadProsperLead {
   id: string;
@@ -157,9 +157,98 @@ const LeadsTab: React.FC = () => {
 
   // Fetch comparison data (yesterday and 7-day avg)
   const fetchComparisonData = async () => {
-    const today = new Date();
-    const yesterday = format(subDays(today, 1), 'yyyy-MM-dd');
-    const sevenDaysAgo = format(subDays(today, 7), 'yyyy-MM-dd');
+    // Compare against the currently selected end date (not the user's local "today")
+    const referenceDay = dateRange?.endDate;
+    if (!referenceDay) return;
+
+    const referenceDate = parseISO(referenceDay);
+    const yesterday = format(subDays(referenceDate, 1), "yyyy-MM-dd");
+    const sevenDaysStart = format(subDays(referenceDate, 7), "yyyy-MM-dd");
+
+    const trailingDays = Array.from({ length: 7 }, (_, i) =>
+      format(addDays(parseISO(sevenDaysStart), i), "yyyy-MM-dd")
+    );
+
+    const calculateTrailingAverageStats = (
+      leads: LeadProsperLead[],
+      days: string[]
+    ): ComparisonStats => {
+      const byDay = new Map<
+        string,
+        {
+          campaigns: Set<string>;
+          leads: number;
+          accepted: number;
+          failed: number;
+          revenue: number;
+          cost: number;
+        }
+      >();
+
+      days.forEach((d) => {
+        byDay.set(d, {
+          campaigns: new Set(),
+          leads: 0,
+          accepted: 0,
+          failed: 0,
+          revenue: 0,
+          cost: 0,
+        });
+      });
+
+      for (const lead of leads) {
+        const bucket = byDay.get(lead.date);
+        if (!bucket) continue;
+
+        bucket.campaigns.add(lead.campaign_id);
+        bucket.leads += 1;
+
+        if (lead.status.toLowerCase() === "accepted") bucket.accepted += 1;
+        if (["error", "duplicated", "rejected", "failed"].includes(lead.status.toLowerCase())) {
+          bucket.failed += 1;
+        }
+
+        bucket.revenue += lead.revenue || 0;
+        bucket.cost += lead.cost || 0;
+      }
+
+      const divisor = days.length || 1;
+
+      let campaignsCountSum = 0;
+      let leadsSum = 0;
+      let acceptedSum = 0;
+      let failedSum = 0;
+      let revenueSum = 0;
+      let costSum = 0;
+
+      byDay.forEach((d) => {
+        campaignsCountSum += d.campaigns.size;
+        leadsSum += d.leads;
+        acceptedSum += d.accepted;
+        failedSum += d.failed;
+        revenueSum += d.revenue;
+        costSum += d.cost;
+      });
+
+      const totalLeads = leadsSum / divisor;
+      const totalAccepted = acceptedSum / divisor;
+      const totalFailed = failedSum / divisor;
+      const totalRevenue = revenueSum / divisor;
+      const totalCost = costSum / divisor;
+      const totalProfit = totalRevenue - totalCost;
+      const acceptRate = totalLeads > 0 ? ((totalAccepted / totalLeads) * 100).toFixed(1) : "0";
+
+      return {
+        campaignsCount: Math.round(campaignsCountSum / divisor),
+        totalLeads: Math.round(totalLeads),
+        totalAccepted: Math.round(totalAccepted),
+        totalFailed: Math.round(totalFailed),
+        totalRevenue,
+        totalCost,
+        totalProfit,
+        acceptRate,
+      };
+    };
 
     try {
       // Fetch yesterday's data
@@ -173,17 +262,15 @@ const LeadsTab: React.FC = () => {
         setYesterdayCampaignStats(aggregateLeadsByCampaign(yesterdayData));
       }
 
-      // Fetch last 7 days data (excluding today)
+      // Fetch last 7 full days (excluding the reference day)
       const { data: sevenDayData } = await supabase
         .from("leadprosper_leads")
         .select("*")
-        .gte("date", sevenDaysAgo)
-        .lt("date", format(today, 'yyyy-MM-dd'));
+        .gte("date", sevenDaysStart)
+        .lt("date", referenceDay);
 
-      if (sevenDayData && sevenDayData.length > 0) {
-        setSevenDayAvg(calculateStatsFromLeads(sevenDayData, 7));
-        setSevenDayAvgCampaignStats(aggregateLeadsByCampaign(sevenDayData, 7));
-      }
+      setSevenDayAvg(calculateTrailingAverageStats(sevenDayData || [], trailingDays));
+      setSevenDayAvgCampaignStats(aggregateLeadsByCampaign(sevenDayData || [], 7));
     } catch (e) {
       console.error("Error fetching comparison data", e);
     }
