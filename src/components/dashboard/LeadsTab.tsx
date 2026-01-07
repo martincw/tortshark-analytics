@@ -353,15 +353,15 @@ const LeadsTab: React.FC = () => {
     const formatVal = (val: number) => isCurrency ? formatCurrency(val) : val.toLocaleString();
     
     return (
-      <div className="flex flex-col gap-0.5 mt-1 text-[10px]">
+      <div className="flex flex-col gap-1 mt-2">
         {yesterday !== undefined && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 text-xs">
             <span className="text-muted-foreground">Yest:</span>
             <span className="font-medium">{formatVal(yesterday)}</span>
           </div>
         )}
         {avg !== undefined && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 text-xs">
             <span className="text-muted-foreground">7d Avg:</span>
             <span className="font-medium">{formatVal(Math.round(avg))}</span>
           </div>
@@ -375,15 +375,15 @@ const LeadsTab: React.FC = () => {
     const formatVal = (val: number) => isCurrency ? formatCurrency(val) : val.toLocaleString();
     
     return (
-      <div className="flex flex-col gap-0.5 mt-0.5 text-[10px]">
+      <div className="flex flex-col gap-0.5 mt-1 text-xs">
         {yesterday !== undefined && (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1.5">
             <span className="text-muted-foreground">Yest:</span>
             <span className="font-medium text-muted-foreground">{formatVal(yesterday)}</span>
           </div>
         )}
         {avg !== undefined && (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1.5">
             <span className="text-muted-foreground">7d:</span>
             <span className="font-medium text-muted-foreground">{formatVal(Math.round(avg))}</span>
           </div>
@@ -397,68 +397,68 @@ const LeadsTab: React.FC = () => {
       {/* Summary Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">Campaigns</span>
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Campaigns</span>
             </div>
-            <p className="text-3xl font-bold">{summaryStats.campaignsCount}</p>
+            <p className="text-4xl font-bold">{summaryStats.campaignsCount}</p>
             {renderComparison(summaryStats.campaignsCount, yesterdayStats?.campaignsCount, sevenDayAvg?.campaignsCount)}
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4 text-blue-500" />
-              <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-5 w-5 text-blue-500" />
+              <span className="text-sm font-medium text-muted-foreground">Total Leads</span>
             </div>
-            <p className="text-3xl font-bold">{summaryStats.totalLeads.toLocaleString()}</p>
+            <p className="text-4xl font-bold">{summaryStats.totalLeads.toLocaleString()}</p>
             {renderComparison(summaryStats.totalLeads, yesterdayStats?.totalLeads, sevenDayAvg?.totalLeads)}
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-xs font-medium text-muted-foreground">Accepted</span>
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              <span className="text-sm font-medium text-muted-foreground">Accepted</span>
             </div>
-            <p className="text-3xl font-bold text-green-600">{summaryStats.totalAccepted.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mb-1">{summaryStats.acceptRate}% rate</p>
+            <p className="text-4xl font-bold text-green-600">{summaryStats.totalAccepted.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground mb-1">{summaryStats.acceptRate}% rate</p>
             {renderComparison(summaryStats.totalAccepted, yesterdayStats?.totalAccepted, sevenDayAvg?.totalAccepted)}
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4 text-red-500" />
-              <span className="text-xs font-medium text-muted-foreground">Failed</span>
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-5 w-5 text-red-500" />
+              <span className="text-sm font-medium text-muted-foreground">Failed</span>
             </div>
-            <p className="text-3xl font-bold text-red-600">{summaryStats.totalFailed.toLocaleString()}</p>
+            <p className="text-4xl font-bold text-red-600">{summaryStats.totalFailed.toLocaleString()}</p>
             {renderComparison(summaryStats.totalFailed, yesterdayStats?.totalFailed, sevenDayAvg?.totalFailed)}
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-4 w-4 text-amber-500" />
-              <span className="text-xs font-medium text-muted-foreground">Revenue</span>
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-5 w-5 text-amber-500" />
+              <span className="text-sm font-medium text-muted-foreground">Revenue</span>
             </div>
-            <p className="text-3xl font-bold">{formatCurrency(summaryStats.totalRevenue)}</p>
+            <p className="text-4xl font-bold">{formatCurrency(summaryStats.totalRevenue)}</p>
             {renderComparison(summaryStats.totalRevenue, yesterdayStats?.totalRevenue, sevenDayAvg?.totalRevenue, true)}
           </CardContent>
         </Card>
 
         <Card className={`bg-gradient-to-br ${summaryStats.totalProfit >= 0 ? 'from-emerald-500/10 to-emerald-500/5 border-emerald-500/20' : 'from-red-500/10 to-red-500/5 border-red-500/20'}`}>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className={`h-4 w-4 ${summaryStats.totalProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
-              <span className="text-xs font-medium text-muted-foreground">Profit</span>
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className={`h-5 w-5 ${summaryStats.totalProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+              <span className="text-sm font-medium text-muted-foreground">Profit</span>
             </div>
-            <p className={`text-3xl font-bold ${summaryStats.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            <p className={`text-4xl font-bold ${summaryStats.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {formatCurrency(summaryStats.totalProfit)}
             </p>
             {renderComparison(summaryStats.totalProfit, yesterdayStats?.totalProfit, sevenDayAvg?.totalProfit, true)}
@@ -540,33 +540,33 @@ const LeadsTab: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">#</TableHead>
+                    <TableHead className="w-12 text-base">#</TableHead>
                     <TableHead 
-                      className="cursor-pointer select-none"
+                      className="cursor-pointer select-none text-base font-semibold"
                       onClick={() => handleSort('campaign_name')}
                     >
                       Campaign {getSortIcon('campaign_name')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none"
+                      className="text-right cursor-pointer select-none text-base font-semibold"
                       onClick={() => handleSort('leads')}
                     >
                       Leads {getSortIcon('leads')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none"
+                      className="text-right cursor-pointer select-none text-base font-semibold"
                       onClick={() => handleSort('accepted')}
                     >
                       Accepted {getSortIcon('accepted')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none"
+                      className="text-right cursor-pointer select-none text-base font-semibold"
                       onClick={() => handleSort('failed')}
                     >
                       Failed {getSortIcon('failed')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none"
+                      className="text-right cursor-pointer select-none text-base font-semibold"
                       onClick={() => handleSort('profit')}
                     >
                       Profit {getSortIcon('profit')}
@@ -581,22 +581,22 @@ const LeadsTab: React.FC = () => {
                     
                     return (
                       <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                        <TableCell className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
+                        <TableCell className="text-base font-medium text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell className="text-base font-semibold text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
                         <TableCell className="text-right">
-                          <div className="text-lg font-bold">{campaign.leads}</div>
+                          <div className="text-xl font-bold">{campaign.leads}</div>
                           {renderCampaignComparison(campaign.leads, yesterdayCampaign?.leads, sevenDayAvgCampaign?.leads)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="text-lg font-bold text-green-600">{campaign.accepted}</div>
+                          <div className="text-xl font-bold text-green-600">{campaign.accepted}</div>
                           {renderCampaignComparison(campaign.accepted, yesterdayCampaign?.accepted, sevenDayAvgCampaign?.accepted)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="text-lg font-bold text-red-600">{campaign.failed}</div>
+                          <div className="text-xl font-bold text-red-600">{campaign.failed}</div>
                           {renderCampaignComparison(campaign.failed, yesterdayCampaign?.failed, sevenDayAvgCampaign?.failed)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className={`text-lg font-bold ${profitClass}`}>
+                          <div className={`text-xl font-bold ${profitClass}`}>
                             {formatCurrency(campaign.profit)}
                           </div>
                           {renderCampaignComparison(campaign.profit, yesterdayCampaign?.profit, sevenDayAvgCampaign?.profit, true)}
