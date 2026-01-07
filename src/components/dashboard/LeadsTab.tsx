@@ -57,6 +57,8 @@ const LeadsTab: React.FC = () => {
   const [isRealtime, setIsRealtime] = useState(true);
   const [yesterdayStats, setYesterdayStats] = useState<ComparisonStats | null>(null);
   const [sevenDayAvg, setSevenDayAvg] = useState<ComparisonStats | null>(null);
+  const [yesterdayCampaignStats, setYesterdayCampaignStats] = useState<Map<string, CampaignSummary>>(new Map());
+  const [sevenDayAvgCampaignStats, setSevenDayAvgCampaignStats] = useState<Map<string, CampaignSummary>>(new Map());
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
@@ -103,6 +105,56 @@ const LeadsTab: React.FC = () => {
     };
   };
 
+  // Helper to aggregate leads by campaign into a Map
+  const aggregateLeadsByCampaign = (leads: LeadProsperLead[], divisor: number = 1): Map<string, CampaignSummary> => {
+    const campaignMap = new Map<string, CampaignSummary>();
+
+    leads.forEach(lead => {
+      const key = lead.campaign_id;
+      if (!campaignMap.has(key)) {
+        campaignMap.set(key, {
+          campaign_name: lead.campaign_name,
+          campaign_id: lead.campaign_id,
+          leads: 0,
+          accepted: 0,
+          failed: 0,
+          profit: 0,
+          revenue: 0,
+          cost: 0
+        });
+      }
+
+      const summary = campaignMap.get(key)!;
+      summary.leads += 1;
+      summary.revenue += lead.revenue || 0;
+      summary.cost += lead.cost || 0;
+      
+      if (lead.status.toLowerCase() === 'accepted') {
+        summary.accepted += 1;
+      }
+      
+      if (['error', 'duplicated', 'rejected', 'failed'].includes(lead.status.toLowerCase())) {
+        summary.failed += 1;
+      }
+      
+      summary.profit += (lead.revenue - lead.cost);
+    });
+
+    // Apply divisor for averaging
+    if (divisor !== 1) {
+      campaignMap.forEach((summary) => {
+        summary.leads = Math.round(summary.leads / divisor);
+        summary.accepted = Math.round(summary.accepted / divisor);
+        summary.failed = Math.round(summary.failed / divisor);
+        summary.revenue = summary.revenue / divisor;
+        summary.cost = summary.cost / divisor;
+        summary.profit = summary.profit / divisor;
+      });
+    }
+
+    return campaignMap;
+  };
+
   // Fetch comparison data (yesterday and 7-day avg)
   const fetchComparisonData = async () => {
     const today = new Date();
@@ -118,6 +170,7 @@ const LeadsTab: React.FC = () => {
 
       if (yesterdayData) {
         setYesterdayStats(calculateStatsFromLeads(yesterdayData));
+        setYesterdayCampaignStats(aggregateLeadsByCampaign(yesterdayData));
       }
 
       // Fetch last 7 days data (excluding today)
@@ -128,8 +181,8 @@ const LeadsTab: React.FC = () => {
         .lt("date", format(today, 'yyyy-MM-dd'));
 
       if (sevenDayData && sevenDayData.length > 0) {
-        // Calculate average by dividing by 7
         setSevenDayAvg(calculateStatsFromLeads(sevenDayData, 7));
+        setSevenDayAvgCampaignStats(aggregateLeadsByCampaign(sevenDayData, 7));
       }
     } catch (e) {
       console.error("Error fetching comparison data", e);
@@ -292,10 +345,8 @@ const LeadsTab: React.FC = () => {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
-  // Helper to render comparison indicator
+  // Helper to render comparison indicator for summary cards
   const renderComparison = (current: number, yesterday: number | undefined, avg: number | undefined, isCurrency: boolean = false) => {
-    const formatValue = (val: number) => isCurrency ? formatCurrency(val) : val.toLocaleString();
-    
     const getChangeIndicator = (current: number, compare: number | undefined, label: string) => {
       if (compare === undefined || compare === 0) return null;
       const diff = current - compare;
@@ -320,6 +371,42 @@ const LeadsTab: React.FC = () => {
       <div className="flex flex-col gap-0.5 mt-1">
         {getChangeIndicator(current, yesterday, 'vs Yest')}
         {getChangeIndicator(current, avg, 'vs 7d Avg')}
+      </div>
+    );
+  };
+
+  // Helper to render comparison for campaign table rows (inverted logic for "failed" column)
+  const renderCampaignComparison = (current: number, yesterday: number | undefined, avg: number | undefined, invertColors: boolean = false) => {
+    const getIndicator = (current: number, compare: number | undefined, label: string) => {
+      if (compare === undefined || compare === 0) return null;
+      const diff = current - compare;
+      const pctChange = ((diff / compare) * 100).toFixed(0);
+      const isPositive = diff > 0;
+      const isNegative = diff < 0;
+      
+      // For failed column, lower is better (invert colors)
+      const positiveColor = invertColors ? 'text-red-500' : 'text-green-500';
+      const negativeColor = invertColors ? 'text-green-500' : 'text-red-500';
+      const positiveTextColor = invertColors ? 'text-red-600' : 'text-green-600';
+      const negativeTextColor = invertColors ? 'text-green-600' : 'text-red-600';
+      
+      return (
+        <div className="flex items-center justify-end gap-1 text-[10px]">
+          <span className="text-muted-foreground">{label}:</span>
+          {isPositive && <TrendingUp className={`h-3 w-3 ${positiveColor}`} />}
+          {isNegative && <TrendingDown className={`h-3 w-3 ${negativeColor}`} />}
+          {!isPositive && !isNegative && <Minus className="h-3 w-3 text-muted-foreground" />}
+          <span className={isPositive ? positiveTextColor : isNegative ? negativeTextColor : 'text-muted-foreground'}>
+            {isPositive ? '+' : ''}{pctChange}%
+          </span>
+        </div>
+      );
+    };
+
+    return (
+      <div className="flex flex-col gap-0.5 mt-1">
+        {getIndicator(current, yesterday, 'Yest')}
+        {getIndicator(current, avg, '7d')}
       </div>
     );
   };
@@ -497,16 +584,31 @@ const LeadsTab: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {campaignSummaries.map((campaign, index) => {
-                    const profitClass = campaign.profit > 0 ? "text-green-600 font-semibold" : (campaign.profit < 0 ? "text-red-600 font-semibold" : "text-muted-foreground");
+                    const profitClass = campaign.profit > 0 ? "text-green-600" : (campaign.profit < 0 ? "text-red-600" : "text-muted-foreground");
+                    const yesterdayCampaign = yesterdayCampaignStats.get(campaign.campaign_id);
+                    const sevenDayAvgCampaign = sevenDayAvgCampaignStats.get(campaign.campaign_id);
+                    
                     return (
                       <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
                         <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                         <TableCell className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
-                        <TableCell className="text-right font-medium">{campaign.leads}</TableCell>
-                        <TableCell className="text-right font-semibold text-green-600">{campaign.accepted}</TableCell>
-                        <TableCell className="text-right font-semibold text-red-600">{campaign.failed}</TableCell>
-                        <TableCell className={`text-right ${profitClass}`}>
-                          {formatCurrency(campaign.profit)}
+                        <TableCell className="text-right">
+                          <div className="text-lg font-bold">{campaign.leads}</div>
+                          {renderCampaignComparison(campaign.leads, yesterdayCampaign?.leads, sevenDayAvgCampaign?.leads)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="text-lg font-bold text-green-600">{campaign.accepted}</div>
+                          {renderCampaignComparison(campaign.accepted, yesterdayCampaign?.accepted, sevenDayAvgCampaign?.accepted)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="text-lg font-bold text-red-600">{campaign.failed}</div>
+                          {renderCampaignComparison(campaign.failed, yesterdayCampaign?.failed, sevenDayAvgCampaign?.failed, true)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className={`text-lg font-bold ${profitClass}`}>
+                            {formatCurrency(campaign.profit)}
+                          </div>
+                          {renderCampaignComparison(campaign.profit, yesterdayCampaign?.profit, sevenDayAvgCampaign?.profit)}
                         </TableCell>
                       </TableRow>
                     );
