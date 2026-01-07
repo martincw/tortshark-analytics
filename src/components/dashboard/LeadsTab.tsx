@@ -2,12 +2,13 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Download, TrendingUp, Users, DollarSign, BarChart3, Zap } from "lucide-react";
+import { Loader2, RefreshCw, Download, TrendingUp, TrendingDown, Users, DollarSign, BarChart3, Zap, Minus } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { format, subDays } from "date-fns";
 
 interface LeadProsperLead {
   id: string;
@@ -33,6 +34,17 @@ interface CampaignSummary {
   cost: number;
 }
 
+interface ComparisonStats {
+  campaignsCount: number;
+  totalLeads: number;
+  totalAccepted: number;
+  totalFailed: number;
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  acceptRate: string;
+}
+
 const LeadsTab: React.FC = () => {
   const { dateRange } = useCampaign();
   const [lpLeads, setLpLeads] = useState<LeadProsperLead[]>([]);
@@ -43,6 +55,8 @@ const LeadsTab: React.FC = () => {
   const [sortField, setSortField] = useState<keyof CampaignSummary>('leads');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isRealtime, setIsRealtime] = useState(true);
+  const [yesterdayStats, setYesterdayStats] = useState<ComparisonStats | null>(null);
+  const [sevenDayAvg, setSevenDayAvg] = useState<ComparisonStats | null>(null);
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
@@ -65,6 +79,62 @@ const LeadsTab: React.FC = () => {
       acceptRate
     };
   }, [campaignSummaries]);
+
+  // Helper to calculate stats from leads array
+  const calculateStatsFromLeads = (leads: LeadProsperLead[], divisor: number = 1): ComparisonStats => {
+    const campaignSet = new Set(leads.map(l => l.campaign_id));
+    const totalLeads = leads.length / divisor;
+    const totalAccepted = leads.filter(l => l.status.toLowerCase() === 'accepted').length / divisor;
+    const totalFailed = leads.filter(l => ['error', 'duplicated', 'rejected', 'failed'].includes(l.status.toLowerCase())).length / divisor;
+    const totalRevenue = leads.reduce((sum, l) => sum + (l.revenue || 0), 0) / divisor;
+    const totalCost = leads.reduce((sum, l) => sum + (l.cost || 0), 0) / divisor;
+    const totalProfit = totalRevenue - totalCost;
+    const acceptRate = totalLeads > 0 ? ((totalAccepted / totalLeads) * 100).toFixed(1) : '0';
+
+    return {
+      campaignsCount: campaignSet.size,
+      totalLeads: Math.round(totalLeads),
+      totalAccepted: Math.round(totalAccepted),
+      totalFailed: Math.round(totalFailed),
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      acceptRate
+    };
+  };
+
+  // Fetch comparison data (yesterday and 7-day avg)
+  const fetchComparisonData = async () => {
+    const today = new Date();
+    const yesterday = format(subDays(today, 1), 'yyyy-MM-dd');
+    const sevenDaysAgo = format(subDays(today, 7), 'yyyy-MM-dd');
+
+    try {
+      // Fetch yesterday's data
+      const { data: yesterdayData } = await supabase
+        .from("leadprosper_leads")
+        .select("*")
+        .eq("date", yesterday);
+
+      if (yesterdayData) {
+        setYesterdayStats(calculateStatsFromLeads(yesterdayData));
+      }
+
+      // Fetch last 7 days data (excluding today)
+      const { data: sevenDayData } = await supabase
+        .from("leadprosper_leads")
+        .select("*")
+        .gte("date", sevenDaysAgo)
+        .lt("date", format(today, 'yyyy-MM-dd'));
+
+      if (sevenDayData && sevenDayData.length > 0) {
+        // Calculate average by dividing by 7
+        setSevenDayAvg(calculateStatsFromLeads(sevenDayData, 7));
+      }
+    } catch (e) {
+      console.error("Error fetching comparison data", e);
+    }
+  };
 
   const aggregateCampaignData = (leads: LeadProsperLead[]): CampaignSummary[] => {
     const campaignMap = new Map<string, CampaignSummary>();
@@ -206,6 +276,7 @@ const LeadsTab: React.FC = () => {
   // Initial data fetch
   useEffect(() => {
     fetchLeadProsperData();
+    fetchComparisonData();
   }, [dateRange.startDate, dateRange.endDate]);
 
   // Re-aggregate data when sort changes (no need to re-fetch)
@@ -221,17 +292,50 @@ const LeadsTab: React.FC = () => {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  // Helper to render comparison indicator
+  const renderComparison = (current: number, yesterday: number | undefined, avg: number | undefined, isCurrency: boolean = false) => {
+    const formatValue = (val: number) => isCurrency ? formatCurrency(val) : val.toLocaleString();
+    
+    const getChangeIndicator = (current: number, compare: number | undefined, label: string) => {
+      if (compare === undefined || compare === 0) return null;
+      const diff = current - compare;
+      const pctChange = ((diff / compare) * 100).toFixed(0);
+      const isPositive = diff > 0;
+      const isNegative = diff < 0;
+      
+      return (
+        <div className="flex items-center gap-1 text-[10px]">
+          <span className="text-muted-foreground">{label}:</span>
+          {isPositive && <TrendingUp className="h-3 w-3 text-green-500" />}
+          {isNegative && <TrendingDown className="h-3 w-3 text-red-500" />}
+          {!isPositive && !isNegative && <Minus className="h-3 w-3 text-muted-foreground" />}
+          <span className={isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-muted-foreground'}>
+            {isPositive ? '+' : ''}{pctChange}%
+          </span>
+        </div>
+      );
+    };
+
+    return (
+      <div className="flex flex-col gap-0.5 mt-1">
+        {getChangeIndicator(current, yesterday, 'vs Yest')}
+        {getChangeIndicator(current, avg, 'vs 7d Avg')}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="h-4 w-4 text-primary" />
               <span className="text-xs font-medium text-muted-foreground">Campaigns</span>
             </div>
-            <p className="text-2xl font-bold">{summaryStats.campaignsCount}</p>
+            <p className="text-3xl font-bold">{summaryStats.campaignsCount}</p>
+            {renderComparison(summaryStats.campaignsCount, yesterdayStats?.campaignsCount, sevenDayAvg?.campaignsCount)}
           </CardContent>
         </Card>
 
@@ -241,7 +345,8 @@ const LeadsTab: React.FC = () => {
               <Users className="h-4 w-4 text-blue-500" />
               <span className="text-xs font-medium text-muted-foreground">Total Leads</span>
             </div>
-            <p className="text-2xl font-bold">{summaryStats.totalLeads.toLocaleString()}</p>
+            <p className="text-3xl font-bold">{summaryStats.totalLeads.toLocaleString()}</p>
+            {renderComparison(summaryStats.totalLeads, yesterdayStats?.totalLeads, sevenDayAvg?.totalLeads)}
           </CardContent>
         </Card>
 
@@ -251,8 +356,9 @@ const LeadsTab: React.FC = () => {
               <TrendingUp className="h-4 w-4 text-green-500" />
               <span className="text-xs font-medium text-muted-foreground">Accepted</span>
             </div>
-            <p className="text-2xl font-bold text-green-600">{summaryStats.totalAccepted.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">{summaryStats.acceptRate}% rate</p>
+            <p className="text-3xl font-bold text-green-600">{summaryStats.totalAccepted.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mb-1">{summaryStats.acceptRate}% rate</p>
+            {renderComparison(summaryStats.totalAccepted, yesterdayStats?.totalAccepted, sevenDayAvg?.totalAccepted)}
           </CardContent>
         </Card>
 
@@ -262,7 +368,8 @@ const LeadsTab: React.FC = () => {
               <Users className="h-4 w-4 text-red-500" />
               <span className="text-xs font-medium text-muted-foreground">Failed</span>
             </div>
-            <p className="text-2xl font-bold text-red-600">{summaryStats.totalFailed.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-red-600">{summaryStats.totalFailed.toLocaleString()}</p>
+            {renderComparison(summaryStats.totalFailed, yesterdayStats?.totalFailed, sevenDayAvg?.totalFailed)}
           </CardContent>
         </Card>
 
@@ -272,7 +379,8 @@ const LeadsTab: React.FC = () => {
               <DollarSign className="h-4 w-4 text-amber-500" />
               <span className="text-xs font-medium text-muted-foreground">Revenue</span>
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(summaryStats.totalRevenue)}</p>
+            <p className="text-3xl font-bold">{formatCurrency(summaryStats.totalRevenue)}</p>
+            {renderComparison(summaryStats.totalRevenue, yesterdayStats?.totalRevenue, sevenDayAvg?.totalRevenue, true)}
           </CardContent>
         </Card>
 
@@ -282,9 +390,10 @@ const LeadsTab: React.FC = () => {
               <TrendingUp className={`h-4 w-4 ${summaryStats.totalProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
               <span className="text-xs font-medium text-muted-foreground">Profit</span>
             </div>
-            <p className={`text-2xl font-bold ${summaryStats.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            <p className={`text-3xl font-bold ${summaryStats.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {formatCurrency(summaryStats.totalProfit)}
             </p>
+            {renderComparison(summaryStats.totalProfit, yesterdayStats?.totalProfit, sevenDayAvg?.totalProfit, true)}
           </CardContent>
         </Card>
       </div>
