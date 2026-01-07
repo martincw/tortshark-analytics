@@ -260,20 +260,23 @@ const LeadsTab: React.FC = () => {
     }
   };
 
-  const syncLeadProsperData = async (type: 'today' | 'historical' = 'today') => {
+  const syncLeadProsperData = async (type: 'today' | 'historical' = 'today', forceRefresh: boolean = false) => {
     setLpSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke('leadprosper-sync', {
-        body: { type }
+        body: { type, forceRefresh }
       });
 
       if (error) throw error;
 
-      toast.success(`LeadProsper ${type} sync completed - ${data.processed} leads processed from ${data.campaigns_processed || 'multiple'} campaigns`);
+      const refreshNote = forceRefresh ? ' (fresh data)' : '';
+      toast.success(`LeadProsper ${type} sync completed${refreshNote} - ${data.processed} leads processed from ${data.campaigns_processed || 'multiple'} campaigns`);
       setLastSyncTime(new Date());
       
       // Refresh the data after sync
       await fetchLeadProsperData();
+      // Also refresh comparison data
+      await fetchComparisonData();
     } catch (e) {
       console.error("Error syncing LeadProsper data", e);
       toast.error(`Failed to sync LeadProsper ${type} data`);
@@ -476,7 +479,7 @@ const LeadsTab: React.FC = () => {
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <Button
                 variant={isRealtime ? "default" : "outline"}
                 size="sm"
@@ -489,20 +492,30 @@ const LeadsTab: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => syncLeadProsperData('today')}
+                onClick={() => syncLeadProsperData('today', false)}
                 disabled={lpSyncing}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${lpSyncing ? 'animate-spin' : ''}`} />
-                Sync Today
+                Sync
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => syncLeadProsperData('today', true)}
+                disabled={lpSyncing}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${lpSyncing ? 'animate-spin' : ''}`} />
+                Force Refresh
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => syncLeadProsperData('historical')}
+                onClick={() => syncLeadProsperData('historical', true)}
                 disabled={lpSyncing}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Sync Historical
+                Resync All
               </Button>
             </div>
           </div>
