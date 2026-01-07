@@ -345,68 +345,46 @@ const LeadsTab: React.FC = () => {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
-  // Helper to render comparison indicator for summary cards
+  // Helper to render comparison values for summary cards (shows actual values, not percentages)
   const renderComparison = (current: number, yesterday: number | undefined, avg: number | undefined, isCurrency: boolean = false) => {
-    const getChangeIndicator = (current: number, compare: number | undefined, label: string) => {
-      if (compare === undefined || compare === 0) return null;
-      const diff = current - compare;
-      const pctChange = ((diff / compare) * 100).toFixed(0);
-      const isPositive = diff > 0;
-      const isNegative = diff < 0;
-      
-      return (
-        <div className="flex items-center gap-1 text-[10px]">
-          <span className="text-muted-foreground">{label}:</span>
-          {isPositive && <TrendingUp className="h-3 w-3 text-green-500" />}
-          {isNegative && <TrendingDown className="h-3 w-3 text-red-500" />}
-          {!isPositive && !isNegative && <Minus className="h-3 w-3 text-muted-foreground" />}
-          <span className={isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-muted-foreground'}>
-            {isPositive ? '+' : ''}{pctChange}%
-          </span>
-        </div>
-      );
-    };
-
+    const formatVal = (val: number) => isCurrency ? formatCurrency(val) : val.toLocaleString();
+    
     return (
-      <div className="flex flex-col gap-0.5 mt-1">
-        {getChangeIndicator(current, yesterday, 'vs Yest')}
-        {getChangeIndicator(current, avg, 'vs 7d Avg')}
+      <div className="flex flex-col gap-0.5 mt-1 text-[10px]">
+        {yesterday !== undefined && (
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">Yest:</span>
+            <span className="font-medium">{formatVal(yesterday)}</span>
+          </div>
+        )}
+        {avg !== undefined && (
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">7d Avg:</span>
+            <span className="font-medium">{formatVal(Math.round(avg))}</span>
+          </div>
+        )}
       </div>
     );
   };
 
-  // Helper to render comparison for campaign table rows (inverted logic for "failed" column)
-  const renderCampaignComparison = (current: number, yesterday: number | undefined, avg: number | undefined, invertColors: boolean = false) => {
-    const getIndicator = (current: number, compare: number | undefined, label: string) => {
-      if (compare === undefined || compare === 0) return null;
-      const diff = current - compare;
-      const pctChange = ((diff / compare) * 100).toFixed(0);
-      const isPositive = diff > 0;
-      const isNegative = diff < 0;
-      
-      // For failed column, lower is better (invert colors)
-      const positiveColor = invertColors ? 'text-red-500' : 'text-green-500';
-      const negativeColor = invertColors ? 'text-green-500' : 'text-red-500';
-      const positiveTextColor = invertColors ? 'text-red-600' : 'text-green-600';
-      const negativeTextColor = invertColors ? 'text-green-600' : 'text-red-600';
-      
-      return (
-        <div className="flex items-center justify-end gap-1 text-[10px]">
-          <span className="text-muted-foreground">{label}:</span>
-          {isPositive && <TrendingUp className={`h-3 w-3 ${positiveColor}`} />}
-          {isNegative && <TrendingDown className={`h-3 w-3 ${negativeColor}`} />}
-          {!isPositive && !isNegative && <Minus className="h-3 w-3 text-muted-foreground" />}
-          <span className={isPositive ? positiveTextColor : isNegative ? negativeTextColor : 'text-muted-foreground'}>
-            {isPositive ? '+' : ''}{pctChange}%
-          </span>
-        </div>
-      );
-    };
-
+  // Helper to render comparison for campaign table rows (shows actual values)
+  const renderCampaignComparison = (current: number, yesterday: number | undefined, avg: number | undefined, isCurrency: boolean = false) => {
+    const formatVal = (val: number) => isCurrency ? formatCurrency(val) : val.toLocaleString();
+    
     return (
-      <div className="flex flex-col gap-0.5 mt-1">
-        {getIndicator(current, yesterday, 'Yest')}
-        {getIndicator(current, avg, '7d')}
+      <div className="flex flex-col gap-0.5 mt-0.5 text-[10px]">
+        {yesterday !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <span className="text-muted-foreground">Yest:</span>
+            <span className="font-medium text-muted-foreground">{formatVal(yesterday)}</span>
+          </div>
+        )}
+        {avg !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <span className="text-muted-foreground">7d:</span>
+            <span className="font-medium text-muted-foreground">{formatVal(Math.round(avg))}</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -602,13 +580,13 @@ const LeadsTab: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="text-lg font-bold text-red-600">{campaign.failed}</div>
-                          {renderCampaignComparison(campaign.failed, yesterdayCampaign?.failed, sevenDayAvgCampaign?.failed, true)}
+                          {renderCampaignComparison(campaign.failed, yesterdayCampaign?.failed, sevenDayAvgCampaign?.failed)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className={`text-lg font-bold ${profitClass}`}>
                             {formatCurrency(campaign.profit)}
                           </div>
-                          {renderCampaignComparison(campaign.profit, yesterdayCampaign?.profit, sevenDayAvgCampaign?.profit)}
+                          {renderCampaignComparison(campaign.profit, yesterdayCampaign?.profit, sevenDayAvgCampaign?.profit, true)}
                         </TableCell>
                       </TableRow>
                     );
