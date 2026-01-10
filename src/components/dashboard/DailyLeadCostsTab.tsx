@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaign } from "@/contexts/CampaignContext";
-import { format, parseISO, eachDayOfInterval } from "date-fns";
+import { format, parseISO, eachDayOfInterval, subDays } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
 import {
   LineChart,
@@ -15,13 +15,16 @@ import {
   LabelList,
   ReferenceLine,
 } from "recharts";
-import { TrendingUp, Target } from "lucide-react";
+import { TrendingUp, Target, CheckCircle2, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface LeadData {
   date: string;
   leads: number;
   adSpend: number;
   costPerLead: number;
+  trailing7DayLeads: number;
+  trailing7DayTarget: number;
 }
 
 interface CampaignLeadData {
@@ -32,13 +35,14 @@ interface CampaignLeadData {
   totalSpend: number;
   avgCostPerLead: number;
   targetLeadsPerDay: number;
+  weeklyTarget: number;
+  trailing7DayActual: number;
 }
 
 const DailyLeadCostsTab: React.FC = () => {
   const { dateRange, campaigns } = useCampaign();
   const [campaignData, setCampaignData] = useState<CampaignLeadData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [campaignTargets, setCampaignTargets] = useState<Map<string, number>>(new Map());
 
   // Generate all dates in range
   const allDates = useMemo(() => {
@@ -48,26 +52,6 @@ const DailyLeadCostsTab: React.FC = () => {
       end: parseISO(dateRange.endDate),
     }).map((d) => format(d, "yyyy-MM-dd"));
   }, [dateRange]);
-
-  // Fetch campaign targets
-  useEffect(() => {
-    const fetchTargets = async () => {
-      const { data, error } = await supabase
-        .from("campaign_targets")
-        .select("campaign_id, target_leads_per_day");
-
-      if (!error && data) {
-        const targetMap = new Map<string, number>();
-        data.forEach((t) => {
-          if (t.target_leads_per_day && t.target_leads_per_day > 0) {
-            targetMap.set(t.campaign_id, t.target_leads_per_day);
-          }
-        });
-        setCampaignTargets(targetMap);
-      }
-    };
-    fetchTargets();
-  }, []);
 
   useEffect(() => {
     const fetchLeadData = async () => {
@@ -80,6 +64,20 @@ const DailyLeadCostsTab: React.FC = () => {
       setLoading(true);
 
       try {
+        // Fetch targets first
+        const { data: targetsData } = await supabase
+          .from("campaign_targets")
+          .select("campaign_id, target_leads_per_day");
+
+        const campaignTargets = new Map<string, number>();
+        if (targetsData) {
+          targetsData.forEach((t) => {
+            if (t.target_leads_per_day && t.target_leads_per_day > 0) {
+              campaignTargets.set(t.campaign_id, t.target_leads_per_day);
+            }
+          });
+        }
+
         // Fetch from campaign_stats_history which has ad_spend and leads
         const { data: stats, error } = await supabase
           .from("campaign_stats_history")
@@ -125,18 +123,42 @@ const DailyLeadCostsTab: React.FC = () => {
         const results: CampaignLeadData[] = [];
 
         campaignMap.forEach((value, campaignId) => {
-          const data: LeadData[] = allDates.map((date) => {
+          const targetPerDay = campaignTargets.get(campaignId) || 0;
+          const weeklyTarget = targetPerDay * 7;
+
+          // First pass: get leads data
+          const leadsByDate: { date: string; leads: number; adSpend: number }[] = allDates.map((date) => {
             const dayData = value.byDate.get(date) || { leads: 0, adSpend: 0 };
             return {
               date,
               leads: dayData.leads,
               adSpend: dayData.adSpend,
-              costPerLead: dayData.leads > 0 ? dayData.adSpend / dayData.leads : 0,
+            };
+          });
+
+          // Second pass: calculate trailing 7-day totals
+          const data: LeadData[] = leadsByDate.map((day, index) => {
+            // Calculate trailing 7 days (including current day)
+            let trailing7DayLeads = 0;
+            for (let i = Math.max(0, index - 6); i <= index; i++) {
+              trailing7DayLeads += leadsByDate[i].leads;
+            }
+
+            return {
+              date: day.date,
+              leads: day.leads,
+              adSpend: day.adSpend,
+              costPerLead: day.leads > 0 ? day.adSpend / day.leads : 0,
+              trailing7DayLeads,
+              trailing7DayTarget: weeklyTarget,
             };
           });
 
           const totalLeads = data.reduce((sum, d) => sum + d.leads, 0);
           const totalSpend = data.reduce((sum, d) => sum + d.adSpend, 0);
+
+          // Get the last day's trailing 7-day actual
+          const trailing7DayActual = data.length > 0 ? data[data.length - 1].trailing7DayLeads : 0;
 
           results.push({
             campaignId,
@@ -145,7 +167,9 @@ const DailyLeadCostsTab: React.FC = () => {
             totalLeads,
             totalSpend,
             avgCostPerLead: totalLeads > 0 ? totalSpend / totalLeads : 0,
-            targetLeadsPerDay: campaignTargets.get(campaignId) || 0,
+            targetLeadsPerDay: targetPerDay,
+            weeklyTarget,
+            trailing7DayActual,
           });
         });
 
@@ -161,7 +185,7 @@ const DailyLeadCostsTab: React.FC = () => {
     };
 
     fetchLeadData();
-  }, [dateRange, allDates, campaigns, campaignTargets]);
+  }, [dateRange, allDates, campaigns]);
 
   if (loading) {
     return (
@@ -202,20 +226,37 @@ const DailyLeadCostsTab: React.FC = () => {
 
       {campaignData.map((campaign) => {
         const hasTarget = campaign.targetLeadsPerDay > 0;
+        const weeklyHit = hasTarget && campaign.trailing7DayActual >= campaign.weeklyTarget;
+        const weeklyPercentage = hasTarget ? Math.round((campaign.trailing7DayActual / campaign.weeklyTarget) * 100) : 0;
         
         return (
           <Card key={campaign.campaignId} className="shadow-md">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <CardTitle className="text-xl font-semibold">
                     {campaign.campaignName}
                   </CardTitle>
                   {hasTarget && (
-                    <div className="flex items-center gap-1 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
-                      <Target className="h-3.5 w-3.5" />
-                      <span>Target: {campaign.targetLeadsPerDay}/day</span>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-1 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
+                        <Target className="h-3.5 w-3.5" />
+                        <span>{campaign.targetLeadsPerDay}/day</span>
+                      </div>
+                      <Badge 
+                        variant={weeklyHit ? "default" : "destructive"}
+                        className="flex items-center gap-1"
+                      >
+                        {weeklyHit ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5" />
+                        )}
+                        <span>
+                          7-Day: {campaign.trailing7DayActual}/{campaign.weeklyTarget} ({weeklyPercentage}%)
+                        </span>
+                      </Badge>
+                    </>
                   )}
                 </div>
                 <div className="flex gap-6 text-base">
@@ -235,9 +276,16 @@ const DailyLeadCostsTab: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Leads Chart with Target Line */}
+              {/* Leads Chart with Target Line and Trailing 7-Day */}
               <div className="mb-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Daily Leads</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Daily Leads</h4>
+                  {hasTarget && (
+                    <div className="text-xs text-muted-foreground">
+                      Dashed line = daily target ({campaign.targetLeadsPerDay})
+                    </div>
+                  )}
+                </div>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={campaign.data} margin={{ top: 25, right: 30, bottom: 20, left: 20 }}>
@@ -259,6 +307,7 @@ const DailyLeadCostsTab: React.FC = () => {
                           if (!active || !payload?.length) return null;
                           const data = payload[0].payload as LeadData;
                           const isAboveTarget = hasTarget && data.leads >= campaign.targetLeadsPerDay;
+                          const isWeeklyAboveTarget = hasTarget && data.trailing7DayLeads >= campaign.weeklyTarget;
                           return (
                             <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
                               <p className="font-semibold text-lg mb-3">
@@ -266,15 +315,25 @@ const DailyLeadCostsTab: React.FC = () => {
                               </p>
                               <div className="space-y-2 text-base">
                                 <p>
-                                  <span className="text-muted-foreground">Leads: </span>
+                                  <span className="text-muted-foreground">Daily Leads: </span>
                                   <span className={`font-bold text-lg ${isAboveTarget ? 'text-green-500' : hasTarget ? 'text-red-500' : ''}`}>
                                     {data.leads}
                                   </span>
+                                  {hasTarget && (
+                                    <span className="text-muted-foreground text-sm ml-1">
+                                      / {campaign.targetLeadsPerDay}
+                                    </span>
+                                  )}
                                 </p>
                                 {hasTarget && (
                                   <p>
-                                    <span className="text-muted-foreground">Target: </span>
-                                    <span className="font-bold text-lg">{campaign.targetLeadsPerDay}</span>
+                                    <span className="text-muted-foreground">Trailing 7-Day: </span>
+                                    <span className={`font-bold text-lg ${isWeeklyAboveTarget ? 'text-green-500' : 'text-red-500'}`}>
+                                      {data.trailing7DayLeads}
+                                    </span>
+                                    <span className="text-muted-foreground text-sm ml-1">
+                                      / {campaign.weeklyTarget} ({Math.round((data.trailing7DayLeads / campaign.weeklyTarget) * 100)}%)
+                                    </span>
                                   </p>
                                 )}
                               </div>
@@ -288,13 +347,6 @@ const DailyLeadCostsTab: React.FC = () => {
                           stroke="hsl(var(--destructive))"
                           strokeWidth={2}
                           strokeDasharray="8 4"
-                          label={{
-                            value: `Target: ${campaign.targetLeadsPerDay}`,
-                            position: "right",
-                            fill: "hsl(var(--destructive))",
-                            fontSize: 12,
-                            fontWeight: 600,
-                          }}
                         />
                       )}
                       <Line
@@ -318,6 +370,92 @@ const DailyLeadCostsTab: React.FC = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
+
+              {/* Trailing 7-Day Chart - only show if target exists */}
+              {hasTarget && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">Trailing 7-Day Leads vs Weekly Target</h4>
+                    <div className="text-xs text-muted-foreground">
+                      Target: {campaign.weeklyTarget} leads/week
+                    </div>
+                  </div>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={campaign.data} margin={{ top: 25, right: 30, bottom: 20, left: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(val) => format(parseISO(val), "MMM d")}
+                          tick={{ fontSize: 12 }}
+                          className="text-muted-foreground"
+                        />
+                        <YAxis
+                          tickFormatter={(val) => val.toFixed(0)}
+                          tick={{ fontSize: 12 }}
+                          className="text-muted-foreground"
+                          domain={[0, "auto"]}
+                        />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const data = payload[0].payload as LeadData;
+                            const percentage = Math.round((data.trailing7DayLeads / campaign.weeklyTarget) * 100);
+                            const isHit = data.trailing7DayLeads >= campaign.weeklyTarget;
+                            return (
+                              <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
+                                <p className="font-semibold text-lg mb-3">
+                                  Week ending {format(parseISO(data.date), "MMM d")}
+                                </p>
+                                <div className="space-y-2 text-base">
+                                  <p>
+                                    <span className="text-muted-foreground">7-Day Leads: </span>
+                                    <span className={`font-bold text-lg ${isHit ? 'text-green-500' : 'text-red-500'}`}>
+                                      {data.trailing7DayLeads}
+                                    </span>
+                                  </p>
+                                  <p>
+                                    <span className="text-muted-foreground">Weekly Target: </span>
+                                    <span className="font-bold text-lg">{campaign.weeklyTarget}</span>
+                                  </p>
+                                  <p>
+                                    <span className="text-muted-foreground">Progress: </span>
+                                    <span className={`font-bold text-lg ${isHit ? 'text-green-500' : 'text-red-500'}`}>
+                                      {percentage}%
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          }}
+                        />
+                        <ReferenceLine
+                          y={campaign.weeklyTarget}
+                          stroke="hsl(var(--destructive))"
+                          strokeWidth={2}
+                          strokeDasharray="8 4"
+                          label={{
+                            value: `Weekly Target: ${campaign.weeklyTarget}`,
+                            position: "insideTopRight",
+                            fill: "hsl(var(--destructive))",
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="trailing7DayLeads"
+                          stroke="hsl(var(--chart-4))"
+                          strokeWidth={2}
+                          dot={{ r: 4, fill: "hsl(var(--chart-4))", strokeWidth: 0 }}
+                          activeDot={{ r: 6 }}
+                          connectNulls={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
 
               {/* Cost Per Lead Chart */}
               <div>
