@@ -5,24 +5,23 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { format, parseISO, eachDayOfInterval } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
 import {
-  LineChart,
-  Line,
+  ScatterChart,
+  Scatter,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  BarChart,
-  Bar,
+  ZAxis,
 } from "recharts";
 import { TrendingUp } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface LeadData {
   date: string;
   leads: number;
   revenue: number;
   cost: number;
+  dateIndex: number;
 }
 
 interface CampaignLeadData {
@@ -38,7 +37,6 @@ const DailyLeadCostsTab: React.FC = () => {
   const { dateRange } = useCampaign();
   const [campaignData, setCampaignData] = useState<CampaignLeadData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [metric, setMetric] = useState<"leads" | "revenue">("leads");
 
   // Generate all dates in range
   const allDates = useMemo(() => {
@@ -100,13 +98,14 @@ const DailyLeadCostsTab: React.FC = () => {
         const results: CampaignLeadData[] = [];
 
         campaignMap.forEach((value, campaignId) => {
-          const data: LeadData[] = allDates.map((date) => {
+          const data: LeadData[] = allDates.map((date, idx) => {
             const dayData = value.byDate.get(date) || { leads: 0, revenue: 0, cost: 0 };
             return {
               date,
               leads: dayData.leads,
               revenue: dayData.revenue,
               cost: dayData.cost,
+              dateIndex: idx,
             };
           });
 
@@ -161,107 +160,121 @@ const DailyLeadCostsTab: React.FC = () => {
     );
   }
 
+  // Find max leads for consistent dot sizing
+  const maxLeads = Math.max(...campaignData.flatMap((c) => c.data.map((d) => d.leads)));
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Daily Lead Data by Campaign</h2>
-          <p className="text-lg text-muted-foreground">
-            {dateRange?.startDate && dateRange?.endDate
-              ? `${format(parseISO(dateRange.startDate), "MMM d, yyyy")} - ${format(
-                  parseISO(dateRange.endDate),
-                  "MMM d, yyyy"
-                )}`
-              : "Select a date range"}
-          </p>
-        </div>
-        <Tabs value={metric} onValueChange={(v) => setMetric(v as "leads" | "revenue")}>
-          <TabsList>
-            <TabsTrigger value="leads" className="text-base px-6">Leads</TabsTrigger>
-            <TabsTrigger value="revenue" className="text-base px-6">Revenue</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div>
+        <h2 className="text-2xl font-bold">Daily Lead Data by Campaign</h2>
+        <p className="text-lg text-muted-foreground">
+          {dateRange?.startDate && dateRange?.endDate
+            ? `${format(parseISO(dateRange.startDate), "MMM d, yyyy")} - ${format(
+                parseISO(dateRange.endDate),
+                "MMM d, yyyy"
+              )}`
+            : "Select a date range"}
+        </p>
       </div>
 
-      {campaignData.map((campaign) => (
-        <Card key={campaign.campaignId} className="shadow-md">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <CardTitle className="text-xl font-semibold">
-                {campaign.campaignName}
-              </CardTitle>
-              <div className="flex gap-6 text-base">
-                <div>
-                  <span className="text-muted-foreground">Total Leads: </span>
-                  <span className="font-bold text-lg">{campaign.totalLeads}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total Revenue: </span>
-                  <span className="font-bold text-lg">{formatCurrency(campaign.totalRevenue)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Avg/Day: </span>
-                  <span className="font-bold text-lg">
-                    {metric === "leads"
-                      ? (campaign.totalLeads / (allDates.length || 1)).toFixed(1)
-                      : formatCurrency(campaign.totalRevenue / (allDates.length || 1))}
-                  </span>
+      {campaignData.map((campaign) => {
+        // Filter out days with 0 leads for cleaner dot plot
+        const dotsData = campaign.data.filter((d) => d.leads > 0);
+
+        return (
+          <Card key={campaign.campaignId} className="shadow-md">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle className="text-xl font-semibold">
+                  {campaign.campaignName}
+                </CardTitle>
+                <div className="flex gap-6 text-base">
+                  <div>
+                    <span className="text-muted-foreground">Total Leads: </span>
+                    <span className="font-bold text-lg">{campaign.totalLeads}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Spend: </span>
+                    <span className="font-bold text-lg">{formatCurrency(campaign.totalCost)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Avg Leads/Day: </span>
+                    <span className="font-bold text-lg">
+                      {(campaign.totalLeads / (allDates.length || 1)).toFixed(1)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={campaign.data}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(val) => format(parseISO(val), "MMM d")}
-                    tick={{ fontSize: 12 }}
-                    className="text-muted-foreground"
-                  />
-                  <YAxis
-                    tickFormatter={(val) =>
-                      metric === "revenue" ? `$${val.toFixed(0)}` : val.toString()
-                    }
-                    tick={{ fontSize: 12 }}
-                    className="text-muted-foreground"
-                  />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload?.length) return null;
-                      const data = payload[0].payload as LeadData;
-                      return (
-                        <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
-                          <p className="font-semibold text-base mb-2">
-                            {format(parseISO(label), "EEE, MMM d")}
-                          </p>
-                          <div className="space-y-1 text-base">
-                            <p>
-                              <span className="text-muted-foreground">Leads: </span>
-                              <span className="font-medium">{data.leads}</span>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis
+                      type="category"
+                      dataKey="date"
+                      name="Date"
+                      tickFormatter={(val) => format(parseISO(val), "MMM d")}
+                      tick={{ fontSize: 12 }}
+                      className="text-muted-foreground"
+                      allowDuplicatedCategory={false}
+                    />
+                    <YAxis
+                      type="number"
+                      dataKey="leads"
+                      name="Leads"
+                      tick={{ fontSize: 12 }}
+                      className="text-muted-foreground"
+                      domain={[0, "auto"]}
+                    />
+                    <ZAxis
+                      type="number"
+                      dataKey="leads"
+                      range={[100, 400]}
+                      domain={[0, maxLeads || 1]}
+                    />
+                    <Tooltip
+                      cursor={{ strokeDasharray: "3 3" }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const data = payload[0].payload as LeadData;
+                        const costPerLead = data.leads > 0 ? data.cost / data.leads : 0;
+                        return (
+                          <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
+                            <p className="font-semibold text-lg mb-3">
+                              {format(parseISO(data.date), "EEE, MMM d")}
                             </p>
-                            <p>
-                              <span className="text-muted-foreground">Revenue: </span>
-                              <span className="font-medium">{formatCurrency(data.revenue)}</span>
-                            </p>
+                            <div className="space-y-2 text-base">
+                              <p>
+                                <span className="text-muted-foreground">Leads: </span>
+                                <span className="font-bold text-lg">{data.leads}</span>
+                              </p>
+                              <p>
+                                <span className="text-muted-foreground">Lead Cost: </span>
+                                <span className="font-bold text-lg">{formatCurrency(costPerLead)}</span>
+                              </p>
+                              <p>
+                                <span className="text-muted-foreground">Spend: </span>
+                                <span className="font-bold text-lg">{formatCurrency(data.cost)}</span>
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Bar
-                    dataKey={metric}
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                        );
+                      }}
+                    />
+                    <Scatter
+                      name={campaign.campaignName}
+                      data={dotsData}
+                      fill="hsl(var(--primary))"
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
