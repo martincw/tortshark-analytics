@@ -12,34 +12,33 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  BarChart,
+  Bar,
 } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface LeadCostData {
+interface LeadData {
   date: string;
-  cost: number;
   leads: number;
-  costPerLead: number;
+  revenue: number;
+  cost: number;
 }
 
-interface CampaignLeadCosts {
+interface CampaignLeadData {
   campaignId: string;
   campaignName: string;
-  data: LeadCostData[];
-  totalCost: number;
+  data: LeadData[];
   totalLeads: number;
-  avgCostPerLead: number;
+  totalRevenue: number;
+  totalCost: number;
 }
 
 const DailyLeadCostsTab: React.FC = () => {
-  const { dateRange, campaigns } = useCampaign();
-  const [campaignCosts, setCampaignCosts] = useState<CampaignLeadCosts[]>([]);
+  const { dateRange } = useCampaign();
+  const [campaignData, setCampaignData] = useState<CampaignLeadData[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Get active campaigns
-  const activeCampaigns = useMemo(() => {
-    return campaigns.filter((c) => c.is_active);
-  }, [campaigns]);
+  const [metric, setMetric] = useState<"leads" | "revenue">("leads");
 
   // Generate all dates in range
   const allDates = useMemo(() => {
@@ -51,9 +50,9 @@ const DailyLeadCostsTab: React.FC = () => {
   }, [dateRange]);
 
   useEffect(() => {
-    const fetchLeadCosts = async () => {
-      if (!dateRange?.startDate || !dateRange?.endDate || activeCampaigns.length === 0) {
-        setCampaignCosts([]);
+    const fetchLeadData = async () => {
+      if (!dateRange?.startDate || !dateRange?.endDate) {
+        setCampaignData([]);
         setLoading(false);
         return;
       }
@@ -61,7 +60,7 @@ const DailyLeadCostsTab: React.FC = () => {
       setLoading(true);
 
       try {
-        // Fetch leadprosper leads data for cost per lead
+        // Fetch leadprosper leads data
         const { data: leads, error } = await supabase
           .from("leadprosper_leads")
           .select("campaign_id, campaign_name, date, cost, revenue")
@@ -69,7 +68,7 @@ const DailyLeadCostsTab: React.FC = () => {
           .lte("date", dateRange.endDate);
 
         if (error) {
-          console.error("Error fetching lead costs:", error);
+          console.error("Error fetching lead data:", error);
           setLoading(false);
           return;
         }
@@ -77,7 +76,7 @@ const DailyLeadCostsTab: React.FC = () => {
         // Group by campaign
         const campaignMap = new Map<
           string,
-          { name: string; byDate: Map<string, { cost: number; leads: number }> }
+          { name: string; byDate: Map<string, { leads: number; revenue: number; cost: number }> }
         >();
 
         for (const lead of leads || []) {
@@ -90,70 +89,72 @@ const DailyLeadCostsTab: React.FC = () => {
           }
 
           const campaign = campaignMap.get(cId)!;
-          const existing = campaign.byDate.get(lead.date) || { cost: 0, leads: 0 };
-          existing.cost += lead.cost || 0;
+          const existing = campaign.byDate.get(lead.date) || { leads: 0, revenue: 0, cost: 0 };
           existing.leads += 1;
+          existing.revenue += lead.revenue || 0;
+          existing.cost += lead.cost || 0;
           campaign.byDate.set(lead.date, existing);
         }
 
         // Build result for each campaign
-        const results: CampaignLeadCosts[] = [];
+        const results: CampaignLeadData[] = [];
 
         campaignMap.forEach((value, campaignId) => {
-          const data: LeadCostData[] = allDates.map((date) => {
-            const dayData = value.byDate.get(date) || { cost: 0, leads: 0 };
+          const data: LeadData[] = allDates.map((date) => {
+            const dayData = value.byDate.get(date) || { leads: 0, revenue: 0, cost: 0 };
             return {
               date,
-              cost: dayData.cost,
               leads: dayData.leads,
-              costPerLead: dayData.leads > 0 ? dayData.cost / dayData.leads : 0,
+              revenue: dayData.revenue,
+              cost: dayData.cost,
             };
           });
 
-          const totalCost = data.reduce((sum, d) => sum + d.cost, 0);
           const totalLeads = data.reduce((sum, d) => sum + d.leads, 0);
+          const totalRevenue = data.reduce((sum, d) => sum + d.revenue, 0);
+          const totalCost = data.reduce((sum, d) => sum + d.cost, 0);
 
           results.push({
             campaignId,
             campaignName: value.name,
             data,
-            totalCost,
             totalLeads,
-            avgCostPerLead: totalLeads > 0 ? totalCost / totalLeads : 0,
+            totalRevenue,
+            totalCost,
           });
         });
 
-        // Sort by total cost descending
-        results.sort((a, b) => b.totalCost - a.totalCost);
+        // Sort by total leads descending
+        results.sort((a, b) => b.totalLeads - a.totalLeads);
 
-        setCampaignCosts(results);
+        setCampaignData(results);
       } catch (e) {
-        console.error("Error in fetchLeadCosts:", e);
+        console.error("Error in fetchLeadData:", e);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLeadCosts();
-  }, [dateRange, activeCampaigns, allDates]);
+    fetchLeadData();
+  }, [dateRange, allDates]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center text-muted-foreground">
           <TrendingUp className="h-10 w-10 mx-auto mb-2 animate-pulse" />
-          <p>Loading daily lead costs...</p>
+          <p className="text-lg">Loading daily lead data...</p>
         </div>
       </div>
     );
   }
 
-  if (campaignCosts.length === 0) {
+  if (campaignData.length === 0) {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground">
-            No lead cost data available for the selected date range.
+          <p className="text-center text-lg text-muted-foreground">
+            No lead data available for the selected date range.
           </p>
         </CardContent>
       </Card>
@@ -162,38 +163,48 @@ const DailyLeadCostsTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Daily Lead Costs by Campaign</h2>
-        <p className="text-muted-foreground">
-          {dateRange?.startDate && dateRange?.endDate
-            ? `${format(parseISO(dateRange.startDate), "MMM d, yyyy")} - ${format(
-                parseISO(dateRange.endDate),
-                "MMM d, yyyy"
-              )}`
-            : "Select a date range"}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Daily Lead Data by Campaign</h2>
+          <p className="text-lg text-muted-foreground">
+            {dateRange?.startDate && dateRange?.endDate
+              ? `${format(parseISO(dateRange.startDate), "MMM d, yyyy")} - ${format(
+                  parseISO(dateRange.endDate),
+                  "MMM d, yyyy"
+                )}`
+              : "Select a date range"}
+          </p>
+        </div>
+        <Tabs value={metric} onValueChange={(v) => setMetric(v as "leads" | "revenue")}>
+          <TabsList>
+            <TabsTrigger value="leads" className="text-base px-6">Leads</TabsTrigger>
+            <TabsTrigger value="revenue" className="text-base px-6">Revenue</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {campaignCosts.map((campaign) => (
+      {campaignData.map((campaign) => (
         <Card key={campaign.campaignId} className="shadow-md">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <CardTitle className="text-xl font-semibold">
                 {campaign.campaignName}
               </CardTitle>
               <div className="flex gap-6 text-base">
                 <div>
-                  <span className="text-muted-foreground">Total Cost: </span>
-                  <span className="font-bold">{formatCurrency(campaign.totalCost)}</span>
+                  <span className="text-muted-foreground">Total Leads: </span>
+                  <span className="font-bold text-lg">{campaign.totalLeads}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Leads: </span>
-                  <span className="font-bold">{campaign.totalLeads}</span>
+                  <span className="text-muted-foreground">Total Revenue: </span>
+                  <span className="font-bold text-lg">{formatCurrency(campaign.totalRevenue)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Avg CPL: </span>
-                  <span className="font-bold">
-                    {formatCurrency(campaign.avgCostPerLead)}
+                  <span className="text-muted-foreground">Avg/Day: </span>
+                  <span className="font-bold text-lg">
+                    {metric === "leads"
+                      ? (campaign.totalLeads / (allDates.length || 1)).toFixed(1)
+                      : formatCurrency(campaign.totalRevenue / (allDates.length || 1))}
                   </span>
                 </div>
               </div>
@@ -202,7 +213,7 @@ const DailyLeadCostsTab: React.FC = () => {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={campaign.data}>
+                <BarChart data={campaign.data}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis
                     dataKey="date"
@@ -211,48 +222,41 @@ const DailyLeadCostsTab: React.FC = () => {
                     className="text-muted-foreground"
                   />
                   <YAxis
-                    tickFormatter={(val) => `$${val.toFixed(0)}`}
+                    tickFormatter={(val) =>
+                      metric === "revenue" ? `$${val.toFixed(0)}` : val.toString()
+                    }
                     tick={{ fontSize: 12 }}
                     className="text-muted-foreground"
                   />
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
-                      const data = payload[0].payload as LeadCostData;
+                      const data = payload[0].payload as LeadData;
                       return (
-                        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                        <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
                           <p className="font-semibold text-base mb-2">
                             {format(parseISO(label), "EEE, MMM d")}
                           </p>
-                          <div className="space-y-1 text-sm">
-                            <p>
-                              <span className="text-muted-foreground">Cost: </span>
-                              <span className="font-medium">{formatCurrency(data.cost)}</span>
-                            </p>
+                          <div className="space-y-1 text-base">
                             <p>
                               <span className="text-muted-foreground">Leads: </span>
                               <span className="font-medium">{data.leads}</span>
                             </p>
                             <p>
-                              <span className="text-muted-foreground">CPL: </span>
-                              <span className="font-medium">
-                                {formatCurrency(data.costPerLead)}
-                              </span>
+                              <span className="text-muted-foreground">Revenue: </span>
+                              <span className="font-medium">{formatCurrency(data.revenue)}</span>
                             </p>
                           </div>
                         </div>
                       );
                     }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="cost"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "hsl(var(--primary))" }}
-                    activeDot={{ r: 5 }}
+                  <Bar
+                    dataKey={metric}
+                    fill="hsl(var(--primary))"
+                    radius={[4, 4, 0, 0]}
                   />
-                </LineChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
