@@ -19,9 +19,8 @@ import { TrendingUp } from "lucide-react";
 interface LeadData {
   date: string;
   leads: number;
-  revenue: number;
-  cost: number;
-  dateIndex: number;
+  adSpend: number;
+  costPerLead: number;
 }
 
 interface CampaignLeadData {
@@ -29,12 +28,12 @@ interface CampaignLeadData {
   campaignName: string;
   data: LeadData[];
   totalLeads: number;
-  totalRevenue: number;
-  totalCost: number;
+  totalSpend: number;
+  avgCostPerLead: number;
 }
 
 const DailyLeadCostsTab: React.FC = () => {
-  const { dateRange } = useCampaign();
+  const { dateRange, campaigns } = useCampaign();
   const [campaignData, setCampaignData] = useState<CampaignLeadData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,68 +57,71 @@ const DailyLeadCostsTab: React.FC = () => {
       setLoading(true);
 
       try {
-        // Fetch leadprosper leads data
-        const { data: leads, error } = await supabase
-          .from("leadprosper_leads")
-          .select("campaign_id, campaign_name, date, cost, revenue")
+        // Fetch from campaign_stats_history which has ad_spend and leads
+        const { data: stats, error } = await supabase
+          .from("campaign_stats_history")
+          .select("campaign_id, date, leads, ad_spend")
           .gte("date", dateRange.startDate)
           .lte("date", dateRange.endDate);
 
         if (error) {
-          console.error("Error fetching lead data:", error);
+          console.error("Error fetching stats data:", error);
           setLoading(false);
           return;
         }
 
+        // Create a map of campaign IDs to names
+        const campaignNameMap = new Map<string, string>();
+        campaigns.forEach((c) => {
+          campaignNameMap.set(c.id, c.name);
+        });
+
         // Group by campaign
         const campaignMap = new Map<
           string,
-          { name: string; byDate: Map<string, { leads: number; revenue: number; cost: number }> }
+          { name: string; byDate: Map<string, { leads: number; adSpend: number }> }
         >();
 
-        for (const lead of leads || []) {
-          const cId = lead.campaign_id;
+        for (const stat of stats || []) {
+          const cId = stat.campaign_id;
           if (!campaignMap.has(cId)) {
             campaignMap.set(cId, {
-              name: lead.campaign_name || cId,
+              name: campaignNameMap.get(cId) || cId,
               byDate: new Map(),
             });
           }
 
           const campaign = campaignMap.get(cId)!;
-          const existing = campaign.byDate.get(lead.date) || { leads: 0, revenue: 0, cost: 0 };
-          existing.leads += 1;
-          existing.revenue += lead.revenue || 0;
-          existing.cost += lead.cost || 0;
-          campaign.byDate.set(lead.date, existing);
+          const existing = campaign.byDate.get(stat.date) || { leads: 0, adSpend: 0 };
+          existing.leads += stat.leads || 0;
+          existing.adSpend += stat.ad_spend || 0;
+          campaign.byDate.set(stat.date, existing);
         }
 
         // Build result for each campaign
         const results: CampaignLeadData[] = [];
 
         campaignMap.forEach((value, campaignId) => {
-          const data: LeadData[] = allDates.map((date, idx) => {
-            const dayData = value.byDate.get(date) || { leads: 0, revenue: 0, cost: 0 };
+          const data: LeadData[] = allDates.map((date) => {
+            const dayData = value.byDate.get(date) || { leads: 0, adSpend: 0 };
             return {
               date,
               leads: dayData.leads,
-              revenue: dayData.revenue,
-              cost: dayData.cost,
-              dateIndex: idx,
+              adSpend: dayData.adSpend,
+              costPerLead: dayData.leads > 0 ? dayData.adSpend / dayData.leads : 0,
             };
           });
 
           const totalLeads = data.reduce((sum, d) => sum + d.leads, 0);
-          const totalRevenue = data.reduce((sum, d) => sum + d.revenue, 0);
-          const totalCost = data.reduce((sum, d) => sum + d.cost, 0);
+          const totalSpend = data.reduce((sum, d) => sum + d.adSpend, 0);
 
           results.push({
             campaignId,
             campaignName: value.name,
             data,
             totalLeads,
-            totalRevenue,
-            totalCost,
+            totalSpend,
+            avgCostPerLead: totalLeads > 0 ? totalSpend / totalLeads : 0,
           });
         });
 
@@ -135,7 +137,7 @@ const DailyLeadCostsTab: React.FC = () => {
     };
 
     fetchLeadData();
-  }, [dateRange, allDates]);
+  }, [dateRange, allDates, campaigns]);
 
   if (loading) {
     return (
@@ -166,7 +168,7 @@ const DailyLeadCostsTab: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Daily Lead Data by Campaign</h2>
+        <h2 className="text-2xl font-bold">Daily Lead Costs by Campaign</h2>
         <p className="text-lg text-muted-foreground">
           {dateRange?.startDate && dateRange?.endDate
             ? `${format(parseISO(dateRange.startDate), "MMM d, yyyy")} - ${format(
@@ -195,13 +197,11 @@ const DailyLeadCostsTab: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Total Spend: </span>
-                    <span className="font-bold text-lg">{formatCurrency(campaign.totalCost)}</span>
+                    <span className="font-bold text-lg">{formatCurrency(campaign.totalSpend)}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Avg Leads/Day: </span>
-                    <span className="font-bold text-lg">
-                      {(campaign.totalLeads / (allDates.length || 1)).toFixed(1)}
-                    </span>
+                    <span className="text-muted-foreground">Avg CPL: </span>
+                    <span className="font-bold text-lg">{formatCurrency(campaign.avgCostPerLead)}</span>
                   </div>
                 </div>
               </div>
@@ -239,7 +239,6 @@ const DailyLeadCostsTab: React.FC = () => {
                       content={({ active, payload }) => {
                         if (!active || !payload?.length) return null;
                         const data = payload[0].payload as LeadData;
-                        const costPerLead = data.leads > 0 ? data.cost / data.leads : 0;
                         return (
                           <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
                             <p className="font-semibold text-lg mb-3">
@@ -252,11 +251,11 @@ const DailyLeadCostsTab: React.FC = () => {
                               </p>
                               <p>
                                 <span className="text-muted-foreground">Lead Cost: </span>
-                                <span className="font-bold text-lg">{formatCurrency(costPerLead)}</span>
+                                <span className="font-bold text-lg">{formatCurrency(data.costPerLead)}</span>
                               </p>
                               <p>
                                 <span className="text-muted-foreground">Spend: </span>
-                                <span className="font-bold text-lg">{formatCurrency(data.cost)}</span>
+                                <span className="font-bold text-lg">{formatCurrency(data.adSpend)}</span>
                               </p>
                             </div>
                           </div>
