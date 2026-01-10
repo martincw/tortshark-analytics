@@ -5,14 +5,14 @@ import { useCampaign } from "@/contexts/CampaignContext";
 import { format, parseISO, eachDayOfInterval } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
 import {
-  ScatterChart,
-  Scatter,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  ZAxis,
+  LabelList,
 } from "recharts";
 import { TrendingUp } from "lucide-react";
 
@@ -180,9 +180,6 @@ const DailyLeadCostsTab: React.FC = () => {
       </div>
 
       {campaignData.map((campaign) => {
-        // Filter out days with 0 leads for cleaner dot plot
-        const dotsData = campaign.data.filter((d) => d.leads > 0);
-
         return (
           <Card key={campaign.campaignId} className="shadow-md">
             <CardHeader className="pb-2">
@@ -207,36 +204,23 @@ const DailyLeadCostsTab: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <LineChart data={campaign.data} margin={{ top: 30, right: 30, bottom: 20, left: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis
-                      type="category"
                       dataKey="date"
-                      name="Date"
                       tickFormatter={(val) => format(parseISO(val), "MMM d")}
                       tick={{ fontSize: 12 }}
                       className="text-muted-foreground"
-                      allowDuplicatedCategory={false}
                     />
                     <YAxis
-                      type="number"
-                      dataKey="costPerLead"
-                      name="Cost Per Lead"
                       tickFormatter={(val) => `$${val.toFixed(0)}`}
                       tick={{ fontSize: 12 }}
                       className="text-muted-foreground"
                       domain={[0, "auto"]}
                     />
-                    <ZAxis
-                      type="number"
-                      dataKey="leads"
-                      range={[80, 400]}
-                      domain={[0, "auto"]}
-                    />
                     <Tooltip
-                      cursor={{ strokeDasharray: "3 3" }}
                       content={({ active, payload }) => {
                         if (!active || !payload?.length) return null;
                         const data = payload[0].payload as LeadData;
@@ -263,12 +247,24 @@ const DailyLeadCostsTab: React.FC = () => {
                         );
                       }}
                     />
-                    <Scatter
-                      name={campaign.campaignName}
-                      data={dotsData}
-                      fill="hsl(var(--primary))"
-                    />
-                  </ScatterChart>
+                    <Line
+                      type="monotone"
+                      dataKey="costPerLead"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      dot={{ r: 6, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                      activeDot={{ r: 8 }}
+                      connectNulls={false}
+                    >
+                      <LabelList
+                        dataKey="costPerLead"
+                        position="top"
+                        offset={10}
+                        formatter={(value: number) => value > 0 ? `$${value.toFixed(0)}` : ""}
+                        style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+                      />
+                    </Line>
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
