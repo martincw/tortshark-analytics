@@ -13,8 +13,9 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   LabelList,
+  ReferenceLine,
 } from "recharts";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Target } from "lucide-react";
 
 interface LeadData {
   date: string;
@@ -30,12 +31,14 @@ interface CampaignLeadData {
   totalLeads: number;
   totalSpend: number;
   avgCostPerLead: number;
+  targetLeadsPerDay: number;
 }
 
 const DailyLeadCostsTab: React.FC = () => {
   const { dateRange, campaigns } = useCampaign();
   const [campaignData, setCampaignData] = useState<CampaignLeadData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [campaignTargets, setCampaignTargets] = useState<Map<string, number>>(new Map());
 
   // Generate all dates in range
   const allDates = useMemo(() => {
@@ -45,6 +48,26 @@ const DailyLeadCostsTab: React.FC = () => {
       end: parseISO(dateRange.endDate),
     }).map((d) => format(d, "yyyy-MM-dd"));
   }, [dateRange]);
+
+  // Fetch campaign targets
+  useEffect(() => {
+    const fetchTargets = async () => {
+      const { data, error } = await supabase
+        .from("campaign_targets")
+        .select("campaign_id, target_leads_per_day");
+
+      if (!error && data) {
+        const targetMap = new Map<string, number>();
+        data.forEach((t) => {
+          if (t.target_leads_per_day && t.target_leads_per_day > 0) {
+            targetMap.set(t.campaign_id, t.target_leads_per_day);
+          }
+        });
+        setCampaignTargets(targetMap);
+      }
+    };
+    fetchTargets();
+  }, []);
 
   useEffect(() => {
     const fetchLeadData = async () => {
@@ -122,6 +145,7 @@ const DailyLeadCostsTab: React.FC = () => {
             totalLeads,
             totalSpend,
             avgCostPerLead: totalLeads > 0 ? totalSpend / totalLeads : 0,
+            targetLeadsPerDay: campaignTargets.get(campaignId) || 0,
           });
         });
 
@@ -137,7 +161,7 @@ const DailyLeadCostsTab: React.FC = () => {
     };
 
     fetchLeadData();
-  }, [dateRange, allDates, campaigns]);
+  }, [dateRange, allDates, campaigns, campaignTargets]);
 
   if (loading) {
     return (
@@ -162,9 +186,6 @@ const DailyLeadCostsTab: React.FC = () => {
     );
   }
 
-  // Find max CPL for consistent scaling
-  const maxCPL = Math.max(...campaignData.flatMap((c) => c.data.map((d) => d.costPerLead)));
-
   return (
     <div className="space-y-6">
       <div>
@@ -180,13 +201,23 @@ const DailyLeadCostsTab: React.FC = () => {
       </div>
 
       {campaignData.map((campaign) => {
+        const hasTarget = campaign.targetLeadsPerDay > 0;
+        
         return (
           <Card key={campaign.campaignId} className="shadow-md">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <CardTitle className="text-xl font-semibold">
-                  {campaign.campaignName}
-                </CardTitle>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-xl font-semibold">
+                    {campaign.campaignName}
+                  </CardTitle>
+                  {hasTarget && (
+                    <div className="flex items-center gap-1 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
+                      <Target className="h-3.5 w-3.5" />
+                      <span>Target: {campaign.targetLeadsPerDay}/day</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-6 text-base">
                   <div>
                     <span className="text-muted-foreground">Total Leads: </span>
@@ -204,68 +235,156 @@ const DailyLeadCostsTab: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={campaign.data} margin={{ top: 30, right: 30, bottom: 20, left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(val) => format(parseISO(val), "MMM d")}
-                      tick={{ fontSize: 12 }}
-                      className="text-muted-foreground"
-                    />
-                    <YAxis
-                      tickFormatter={(val) => `$${val.toFixed(0)}`}
-                      tick={{ fontSize: 12 }}
-                      className="text-muted-foreground"
-                      domain={[0, "auto"]}
-                    />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const data = payload[0].payload as LeadData;
-                        return (
-                          <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
-                            <p className="font-semibold text-lg mb-3">
-                              {format(parseISO(data.date), "EEE, MMM d")}
-                            </p>
-                            <div className="space-y-2 text-base">
-                              <p>
-                                <span className="text-muted-foreground">Leads: </span>
-                                <span className="font-bold text-lg">{data.leads}</span>
-                              </p>
-                              <p>
-                                <span className="text-muted-foreground">Lead Cost: </span>
-                                <span className="font-bold text-lg">{formatCurrency(data.costPerLead)}</span>
-                              </p>
-                              <p>
-                                <span className="text-muted-foreground">Spend: </span>
-                                <span className="font-bold text-lg">{formatCurrency(data.adSpend)}</span>
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="costPerLead"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      dot={{ r: 6, fill: "hsl(var(--primary))", strokeWidth: 0 }}
-                      activeDot={{ r: 8 }}
-                      connectNulls={false}
-                    >
-                      <LabelList
-                        dataKey="costPerLead"
-                        position="top"
-                        offset={10}
-                        formatter={(value: number) => value > 0 ? `$${value.toFixed(0)}` : ""}
-                        style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+              {/* Leads Chart with Target Line */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-muted-foreground mb-2">Daily Leads</h4>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={campaign.data} margin={{ top: 25, right: 30, bottom: 20, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(val) => format(parseISO(val), "MMM d")}
+                        tick={{ fontSize: 12 }}
+                        className="text-muted-foreground"
                       />
-                    </Line>
-                  </LineChart>
-                </ResponsiveContainer>
+                      <YAxis
+                        tickFormatter={(val) => val.toFixed(0)}
+                        tick={{ fontSize: 12 }}
+                        className="text-muted-foreground"
+                        domain={[0, "auto"]}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const data = payload[0].payload as LeadData;
+                          const isAboveTarget = hasTarget && data.leads >= campaign.targetLeadsPerDay;
+                          return (
+                            <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
+                              <p className="font-semibold text-lg mb-3">
+                                {format(parseISO(data.date), "EEE, MMM d")}
+                              </p>
+                              <div className="space-y-2 text-base">
+                                <p>
+                                  <span className="text-muted-foreground">Leads: </span>
+                                  <span className={`font-bold text-lg ${isAboveTarget ? 'text-green-500' : hasTarget ? 'text-red-500' : ''}`}>
+                                    {data.leads}
+                                  </span>
+                                </p>
+                                {hasTarget && (
+                                  <p>
+                                    <span className="text-muted-foreground">Target: </span>
+                                    <span className="font-bold text-lg">{campaign.targetLeadsPerDay}</span>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+                      {hasTarget && (
+                        <ReferenceLine
+                          y={campaign.targetLeadsPerDay}
+                          stroke="hsl(var(--destructive))"
+                          strokeWidth={2}
+                          strokeDasharray="8 4"
+                          label={{
+                            value: `Target: ${campaign.targetLeadsPerDay}`,
+                            position: "right",
+                            fill: "hsl(var(--destructive))",
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        />
+                      )}
+                      <Line
+                        type="monotone"
+                        dataKey="leads"
+                        stroke="hsl(var(--chart-2))"
+                        strokeWidth={2}
+                        dot={{ r: 5, fill: "hsl(var(--chart-2))", strokeWidth: 0 }}
+                        activeDot={{ r: 7 }}
+                        connectNulls={false}
+                      >
+                        <LabelList
+                          dataKey="leads"
+                          position="top"
+                          offset={8}
+                          formatter={(value: number) => value > 0 ? value : ""}
+                          style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+                        />
+                      </Line>
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Cost Per Lead Chart */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-2">Cost Per Lead</h4>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={campaign.data} margin={{ top: 25, right: 30, bottom: 20, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(val) => format(parseISO(val), "MMM d")}
+                        tick={{ fontSize: 12 }}
+                        className="text-muted-foreground"
+                      />
+                      <YAxis
+                        tickFormatter={(val) => `$${val.toFixed(0)}`}
+                        tick={{ fontSize: 12 }}
+                        className="text-muted-foreground"
+                        domain={[0, "auto"]}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const data = payload[0].payload as LeadData;
+                          return (
+                            <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
+                              <p className="font-semibold text-lg mb-3">
+                                {format(parseISO(data.date), "EEE, MMM d")}
+                              </p>
+                              <div className="space-y-2 text-base">
+                                <p>
+                                  <span className="text-muted-foreground">Leads: </span>
+                                  <span className="font-bold text-lg">{data.leads}</span>
+                                </p>
+                                <p>
+                                  <span className="text-muted-foreground">Lead Cost: </span>
+                                  <span className="font-bold text-lg">{formatCurrency(data.costPerLead)}</span>
+                                </p>
+                                <p>
+                                  <span className="text-muted-foreground">Spend: </span>
+                                  <span className="font-bold text-lg">{formatCurrency(data.adSpend)}</span>
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="costPerLead"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        dot={{ r: 5, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                        activeDot={{ r: 7 }}
+                        connectNulls={false}
+                      >
+                        <LabelList
+                          dataKey="costPerLead"
+                          position="top"
+                          offset={8}
+                          formatter={(value: number) => value > 0 ? `$${value.toFixed(0)}` : ""}
+                          style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+                        />
+                      </Line>
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </CardContent>
           </Card>
