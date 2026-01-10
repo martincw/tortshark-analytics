@@ -594,6 +594,7 @@ export type Database = {
           monthly_income: number
           monthly_retainers: number
           monthly_spend: number
+          target_leads_per_day: number | null
           target_profit: number
           target_roas: number
           updated_at: string | null
@@ -607,6 +608,7 @@ export type Database = {
           monthly_income?: number
           monthly_retainers?: number
           monthly_spend?: number
+          target_leads_per_day?: number | null
           target_profit?: number
           target_roas?: number
           updated_at?: string | null
@@ -620,6 +622,7 @@ export type Database = {
           monthly_income?: number
           monthly_retainers?: number
           monthly_spend?: number
+          target_leads_per_day?: number | null
           target_profit?: number
           target_roas?: number
           updated_at?: string | null
