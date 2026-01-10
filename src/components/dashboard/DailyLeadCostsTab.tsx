@@ -162,8 +162,8 @@ const DailyLeadCostsTab: React.FC = () => {
     );
   }
 
-  // Find max leads for consistent dot sizing
-  const maxLeads = Math.max(...campaignData.flatMap((c) => c.data.map((d) => d.leads)));
+  // Find max CPL for consistent scaling
+  const maxCPL = Math.max(...campaignData.flatMap((c) => c.data.map((d) => d.costPerLead)));
 
   return (
     <div className="space-y-6">
@@ -222,8 +222,9 @@ const DailyLeadCostsTab: React.FC = () => {
                     />
                     <YAxis
                       type="number"
-                      dataKey="leads"
-                      name="Leads"
+                      dataKey="costPerLead"
+                      name="Cost Per Lead"
+                      tickFormatter={(val) => `$${val.toFixed(0)}`}
                       tick={{ fontSize: 12 }}
                       className="text-muted-foreground"
                       domain={[0, "auto"]}
@@ -231,8 +232,8 @@ const DailyLeadCostsTab: React.FC = () => {
                     <ZAxis
                       type="number"
                       dataKey="leads"
-                      range={[100, 400]}
-                      domain={[0, maxLeads || 1]}
+                      range={[80, 400]}
+                      domain={[0, "auto"]}
                     />
                     <Tooltip
                       cursor={{ strokeDasharray: "3 3" }}
