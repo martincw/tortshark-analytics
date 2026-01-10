@@ -15,8 +15,11 @@ import {
   LabelList,
   ReferenceLine,
 } from "recharts";
-import { TrendingUp, Target, CheckCircle2, XCircle } from "lucide-react";
+import { TrendingUp, Target, CheckCircle2, XCircle, Pencil, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface LeadData {
   date: string;
@@ -43,7 +46,49 @@ const DailyLeadCostsTab: React.FC = () => {
   const { dateRange, campaigns } = useCampaign();
   const [campaignData, setCampaignData] = useState<CampaignLeadData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
+  const handleEditStart = (campaignId: string, currentValue: number) => {
+    setEditingCampaignId(campaignId);
+    setEditValue(currentValue.toString());
+  };
+
+  const handleEditCancel = () => {
+    setEditingCampaignId(null);
+    setEditValue("");
+  };
+
+  const handleEditSave = async (campaignId: string) => {
+    setSaving(true);
+    try {
+      const numericValue = parseInt(editValue) || 0;
+      
+      const { error } = await supabase
+        .from("campaign_targets")
+        .update({ target_leads_per_day: numericValue })
+        .eq("campaign_id", campaignId);
+
+      if (error) throw error;
+
+      // Update local state
+      setCampaignData(prev => prev.map(c => 
+        c.campaignId === campaignId 
+          ? { ...c, targetLeadsPerDay: numericValue, weeklyTarget: numericValue * 7 }
+          : c
+      ));
+      
+      toast.success("Lead cap updated");
+      setEditingCampaignId(null);
+      setEditValue("");
+    } catch (error) {
+      console.error("Error saving lead cap:", error);
+      toast.error("Failed to save lead cap");
+    } finally {
+      setSaving(false);
+    }
+  };
   // Generate all dates in range
   const allDates = useMemo(() => {
     if (!dateRange?.startDate || !dateRange?.endDate) return [];
@@ -237,26 +282,65 @@ const DailyLeadCostsTab: React.FC = () => {
                   <CardTitle className="text-xl font-semibold">
                     {campaign.campaignName}
                   </CardTitle>
-                  {hasTarget && (
-                    <>
-                      <div className="flex items-center gap-1 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
-                        <Target className="h-3.5 w-3.5" />
-                        <span>{campaign.targetLeadsPerDay}/day</span>
-                      </div>
-                      <Badge 
-                        variant={weeklyHit ? "default" : "destructive"}
-                        className="flex items-center gap-1"
+                  {editingCampaignId === campaign.campaignId ? (
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-primary" />
+                      <Input
+                        type="number"
+                        min="0"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="w-20 h-8 text-sm"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleEditSave(campaign.campaignId);
+                          if (e.key === "Escape") handleEditCancel();
+                        }}
+                      />
+                      <span className="text-sm text-muted-foreground">/day</span>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-7 w-7" 
+                        onClick={() => handleEditSave(campaign.campaignId)}
+                        disabled={saving}
                       >
-                        {weeklyHit ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5" />
-                        )}
-                        <span>
-                          7-Day: {campaign.trailing7DayActual}/{campaign.weeklyTarget} ({weeklyPercentage}%)
-                        </span>
-                      </Badge>
-                    </>
+                        <Check className="h-4 w-4 text-green-500" />
+                      </Button>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-7 w-7" 
+                        onClick={handleEditCancel}
+                        disabled={saving}
+                      >
+                        <X className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleEditStart(campaign.campaignId, campaign.targetLeadsPerDay)}
+                      className="flex items-center gap-1 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full hover:bg-primary/20 transition-colors cursor-pointer"
+                    >
+                      <Target className="h-3.5 w-3.5" />
+                      <span>{campaign.targetLeadsPerDay > 0 ? `${campaign.targetLeadsPerDay}/day` : "Set cap"}</span>
+                      <Pencil className="h-3 w-3 ml-1 opacity-70" />
+                    </button>
+                  )}
+                  {hasTarget && editingCampaignId !== campaign.campaignId && (
+                    <Badge 
+                      variant={weeklyHit ? "default" : "destructive"}
+                      className="flex items-center gap-1"
+                    >
+                      {weeklyHit ? (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5" />
+                      )}
+                      <span>
+                        7-Day: {campaign.trailing7DayActual}/{campaign.weeklyTarget} ({weeklyPercentage}%)
+                      </span>
+                    </Badge>
                   )}
                 </div>
                 <div className="flex gap-6 text-base">
