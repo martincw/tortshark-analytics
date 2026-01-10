@@ -10,7 +10,8 @@ import {
   Workflow,
   FileText,
   LayoutDashboard,
-  List
+  List,
+  Wallet
 } from "lucide-react";
 
 export type NavItem = {
@@ -72,6 +73,11 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       icon: Users,
       label: "Buyers",
       href: "/buyers",
+    },
+    {
+      icon: Wallet,
+      label: "Budget Capacity",
+      href: "/budget-capacity",
     },
     {
       icon: Database,

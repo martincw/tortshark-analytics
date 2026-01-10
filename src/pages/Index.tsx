@@ -15,7 +15,7 @@ import { toast } from "@/components/ui/use-toast";
 import LeadsTab from "@/components/dashboard/LeadsTab";
 import PortfolioTab from "@/components/dashboard/PortfolioTab";
 import { DailyRevenueChart } from "@/components/dashboard/DailyRevenueChart";
-import BudgetCapacityTab from "@/components/dashboard/BudgetCapacityTab";
+import DailyLeadCostsTab from "@/components/dashboard/DailyLeadCostsTab";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();
@@ -207,10 +207,10 @@ const Index = () => {
             Revenue
           </TabsTrigger>
           <TabsTrigger 
-            value="budget-capacity" 
+            value="lead-costs" 
             className="flex-1 max-w-[200px] font-medium data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary bg-muted/10 hover:bg-muted/20 rounded-none transition-colors"
           >
-            Budget Capacity
+            Lead Costs
           </TabsTrigger>
         </TabsList>
         
@@ -256,9 +256,9 @@ const Index = () => {
           <DailyRevenueChart campaigns={filteredCampaigns} />
         </TabsContent>
         
-        {/* Budget Capacity Tab Content */}
-        <TabsContent value="budget-capacity" className="space-y-6 mt-0">
-          <BudgetCapacityTab />
+        {/* Lead Costs Tab Content */}
+        <TabsContent value="lead-costs" className="space-y-6 mt-0">
+          <DailyLeadCostsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -30,6 +30,7 @@ import NotFound from "./pages/NotFound";
 import BuyersPage from "./pages/BuyersPage";
 import BuyerDashboard from "./pages/BuyerDashboard";
 import CampaignListPage from "./pages/CampaignListPage";
+import BudgetCapacityPage from "./pages/BudgetCapacityPage";
 
 import TeamSettingsPage from "./pages/TeamSettingsPage";
 import StatsWorkflowPage from "./pages/StatsWorkflowPage";
@@ -239,6 +240,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <CampaignListPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/budget-capacity" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <BudgetCapacityPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />
