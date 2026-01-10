@@ -72,6 +72,7 @@ import { ChannelSpendBreakdown } from "@/components/campaigns/ChannelSpendBreakd
 import { ChannelLeadBreakdown } from "@/components/campaigns/ChannelLeadBreakdown";
 import { WeeklyReturnsSection } from "@/components/campaigns/WeeklyReturnsSection";
 import { useMultiDayStats } from "@/components/dashboard/campaign-card/useMultiDayStats";
+import LeadCapEditor from "@/components/campaigns/LeadCapEditor";
 
 const CampaignDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -709,6 +710,8 @@ const CampaignDetail = () => {
       <CampaignFinancialOverview campaign={campaign} />
       
       <CampaignDailyAverages campaign={campaign} />
+      
+      <LeadCapEditor campaignId={campaign.id} />
       
       <ChannelSpendBreakdown campaign={campaign} dateRange={dateRange} />
       
