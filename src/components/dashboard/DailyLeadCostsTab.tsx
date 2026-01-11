@@ -65,10 +65,13 @@ const DailyLeadCostsTab: React.FC = () => {
     try {
       const numericValue = parseInt(editValue) || 0;
       
+      // Use upsert to handle both insert and update cases
       const { error } = await supabase
         .from("campaign_targets")
-        .update({ target_leads_per_day: numericValue })
-        .eq("campaign_id", campaignId);
+        .upsert(
+          { campaign_id: campaignId, target_leads_per_day: numericValue },
+          { onConflict: "campaign_id" }
+        );
 
       if (error) throw error;
 

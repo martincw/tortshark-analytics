@@ -244,17 +244,19 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
             createdAt: entry.created_at || ''
           })) || [];
 
-          const targets = campaign.campaign_targets && campaign.campaign_targets.length > 0
+          // campaign_targets is now a one-to-one relationship (single object or null)
+          const targetData = campaign.campaign_targets;
+          const targets = targetData
             ? {
-              monthlySpend: campaign.campaign_targets[0].monthly_spend || 0,
-              casePayoutAmount: campaign.campaign_targets[0].case_payout_amount || 0,
-              monthlyRetainers: campaign.campaign_targets[0].monthly_retainers || 0,
-              monthlyProfit: campaign.campaign_targets[0].target_profit || 0,
-              roas: campaign.campaign_targets[0].target_roas || 0,
-              monthlyRevenue: campaign.campaign_targets[0].monthly_income || 0,
-              monthlyIncome: campaign.campaign_targets[0].monthly_income || 0,
-              targetProfit: campaign.campaign_targets[0].target_profit || 0, 
-              targetROAS: campaign.campaign_targets[0].target_roas || 0
+              monthlySpend: targetData.monthly_spend || 0,
+              casePayoutAmount: targetData.case_payout_amount || 0,
+              monthlyRetainers: targetData.monthly_retainers || 0,
+              monthlyProfit: targetData.target_profit || 0,
+              roas: targetData.target_roas || 0,
+              monthlyRevenue: targetData.monthly_income || 0,
+              monthlyIncome: targetData.monthly_income || 0,
+              targetProfit: targetData.target_profit || 0, 
+              targetROAS: targetData.target_roas || 0
             }
             : {
               monthlySpend: 0,
