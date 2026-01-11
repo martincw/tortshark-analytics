@@ -80,6 +80,14 @@ serve(async (req) => {
         : 0;
       
       const cplTrend = firstHalfCPL > 0 ? ((secondHalfCPL - firstHalfCPL) / firstHalfCPL) * 100 : 0;
+
+      // Calculate trailing 7-day capacity fill
+      const last7Days = sortedStats.slice(-7);
+      const trailing7DayLeads = last7Days.reduce((sum, s) => sum + (s.leads || 0), 0);
+      const targetLeadsPerDay = campaignTarget?.target_leads_per_day || 0;
+      const weeklyTarget = targetLeadsPerDay * 7;
+      const weeklyCapacityFill = weeklyTarget > 0 ? (trailing7DayLeads / weeklyTarget) * 100 : null;
+      const isHittingWeeklyTarget = weeklyCapacityFill !== null && weeklyCapacityFill >= 100;
       
       return {
         name: campaign.name,
@@ -93,9 +101,14 @@ serve(async (req) => {
         costPerLead: Math.round(costPerLead * 100) / 100,
         roas: Math.round(roas * 100) / 100,
         cplTrend: Math.round(cplTrend * 10) / 10,
-        targetLeadsPerDay: campaignTarget?.target_leads_per_day || null,
+        targetLeadsPerDay: targetLeadsPerDay || null,
         targetRoas: campaignTarget?.target_roas || 2,
-        dayCount
+        dayCount,
+        // 7-day capacity metrics
+        trailing7DayLeads,
+        weeklyTarget: weeklyTarget || null,
+        weeklyCapacityFillPercent: weeklyCapacityFill !== null ? Math.round(weeklyCapacityFill) : null,
+        isHittingWeeklyTarget
       };
     }).filter(c => c.totalSpend > 0 || c.totalLeads > 0) || [];
 
@@ -127,21 +140,27 @@ You're analyzing campaigns that generate leads for mass tort legal cases. Key me
 - ROAS (Return on Ad Spend): Target is minimum 2x (every $1 spent returns $2)
 - Lead Volume: Each campaign may have daily lead targets
 - Trends: Rising CPL is concerning, falling CPL is positive
+- **7-Day Capacity Fill**: Trailing 7-day leads vs weekly target (daily target × 7)
 
 When analyzing, consider:
-1. **Lead Target Achievement**: Are campaigns hitting their daily lead targets? Calculate % of target.
-2. **ROAS Performance**: Are campaigns hitting the 2x minimum? Which are crushing it (3x+)?
-3. **CPL Trends**: Is cost per lead rising or falling? Rising CPL means audiences may be exhausting.
-4. **Scaling Opportunities**: High ROAS + consistent performance = opportunity to scale spend.
-5. **Underperformers**: Low ROAS or rising CPL = needs optimization or pausing.
-6. **Portfolio Balance**: Is spend concentrated or diversified appropriately?
+1. **7-Day Capacity Fill**: CRITICAL - Check weeklyCapacityFillPercent for each campaign. Under 100% means we're not hitting capacity. Flag any campaign below 80% as urgent.
+2. **Lead Target Achievement**: Are campaigns hitting their daily lead targets? Use trailing7DayLeads vs weeklyTarget.
+3. **ROAS Performance**: Are campaigns hitting the 2x minimum? Which are crushing it (3x+)?
+4. **CPL Trends**: Is cost per lead rising or falling? Rising CPL (positive cplTrend) means audiences may be exhausting.
+5. **Scaling Opportunities**: High ROAS + hitting capacity = opportunity to scale spend.
+6. **Underperformers**: Low ROAS or rising CPL = needs optimization or pausing.
+7. **Portfolio Balance**: Is spend concentrated or diversified appropriately?
 
 Format your response as:
 ## 🎯 Executive Summary
-Brief 2-3 sentence overview of portfolio health.
+Brief 2-3 sentence overview of portfolio health including overall capacity fill status.
+
+## 📊 7-Day Capacity Status
+For each campaign with targets, show:
+- Campaign name: X/Y leads (Z% of weekly target) - ✅ or ⚠️ or 🚨
 
 ## 🚨 Urgent Actions Needed
-List the most critical issues that need immediate attention.
+List the most critical issues that need immediate attention. Prioritize campaigns significantly under capacity.
 
 ## 📈 Top Performers
 Campaigns crushing it that could be scaled.
@@ -163,7 +182,8 @@ ${JSON.stringify(dataPayload, null, 2)}
 
 Remember:
 - Minimum target ROAS is 2x
-- If a campaign has targetLeadsPerDay set, calculate how they're tracking against it
+- CRITICAL: Check weeklyCapacityFillPercent - campaigns under 100% are not hitting their lead targets
+- trailing7DayLeads shows actual leads in last 7 days, weeklyTarget is the goal (daily target × 7)
 - cplTrend shows % change in CPL (positive = costs rising, negative = costs falling)
 - Focus on actionable insights the team can act on TODAY`;
 
