@@ -100,6 +100,7 @@ serve(async (req) => {
       const isHittingWeeklyTarget = weeklyCapacityFill !== null && weeklyCapacityFill >= 100;
       
       return {
+        id: campaign.id,
         name: campaign.name,
         isActive: campaign.is_active,
         totalLeads,
@@ -148,6 +149,8 @@ serve(async (req) => {
 
     // Build prompt for AI analysis
     const systemPrompt = `You are an expert digital marketing analyst for a mass tort legal advertising agency. Your job is to analyze campaign performance data and provide actionable insights.
+
+CRITICAL: Each campaign in the data has a UNIQUE ID. Campaigns with similar names (e.g., "Rideshare" vs "Rideshare - Broughton") are COMPLETELY SEPARATE campaigns. Analyze each one individually based on its own metrics. Do NOT combine or confuse them.
 
 You're analyzing campaigns that generate leads for mass tort legal cases. Key metrics:
 - ROAS (Return on Ad Spend): Target is minimum 2x (every $1 spent returns $2). THIS IS THE PRIMARY SUCCESS METRIC.
