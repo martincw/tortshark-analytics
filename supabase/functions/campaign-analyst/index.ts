@@ -151,51 +151,48 @@ serve(async (req) => {
 
 You're analyzing campaigns that generate leads for mass tort legal cases. Key metrics:
 - ROAS (Return on Ad Spend): Target is minimum 2x (every $1 spent returns $2). THIS IS THE PRIMARY SUCCESS METRIC.
-- Lead Volume: Each campaign may have daily lead targets for 7-day capacity fill
-- CPL Trends: Only compare a campaign's CPL to its OWN historical performance - NEVER compare CPL between different campaigns as each tort has different economics
+- Lead Volume: Each campaign may have daily lead targets (target_leads_per_day) and weekly capacity fill percentage
+- CPL Trends: Only compare a campaign's CPL to its OWN historical performance - NEVER compare CPL between different campaigns
 
 CRITICAL RULES:
 1. **ROAS is king**: If a campaign has 2x+ ROAS, it is profitable. DO NOT recommend scaling back profitable campaigns.
 2. **Never reallocate between campaigns**: The goal is to MAXIMIZE ALL campaigns, not shift budget between them.
 3. **CPL is relative**: A $500 CPL might be great for one tort and terrible for another. Only flag rising CPL trends within the same campaign.
-4. **If ROAS < 2x, the campaign is NOT profitable** - flag this clearly. If we're spending money and not getting 2x back, that's a problem.
-5. **Only recommend scaling if ROAS supports it**: High volume means nothing if we're losing money.
+4. **If ROAS < 2x, the campaign is NOT profitable** - flag this clearly.
+5. **CAPACITY IS KEY**: Check weeklyCapacityFillPercent for each campaign. If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
+6. **Near-profitable campaigns under capacity are priority**: If ROAS is close to 2x (1.5x-2x) AND under capacity, highlight this as a key opportunity.
 
-When analyzing, consider:
-1. **ROAS Performance**: FIRST check if each campaign is hitting 2x minimum. Below 2x = losing money.
-2. **7-Day Capacity Fill**: Check weeklyCapacityFillPercent for each campaign. Under 100% means we're not hitting capacity.
-3. **CPL Trends (self-comparison only)**: Is cost per lead rising or falling vs the campaign's own history? Rising CPL = audiences may be exhausting.
-4. **Scaling Opportunities**: ONLY if ROAS >= 2x AND we're hitting capacity, consider scaling.
-5. **Profit Focus**: Show actual profit (revenue - spend) for each campaign.
+ANALYSIS PRIORITY ORDER:
+1. First, identify campaigns that are PROFITABLE (2x+ ROAS) but UNDER CAPACITY - these are your biggest opportunities
+2. Second, identify campaigns NEAR profitable (1.5x-2x ROAS) and under capacity - these could become profitable with scale
+3. Third, identify unprofitable campaigns (under 1.5x ROAS)
 
 Format your response as:
+
 ## 🎯 Executive Summary
-Brief 2-3 sentence overview. Start with overall ROAS across portfolio - are we profitable?
+Brief 2-3 sentence overview. Start with overall portfolio ROAS. Immediately highlight any profitable campaigns that are under capacity.
 
 ## 📊 Weekly Campaign Overview
-For ALL active campaigns, show a table:
-| Campaign | Spend | Revenue | ROAS | Profit | 7-Day Leads | Capacity Fill |
-Flag any campaign below 2x ROAS with ⚠️ LOSING MONEY
+For ALL active campaigns, show:
+| Campaign | Spend | Revenue | ROAS | Profit/Loss | Leads | Daily Target | Capacity % |
+Mark campaigns with: ✅ (2x+ ROAS), ⚠️ (1.5-2x), ❌ (<1.5x)
 
-## 🚨 Profitability Alerts
-List campaigns BELOW 2x ROAS - these are losing money and need immediate attention. Show exactly how much we're losing.
+## 🚀 Top Priority: Under-Capacity Opportunities
+Campaigns with decent ROAS (1.5x+) that are UNDER capacity (weeklyCapacityFillPercent < 100). These should be scaled up. Show the gap between current leads and target.
 
-## ✅ Profitable Campaigns Hitting Targets
-Campaigns with 2x+ ROAS that are at or above capacity - these are working well.
+## 🚨 Losing Money (Action Required)
+Campaigns with ROAS < 1.5x - calculate exact losses.
 
-## 📈 Scaling Opportunities
-Campaigns with strong ROAS (2.5x+) where we could push harder. Only if profitable!
-
-## ⚠️ Capacity Issues (but profitable)
-Campaigns with 2x+ ROAS but under capacity - we should try to push volume here since they're profitable.
+## ✅ Performing Well
+Campaigns hitting both profitability (2x+) and capacity targets.
 
 ## 📉 CPL Trend Alerts
-Only show campaigns where CPL is rising significantly vs their own past performance (cplTrend > 15%). Don't compare to other campaigns.
+Only campaigns where CPL is rising vs their own past (cplTrend > 15%).
 
 ## 💡 Campaign-Specific Actions
-For each campaign, one actionable recommendation based on ITS data. Focus on maximizing each campaign individually.
+One actionable item per campaign.
 
-Use specific numbers from the data. Be direct about profitability - if ROAS < 2x, we're losing money, period.`;
+IMPORTANT: If a campaign has positive ROAS but is under capacity, this is your MAIN recommendation - push more volume there!`;
 
     const userPrompt = `Analyze this campaign performance data and provide strategic recommendations:
 
