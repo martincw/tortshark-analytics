@@ -74,6 +74,9 @@ redirect_uri = ""
 url = ""
 
 [functions]
+[functions.campaign-analyst]
+verify_jwt = false
+
 [functions.google-ads-mapping]
 verify_jwt = true
 

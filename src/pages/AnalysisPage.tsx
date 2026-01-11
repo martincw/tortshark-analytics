@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +12,7 @@ import { ProfitForecasting } from "@/components/analysis/ProfitForecasting";
 import { BudgetOptimization } from "@/components/analysis/BudgetOptimization";
 import { GoalTracker } from "@/components/analysis/GoalTracker";
 import { ComparativeAnalysis } from "@/components/analysis/ComparativeAnalysis";
+import AIAnalyst from "@/components/analysis/AIAnalyst";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,6 +91,9 @@ const AnalysisPage = () => {
           </p>
         </div>
       </div>
+
+      {/* AI Analyst Section */}
+      <AIAnalyst />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Left sidebar with settings */}
