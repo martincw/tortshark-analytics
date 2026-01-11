@@ -85,6 +85,11 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       href: "/data-sources",
     },
     {
+      icon: TrendingUp,
+      label: "AI Analyst",
+      href: "/analysis",
+    },
+    {
       icon: FileText,
       label: "Contractor Submissions",
       href: "/contractor-submissions",
