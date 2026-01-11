@@ -12,11 +12,26 @@ serve(async (req) => {
   }
 
   try {
-    const { workspaceId, dateRange } = await req.json();
+    const { workspaceId } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Calculate trailing 7 days EXCLUDING today
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    
+    const endDate = new Date(today);
+    endDate.setUTCDate(endDate.getUTCDate() - 1); // Yesterday
+    
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - 6); // 7 days back from yesterday
+    
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    console.log(`Analyzing date range: ${startDateStr} to ${endDateStr}`);
 
     // Fetch all campaign data for analysis
     const { data: campaigns, error: campaignsError } = await supabase
@@ -31,31 +46,26 @@ serve(async (req) => {
       .from("campaign_targets")
       .select("campaign_id, target_leads_per_day, case_payout_amount, target_roas");
 
-    // Fetch stats history for the date range
+    // Fetch stats history for the trailing 7 days (excluding today)
     const { data: statsHistory } = await supabase
       .from("campaign_stats_history")
       .select("campaign_id, date, leads, ad_spend, revenue, cases, retainers")
-      .gte("date", dateRange.startDate)
-      .lte("date", dateRange.endDate)
+      .gte("date", startDateStr)
+      .lte("date", endDateStr)
       .order("date", { ascending: true });
+    
+    console.log(`Found ${statsHistory?.length || 0} stats records`);
 
-    // Fetch case attributions for revenue
-    const { data: caseAttributions } = await supabase
-      .from("case_attributions")
-      .select("campaign_id, date, case_count, price_per_case")
-      .gte("date", dateRange.startDate)
-      .lte("date", dateRange.endDate);
-
-    // Build campaign summaries for analysis
+    // Build campaign summaries for analysis - use revenue from campaign_stats_history
     const campaignSummaries = campaigns?.map(campaign => {
       const campaignStats = statsHistory?.filter(s => s.campaign_id === campaign.id) || [];
       const campaignTarget = targets?.find(t => t.campaign_id === campaign.id);
-      const campaignCases = caseAttributions?.filter(c => c.campaign_id === campaign.id) || [];
       
       const totalLeads = campaignStats.reduce((sum, s) => sum + (s.leads || 0), 0);
       const totalSpend = campaignStats.reduce((sum, s) => sum + (s.ad_spend || 0), 0);
-      const totalRevenue = campaignCases.reduce((sum, c) => sum + ((c.case_count || 0) * (c.price_per_case || 0)), 0);
-      const totalCases = campaignCases.reduce((sum, c) => sum + (c.case_count || 0), 0);
+      // Use revenue directly from campaign_stats_history
+      const totalRevenue = campaignStats.reduce((sum, s) => sum + (s.revenue || 0), 0);
+      const totalCases = campaignStats.reduce((sum, s) => sum + (s.cases || 0), 0);
       
       const dayCount = campaignStats.length || 1;
       const avgLeadsPerDay = totalLeads / dayCount;
@@ -120,7 +130,11 @@ serve(async (req) => {
     const portfolioCPL = portfolioTotalLeads > 0 ? portfolioTotalSpend / portfolioTotalLeads : 0;
 
     const dataPayload = {
-      dateRange,
+      dateRange: {
+        startDate: startDateStr,
+        endDate: endDateStr,
+        description: "Trailing 7 days (excluding today)"
+      },
       portfolioMetrics: {
         totalSpend: Math.round(portfolioTotalSpend * 100) / 100,
         totalRevenue: Math.round(portfolioTotalRevenue * 100) / 100,
