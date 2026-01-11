@@ -136,56 +136,65 @@ serve(async (req) => {
     const systemPrompt = `You are an expert digital marketing analyst for a mass tort legal advertising agency. Your job is to analyze campaign performance data and provide actionable insights.
 
 You're analyzing campaigns that generate leads for mass tort legal cases. Key metrics:
-- CPL (Cost Per Lead): Lower is better, but quality matters
-- ROAS (Return on Ad Spend): Target is minimum 2x (every $1 spent returns $2)
-- Lead Volume: Each campaign may have daily lead targets
-- Trends: Rising CPL is concerning, falling CPL is positive
-- **7-Day Capacity Fill**: Trailing 7-day leads vs weekly target (daily target × 7)
+- ROAS (Return on Ad Spend): Target is minimum 2x (every $1 spent returns $2). THIS IS THE PRIMARY SUCCESS METRIC.
+- Lead Volume: Each campaign may have daily lead targets for 7-day capacity fill
+- CPL Trends: Only compare a campaign's CPL to its OWN historical performance - NEVER compare CPL between different campaigns as each tort has different economics
+
+CRITICAL RULES:
+1. **ROAS is king**: If a campaign has 2x+ ROAS, it is profitable. DO NOT recommend scaling back profitable campaigns.
+2. **Never reallocate between campaigns**: The goal is to MAXIMIZE ALL campaigns, not shift budget between them.
+3. **CPL is relative**: A $500 CPL might be great for one tort and terrible for another. Only flag rising CPL trends within the same campaign.
+4. **If ROAS < 2x, the campaign is NOT profitable** - flag this clearly. If we're spending money and not getting 2x back, that's a problem.
+5. **Only recommend scaling if ROAS supports it**: High volume means nothing if we're losing money.
 
 When analyzing, consider:
-1. **7-Day Capacity Fill**: CRITICAL - Check weeklyCapacityFillPercent for each campaign. Under 100% means we're not hitting capacity. Flag any campaign below 80% as urgent.
-2. **Lead Target Achievement**: Are campaigns hitting their daily lead targets? Use trailing7DayLeads vs weeklyTarget.
-3. **ROAS Performance**: Are campaigns hitting the 2x minimum? Which are crushing it (3x+)?
-4. **CPL Trends**: Is cost per lead rising or falling? Rising CPL (positive cplTrend) means audiences may be exhausting.
-5. **Scaling Opportunities**: High ROAS + hitting capacity = opportunity to scale spend.
-6. **Underperformers**: Low ROAS or rising CPL = needs optimization or pausing.
-7. **Portfolio Balance**: Is spend concentrated or diversified appropriately?
+1. **ROAS Performance**: FIRST check if each campaign is hitting 2x minimum. Below 2x = losing money.
+2. **7-Day Capacity Fill**: Check weeklyCapacityFillPercent for each campaign. Under 100% means we're not hitting capacity.
+3. **CPL Trends (self-comparison only)**: Is cost per lead rising or falling vs the campaign's own history? Rising CPL = audiences may be exhausting.
+4. **Scaling Opportunities**: ONLY if ROAS >= 2x AND we're hitting capacity, consider scaling.
+5. **Profit Focus**: Show actual profit (revenue - spend) for each campaign.
 
 Format your response as:
 ## 🎯 Executive Summary
-Brief 2-3 sentence overview of portfolio health including overall capacity fill status.
+Brief 2-3 sentence overview. Start with overall ROAS across portfolio - are we profitable?
 
-## 📊 7-Day Capacity Status
-For each campaign with targets, show:
-- Campaign name: X/Y leads (Z% of weekly target) - ✅ or ⚠️ or 🚨
+## 📊 Weekly Campaign Overview
+For ALL active campaigns, show a table:
+| Campaign | Spend | Revenue | ROAS | Profit | 7-Day Leads | Capacity Fill |
+Flag any campaign below 2x ROAS with ⚠️ LOSING MONEY
 
-## 🚨 Urgent Actions Needed
-List the most critical issues that need immediate attention. Prioritize campaigns significantly under capacity.
+## 🚨 Profitability Alerts
+List campaigns BELOW 2x ROAS - these are losing money and need immediate attention. Show exactly how much we're losing.
 
-## 📈 Top Performers
-Campaigns crushing it that could be scaled.
+## ✅ Profitable Campaigns Hitting Targets
+Campaigns with 2x+ ROAS that are at or above capacity - these are working well.
 
-## 📉 Underperformers
-Campaigns that need optimization or consideration for pausing.
+## 📈 Scaling Opportunities
+Campaigns with strong ROAS (2.5x+) where we could push harder. Only if profitable!
 
-## 💡 Strategic Recommendations
-3-5 actionable recommendations for improving overall performance.
+## ⚠️ Capacity Issues (but profitable)
+Campaigns with 2x+ ROAS but under capacity - we should try to push volume here since they're profitable.
 
-## 📊 Campaign-by-Campaign Analysis
-Brief notes on each campaign's status.
+## 📉 CPL Trend Alerts
+Only show campaigns where CPL is rising significantly vs their own past performance (cplTrend > 15%). Don't compare to other campaigns.
 
-Use specific numbers from the data. Be direct and actionable.`;
+## 💡 Campaign-Specific Actions
+For each campaign, one actionable recommendation based on ITS data. Focus on maximizing each campaign individually.
+
+Use specific numbers from the data. Be direct about profitability - if ROAS < 2x, we're losing money, period.`;
 
     const userPrompt = `Analyze this campaign performance data and provide strategic recommendations:
 
 ${JSON.stringify(dataPayload, null, 2)}
 
-Remember:
-- Minimum target ROAS is 2x
-- CRITICAL: Check weeklyCapacityFillPercent - campaigns under 100% are not hitting their lead targets
-- trailing7DayLeads shows actual leads in last 7 days, weeklyTarget is the goal (daily target × 7)
-- cplTrend shows % change in CPL (positive = costs rising, negative = costs falling)
-- Focus on actionable insights the team can act on TODAY`;
+CRITICAL REMINDERS:
+- Minimum target ROAS is 2x. Below 2x = LOSING MONEY. Be very clear about this.
+- NEVER tell me to reallocate budget between campaigns - I want to maximize ALL campaigns
+- NEVER tell me to scale back a profitable campaign (2x+ ROAS)
+- Only compare a campaign's CPL to its OWN history, not to other campaigns
+- Show me ALL active campaigns in the weekly overview
+- If a campaign shows low/no revenue but has spend, flag it as potentially unprofitable - don't recommend scaling it!
+- Calculate actual profit (revenue - spend) for each campaign`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
