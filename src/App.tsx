@@ -37,6 +37,7 @@ import StatsWorkflowPage from "./pages/StatsWorkflowPage";
 import ContractorBulkEntry from "./pages/ContractorBulkEntry";
 import ContractorSubmissionsPage from "./pages/ContractorSubmissionsPage";
 import CasesRevenueEntryPage from "./pages/CasesRevenueEntryPage";
+import AnalysisPage from "./pages/AnalysisPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -247,6 +248,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <BudgetCapacityPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/analysis" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <AnalysisPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />
