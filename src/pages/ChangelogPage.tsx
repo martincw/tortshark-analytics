@@ -56,6 +56,7 @@ const ChangelogPage: React.FC = () => {
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formChangeDate, setFormChangeDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [formChangeTime, setFormChangeTime] = useState(format(new Date(), "HH:mm"));
 
   const fetchEntries = async () => {
     if (!currentWorkspace?.id) return;
@@ -105,6 +106,7 @@ const ChangelogPage: React.FC = () => {
     setFormTitle("");
     setFormDescription("");
     setFormChangeDate(format(new Date(), "yyyy-MM-dd"));
+    setFormChangeTime(format(new Date(), "HH:mm"));
     setEditingEntry(null);
   };
 
@@ -115,7 +117,11 @@ const ChangelogPage: React.FC = () => {
       setFormChangeType(entry.change_type);
       setFormTitle(entry.title);
       setFormDescription(entry.description || "");
-      setFormChangeDate(entry.change_date);
+      // Parse date and time from change_date (could be datetime or just date)
+      const dateValue = entry.change_date.includes("T") ? entry.change_date.split("T")[0] : entry.change_date;
+      const timeValue = entry.change_date.includes("T") ? entry.change_date.split("T")[1]?.substring(0, 5) : "12:00";
+      setFormChangeDate(dateValue);
+      setFormChangeTime(timeValue || "12:00");
     } else {
       resetForm();
     }
@@ -128,6 +134,8 @@ const ChangelogPage: React.FC = () => {
       return;
     }
 
+    const changeDatetime = `${formChangeDate}T${formChangeTime}:00`;
+    
     try {
       if (editingEntry) {
         const { error } = await supabase
@@ -137,7 +145,7 @@ const ChangelogPage: React.FC = () => {
             change_type: formChangeType,
             title: formTitle.trim(),
             description: formDescription.trim() || null,
-            change_date: formChangeDate,
+            change_date: changeDatetime,
           })
           .eq("id", editingEntry.id);
 
@@ -152,7 +160,7 @@ const ChangelogPage: React.FC = () => {
             change_type: formChangeType,
             title: formTitle.trim(),
             description: formDescription.trim() || null,
-            change_date: formChangeDate,
+            change_date: changeDatetime,
           });
 
         if (error) throw error;
@@ -263,15 +271,27 @@ const ChangelogPage: React.FC = () => {
                 </Select>
               </div>
               
-              <div>
-                <Label htmlFor="change-date">Change Date *</Label>
-                <Input
-                  id="change-date"
-                  type="date"
-                  value={formChangeDate}
-                  onChange={(e) => setFormChangeDate(e.target.value)}
-                  className="mt-1"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="change-date">Change Date *</Label>
+                  <Input
+                    id="change-date"
+                    type="date"
+                    value={formChangeDate}
+                    onChange={(e) => setFormChangeDate(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="change-time">Time *</Label>
+                  <Input
+                    id="change-time"
+                    type="time"
+                    value={formChangeTime}
+                    onChange={(e) => setFormChangeTime(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
               </div>
               
               <div>
@@ -394,7 +414,7 @@ const ChangelogPage: React.FC = () => {
                       {getChangeTypeBadge(entry.change_type)}
                       <span className="text-sm text-muted-foreground flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {format(parseISO(entry.change_date), "MMM d, yyyy")}
+                        {format(parseISO(entry.change_date), entry.change_date.includes("T") ? "MMM d, yyyy 'at' h:mm a" : "MMM d, yyyy")}
                       </span>
                     </div>
                     <p className="font-medium text-lg">{entry.title}</p>
