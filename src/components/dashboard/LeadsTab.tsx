@@ -796,44 +796,44 @@ const LeadsTab: React.FC = () => {
             </div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
-              <Table>
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12 text-base">#</TableHead>
+                    <TableHead className="w-10 text-sm">#</TableHead>
                     <TableHead 
-                      className="cursor-pointer select-none text-base font-semibold"
+                      className="cursor-pointer select-none text-sm font-semibold min-w-[180px]"
                       onClick={() => handleSort('campaign_name')}
                     >
                       Campaign {getSortIcon('campaign_name')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none text-base font-semibold"
+                      className="text-right cursor-pointer select-none text-sm font-semibold w-[70px]"
                       onClick={() => handleSort('leads')}
                     >
                       Leads {getSortIcon('leads')}
                     </TableHead>
                     {isViewingSingleDay && (
-                      <TableHead className="text-center text-base font-semibold min-w-[140px]">
+                      <TableHead className="text-center text-sm font-semibold w-[160px]">
                         <div className="flex items-center justify-center gap-1">
-                          <Target className="h-4 w-4" />
+                          <Target className="h-3.5 w-3.5" />
                           Daily Target
                         </div>
                       </TableHead>
                     )}
                     <TableHead 
-                      className="text-right cursor-pointer select-none text-base font-semibold"
+                      className="text-right cursor-pointer select-none text-sm font-semibold w-[80px]"
                       onClick={() => handleSort('accepted')}
                     >
                       Accepted {getSortIcon('accepted')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none text-base font-semibold"
+                      className="text-right cursor-pointer select-none text-sm font-semibold w-[70px]"
                       onClick={() => handleSort('failed')}
                     >
                       Failed {getSortIcon('failed')}
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer select-none text-base font-semibold"
+                      className="text-right cursor-pointer select-none text-sm font-semibold w-[90px]"
                       onClick={() => handleSort('profit')}
                     >
                       Profit {getSortIcon('profit')}
@@ -848,10 +848,10 @@ const LeadsTab: React.FC = () => {
                     
                     return (
                       <TableRow key={campaign.campaign_id} className="hover:bg-muted/50">
-                        <TableCell className="text-base font-medium text-muted-foreground">{index + 1}</TableCell>
-                        <TableCell className="text-base font-semibold text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
+                        <TableCell className="text-sm font-medium text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell className="text-sm font-semibold text-blue-600 hover:text-blue-800 cursor-pointer truncate max-w-[180px]">{campaign.campaign_name}</TableCell>
                         <TableCell className="text-right">
-                          <div className="text-base font-bold">{campaign.leads}</div>
+                          <div className="text-sm font-bold">{campaign.leads}</div>
                           {renderCampaignComparison(campaign.leads, yesterdayCampaign?.leads, sevenDayAvgCampaign?.leads)}
                         </TableCell>
                         {isViewingSingleDay && (
@@ -938,15 +938,15 @@ const LeadsTab: React.FC = () => {
                           </TableCell>
                         )}
                         <TableCell className="text-right">
-                          <div className="text-base font-bold text-green-600">{campaign.accepted}</div>
+                          <div className="text-sm font-bold text-green-600">{campaign.accepted}</div>
                           {renderCampaignComparison(campaign.accepted, yesterdayCampaign?.accepted, sevenDayAvgCampaign?.accepted)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="text-base font-bold text-red-600">{campaign.failed}</div>
+                          <div className="text-sm font-bold text-red-600">{campaign.failed}</div>
                           {renderCampaignComparison(campaign.failed, yesterdayCampaign?.failed, sevenDayAvgCampaign?.failed)}
                         </TableCell>
-                        <TableCell className="text-right min-w-[100px]">
-                          <div className={`text-base font-bold whitespace-nowrap ${profitClass}`}>
+                        <TableCell className="text-right">
+                          <div className={`text-sm font-bold whitespace-nowrap ${profitClass}`}>
                             {formatCurrency(campaign.profit)}
                           </div>
                           {renderCampaignComparison(campaign.profit, yesterdayCampaign?.profit, sevenDayAvgCampaign?.profit, true)}
