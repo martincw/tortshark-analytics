@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { workspaceId } = await req.json();
+    const { workspaceId, messages } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -143,7 +143,9 @@ serve(async (req) => {
       
       return {
         campaignName,
-        changeType: change.change_type === "ad_creative" ? "Ad/Creative" : "Targeting",
+        changeType: change.change_type === "ad_creative" ? "Ad/Creative" : 
+                    change.change_type === "spend_increase" ? "Ad Spend Increase" :
+                    change.change_type === "spend_decrease" ? "Ad Spend Decrease" : "Targeting",
         title: change.title,
         description: change.description,
         changeDate: change.change_date,
@@ -270,8 +272,8 @@ serve(async (req) => {
       recentChanges: changelogWithImpact.length > 0 ? changelogWithImpact : undefined
     };
 
-    // Build prompt for AI analysis
-    const systemPrompt = `You are an expert digital marketing analyst for a mass tort legal advertising agency. Your job is to analyze campaign performance data and provide actionable insights.
+    // Build system prompt for AI analysis
+    const systemPrompt = `You are an expert digital marketing analyst for a mass tort legal advertising agency. Your job is to analyze campaign performance data and answer questions about it.
 
 CRITICAL: Each campaign in the data has a UNIQUE ID. Campaigns with similar names (e.g., "Rideshare" vs "Rideshare - Broughton") are COMPLETELY SEPARATE campaigns. Analyze each one individually based on its own metrics. Do NOT combine or confuse them.
 
@@ -296,11 +298,37 @@ When you see "recentChanges" data, this contains logged changes the user made to
 - Note changes that are too recent (daysOfDataAfter < 5) to draw conclusions
 - Correlate performance trends with the timing of changes
 
-ANALYSIS PRIORITY ORDER:
-1. First, analyze any recent changelog entries and their impact on performance
-2. Second, identify campaigns that are PROFITABLE (2x+ ROAS) but UNDER CAPACITY - these are your biggest opportunities
-3. Third, identify campaigns NEAR profitable (1.5x-2x ROAS) and under capacity - these could become profitable with scale
-4. Fourth, identify unprofitable campaigns (under 1.5x ROAS)
+CONVERSATIONAL MODE:
+You are now in a chat conversation. The user may ask follow-up questions about specific campaigns, request deeper analysis, or ask for recommendations. Be helpful, specific, and always base your answers on the actual data provided.
+
+When the user asks about a specific campaign, look it up in the data and provide detailed metrics.
+When asked for comparisons, use actual numbers.
+When asked for recommendations, be actionable and specific.
+
+CURRENT CAMPAIGN DATA:
+${JSON.stringify(dataPayload, null, 2)}
+
+IMPORTANT REMINDERS:
+- Minimum target ROAS is 2x. Below 2x = LOSING MONEY. Be very clear about this.
+- NEVER tell me to reallocate budget between campaigns - I want to maximize ALL campaigns
+- NEVER tell me to scale back a profitable campaign (2x+ ROAS)
+- Only compare a campaign's CPL to its OWN history, not to other campaigns
+- Calculate actual profit (revenue - spend) for each campaign
+- If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working`;
+
+    // Check if this is a chat conversation or initial analysis
+    const isChat = messages && Array.isArray(messages) && messages.length > 0;
+    
+    let aiMessages;
+    if (isChat) {
+      // Chat mode: use provided messages with system prompt
+      aiMessages = [
+        { role: "system", content: systemPrompt },
+        ...messages
+      ];
+    } else {
+      // Initial analysis mode: generate full report
+      const initialPrompt = `Provide a comprehensive analysis of all campaign performance data. 
 
 Format your response as:
 
@@ -338,19 +366,11 @@ One actionable item per campaign. Prioritize changes based on changelog impact a
 
 IMPORTANT: If a campaign has positive ROAS but is under capacity, this is your MAIN recommendation - push more volume there!`;
 
-    const userPrompt = `Analyze this campaign performance data and provide strategic recommendations:
-
-${JSON.stringify(dataPayload, null, 2)}
-
-CRITICAL REMINDERS:
-- Minimum target ROAS is 2x. Below 2x = LOSING MONEY. Be very clear about this.
-- NEVER tell me to reallocate budget between campaigns - I want to maximize ALL campaigns
-- NEVER tell me to scale back a profitable campaign (2x+ ROAS)
-- Only compare a campaign's CPL to its OWN history, not to other campaigns
-- Show me ALL active campaigns in the weekly overview
-- If a campaign shows low/no revenue but has spend, flag it as potentially unprofitable - don't recommend scaling it!
-- Calculate actual profit (revenue - spend) for each campaign
-- If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working`;
+      aiMessages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: initialPrompt }
+      ];
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -365,10 +385,7 @@ CRITICAL REMINDERS:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
+        messages: aiMessages,
         stream: true,
       }),
     });
