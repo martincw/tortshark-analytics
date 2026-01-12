@@ -388,41 +388,32 @@ IMPORTANT REMINDERS:
         ...messages
       ];
     } else if (isBriefing) {
-      // Morning briefing mode: focused on #1 priority
-      const briefingPrompt = `You are giving a morning briefing. The user needs to know the ONE thing they should focus on today.
+      // Morning briefing mode: ultra-concise top priorities
+      const briefingPrompt = `Give me my TOP 3 priorities for today in simple bullet points. Be EXTREMELY concise.
 
-Based on ALL the data including:
-1. Campaign performance (ROAS, CPL trends, capacity utilization)
-2. Recent changelog entries and their measured impact
-3. Any campaigns losing money
-4. Any profitable campaigns under capacity
+Analyze the data and identify the 1-3 most impactful things I should focus on today. Consider:
+- Campaigns losing money (ROAS < 2x)
+- Profitable campaigns under capacity (easy wins)
+- Recent changelog changes that need attention
+- Rising CPL trends
 
-Provide a CONCISE morning briefing in this exact format:
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
-## 🎯 Your #1 Priority Today
+**Today's Top Priorities:**
 
-**[Campaign Name]** - [One sentence about what to do]
+• **[Campaign Name]**: [One short action phrase - max 10 words] — [key metric like "$X loss" or "X% under capacity"]
 
-### Why This Matters
-- 2-3 bullet points with specific numbers explaining why this is the priority
-- Include any relevant changelog impact if a recent change affected this
+• **[Campaign Name]**: [One short action phrase] — [key metric]
 
-### Quick Action Steps
-1. First specific action to take
-2. Second action if needed
-3. Third action if needed
-
-### Also On Your Radar
-- Brief mention of 1-2 other items to keep an eye on (if any)
+• **[Campaign Name]**: [One short action phrase] — [key metric]
 
 RULES:
-- Be CONCISE - this should take 30 seconds to read
-- Use SPECIFIC numbers from the data
-- If a recent changelog change (within 7 days) is affecting performance positively or negatively, factor that into your priority
-- The priority should be the SINGLE most impactful thing they can do today
-- If a profitable campaign is under capacity, that's usually the priority (easy wins)
-- If a campaign is losing significant money, that might take priority
-- If a recent change had negative impact, rolling it back could be the priority`;
+- Maximum 3 bullet points
+- Each bullet is ONE line only
+- Use specific numbers
+- Action-oriented language (Scale up, Cut, Monitor, Roll back, etc.)
+- If there are only 1-2 priorities, only show those
+- NO explanations, NO paragraphs, NO headers beyond "Today's Top Priorities"`;
 
       aiMessages = [
         { role: "system", content: systemPrompt },
