@@ -18,6 +18,7 @@ import {
   CalendarIcon,
   Users,
   History,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
@@ -27,6 +28,7 @@ import { NavItem } from "@/types/navigation";
 const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/analysis", label: "Analysis", icon: <BarChart3 className="h-4 w-4 mr-2" /> },
   { href: "/changelog", label: "Changelog", icon: <History className="h-4 w-4 mr-2" /> },
   { href: "https://sales.tortshark.com", label: "Sales", external: true },
 ];
@@ -36,6 +38,7 @@ const allNavItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/analysis", label: "Analysis", icon: <BarChart3 className="h-4 w-4 mr-2" /> },
   { href: "/changelog", label: "Changelog", icon: <History className="h-4 w-4 mr-2" /> },
 ];
 
