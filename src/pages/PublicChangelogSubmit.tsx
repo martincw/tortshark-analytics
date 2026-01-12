@@ -35,6 +35,7 @@ const PublicChangelogSubmit: React.FC = () => {
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formChangeDate, setFormChangeDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [formChangeTime, setFormChangeTime] = useState(format(new Date(), "HH:mm"));
 
   // Sort campaigns alphabetically
   const sortedCampaigns = useMemo(() => 
@@ -75,6 +76,8 @@ const PublicChangelogSubmit: React.FC = () => {
 
     setIsSubmitting(true);
 
+    const changeDatetime = `${formChangeDate}T${formChangeTime}:00`;
+    
     try {
       const { error } = await supabase
         .from("campaign_changelog")
@@ -84,7 +87,7 @@ const PublicChangelogSubmit: React.FC = () => {
           change_type: formChangeType,
           title: formTitle.trim(),
           description: `Submitted by: ${employeeName.trim()}${formDescription.trim() ? `\n\n${formDescription.trim()}` : ""}`,
-          change_date: formChangeDate,
+          change_date: changeDatetime,
         });
 
       if (error) throw error;
@@ -105,6 +108,7 @@ const PublicChangelogSubmit: React.FC = () => {
     setFormTitle("");
     setFormDescription("");
     setFormChangeDate(format(new Date(), "yyyy-MM-dd"));
+    setFormChangeTime(format(new Date(), "HH:mm"));
   };
 
   if (isSubmitted) {
@@ -195,16 +199,29 @@ const PublicChangelogSubmit: React.FC = () => {
                 </Select>
               </div>
               
-              <div>
-                <Label htmlFor="change-date">Change Date *</Label>
-                <Input
-                  id="change-date"
-                  type="date"
-                  value={formChangeDate}
-                  onChange={(e) => setFormChangeDate(e.target.value)}
-                  className="mt-1"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="change-date">Change Date *</Label>
+                  <Input
+                    id="change-date"
+                    type="date"
+                    value={formChangeDate}
+                    onChange={(e) => setFormChangeDate(e.target.value)}
+                    className="mt-1"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="change-time">Time *</Label>
+                  <Input
+                    id="change-time"
+                    type="time"
+                    value={formChangeTime}
+                    onChange={(e) => setFormChangeTime(e.target.value)}
+                    className="mt-1"
+                    required
+                  />
+                </div>
               </div>
               
               <div>
