@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   CalendarIcon,
   Users,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarMenu } from "./SidebarMenu";
@@ -34,6 +35,7 @@ const allNavItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/dashboard", label: "Daily Dashboard", icon: <CalendarIcon className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/changelog", label: "Changelog", icon: <History className="h-4 w-4 mr-2" /> },
 ];
 
 // Team and settings items - still needed for sidebar, but moved to sidebar
