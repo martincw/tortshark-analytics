@@ -2,13 +2,14 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Download, TrendingUp, TrendingDown, Users, DollarSign, BarChart3, Zap, Minus } from "lucide-react";
+import { Loader2, RefreshCw, Download, TrendingUp, TrendingDown, Users, DollarSign, BarChart3, Zap, Minus, Target } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/campaignUtils";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { addDays, format, parseISO, subDays } from "date-fns";
+import { Progress } from "@/components/ui/progress";
+import { addDays, format, parseISO, subDays, isToday, isSameDay } from "date-fns";
 
 interface LeadProsperLead {
   id: string;
@@ -32,6 +33,8 @@ interface CampaignSummary {
   profit: number;
   revenue: number;
   cost: number;
+  targetLeadsPerDay?: number;
+  tsCampaignId?: string;
 }
 
 interface ComparisonStats {
@@ -45,8 +48,14 @@ interface ComparisonStats {
   acceptRate: string;
 }
 
+interface CampaignTargetMapping {
+  lpCampaignId: string;
+  tsCampaignId: string;
+  targetLeadsPerDay: number;
+}
+
 const LeadsTab: React.FC = () => {
-  const { dateRange } = useCampaign();
+  const { dateRange, campaigns } = useCampaign();
   const [lpLeads, setLpLeads] = useState<LeadProsperLead[]>([]);
   const [campaignSummaries, setCampaignSummaries] = useState<CampaignSummary[]>([]);
   const [lpLoading, setLpLoading] = useState(false);
@@ -59,6 +68,58 @@ const LeadsTab: React.FC = () => {
   const [sevenDayAvg, setSevenDayAvg] = useState<ComparisonStats | null>(null);
   const [yesterdayCampaignStats, setYesterdayCampaignStats] = useState<Map<string, CampaignSummary>>(new Map());
   const [sevenDayAvgCampaignStats, setSevenDayAvgCampaignStats] = useState<Map<string, CampaignSummary>>(new Map());
+  const [campaignTargetMappings, setCampaignTargetMappings] = useState<Map<string, CampaignTargetMapping>>(new Map());
+
+  // Check if viewing a single day (for target progress display)
+  const isViewingSingleDay = useMemo(() => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return false;
+    return dateRange.startDate === dateRange.endDate;
+  }, [dateRange]);
+
+  // Fetch LP to TS campaign mappings and targets
+  const fetchCampaignTargets = async () => {
+    try {
+      // Get LP to TS mappings
+      const { data: mappings, error: mappingsError } = await supabase
+        .from('lp_to_ts_map')
+        .select('lp_campaign_id, ts_campaign_id, active')
+        .eq('active', true);
+
+      if (mappingsError) throw mappingsError;
+
+      // Get targets for all campaigns
+      const { data: targets, error: targetsError } = await supabase
+        .from('campaign_targets')
+        .select('campaign_id, target_leads_per_day');
+
+      if (targetsError) throw targetsError;
+
+      // Create a map of ts_campaign_id -> target
+      const targetMap = new Map<string, number>();
+      targets?.forEach(t => {
+        if (t.target_leads_per_day) {
+          targetMap.set(t.campaign_id, t.target_leads_per_day);
+        }
+      });
+
+      // Create mapping from LP campaign ID to targets
+      const mappingResult = new Map<string, CampaignTargetMapping>();
+      mappings?.forEach(m => {
+        const target = targetMap.get(m.ts_campaign_id);
+        if (target) {
+          mappingResult.set(m.lp_campaign_id, {
+            lpCampaignId: m.lp_campaign_id,
+            tsCampaignId: m.ts_campaign_id,
+            targetLeadsPerDay: target
+          });
+        }
+      });
+
+      setCampaignTargetMappings(mappingResult);
+    } catch (e) {
+      console.error("Error fetching campaign targets:", e);
+    }
+  };
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
@@ -282,6 +343,9 @@ const LeadsTab: React.FC = () => {
     leads.forEach(lead => {
       const key = lead.campaign_id;
       if (!campaignMap.has(key)) {
+        // Try to find target for this LP campaign
+        const targetMapping = campaignTargetMappings.get(lead.campaign_id);
+        
         campaignMap.set(key, {
           campaign_name: lead.campaign_name,
           campaign_id: lead.campaign_id,
@@ -290,7 +354,9 @@ const LeadsTab: React.FC = () => {
           failed: 0,
           profit: 0,
           revenue: 0,
-          cost: 0
+          cost: 0,
+          targetLeadsPerDay: targetMapping?.targetLeadsPerDay,
+          tsCampaignId: targetMapping?.tsCampaignId
         });
       }
 
@@ -416,11 +482,16 @@ const LeadsTab: React.FC = () => {
     };
   }, [isRealtime, dateRange.startDate, dateRange.endDate]);
 
+  // Fetch campaign targets on mount
+  useEffect(() => {
+    fetchCampaignTargets();
+  }, []);
+
   // Initial data fetch
   useEffect(() => {
     fetchLeadProsperData();
     fetchComparisonData();
-  }, [dateRange.startDate, dateRange.endDate]);
+  }, [dateRange.startDate, dateRange.endDate, campaignTargetMappings]);
 
   // Re-aggregate data when sort changes (no need to re-fetch)
   useEffect(() => {
@@ -640,6 +711,14 @@ const LeadsTab: React.FC = () => {
                     >
                       Leads {getSortIcon('leads')}
                     </TableHead>
+                    {isViewingSingleDay && (
+                      <TableHead className="text-center text-base font-semibold min-w-[140px]">
+                        <div className="flex items-center justify-center gap-1">
+                          <Target className="h-4 w-4" />
+                          Daily Target
+                        </div>
+                      </TableHead>
+                    )}
                     <TableHead 
                       className="text-right cursor-pointer select-none text-base font-semibold"
                       onClick={() => handleSort('accepted')}
@@ -674,6 +753,38 @@ const LeadsTab: React.FC = () => {
                           <div className="text-xl font-bold">{campaign.leads}</div>
                           {renderCampaignComparison(campaign.leads, yesterdayCampaign?.leads, sevenDayAvgCampaign?.leads)}
                         </TableCell>
+                        {isViewingSingleDay && (
+                          <TableCell className="text-center">
+                            {campaign.targetLeadsPerDay ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <span className="text-lg font-bold">
+                                    {campaign.leads}
+                                  </span>
+                                  <span className="text-muted-foreground">/</span>
+                                  <span className="text-lg font-medium text-muted-foreground">
+                                    {campaign.targetLeadsPerDay}
+                                  </span>
+                                </div>
+                                <Progress 
+                                  value={Math.min((campaign.leads / campaign.targetLeadsPerDay) * 100, 100)} 
+                                  className={`h-2 ${
+                                    (campaign.leads / campaign.targetLeadsPerDay) >= 1 
+                                      ? '[&>div]:bg-green-500' 
+                                      : (campaign.leads / campaign.targetLeadsPerDay) >= 0.7 
+                                        ? '[&>div]:bg-amber-500' 
+                                        : '[&>div]:bg-blue-500'
+                                  }`}
+                                />
+                                <div className="text-xs text-muted-foreground">
+                                  {Math.round((campaign.leads / campaign.targetLeadsPerDay) * 100)}% of target
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No target set</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right">
                           <div className="text-xl font-bold text-green-600">{campaign.accepted}</div>
                           {renderCampaignComparison(campaign.accepted, yesterdayCampaign?.accepted, sevenDayAvgCampaign?.accepted)}
