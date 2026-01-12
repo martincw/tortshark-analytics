@@ -7,14 +7,17 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
+type AnalysisPeriod = "yesterday" | "trailing7";
+
 const MorningBriefing: React.FC = () => {
   const { currentWorkspace } = useWorkspace();
   const [briefing, setBriefing] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [period, setPeriod] = useState<AnalysisPeriod>("yesterday");
 
-  const fetchBriefing = async () => {
+  const fetchBriefing = async (selectedPeriod: AnalysisPeriod = period) => {
     if (!currentWorkspace?.id) return;
 
     setIsLoading(true);
@@ -32,6 +35,7 @@ const MorningBriefing: React.FC = () => {
           body: JSON.stringify({
             workspaceId: currentWorkspace.id,
             briefingMode: true,
+            analysisPeriod: selectedPeriod,
           }),
         }
       );
@@ -120,9 +124,14 @@ const MorningBriefing: React.FC = () => {
   // Auto-load on mount
   useEffect(() => {
     if (currentWorkspace?.id && !hasLoaded && !isLoading) {
-      fetchBriefing();
+      fetchBriefing(period);
     }
   }, [currentWorkspace?.id]);
+
+  const handlePeriodChange = (newPeriod: AnalysisPeriod) => {
+    setPeriod(newPeriod);
+    fetchBriefing(newPeriod);
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -152,10 +161,30 @@ const MorningBriefing: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+              <Button
+                variant={period === "yesterday" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => handlePeriodChange("yesterday")}
+                disabled={isLoading}
+                className="h-7 text-xs px-3"
+              >
+                Yesterday
+              </Button>
+              <Button
+                variant={period === "trailing7" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => handlePeriodChange("trailing7")}
+                disabled={isLoading}
+                className="h-7 text-xs px-3"
+              >
+                Trailing 7 Days
+              </Button>
+            </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={fetchBriefing}
+              onClick={() => fetchBriefing(period)}
               disabled={isLoading}
               className="gap-1"
             >
