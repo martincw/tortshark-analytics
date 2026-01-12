@@ -280,13 +280,14 @@ serve(async (req) => {
       
       const cplTrend = firstHalfCPL > 0 ? ((secondHalfCPL - firstHalfCPL) / firstHalfCPL) * 100 : 0;
 
-      // Calculate trailing 7-day capacity fill
-      const last7Days = sortedStats.slice(-7);
-      const trailing7DayLeads = last7Days.reduce((sum, s) => sum + (s.leads || 0), 0);
+      // Calculate capacity fill based on the actual period being analyzed
+      const actualDays = sortedStats.length || 1;
+      const periodLeads = totalLeads; // Use the total from the actual date range
       const targetLeadsPerDay = campaignTarget?.target_leads_per_day || 0;
-      const weeklyTarget = targetLeadsPerDay * 7;
-      const weeklyCapacityFill = weeklyTarget > 0 ? (trailing7DayLeads / weeklyTarget) * 100 : null;
-      const isHittingWeeklyTarget = weeklyCapacityFill !== null && weeklyCapacityFill >= 100;
+      // Capacity target should match the actual period being analyzed
+      const periodTarget = targetLeadsPerDay * actualDays;
+      const capacityFillPercent = periodTarget > 0 ? (periodLeads / periodTarget) * 100 : null;
+      const isHittingTarget = capacityFillPercent !== null && capacityFillPercent >= 100;
       
       // Get recent changes for this campaign
       const recentChanges = changelogWithImpact.filter(c => c.campaignName === campaign.name);
@@ -307,11 +308,11 @@ serve(async (req) => {
         targetLeadsPerDay: targetLeadsPerDay || null,
         targetRoas: campaignTarget?.target_roas || 2,
         dayCount,
-        // 7-day capacity metrics
-        trailing7DayLeads,
-        weeklyTarget: weeklyTarget || null,
-        weeklyCapacityFillPercent: weeklyCapacityFill !== null ? Math.round(weeklyCapacityFill) : null,
-        isHittingWeeklyTarget,
+        // Capacity metrics (based on actual analysis period)
+        periodLeads,
+        periodTarget: periodTarget || null,
+        capacityFillPercent: capacityFillPercent !== null ? Math.round(capacityFillPercent) : null,
+        isHittingTarget,
         recentChanges: recentChanges.length > 0 ? recentChanges : undefined
       };
     }).filter(c => c.totalSpend > 0 || c.totalLeads > 0) || [];
@@ -356,7 +357,7 @@ CRITICAL RULES:
 2. **Never reallocate between campaigns**: The goal is to MAXIMIZE ALL campaigns, not shift budget between them.
 3. **CPL is relative**: A $500 CPL might be great for one tort and terrible for another. Only flag rising CPL trends within the same campaign.
 4. **If ROAS < 2x, the campaign is NOT profitable** - flag this clearly.
-5. **CAPACITY IS KEY**: Check weeklyCapacityFillPercent for each campaign. If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
+5. **CAPACITY IS KEY**: Check capacityFillPercent for each campaign. This is calculated based on the actual analysis period (1 day for "yesterday", 7 days for "trailing 7"). If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
 6. **Near-profitable campaigns under capacity are priority**: If ROAS is close to 2x (1.5x-2x) AND under capacity, highlight this as a key opportunity.
 
 CHANGELOG ANALYSIS (if recentChanges data is present):
