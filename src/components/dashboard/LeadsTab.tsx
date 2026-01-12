@@ -851,7 +851,7 @@ const LeadsTab: React.FC = () => {
                         <TableCell className="text-base font-medium text-muted-foreground">{index + 1}</TableCell>
                         <TableCell className="text-base font-semibold text-blue-600 hover:text-blue-800 cursor-pointer">{campaign.campaign_name}</TableCell>
                         <TableCell className="text-right">
-                          <div className="text-xl font-bold">{campaign.leads}</div>
+                          <div className="text-base font-bold">{campaign.leads}</div>
                           {renderCampaignComparison(campaign.leads, yesterdayCampaign?.leads, sevenDayAvgCampaign?.leads)}
                         </TableCell>
                         {isViewingSingleDay && (
@@ -938,15 +938,15 @@ const LeadsTab: React.FC = () => {
                           </TableCell>
                         )}
                         <TableCell className="text-right">
-                          <div className="text-xl font-bold text-green-600">{campaign.accepted}</div>
+                          <div className="text-base font-bold text-green-600">{campaign.accepted}</div>
                           {renderCampaignComparison(campaign.accepted, yesterdayCampaign?.accepted, sevenDayAvgCampaign?.accepted)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="text-xl font-bold text-red-600">{campaign.failed}</div>
+                          <div className="text-base font-bold text-red-600">{campaign.failed}</div>
                           {renderCampaignComparison(campaign.failed, yesterdayCampaign?.failed, sevenDayAvgCampaign?.failed)}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className={`text-xl font-bold ${profitClass}`}>
+                        <TableCell className="text-right min-w-[100px]">
+                          <div className={`text-base font-bold whitespace-nowrap ${profitClass}`}>
                             {formatCurrency(campaign.profit)}
                           </div>
                           {renderCampaignComparison(campaign.profit, yesterdayCampaign?.profit, sevenDayAvgCampaign?.profit, true)}
