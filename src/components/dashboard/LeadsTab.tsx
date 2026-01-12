@@ -588,11 +588,14 @@ const LeadsTab: React.FC = () => {
     fetchCampaignTargets();
   }, []);
 
-  // Initial data fetch
+  // Initial data fetch - use size of maps to trigger, not the Map objects themselves
+  const targetMappingsSize = campaignTargetMappings.size;
+  const nameTargetsSize = nameBasedTargets.size;
+  
   useEffect(() => {
     fetchLeadProsperData();
     fetchComparisonData();
-  }, [dateRange.startDate, dateRange.endDate, campaignTargetMappings, nameBasedTargets]);
+  }, [dateRange.startDate, dateRange.endDate, targetMappingsSize, nameTargetsSize]);
 
   // Re-aggregate data when sort changes or targets update (no need to re-fetch)
   useEffect(() => {
@@ -600,7 +603,7 @@ const LeadsTab: React.FC = () => {
       const sortedSummaries = aggregateCampaignData(lpLeads);
       setCampaignSummaries(sortedSummaries);
     }
-  }, [sortField, sortDirection, nameBasedTargets]);
+  }, [sortField, sortDirection, nameTargetsSize]);
 
   const getSortIcon = (field: keyof CampaignSummary) => {
     if (field !== sortField) return null;
