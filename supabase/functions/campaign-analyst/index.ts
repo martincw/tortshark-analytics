@@ -12,13 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    const { workspaceId, messages, briefingMode } = await req.json();
+    const { workspaceId, messages, briefingMode, analysisPeriod } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Calculate trailing 7 days EXCLUDING today
+    // Calculate date range based on analysisPeriod
+    // "yesterday" = just yesterday's data
+    // "trailing7" (default) = trailing 7 days EXCLUDING today
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     
@@ -26,12 +28,19 @@ serve(async (req) => {
     endDate.setUTCDate(endDate.getUTCDate() - 1); // Yesterday
     
     const startDate = new Date(endDate);
-    startDate.setUTCDate(startDate.getUTCDate() - 6); // 7 days back from yesterday
+    if (analysisPeriod === "yesterday") {
+      // Just yesterday - startDate equals endDate
+      // startDate is already set to yesterday via endDate copy
+    } else {
+      // Default: trailing 7 days
+      startDate.setUTCDate(startDate.getUTCDate() - 6); // 7 days back from yesterday
+    }
     
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
     
-    console.log(`Analyzing date range: ${startDateStr} to ${endDateStr}`);
+    const periodLabel = analysisPeriod === "yesterday" ? "yesterday" : "trailing 7 days";
+    console.log(`Analyzing ${periodLabel}: ${startDateStr} to ${endDateStr}`);
 
     // Fetch all campaign data for analysis
     const { data: campaigns, error: campaignsError } = await supabase
