@@ -27,6 +27,7 @@ import { NavItem } from "@/types/navigation";
 const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
+  { href: "/changelog", label: "Changelog", icon: <History className="h-4 w-4 mr-2" /> },
   { href: "https://sales.tortshark.com", label: "Sales", external: true },
 ];
 
