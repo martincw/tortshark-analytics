@@ -81,10 +81,10 @@ serve(async (req) => {
       const beforeEnd = new Date(changeDate);
       beforeEnd.setUTCDate(beforeEnd.getUTCDate() - 1);
       
-      // 7 days after the change (or up to yesterday)
-      const afterStart = new Date(changeDate);
+      // From the change date onwards (including the day of change) up to 7 days after
+      const afterStart = new Date(changeDate); // Include the change date
       const afterEnd = new Date(changeDate);
-      afterEnd.setUTCDate(afterEnd.getUTCDate() + 6);
+      afterEnd.setUTCDate(afterEnd.getUTCDate() + 6); // 7 days total including change date
       
       // Clamp afterEnd to yesterday
       if (afterEnd > endDate) {

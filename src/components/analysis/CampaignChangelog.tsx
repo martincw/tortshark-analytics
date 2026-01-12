@@ -39,6 +39,9 @@ const CampaignChangelog: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ChangelogEntry | null>(null);
 
+  // Sort campaigns alphabetically
+  const sortedCampaigns = [...campaigns].sort((a, b) => a.name.localeCompare(b.name));
+
   // Form state
   const [formCampaignId, setFormCampaignId] = useState("");
   const [formChangeType, setFormChangeType] = useState<"ad_creative" | "targeting">("ad_creative");
@@ -203,12 +206,12 @@ const CampaignChangelog: React.FC = () => {
             <div className="space-y-4 py-4">
               <div>
                 <Label htmlFor="campaign">Campaign *</Label>
-                <Select value={formCampaignId} onValueChange={setFormCampaignId}>
+              <Select value={formCampaignId} onValueChange={setFormCampaignId}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select campaign" />
                   </SelectTrigger>
                   <SelectContent>
-                    {campaigns.map(campaign => (
+                    {sortedCampaigns.map(campaign => (
                       <SelectItem key={campaign.id} value={campaign.id}>
                         {campaign.name}
                       </SelectItem>

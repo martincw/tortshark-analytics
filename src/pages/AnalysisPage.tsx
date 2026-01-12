@@ -75,6 +75,11 @@ const AnalysisPage = () => {
     return campaigns.find(camp => camp.id === selectedCampaignId);
   }, [campaigns, selectedCampaignId]);
 
+  // Sort campaigns alphabetically
+  const sortedCampaigns = useMemo(() => {
+    return [...campaigns].sort((a, b) => a.name.localeCompare(b.name));
+  }, [campaigns]);
+
   const handleParamChange = (param: keyof ProjectionParams, value: number[]) => {
     setProjectionParams(prev => ({
       ...prev,
@@ -116,7 +121,7 @@ const AnalysisPage = () => {
                   <SelectValue placeholder="Select a campaign" />
                 </SelectTrigger>
                 <SelectContent>
-                  {campaigns.map((campaign) => (
+                  {sortedCampaigns.map((campaign) => (
                     <SelectItem key={campaign.id} value={campaign.id}>
                       {campaign.name}
                     </SelectItem>
