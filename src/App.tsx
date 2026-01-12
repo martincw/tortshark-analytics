@@ -39,6 +39,7 @@ import ContractorSubmissionsPage from "./pages/ContractorSubmissionsPage";
 import CasesRevenueEntryPage from "./pages/CasesRevenueEntryPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import ChangelogPage from "./pages/ChangelogPage";
+import PublicChangelogSubmit from "./pages/PublicChangelogSubmit";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +116,9 @@ const App = () => (
                   
                   {/* Public contractor bulk entry page - no authentication required */}
                   <Route path="/bulk-entry" element={<ContractorBulkEntry />} />
+                  
+                  {/* Public changelog submission page - no authentication required */}
+                  <Route path="/log-change" element={<PublicChangelogSubmit />} />
                   
                   {/* Handle workspace invitations */}
                   <Route path="/invite" element={<InvitationAccepter />} />

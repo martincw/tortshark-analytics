@@ -19,7 +19,7 @@ interface ChangelogEntry {
   id: string;
   campaign_id: string;
   campaign_name?: string;
-  change_type: "ad_creative" | "targeting";
+  change_type: "ad_creative" | "targeting" | "spend_increase" | "spend_decrease";
   title: string;
   description: string | null;
   change_date: string;
@@ -29,6 +29,8 @@ interface ChangelogEntry {
 const CHANGE_TYPE_OPTIONS = [
   { value: "ad_creative", label: "Ad/Creative Change", color: "bg-blue-500" },
   { value: "targeting", label: "Targeting Change", color: "bg-purple-500" },
+  { value: "spend_increase", label: "Ad Spend Increase", color: "bg-green-500" },
+  { value: "spend_decrease", label: "Ad Spend Decrease", color: "bg-red-500" },
 ];
 
 const CampaignChangelog: React.FC = () => {
@@ -44,7 +46,7 @@ const CampaignChangelog: React.FC = () => {
 
   // Form state
   const [formCampaignId, setFormCampaignId] = useState("");
-  const [formChangeType, setFormChangeType] = useState<"ad_creative" | "targeting">("ad_creative");
+  const [formChangeType, setFormChangeType] = useState<"ad_creative" | "targeting" | "spend_increase" | "spend_decrease">("ad_creative");
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formChangeDate, setFormChangeDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -65,7 +67,7 @@ const CampaignChangelog: React.FC = () => {
       // Map campaign names
       const entriesWithNames = (data || []).map(entry => ({
         ...entry,
-        change_type: entry.change_type as "ad_creative" | "targeting",
+        change_type: entry.change_type as "ad_creative" | "targeting" | "spend_increase" | "spend_decrease",
         campaign_name: campaigns.find(c => c.id === entry.campaign_id)?.name || "Unknown Campaign"
       }));
       
@@ -222,7 +224,7 @@ const CampaignChangelog: React.FC = () => {
               
               <div>
                 <Label htmlFor="change-type">Change Type *</Label>
-                <Select value={formChangeType} onValueChange={(v) => setFormChangeType(v as "ad_creative" | "targeting")}>
+                <Select value={formChangeType} onValueChange={(v) => setFormChangeType(v as "ad_creative" | "targeting" | "spend_increase" | "spend_decrease")}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
