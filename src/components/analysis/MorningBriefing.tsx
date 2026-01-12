@@ -208,6 +208,26 @@ const MorningBriefing: React.FC = () => {
                     strong: ({ children }) => (
                       <strong className="font-semibold text-foreground">{children}</strong>
                     ),
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-3 rounded-lg border">
+                        <table className="min-w-full text-xs">{children}</table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-muted">{children}</thead>
+                    ),
+                    tbody: ({ children }) => (
+                      <tbody className="divide-y">{children}</tbody>
+                    ),
+                    tr: ({ children }) => (
+                      <tr className="hover:bg-muted/50">{children}</tr>
+                    ),
+                    th: ({ children }) => (
+                      <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">{children}</th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="px-3 py-2 whitespace-nowrap">{children}</td>
+                    ),
                   }}
                 >
                   {briefing}
