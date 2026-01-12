@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, History, Trash2, Pencil, Calendar, Tag, Filter } from "lucide-react";
+import { Plus, History, Trash2, Pencil, Calendar, Tag, Filter, Link, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useCampaign } from "@/contexts/CampaignContext";
@@ -203,12 +203,27 @@ const ChangelogPage: React.FC = () => {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Log Change
-            </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const url = `${window.location.origin}/log-change`;
+              navigator.clipboard.writeText(url);
+              toast.success("Link copied to clipboard");
+            }}
+          >
+            <Link className="h-4 w-4" />
+            <span className="hidden sm:inline">Share Employee Link</span>
+            <Copy className="h-3 w-3 sm:ml-1" />
+          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpenDialog()} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Log Change
+              </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -292,7 +307,8 @@ const ChangelogPage: React.FC = () => {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
