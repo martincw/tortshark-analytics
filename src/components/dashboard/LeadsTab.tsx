@@ -79,13 +79,32 @@ const LeadsTab: React.FC = () => {
   // Fetch LP to TS campaign mappings and targets
   const fetchCampaignTargets = async () => {
     try {
-      // Get LP to TS mappings
+      // Get external LP campaigns (maps LP numeric ID to UUID)
+      const { data: externalCampaigns, error: externalError } = await supabase
+        .from('external_lp_campaigns')
+        .select('id, lp_campaign_id');
+
+      if (externalError) throw externalError;
+
+      // Create map from LP numeric ID (string) to external UUID
+      const lpNumericToUuid = new Map<string, string>();
+      externalCampaigns?.forEach(ec => {
+        lpNumericToUuid.set(ec.lp_campaign_id.toString(), ec.id);
+      });
+
+      // Get LP to TS mappings (uses external UUID)
       const { data: mappings, error: mappingsError } = await supabase
         .from('lp_to_ts_map')
         .select('lp_campaign_id, ts_campaign_id, active')
         .eq('active', true);
 
       if (mappingsError) throw mappingsError;
+
+      // Create map from external UUID to TS campaign ID
+      const uuidToTsCampaign = new Map<string, string>();
+      mappings?.forEach(m => {
+        uuidToTsCampaign.set(m.lp_campaign_id, m.ts_campaign_id);
+      });
 
       // Get targets for all campaigns
       const { data: targets, error: targetsError } = await supabase
@@ -102,16 +121,20 @@ const LeadsTab: React.FC = () => {
         }
       });
 
-      // Create mapping from LP campaign ID to targets
+      // Create mapping from LP numeric campaign ID (as string) to targets
+      // Chain: LP numeric ID -> external UUID -> TS campaign ID -> target
       const mappingResult = new Map<string, CampaignTargetMapping>();
-      mappings?.forEach(m => {
-        const target = targetMap.get(m.ts_campaign_id);
-        if (target) {
-          mappingResult.set(m.lp_campaign_id, {
-            lpCampaignId: m.lp_campaign_id,
-            tsCampaignId: m.ts_campaign_id,
-            targetLeadsPerDay: target
-          });
+      lpNumericToUuid.forEach((uuid, lpNumericId) => {
+        const tsCampaignId = uuidToTsCampaign.get(uuid);
+        if (tsCampaignId) {
+          const target = targetMap.get(tsCampaignId);
+          if (target) {
+            mappingResult.set(lpNumericId, {
+              lpCampaignId: lpNumericId,
+              tsCampaignId: tsCampaignId,
+              targetLeadsPerDay: target
+            });
+          }
         }
       });
 
