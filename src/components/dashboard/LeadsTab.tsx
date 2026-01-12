@@ -69,6 +69,7 @@ const LeadsTab: React.FC = () => {
   const [yesterdayCampaignStats, setYesterdayCampaignStats] = useState<Map<string, CampaignSummary>>(new Map());
   const [sevenDayAvgCampaignStats, setSevenDayAvgCampaignStats] = useState<Map<string, CampaignSummary>>(new Map());
   const [campaignTargetMappings, setCampaignTargetMappings] = useState<Map<string, CampaignTargetMapping>>(new Map());
+  const [nameBasedTargets, setNameBasedTargets] = useState<Map<string, { campaignId: string; target: number }>>(new Map());
 
   // Check if viewing a single day (for target progress display)
   const isViewingSingleDay = useMemo(() => {
@@ -79,17 +80,19 @@ const LeadsTab: React.FC = () => {
   // Fetch LP to TS campaign mappings and targets
   const fetchCampaignTargets = async () => {
     try {
-      // Get external LP campaigns (maps LP numeric ID to UUID)
+      // Get external LP campaigns (maps LP numeric ID to UUID and has name)
       const { data: externalCampaigns, error: externalError } = await supabase
         .from('external_lp_campaigns')
-        .select('id, lp_campaign_id');
+        .select('id, lp_campaign_id, name');
 
       if (externalError) throw externalError;
 
       // Create map from LP numeric ID (string) to external UUID
       const lpNumericToUuid = new Map<string, string>();
+      const lpNumericToName = new Map<string, string>();
       externalCampaigns?.forEach(ec => {
         lpNumericToUuid.set(ec.lp_campaign_id.toString(), ec.id);
+        lpNumericToName.set(ec.lp_campaign_id.toString(), ec.name);
       });
 
       // Get LP to TS mappings (uses external UUID)
@@ -106,24 +109,34 @@ const LeadsTab: React.FC = () => {
         uuidToTsCampaign.set(m.lp_campaign_id, m.ts_campaign_id);
       });
 
-      // Get targets for all campaigns
+      // Get targets for all campaigns WITH campaign names
       const { data: targets, error: targetsError } = await supabase
         .from('campaign_targets')
-        .select('campaign_id, target_leads_per_day');
+        .select('campaign_id, target_leads_per_day, campaigns(name)');
 
       if (targetsError) throw targetsError;
 
-      // Create a map of ts_campaign_id -> target
+      // Create maps for ts_campaign_id -> target and campaign_name -> target
       const targetMap = new Map<string, number>();
+      const nameToTarget = new Map<string, { campaignId: string; target: number }>();
       targets?.forEach(t => {
-        if (t.target_leads_per_day) {
+        if (t.target_leads_per_day && t.target_leads_per_day > 0) {
           targetMap.set(t.campaign_id, t.target_leads_per_day);
+          // Store by normalized name for fallback matching
+          const campaignName = (t.campaigns as any)?.name;
+          if (campaignName) {
+            nameToTarget.set(normalizeNameForMatching(campaignName), {
+              campaignId: t.campaign_id,
+              target: t.target_leads_per_day
+            });
+          }
         }
       });
 
       // Create mapping from LP numeric campaign ID (as string) to targets
-      // Chain: LP numeric ID -> external UUID -> TS campaign ID -> target
       const mappingResult = new Map<string, CampaignTargetMapping>();
+      
+      // First try: use explicit lp_to_ts_map mappings
       lpNumericToUuid.forEach((uuid, lpNumericId) => {
         const tsCampaignId = uuidToTsCampaign.get(uuid);
         if (tsCampaignId) {
@@ -138,10 +151,49 @@ const LeadsTab: React.FC = () => {
         }
       });
 
+      // Second try: for unmapped campaigns, try to match by name
+      lpNumericToName.forEach((lpName, lpNumericId) => {
+        if (!mappingResult.has(lpNumericId)) {
+          const normalizedLpName = normalizeNameForMatching(lpName);
+          // Try exact match first
+          let match = nameToTarget.get(normalizedLpName);
+          
+          // Try partial matching if no exact match
+          if (!match) {
+            for (const [targetName, targetData] of nameToTarget.entries()) {
+              if (normalizedLpName.includes(targetName) || targetName.includes(normalizedLpName)) {
+                match = targetData;
+                break;
+              }
+            }
+          }
+          
+          if (match) {
+            mappingResult.set(lpNumericId, {
+              lpCampaignId: lpNumericId,
+              tsCampaignId: match.campaignId,
+              targetLeadsPerDay: match.target
+            });
+          }
+        }
+      });
+
       setCampaignTargetMappings(mappingResult);
+      setNameBasedTargets(nameToTarget);
     } catch (e) {
       console.error("Error fetching campaign targets:", e);
     }
+  };
+  
+  // Helper to normalize campaign names for matching
+  const normalizeNameForMatching = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*(internal|youtube|broughton|dqs?|bridge|only)\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   // Calculate summary stats
@@ -366,8 +418,34 @@ const LeadsTab: React.FC = () => {
     leads.forEach(lead => {
       const key = lead.campaign_id;
       if (!campaignMap.has(key)) {
-        // Try to find target for this LP campaign
-        const targetMapping = campaignTargetMappings.get(lead.campaign_id);
+        // Try to find target for this LP campaign by ID first
+        let targetMapping = campaignTargetMappings.get(lead.campaign_id);
+        
+        // Fallback: try name-based matching if no explicit mapping found
+        if (!targetMapping && nameBasedTargets.size > 0) {
+          const normalizedLeadName = normalizeNameForMatching(lead.campaign_name);
+          
+          // Try exact match
+          let nameMatch = nameBasedTargets.get(normalizedLeadName);
+          
+          // Try partial matching
+          if (!nameMatch) {
+            for (const [targetName, targetData] of nameBasedTargets.entries()) {
+              if (normalizedLeadName.includes(targetName) || targetName.includes(normalizedLeadName)) {
+                nameMatch = targetData;
+                break;
+              }
+            }
+          }
+          
+          if (nameMatch) {
+            targetMapping = {
+              lpCampaignId: lead.campaign_id,
+              tsCampaignId: nameMatch.campaignId,
+              targetLeadsPerDay: nameMatch.target
+            };
+          }
+        }
         
         campaignMap.set(key, {
           campaign_name: lead.campaign_name,
@@ -514,15 +592,15 @@ const LeadsTab: React.FC = () => {
   useEffect(() => {
     fetchLeadProsperData();
     fetchComparisonData();
-  }, [dateRange.startDate, dateRange.endDate, campaignTargetMappings]);
+  }, [dateRange.startDate, dateRange.endDate, campaignTargetMappings, nameBasedTargets]);
 
-  // Re-aggregate data when sort changes (no need to re-fetch)
+  // Re-aggregate data when sort changes or targets update (no need to re-fetch)
   useEffect(() => {
     if (lpLeads.length > 0) {
       const sortedSummaries = aggregateCampaignData(lpLeads);
       setCampaignSummaries(sortedSummaries);
     }
-  }, [sortField, sortDirection]);
+  }, [sortField, sortDirection, nameBasedTargets]);
 
   const getSortIcon = (field: keyof CampaignSummary) => {
     if (field !== sortField) return null;
