@@ -398,15 +398,24 @@ const AIAnalyst: React.FC = () => {
                                 <strong className="font-semibold">{children}</strong>
                               ),
                               table: ({ children }) => (
-                                <div className="overflow-x-auto my-2">
+                                <div className="overflow-x-auto my-3 rounded-lg border">
                                   <table className="min-w-full text-xs">{children}</table>
                                 </div>
                               ),
+                              thead: ({ children }) => (
+                                <thead className="bg-muted">{children}</thead>
+                              ),
+                              tbody: ({ children }) => (
+                                <tbody className="divide-y">{children}</tbody>
+                              ),
+                              tr: ({ children }) => (
+                                <tr className="hover:bg-muted/50">{children}</tr>
+                              ),
                               th: ({ children }) => (
-                                <th className="px-2 py-1 border-b font-semibold text-left">{children}</th>
+                                <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">{children}</th>
                               ),
                               td: ({ children }) => (
-                                <td className="px-2 py-1 border-b">{children}</td>
+                                <td className="px-3 py-2 whitespace-nowrap">{children}</td>
                               ),
                             }}
                           >

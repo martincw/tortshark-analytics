@@ -78,9 +78,30 @@ serve(async (req) => {
     console.log(`Found ${changelogEntries?.length || 0} changelog entries`);
 
     // Fetch stats for 7 days BEFORE each change to calculate before/after metrics
+    // IMPORTANT: Only include changes that have at least 1 full day of data AFTER the change
+    // (i.e., changes made before today)
     const changelogWithImpact = await Promise.all((changelogEntries || []).map(async (change: any) => {
       const changeDate = new Date(change.change_date);
       const campaignName = change.campaigns?.name || "Unknown";
+      
+      // Skip changes made today - no data available yet
+      // Change must be made BEFORE today to have any "after" data
+      if (changeDate >= today) {
+        return {
+          campaignName,
+          changeType: change.change_type === "ad_creative" ? "Ad/Creative" : 
+                      change.change_type === "spend_increase" ? "Ad Spend Increase" :
+                      change.change_type === "spend_decrease" ? "Ad Spend Decrease" : "Targeting",
+          title: change.title,
+          description: change.description,
+          changeDate: change.change_date,
+          daysOfDataAfter: 0,
+          tooRecent: true, // Flag to indicate no data yet
+          before: null,
+          after: null,
+          impact: null
+        };
+      }
       
       // 7 days before the change
       const beforeStart = new Date(changeDate);
@@ -88,14 +109,34 @@ serve(async (req) => {
       const beforeEnd = new Date(changeDate);
       beforeEnd.setUTCDate(beforeEnd.getUTCDate() - 1);
       
-      // From the change date onwards (including the day of change) up to 7 days after
-      const afterStart = new Date(changeDate); // Include the change date
+      // From the DAY AFTER the change (first full day of data) up to 7 days after
+      // We use the day after because we don't count partial day data
+      const afterStart = new Date(changeDate);
+      afterStart.setUTCDate(afterStart.getUTCDate() + 1); // Day after the change
       const afterEnd = new Date(changeDate);
-      afterEnd.setUTCDate(afterEnd.getUTCDate() + 6); // 7 days total including change date
+      afterEnd.setUTCDate(afterEnd.getUTCDate() + 7); // 7 full days after change
       
-      // Clamp afterEnd to yesterday
+      // Clamp afterEnd to yesterday (endDate)
       if (afterEnd > endDate) {
         afterEnd.setTime(endDate.getTime());
+      }
+      
+      // If afterStart > afterEnd, there's no complete day of data yet
+      if (afterStart > endDate) {
+        return {
+          campaignName,
+          changeType: change.change_type === "ad_creative" ? "Ad/Creative" : 
+                      change.change_type === "spend_increase" ? "Ad Spend Increase" :
+                      change.change_type === "spend_decrease" ? "Ad Spend Decrease" : "Targeting",
+          title: change.title,
+          description: change.description,
+          changeDate: change.change_date,
+          daysOfDataAfter: 0,
+          tooRecent: true,
+          before: null,
+          after: null,
+          impact: null
+        };
       }
       
       const beforeStartStr = beforeStart.toISOString().split('T')[0];
@@ -128,7 +169,25 @@ serve(async (req) => {
       const afterLeads = afterStats?.reduce((sum, s) => sum + (s.leads || 0), 0) || 0;
       const afterSpend = afterStats?.reduce((sum, s) => sum + (s.ad_spend || 0), 0) || 0;
       const afterRevenue = afterStats?.reduce((sum, s) => sum + (s.revenue || 0), 0) || 0;
-      const afterDays = afterStats?.length || 1;
+      const afterDays = afterStats?.length || 0; // Use 0 if no data
+      
+      // If no after days, mark as too recent
+      if (afterDays === 0) {
+        return {
+          campaignName,
+          changeType: change.change_type === "ad_creative" ? "Ad/Creative" : 
+                      change.change_type === "spend_increase" ? "Ad Spend Increase" :
+                      change.change_type === "spend_decrease" ? "Ad Spend Decrease" : "Targeting",
+          title: change.title,
+          description: change.description,
+          changeDate: change.change_date,
+          daysOfDataAfter: 0,
+          tooRecent: true,
+          before: null,
+          after: null,
+          impact: null
+        };
+      }
       
       const beforeCPL = beforeLeads > 0 ? beforeSpend / beforeLeads : 0;
       const afterCPL = afterLeads > 0 ? afterSpend / afterLeads : 0;
@@ -150,6 +209,7 @@ serve(async (req) => {
         description: change.description,
         changeDate: change.change_date,
         daysOfDataAfter: afterDays,
+        tooRecent: false,
         before: {
           days: beforeDays,
           leads: beforeLeads,
