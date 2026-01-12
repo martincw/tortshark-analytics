@@ -13,6 +13,7 @@ import { BudgetOptimization } from "@/components/analysis/BudgetOptimization";
 import { GoalTracker } from "@/components/analysis/GoalTracker";
 import { ComparativeAnalysis } from "@/components/analysis/ComparativeAnalysis";
 import AIAnalyst from "@/components/analysis/AIAnalyst";
+import MorningBriefing from "@/components/analysis/MorningBriefing";
 import CampaignChangelog from "@/components/analysis/CampaignChangelog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -98,7 +99,10 @@ const AnalysisPage = () => {
         </div>
       </div>
 
-      {/* AI Analyst Section */}
+      {/* Morning Briefing - Auto-loads on page visit */}
+      <MorningBriefing />
+
+      {/* AI Analyst Chat Section */}
       <AIAnalyst />
       
       {/* Campaign Changelog Section */}

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { workspaceId, messages } = await req.json();
+    const { workspaceId, messages, briefingMode } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -316,8 +316,9 @@ IMPORTANT REMINDERS:
 - Calculate actual profit (revenue - spend) for each campaign
 - If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working`;
 
-    // Check if this is a chat conversation or initial analysis
+    // Check if this is a chat conversation, briefing, or initial analysis
     const isChat = messages && Array.isArray(messages) && messages.length > 0;
+    const isBriefing = briefingMode === true;
     
     let aiMessages;
     if (isChat) {
@@ -325,6 +326,47 @@ IMPORTANT REMINDERS:
       aiMessages = [
         { role: "system", content: systemPrompt },
         ...messages
+      ];
+    } else if (isBriefing) {
+      // Morning briefing mode: focused on #1 priority
+      const briefingPrompt = `You are giving a morning briefing. The user needs to know the ONE thing they should focus on today.
+
+Based on ALL the data including:
+1. Campaign performance (ROAS, CPL trends, capacity utilization)
+2. Recent changelog entries and their measured impact
+3. Any campaigns losing money
+4. Any profitable campaigns under capacity
+
+Provide a CONCISE morning briefing in this exact format:
+
+## 🎯 Your #1 Priority Today
+
+**[Campaign Name]** - [One sentence about what to do]
+
+### Why This Matters
+- 2-3 bullet points with specific numbers explaining why this is the priority
+- Include any relevant changelog impact if a recent change affected this
+
+### Quick Action Steps
+1. First specific action to take
+2. Second action if needed
+3. Third action if needed
+
+### Also On Your Radar
+- Brief mention of 1-2 other items to keep an eye on (if any)
+
+RULES:
+- Be CONCISE - this should take 30 seconds to read
+- Use SPECIFIC numbers from the data
+- If a recent changelog change (within 7 days) is affecting performance positively or negatively, factor that into your priority
+- The priority should be the SINGLE most impactful thing they can do today
+- If a profitable campaign is under capacity, that's usually the priority (easy wins)
+- If a campaign is losing significant money, that might take priority
+- If a recent change had negative impact, rolling it back could be the priority`;
+
+      aiMessages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: briefingPrompt }
       ];
     } else {
       // Initial analysis mode: generate full report

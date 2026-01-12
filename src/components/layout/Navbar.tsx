@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { href: "/buyers", label: "Buyers", icon: <Users className="h-4 w-4 mr-2" /> },
   { href: "/analysis", label: "Analysis", icon: <BarChart3 className="h-4 w-4 mr-2" /> },
   { href: "/changelog", label: "Changelog", icon: <History className="h-4 w-4 mr-2" /> },
+  { href: "https://hook-craft-suite.lovable.app", label: "HookLab", external: true },
   { href: "https://sales.tortshark.com", label: "Sales", external: true },
 ];
 
