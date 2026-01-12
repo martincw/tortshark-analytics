@@ -857,30 +857,73 @@ const LeadsTab: React.FC = () => {
                         {isViewingSingleDay && (
                           <TableCell className="text-center">
                             {campaign.targetLeadsPerDay ? (
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <span className="text-lg font-bold">
-                                    {campaign.leads}
-                                  </span>
-                                  <span className="text-muted-foreground">/</span>
-                                  <span className="text-lg font-medium text-muted-foreground">
-                                    {campaign.targetLeadsPerDay}
-                                  </span>
-                                </div>
-                                <Progress 
-                                  value={Math.min((campaign.leads / campaign.targetLeadsPerDay) * 100, 100)} 
-                                  className={`h-2 ${
-                                    (campaign.leads / campaign.targetLeadsPerDay) >= 1 
-                                      ? '[&>div]:bg-green-500' 
-                                      : (campaign.leads / campaign.targetLeadsPerDay) >= 0.7 
-                                        ? '[&>div]:bg-amber-500' 
-                                        : '[&>div]:bg-blue-500'
-                                  }`}
-                                />
-                                <div className="text-xs text-muted-foreground">
-                                  {Math.round((campaign.leads / campaign.targetLeadsPerDay) * 100)}% of target
-                                </div>
-                              </div>
+                              (() => {
+                                const now = new Date();
+                                const hoursElapsed = now.getHours() + now.getMinutes() / 60;
+                                const dayProgress = hoursElapsed / 24; // 0-1 representing how much of day has passed
+                                const expectedLeadsNow = Math.round(campaign.targetLeadsPerDay * dayProgress);
+                                const actualProgress = (campaign.leads / campaign.targetLeadsPerDay) * 100;
+                                const pacingProgress = expectedLeadsNow > 0 
+                                  ? Math.min((campaign.leads / expectedLeadsNow) * 100, 150) 
+                                  : 100;
+                                const isPacing = campaign.leads >= expectedLeadsNow;
+                                
+                                return (
+                                  <div className="space-y-2">
+                                    {/* Actual vs Target */}
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <span className="text-lg font-bold">
+                                        {campaign.leads}
+                                      </span>
+                                      <span className="text-muted-foreground">/</span>
+                                      <span className="text-lg font-medium text-muted-foreground">
+                                        {campaign.targetLeadsPerDay}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Progress Bar 1: Actual vs Full Day Target */}
+                                    <div className="space-y-0.5">
+                                      <Progress 
+                                        value={Math.min(actualProgress, 100)} 
+                                        className={`h-2 ${
+                                          actualProgress >= 100 
+                                            ? '[&>div]:bg-green-500' 
+                                            : actualProgress >= 70 
+                                              ? '[&>div]:bg-amber-500' 
+                                              : '[&>div]:bg-blue-500'
+                                        }`}
+                                      />
+                                      <div className="text-xs text-muted-foreground">
+                                        {Math.round(actualProgress)}% of target
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Progress Bar 2: Pacing vs Time of Day */}
+                                    <div className="space-y-0.5">
+                                      <div className="flex items-center gap-1">
+                                        <Progress 
+                                          value={Math.min(pacingProgress, 100)} 
+                                          className={`h-2 flex-1 ${
+                                            pacingProgress >= 100 
+                                              ? '[&>div]:bg-green-500' 
+                                              : pacingProgress >= 80 
+                                                ? '[&>div]:bg-amber-500' 
+                                                : '[&>div]:bg-red-500'
+                                          }`}
+                                        />
+                                        {isPacing ? (
+                                          <TrendingUp className="h-3 w-3 text-green-500" />
+                                        ) : (
+                                          <TrendingDown className="h-3 w-3 text-red-500" />
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {campaign.leads}/{expectedLeadsNow} expected by {format(now, 'h:mma').toLowerCase()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()
                             ) : (
                               <span className="text-xs text-muted-foreground">No target set</span>
                             )}
