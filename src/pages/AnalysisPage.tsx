@@ -13,6 +13,7 @@ import { BudgetOptimization } from "@/components/analysis/BudgetOptimization";
 import { GoalTracker } from "@/components/analysis/GoalTracker";
 import { ComparativeAnalysis } from "@/components/analysis/ComparativeAnalysis";
 import AIAnalyst from "@/components/analysis/AIAnalyst";
+import CampaignChangelog from "@/components/analysis/CampaignChangelog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +95,9 @@ const AnalysisPage = () => {
 
       {/* AI Analyst Section */}
       <AIAnalyst />
+      
+      {/* Campaign Changelog Section */}
+      <CampaignChangelog />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Left sidebar with settings */}

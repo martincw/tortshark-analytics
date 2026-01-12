@@ -56,6 +56,117 @@ serve(async (req) => {
     
     console.log(`Found ${statsHistory?.length || 0} stats records`);
 
+    // Fetch changelog entries from the last 30 days for context
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    const { data: changelogEntries } = await supabase
+      .from("campaign_changelog")
+      .select("campaign_id, change_type, title, description, change_date")
+      .eq("workspace_id", workspaceId)
+      .gte("change_date", thirtyDaysAgoStr)
+      .order("change_date", { ascending: false });
+    
+    console.log(`Found ${changelogEntries?.length || 0} changelog entries`);
+
+    // Fetch stats for 7 days BEFORE each change to calculate before/after metrics
+    const changelogWithImpact = await Promise.all((changelogEntries || []).map(async (change) => {
+      const changeDate = new Date(change.change_date);
+      const campaignName = campaigns?.find(c => c.id === change.campaign_id)?.name || "Unknown";
+      
+      // 7 days before the change
+      const beforeStart = new Date(changeDate);
+      beforeStart.setUTCDate(beforeStart.getUTCDate() - 7);
+      const beforeEnd = new Date(changeDate);
+      beforeEnd.setUTCDate(beforeEnd.getUTCDate() - 1);
+      
+      // 7 days after the change (or up to yesterday)
+      const afterStart = new Date(changeDate);
+      const afterEnd = new Date(changeDate);
+      afterEnd.setUTCDate(afterEnd.getUTCDate() + 6);
+      
+      // Clamp afterEnd to yesterday
+      if (afterEnd > endDate) {
+        afterEnd.setTime(endDate.getTime());
+      }
+      
+      const beforeStartStr = beforeStart.toISOString().split('T')[0];
+      const beforeEndStr = beforeEnd.toISOString().split('T')[0];
+      const afterStartStr = afterStart.toISOString().split('T')[0];
+      const afterEndStr = afterEnd.toISOString().split('T')[0];
+      
+      // Fetch before stats
+      const { data: beforeStats } = await supabase
+        .from("campaign_stats_history")
+        .select("leads, ad_spend, revenue, cases")
+        .eq("campaign_id", change.campaign_id)
+        .gte("date", beforeStartStr)
+        .lte("date", beforeEndStr);
+      
+      // Fetch after stats
+      const { data: afterStats } = await supabase
+        .from("campaign_stats_history")
+        .select("leads, ad_spend, revenue, cases")
+        .eq("campaign_id", change.campaign_id)
+        .gte("date", afterStartStr)
+        .lte("date", afterEndStr);
+      
+      // Calculate metrics
+      const beforeLeads = beforeStats?.reduce((sum, s) => sum + (s.leads || 0), 0) || 0;
+      const beforeSpend = beforeStats?.reduce((sum, s) => sum + (s.ad_spend || 0), 0) || 0;
+      const beforeRevenue = beforeStats?.reduce((sum, s) => sum + (s.revenue || 0), 0) || 0;
+      const beforeDays = beforeStats?.length || 1;
+      
+      const afterLeads = afterStats?.reduce((sum, s) => sum + (s.leads || 0), 0) || 0;
+      const afterSpend = afterStats?.reduce((sum, s) => sum + (s.ad_spend || 0), 0) || 0;
+      const afterRevenue = afterStats?.reduce((sum, s) => sum + (s.revenue || 0), 0) || 0;
+      const afterDays = afterStats?.length || 1;
+      
+      const beforeCPL = beforeLeads > 0 ? beforeSpend / beforeLeads : 0;
+      const afterCPL = afterLeads > 0 ? afterSpend / afterLeads : 0;
+      const beforeROAS = beforeSpend > 0 ? beforeRevenue / beforeSpend : 0;
+      const afterROAS = afterSpend > 0 ? afterRevenue / afterSpend : 0;
+      
+      const cplChange = beforeCPL > 0 ? ((afterCPL - beforeCPL) / beforeCPL) * 100 : 0;
+      const roasChange = beforeROAS > 0 ? ((afterROAS - beforeROAS) / beforeROAS) * 100 : 0;
+      const leadsPerDayChange = beforeLeads / beforeDays > 0 
+        ? (((afterLeads / afterDays) - (beforeLeads / beforeDays)) / (beforeLeads / beforeDays)) * 100 
+        : 0;
+      
+      return {
+        campaignName,
+        changeType: change.change_type === "ad_creative" ? "Ad/Creative" : "Targeting",
+        title: change.title,
+        description: change.description,
+        changeDate: change.change_date,
+        daysOfDataAfter: afterDays,
+        before: {
+          days: beforeDays,
+          leads: beforeLeads,
+          spend: Math.round(beforeSpend * 100) / 100,
+          revenue: Math.round(beforeRevenue * 100) / 100,
+          cpl: Math.round(beforeCPL * 100) / 100,
+          roas: Math.round(beforeROAS * 100) / 100,
+          leadsPerDay: Math.round((beforeLeads / beforeDays) * 10) / 10,
+        },
+        after: {
+          days: afterDays,
+          leads: afterLeads,
+          spend: Math.round(afterSpend * 100) / 100,
+          revenue: Math.round(afterRevenue * 100) / 100,
+          cpl: Math.round(afterCPL * 100) / 100,
+          roas: Math.round(afterROAS * 100) / 100,
+          leadsPerDay: Math.round((afterLeads / afterDays) * 10) / 10,
+        },
+        impact: {
+          cplChange: Math.round(cplChange * 10) / 10,
+          roasChange: Math.round(roasChange * 10) / 10,
+          leadsPerDayChange: Math.round(leadsPerDayChange * 10) / 10,
+        }
+      };
+    }));
+
     // Build campaign summaries for analysis - use revenue from campaign_stats_history
     const campaignSummaries = campaigns?.map(campaign => {
       const campaignStats = statsHistory?.filter(s => s.campaign_id === campaign.id) || [];
@@ -99,6 +210,9 @@ serve(async (req) => {
       const weeklyCapacityFill = weeklyTarget > 0 ? (trailing7DayLeads / weeklyTarget) * 100 : null;
       const isHittingWeeklyTarget = weeklyCapacityFill !== null && weeklyCapacityFill >= 100;
       
+      // Get recent changes for this campaign
+      const recentChanges = changelogWithImpact.filter(c => c.campaignName === campaign.name);
+      
       return {
         id: campaign.id,
         name: campaign.name,
@@ -119,7 +233,8 @@ serve(async (req) => {
         trailing7DayLeads,
         weeklyTarget: weeklyTarget || null,
         weeklyCapacityFillPercent: weeklyCapacityFill !== null ? Math.round(weeklyCapacityFill) : null,
-        isHittingWeeklyTarget
+        isHittingWeeklyTarget,
+        recentChanges: recentChanges.length > 0 ? recentChanges : undefined
       };
     }).filter(c => c.totalSpend > 0 || c.totalLeads > 0) || [];
 
@@ -144,7 +259,8 @@ serve(async (req) => {
         avgCPL: Math.round(portfolioCPL * 100) / 100,
         activeCampaigns: campaignSummaries.filter(c => c.isActive).length
       },
-      campaigns: campaignSummaries
+      campaigns: campaignSummaries,
+      recentChanges: changelogWithImpact.length > 0 ? changelogWithImpact : undefined
     };
 
     // Build prompt for AI analysis
@@ -165,15 +281,33 @@ CRITICAL RULES:
 5. **CAPACITY IS KEY**: Check weeklyCapacityFillPercent for each campaign. If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
 6. **Near-profitable campaigns under capacity are priority**: If ROAS is close to 2x (1.5x-2x) AND under capacity, highlight this as a key opportunity.
 
+CHANGELOG ANALYSIS (if recentChanges data is present):
+When you see "recentChanges" data, this contains logged changes the user made to campaigns with before/after impact metrics. ANALYZE THESE CAREFULLY:
+- Compare the "before" vs "after" metrics for each change
+- Highlight changes that had POSITIVE impact (lower CPL, higher ROAS, more leads per day)
+- Flag changes that had NEGATIVE impact so they can be rolled back
+- Note changes that are too recent (daysOfDataAfter < 5) to draw conclusions
+- Correlate performance trends with the timing of changes
+
 ANALYSIS PRIORITY ORDER:
-1. First, identify campaigns that are PROFITABLE (2x+ ROAS) but UNDER CAPACITY - these are your biggest opportunities
-2. Second, identify campaigns NEAR profitable (1.5x-2x ROAS) and under capacity - these could become profitable with scale
-3. Third, identify unprofitable campaigns (under 1.5x ROAS)
+1. First, analyze any recent changelog entries and their impact on performance
+2. Second, identify campaigns that are PROFITABLE (2x+ ROAS) but UNDER CAPACITY - these are your biggest opportunities
+3. Third, identify campaigns NEAR profitable (1.5x-2x ROAS) and under capacity - these could become profitable with scale
+4. Fourth, identify unprofitable campaigns (under 1.5x ROAS)
 
 Format your response as:
 
 ## 🎯 Executive Summary
-Brief 2-3 sentence overview. Start with overall portfolio ROAS. Immediately highlight any profitable campaigns that are under capacity.
+Brief 2-3 sentence overview. Start with overall portfolio ROAS. Immediately highlight any profitable campaigns that are under capacity. If there are logged changes, mention their overall impact.
+
+## 🔄 Change Impact Analysis
+(Include this section ONLY if recentChanges data exists)
+For each logged change, show:
+- Campaign name, change type, and what was changed
+- Date of change
+- Before vs After comparison (CPL, ROAS, Leads/Day)
+- Impact assessment: ✅ Positive, ⚠️ Neutral/Too Early, ❌ Negative
+- Recommendation: Keep, Roll Back, or Wait for More Data
 
 ## 📊 Weekly Campaign Overview
 For ALL active campaigns, show:
@@ -193,7 +327,7 @@ Campaigns hitting both profitability (2x+) and capacity targets.
 Only campaigns where CPL is rising vs their own past (cplTrend > 15%).
 
 ## 💡 Campaign-Specific Actions
-One actionable item per campaign.
+One actionable item per campaign. Prioritize changes based on changelog impact analysis.
 
 IMPORTANT: If a campaign has positive ROAS but is under capacity, this is your MAIN recommendation - push more volume there!`;
 
@@ -208,7 +342,8 @@ CRITICAL REMINDERS:
 - Only compare a campaign's CPL to its OWN history, not to other campaigns
 - Show me ALL active campaigns in the weekly overview
 - If a campaign shows low/no revenue but has spend, flag it as potentially unprofitable - don't recommend scaling it!
-- Calculate actual profit (revenue - spend) for each campaign`;
+- Calculate actual profit (revenue - spend) for each campaign
+- If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {

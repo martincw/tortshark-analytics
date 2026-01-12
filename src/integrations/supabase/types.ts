@@ -343,6 +343,57 @@ export type Database = {
           },
         ]
       }
+      campaign_changelog: {
+        Row: {
+          campaign_id: string
+          change_date: string
+          change_type: string
+          created_at: string
+          description: string | null
+          id: string
+          title: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          change_date?: string
+          change_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          change_date?: string
+          change_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_changelog_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_changelog_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_manual_stats: {
         Row: {
           campaign_id: string
