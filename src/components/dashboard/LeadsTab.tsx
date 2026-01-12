@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Download, TrendingUp, TrendingDown, Users, DollarSign, BarChart3, Zap, Minus, Target } from "lucide-react";
+import { Loader2, RefreshCw, Download, TrendingUp, TrendingDown, Users, DollarSign, BarChart3, Zap, Minus, Target, Clock } from "lucide-react";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/campaignUtils";
@@ -899,7 +899,11 @@ const LeadsTab: React.FC = () => {
                                     </div>
                                     
                                     {/* Progress Bar 2: Pacing vs Time of Day */}
-                                    <div className="space-y-0.5">
+                                    <div className="space-y-0.5 pt-1 border-t border-border/50">
+                                      <div className="flex items-center gap-1 mb-1">
+                                        <Clock className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Pacing</span>
+                                      </div>
                                       <div className="flex items-center gap-1">
                                         <Progress 
                                           value={Math.min(pacingProgress, 100)} 
@@ -912,13 +916,17 @@ const LeadsTab: React.FC = () => {
                                           }`}
                                         />
                                         {isPacing ? (
-                                          <TrendingUp className="h-3 w-3 text-green-500" />
+                                          <TrendingUp className="h-3.5 w-3.5 text-green-500" />
                                         ) : (
-                                          <TrendingDown className="h-3 w-3 text-red-500" />
+                                          <TrendingDown className="h-3.5 w-3.5 text-red-500" />
                                         )}
                                       </div>
-                                      <div className="text-xs text-muted-foreground">
-                                        {campaign.leads}/{expectedLeadsNow} expected by {format(now, 'h:mma').toLowerCase()}
+                                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <span className="font-medium">{campaign.leads}/{expectedLeadsNow}</span>
+                                        <span>by {format(now, 'h:mma').toLowerCase()}</span>
+                                        <span className={`font-semibold ${isPacing ? 'text-green-600' : 'text-red-600'}`}>
+                                          ({Math.round(pacingProgress)}%)
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
