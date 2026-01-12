@@ -38,6 +38,7 @@ import ContractorBulkEntry from "./pages/ContractorBulkEntry";
 import ContractorSubmissionsPage from "./pages/ContractorSubmissionsPage";
 import CasesRevenueEntryPage from "./pages/CasesRevenueEntryPage";
 import AnalysisPage from "./pages/AnalysisPage";
+import ChangelogPage from "./pages/ChangelogPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -255,6 +256,13 @@ const App = () => (
                     <ProtectedRoute>
                       <ContractorRoute>
                         <AnalysisPage />
+                      </ContractorRoute>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/changelog" element={
+                    <ProtectedRoute>
+                      <ContractorRoute>
+                        <ChangelogPage />
                       </ContractorRoute>
                     </ProtectedRoute>
                   } />

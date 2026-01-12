@@ -11,7 +11,9 @@ import {
   FileText,
   LayoutDashboard,
   List,
-  Wallet
+  Wallet,
+  History,
+  Brain
 } from "lucide-react";
 
 export type NavItem = {
@@ -85,9 +87,14 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       href: "/data-sources",
     },
     {
-      icon: TrendingUp,
+      icon: Brain,
       label: "AI Analyst",
       href: "/analysis",
+    },
+    {
+      icon: History,
+      label: "Changelog",
+      href: "/changelog",
     },
     {
       icon: FileText,

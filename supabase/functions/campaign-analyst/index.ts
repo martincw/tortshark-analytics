@@ -63,7 +63,14 @@ serve(async (req) => {
     
     const { data: changelogEntries } = await supabase
       .from("campaign_changelog")
-      .select("campaign_id, change_type, title, description, change_date")
+      .select(`
+        campaign_id,
+        change_type,
+        title,
+        description,
+        change_date,
+        campaigns!inner(name)
+      `)
       .eq("workspace_id", workspaceId)
       .gte("change_date", thirtyDaysAgoStr)
       .order("change_date", { ascending: false });
@@ -71,9 +78,9 @@ serve(async (req) => {
     console.log(`Found ${changelogEntries?.length || 0} changelog entries`);
 
     // Fetch stats for 7 days BEFORE each change to calculate before/after metrics
-    const changelogWithImpact = await Promise.all((changelogEntries || []).map(async (change) => {
+    const changelogWithImpact = await Promise.all((changelogEntries || []).map(async (change: any) => {
       const changeDate = new Date(change.change_date);
-      const campaignName = campaigns?.find(c => c.id === change.campaign_id)?.name || "Unknown";
+      const campaignName = change.campaigns?.name || "Unknown";
       
       // 7 days before the change
       const beforeStart = new Date(changeDate);
