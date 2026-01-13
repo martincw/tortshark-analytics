@@ -77,6 +77,9 @@ url = ""
 [functions.campaign-analyst]
 verify_jwt = false
 
+[functions.google-ads-sync]
+verify_jwt = false
+
 [functions.google-ads-mapping]
 verify_jwt = true
 
