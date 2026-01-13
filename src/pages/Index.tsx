@@ -16,6 +16,7 @@ import LeadsTab from "@/components/dashboard/LeadsTab";
 import PortfolioTab from "@/components/dashboard/PortfolioTab";
 import { DailyRevenueChart } from "@/components/dashboard/DailyRevenueChart";
 import DailyLeadCostsTab from "@/components/dashboard/DailyLeadCostsTab";
+import UnmappedCampaignsBanner from "@/components/dashboard/UnmappedCampaignsBanner";
 
 const Index = () => {
   const { dateRange, selectedCampaignIds, campaigns, isLoading, error, fetchCampaigns } = useCampaign();
@@ -144,6 +145,9 @@ const Index = () => {
   // Regular render state with proper fallbacks for empty data
   return (
     <div className="space-y-6">
+      {/* Unmapped Google Ads campaigns banner */}
+      <UnmappedCampaignsBanner />
+      
       {/* Keep the DashboardHeader at the top across all tabs */}
       <DashboardHeader />
       
