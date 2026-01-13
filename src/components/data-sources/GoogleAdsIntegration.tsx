@@ -54,13 +54,13 @@ const GoogleAdsIntegration = () => {
         return;
       }
       
-      if (result.url) {
-        // Store current path in localStorage before redirecting
-        localStorage.setItem('redirectAfterAuth', '/sources?source=googleads');
-        
-        // Redirect to Google OAuth URL
-        window.location.href = result.url;
-      }
+        if (result.url) {
+          // Store current path in localStorage before redirecting
+          localStorage.setItem('redirectAfterAuth', '/data-sources?source=googleads');
+
+          // Redirect to Google OAuth URL
+          window.location.href = result.url;
+        }
     } catch (error) {
       console.error("Failed to initiate Google Ads connection:", error);
       setConnectionError("Failed to connect to Google Ads");
