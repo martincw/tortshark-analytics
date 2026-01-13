@@ -65,11 +65,7 @@ serve(async (req) => {
     
     console.log(`Found ${statsHistory?.length || 0} stats records`);
 
-    // Fetch changelog entries from the last 30 days for context
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-    
+    // Fetch ALL changelog entries for context (no date limit)
     const { data: changelogEntries } = await supabase
       .from("campaign_changelog")
       .select(`
@@ -81,10 +77,9 @@ serve(async (req) => {
         campaigns!inner(name)
       `)
       .eq("workspace_id", workspaceId)
-      .gte("change_date", thirtyDaysAgoStr)
       .order("change_date", { ascending: false });
     
-    console.log(`Found ${changelogEntries?.length || 0} changelog entries`);
+    console.log(`Found ${changelogEntries?.length || 0} changelog entries (all time)`);
 
     // Fetch stats for 7 days BEFORE each change to calculate before/after metrics
     // IMPORTANT: Only include changes that have at least 1 full day of data AFTER the change
