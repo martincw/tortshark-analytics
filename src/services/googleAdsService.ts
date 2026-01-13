@@ -45,32 +45,39 @@ export const isGoogleAuthValid = async (): Promise<boolean> => {
 export const initiateGoogleAuth = async (): Promise<{ url: string }> => {
   try {
     const { data: session } = await supabase.auth.getSession();
-    
+
     if (!session?.session) {
       toast.error("Please sign in to connect Google Ads");
       throw new Error("No active session found");
     }
 
+    const redirectTo = typeof window !== "undefined"
+      ? window.location.href
+      : "/data-sources?source=googleads";
+
     console.log("Starting Google Auth process with valid session");
-    
+
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { 
+      body: {
         action: "auth",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        redirectTo,
       }
     });
-    
+
     if (error) {
       console.error("Failed to get auth URL:", error);
       throw new Error(`Failed to get authentication URL: ${error.message || error}`);
     }
-    
+
     if (!data?.url) {
       console.error("No URL returned from edge function");
       throw new Error("No authentication URL was returned from the server");
     }
-    
-    console.log("Successfully generated Google Auth URL");
+
+    // Redirect the browser to Google's consent screen
+    window.location.href = data.url;
+
     return { url: data.url };
   } catch (error) {
     console.error("Error in initiateGoogleAuth:", error);

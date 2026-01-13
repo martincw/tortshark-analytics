@@ -10,15 +10,16 @@ export const initiateGoogleAdsConnection = async () => {
     }
 
     console.log("Starting Google Ads connection process");
-    
+
+    const redirectTo = typeof window !== "undefined"
+      ? window.location.href
+      : "/data-sources?source=googleads";
+
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { 
+      body: {
         action: "auth",
         timestamp: new Date().toISOString(),
-        state: JSON.stringify({
-          redirectPath: '/integrations',
-          timestamp: new Date().toISOString()
-        })
+        redirectTo,
       }
     });
 
@@ -34,8 +35,8 @@ export const initiateGoogleAdsConnection = async () => {
       return { error: "No authentication URL returned" };
     }
 
-    localStorage.setItem('preAuthPath', '/integrations');
-    
+    localStorage.setItem('preAuthPath', redirectTo);
+
     return { url: data.url };
   } catch (error) {
     console.error("Error in initiateGoogleAdsConnection:", error);
