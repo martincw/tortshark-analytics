@@ -1530,6 +1530,7 @@ export type Database = {
       }
       migrate_campaigns_from_localstorage: { Args: never; Returns: string }
       migrate_data_to_workspaces: { Args: never; Returns: undefined }
+      trigger_google_ads_sync: { Args: never; Returns: undefined }
       upsert_daily_lead_metrics: {
         Args: {
           p_accepted: number
