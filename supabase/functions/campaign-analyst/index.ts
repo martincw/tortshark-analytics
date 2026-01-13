@@ -319,6 +319,23 @@ serve(async (req) => {
     const portfolioRoas = portfolioTotalSpend > 0 ? portfolioTotalRevenue / portfolioTotalSpend : 0;
     const portfolioCPL = portfolioTotalLeads > 0 ? portfolioTotalSpend / portfolioTotalLeads : 0;
 
+    // Separate today's changes (actions already taken) from historical changes
+    const todaysChanges = (changelogEntries || [])
+      .filter((c: any) => {
+        const changeDate = new Date(c.change_date);
+        changeDate.setUTCHours(0, 0, 0, 0);
+        return changeDate.getTime() >= today.getTime();
+      })
+      .map((c: any) => ({
+        campaignName: c.campaigns?.name || "Unknown",
+        changeType: c.change_type === "ad_creative" ? "Ad/Creative" : 
+                    c.change_type === "spend_increase" ? "Ad Spend Increase" :
+                    c.change_type === "spend_decrease" ? "Ad Spend Decrease" : "Targeting",
+        title: c.title,
+        description: c.description,
+        changeDate: c.change_date,
+      }));
+
     const dataPayload = {
       dateRange: {
         startDate: startDateStr,
@@ -334,6 +351,9 @@ serve(async (req) => {
         activeCampaigns: campaignSummaries.filter(c => c.isActive).length
       },
       campaigns: campaignSummaries,
+      // Changes made TODAY - actions already taken, DO NOT recommend these again
+      todaysChanges: todaysChanges.length > 0 ? todaysChanges : undefined,
+      // Historical changes with before/after impact data
       recentChanges: changelogWithImpact.length > 0 ? changelogWithImpact : undefined
     };
 
@@ -354,6 +374,13 @@ CRITICAL RULES:
 4. **If ROAS < 2x, the campaign is NOT profitable** - flag this clearly.
 5. **CAPACITY IS KEY**: Check capacityFillPercent for each campaign. This is calculated based on the actual analysis period (1 day for "yesterday", 7 days for "trailing 7"). If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
 6. **Near-profitable campaigns under capacity are priority**: If ROAS is close to 2x (1.5x-2x) AND under capacity, highlight this as a key opportunity.
+
+**TODAY'S CHANGES (ALREADY DONE - DO NOT RECOMMEND AGAIN):**
+If "todaysChanges" is present in the data, these are actions the user has ALREADY TAKEN TODAY. 
+- DO NOT recommend actions that have already been done today
+- For example, if they already logged "Cut spend" for Rideshare today, do NOT tell them to cut Rideshare
+- Acknowledge what they've already done if relevant
+- Focus recommendations on campaigns that have NOT been addressed yet today
 
 CHANGELOG ANALYSIS (if recentChanges data is present):
 When you see "recentChanges" data, this contains logged changes the user made to campaigns with before/after impact metrics. ANALYZE THESE CAREFULLY:
@@ -378,6 +405,7 @@ IMPORTANT REMINDERS:
 - NEVER tell me to reallocate budget between campaigns - I want to maximize ALL campaigns
 - NEVER tell me to scale back a profitable campaign (2x+ ROAS)
 - Only compare a campaign's CPL to its OWN history, not to other campaigns
+- Check "todaysChanges" before making recommendations - don't suggest what's already been done
 - Calculate actual profit (revenue - spend) for each campaign
 - If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working`;
 
