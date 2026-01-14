@@ -14,7 +14,7 @@ import {
   validateGoogleToken,
   cleanupAllAccounts
 } from "@/services/googleAdsService";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCampaign } from "@/contexts/CampaignContext";
 import GoogleAdsAccountSelector from "./GoogleAdsAccountSelector";
@@ -32,37 +32,71 @@ const GoogleAdsIntegration: React.FC = () => {
   const { user } = useAuth();
   const { fetchGoogleAdsAccounts } = useCampaign();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  
   const REDIRECT_URL = "https://msgqsgftjwpbnqenhfmc.supabase.co/functions/v1/google-oauth";
 
   useEffect(() => {
     const checkConnection = async () => {
-      if (!user) return;
-      
+      if (!user) {
+        setIsConnected(false);
+        setIsChecking(false);
+        return;
+      }
+
       setIsChecking(true);
+
+      const oauthError = searchParams.get("google_oauth_error");
+      if (oauthError) {
+        setConnectionError(`Google OAuth error: ${oauthError}`);
+        toast.error("Google Ads connection failed");
+
+        const params = new URLSearchParams(searchParams);
+        params.delete("google_oauth_error");
+        navigate(
+          {
+            pathname: location.pathname,
+            search: params.toString() ? `?${params.toString()}` : "",
+          },
+          { replace: true },
+        );
+
+        setIsChecking(false);
+        return;
+      }
+
       setConnectionError(null);
-      
+
       // Check if we just completed OAuth
-      const justConnected = searchParams.get('google_connected') === '1';
-      
+      const justConnected = searchParams.get("google_connected") === "1";
+
       // Set a timeout to prevent endless loading
       const timeout = setTimeout(() => {
         setIsChecking(false);
         setConnectionError("Connection check timed out. Please try again.");
       }, 15000); // 15 seconds timeout
-      
+
       try {
         const connected = await isGoogleAuthValid();
         setIsConnected(connected);
-        
+
         if (connected) {
           const credentials = await getGoogleAdsCredentials();
           setUserEmail(credentials?.userEmail || null);
-          
+
           // If just connected via OAuth, show account selector
           if (justConnected) {
             setShowAccountSelector(true);
+
+            const params = new URLSearchParams(searchParams);
+            params.delete("google_connected");
+            navigate(
+              {
+                pathname: location.pathname,
+                search: params.toString() ? `?${params.toString()}` : "",
+              },
+              { replace: true },
+            );
           } else {
             await fetchGoogleAdsAccounts();
           }
@@ -75,9 +109,9 @@ const GoogleAdsIntegration: React.FC = () => {
         setIsChecking(false);
       }
     };
-    
+
     checkConnection();
-  }, [user, fetchGoogleAdsAccounts, searchParams]);
+  }, [user, fetchGoogleAdsAccounts, searchParams, navigate, location.pathname]);
 
   const handleConnect = async () => {
     setIsConnecting(true);
