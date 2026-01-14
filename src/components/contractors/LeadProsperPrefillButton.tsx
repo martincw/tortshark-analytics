@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Download, RefreshCw } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -16,12 +17,15 @@ interface LeadProsperData {
   ad_spend: number;
 }
 
+type Channel = "youtube" | "meta" | "newsbreak";
+
 interface LeadProsperPrefillButtonProps {
-  onPrefill: (date: string, data: LeadProsperData[]) => void;
+  onPrefill: (date: string, data: LeadProsperData[], channel: Channel) => void;
 }
 
 export function LeadProsperPrefillButton({ onPrefill }: LeadProsperPrefillButtonProps) {
   const [date, setDate] = useState<Date>(subDays(new Date(), 1));
+  const [channel, setChannel] = useState<Channel>("youtube");
   const [isFetching, setIsFetching] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -37,8 +41,8 @@ export function LeadProsperPrefillButton({ onPrefill }: LeadProsperPrefillButton
       if (error) throw error;
 
       if (data.success && data.submissions?.length > 0) {
-        onPrefill(dateStr, data.submissions);
-        toast.success(`Fetched data for ${data.submissions.length} campaign(s) from LeadProsper`);
+        onPrefill(dateStr, data.submissions, channel);
+        toast.success(`Fetched data for ${data.submissions.length} campaign(s) - assigned to ${channel.charAt(0).toUpperCase() + channel.slice(1)}`);
       } else if (data.unmappedCampaigns?.length > 0) {
         toast.warning(`No mapped campaigns found. ${data.unmappedCampaigns.length} unmapped campaign(s).`);
       } else {
@@ -53,13 +57,13 @@ export function LeadProsperPrefillButton({ onPrefill }: LeadProsperPrefillButton
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap justify-center">
       <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className={cn(
-              "w-[180px] justify-start text-left font-normal",
+              "w-[160px] justify-start text-left font-normal",
               !date && "text-muted-foreground"
             )}
           >
@@ -67,7 +71,7 @@ export function LeadProsperPrefillButton({ onPrefill }: LeadProsperPrefillButton
             {date ? format(date, "MMM d, yyyy") : "Select date"}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
           <Calendar
             mode="single"
             selected={date}
@@ -83,6 +87,17 @@ export function LeadProsperPrefillButton({ onPrefill }: LeadProsperPrefillButton
           />
         </PopoverContent>
       </Popover>
+
+      <Select value={channel} onValueChange={(v) => setChannel(v as Channel)}>
+        <SelectTrigger className="w-[140px]">
+          <SelectValue placeholder="Channel" />
+        </SelectTrigger>
+        <SelectContent className="bg-background z-50">
+          <SelectItem value="youtube">YouTube</SelectItem>
+          <SelectItem value="meta">Meta</SelectItem>
+          <SelectItem value="newsbreak">Newsbreak</SelectItem>
+        </SelectContent>
+      </Select>
       
       <Button 
         onClick={handleFetch} 
