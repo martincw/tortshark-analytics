@@ -213,6 +213,103 @@ serve(async (req) => {
     
     console.log(`Google Ads Sync - Action: ${action}, User: ${userId}, Workspace: ${workspaceId}`);
 
+    // Get campaigns for a specific account (used by frontend)
+    if (action === "get-campaigns") {
+      if (!customerId) {
+        return new Response(
+          JSON.stringify({ success: false, error: "customerId required" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get user from the auth header
+      const authHeader = req.headers.get("Authorization");
+      let tokenUserId = userId;
+      
+      if (!tokenUserId && authHeader) {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await supabase.auth.getUser(token);
+        tokenUserId = user?.id;
+      }
+
+      if (!tokenUserId) {
+        return new Response(
+          JSON.stringify({ success: false, error: "User not authenticated" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const accessToken = await getValidAccessToken(tokenUserId);
+      if (!accessToken) {
+        return new Response(
+          JSON.stringify({ success: false, error: "No valid Google Ads token" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        // Fetch campaigns with metrics
+        const query = `
+          SELECT 
+            campaign.id, 
+            campaign.name,
+            campaign.status,
+            campaign_budget.amount_micros,
+            metrics.clicks,
+            metrics.impressions,
+            metrics.cost_micros
+          FROM campaign
+          WHERE campaign.status != 'REMOVED'
+        `;
+        
+        const cleanCustomerId = customerId.replace(/-/g, '');
+        
+        const response = await fetch(
+          `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${cleanCustomerId}/googleAds:search`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query, pageSize: 10000 }),
+          }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Google Ads API error:", errorText);
+          return new Response(
+            JSON.stringify({ success: false, error: `Google Ads API error: ${response.status}` }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        const data = await response.json();
+        const campaigns = (data.results || []).map((r: any) => ({
+          id: r.campaign?.id,
+          name: r.campaign?.name,
+          status: r.campaign?.status,
+          budget: r.campaignBudget?.amountMicros || 0,
+          clicks: r.metrics?.clicks || 0,
+          impressions: r.metrics?.impressions || 0,
+          cost_micros: r.metrics?.costMicros || 0,
+        }));
+
+        return new Response(
+          JSON.stringify({ success: true, campaigns }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("Error fetching campaigns:", e);
+        return new Response(
+          JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (action === "list-google-campaigns") {
       // List all Google Ads campaigns from connected accounts
       const accessToken = await getValidAccessToken(userId);
