@@ -50,6 +50,7 @@ const MorningBriefing: React.FC = () => {
             workspaceId: currentWorkspace.id,
             briefingMode: true,
             analysisPeriod: selectedPeriod,
+            clientDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
           }),
         }
       );
@@ -174,6 +175,7 @@ const MorningBriefing: React.FC = () => {
             workspaceId: currentWorkspace.id,
             messages: newMessages,
             analysisPeriod: period,
+            clientDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
           }),
         }
       );
