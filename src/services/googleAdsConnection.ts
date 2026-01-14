@@ -1,6 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+};
+
 export const initiateGoogleAdsConnection = async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -20,7 +26,8 @@ export const initiateGoogleAdsConnection = async () => {
         action: "auth",
         timestamp: new Date().toISOString(),
         redirectTo,
-      }
+      },
+      headers: await getAuthHeaders(),
     });
 
     if (error) {
@@ -62,7 +69,8 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
       body: { 
         action: "callback",
         code,
-      }
+      },
+      headers: await getAuthHeaders(),
     });
 
     if (error) {
@@ -93,7 +101,8 @@ export const validateGoogleAdsConnection = async (): Promise<boolean> => {
     if (!session) return false;
 
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "validate" }
+      body: { action: "validate" },
+      headers: await getAuthHeaders(),
     });
 
     if (error || !data?.valid) {
@@ -113,7 +122,8 @@ export const fetchGoogleAdsAccounts = async (): Promise<any[]> => {
     console.log("Fetching Google Ads accounts");
 
     const { data, error } = await supabase.functions.invoke('google-ads', {
-      body: { action: "accounts" }
+      body: { action: "accounts" },
+      headers: await getAuthHeaders(),
     });
 
     if (error) {
