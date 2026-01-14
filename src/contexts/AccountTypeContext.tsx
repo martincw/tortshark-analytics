@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -15,7 +14,10 @@ interface AccountTypeContextType {
 const AccountTypeContext = createContext<AccountTypeContextType | undefined>(undefined);
 
 export const AccountTypeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const auth = useAuth();
+  const user = auth.user;
+  const isAuthenticated = auth.isAuthenticated;
+
   const [accountType, setAccountType] = useState<AccountType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,6 +51,7 @@ export const AccountTypeProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   useEffect(() => {
     fetchAccountType();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isAuthenticated]);
 
   const refreshAccountType = async () => {
