@@ -5,7 +5,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
-const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "Ngh3IukgQ3ovdkH3M0smUg";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
+const GOOGLE_ADS_MANAGER_CUSTOMER_ID = Deno.env.get("GOOGLE_ADS_MANAGER_CUSTOMER_ID") || "";
 const REDIRECT_URI = "https://app.tortshark.com/integrations";
 
 const corsHeaders = {
@@ -123,22 +124,34 @@ async function refreshAccessToken(refreshToken: string) {
 async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: boolean = false) {
   try {
     console.log("Listing real Google Ads accounts");
+    console.log("Using developer token:", GOOGLE_ADS_DEVELOPER_TOKEN ? "present" : "missing");
+    console.log("Using manager customer ID:", GOOGLE_ADS_MANAGER_CUSTOMER_ID || "not set");
+    
+    // Build headers - include login-customer-id for MCC/Manager account access
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${accessToken}`,
+      "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+    };
+    
+    // Add login-customer-id if we have a manager account configured
+    if (GOOGLE_ADS_MANAGER_CUSTOMER_ID) {
+      // Remove dashes from customer ID if present
+      headers["login-customer-id"] = GOOGLE_ADS_MANAGER_CUSTOMER_ID.replace(/-/g, "");
+    }
     
     // Google Ads API - use the v18 endpoint (latest stable)
     const listCustomersResponse = await fetch(
       "https://googleads.googleapis.com/v18/customers:listAccessibleCustomers",
       {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
-        },
+        headers,
       }
     );
     
     if (!listCustomersResponse.ok) {
       const errorText = await listCustomersResponse.text();
       console.error("Failed to list accessible customers:", errorText);
+      console.error("Response status:", listCustomersResponse.status);
       throw new Error(`Google Ads API error: ${listCustomersResponse.status} - ${errorText}`);
     }
     
@@ -158,14 +171,20 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
     const accounts = await Promise.all(
       customerIds.map(async (customerId: string) => {
         try {
+          // Build headers for customer details - need login-customer-id for MCC access
+          const detailHeaders: Record<string, string> = {
+            Authorization: `Bearer ${accessToken}`,
+            "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+          };
+          if (GOOGLE_ADS_MANAGER_CUSTOMER_ID) {
+            detailHeaders["login-customer-id"] = GOOGLE_ADS_MANAGER_CUSTOMER_ID.replace(/-/g, "");
+          }
+          
           const customerResponse = await fetch(
             `https://googleads.googleapis.com/v18/customers/${customerId}`,
             {
               method: "GET",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
-              },
+              headers: detailHeaders,
             }
           );
           
