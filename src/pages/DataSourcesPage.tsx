@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import GoogleAdsIntegration from "@/components/data-sources/GoogleAdsIntegration";
+import GoogleAdsIntegration from "@/components/integrations/GoogleAdsIntegration";
 import ClickMagickIntegration from "@/components/data-sources/ClickMagickIntegration";
 import GoogleAdsCampaignMapping from "@/components/data-sources/GoogleAdsCampaignMapping";
 import LeadProsperCampaignMapping from "@/components/data-sources/LeadProsperCampaignMapping";
