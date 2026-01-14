@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { format, parseISO, eachDayOfInterval, subDays } from "date-fns";
 import { formatCurrency } from "@/utils/campaignUtils";
 import {
@@ -15,7 +16,7 @@ import {
   LabelList,
   ReferenceLine,
 } from "recharts";
-import { TrendingUp, Target, CheckCircle2, XCircle, Pencil, Check, X } from "lucide-react";
+import { TrendingUp, Target, CheckCircle2, XCircle, Pencil, Check, X, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,15 @@ interface LeadData {
   trailing7DayTarget: number;
 }
 
+interface ChangelogEntry {
+  id: string;
+  campaign_id: string;
+  change_date: string;
+  change_type: string;
+  title: string;
+  description: string | null;
+}
+
 interface CampaignLeadData {
   campaignId: string;
   campaignName: string;
@@ -40,6 +50,7 @@ interface CampaignLeadData {
   targetLeadsPerDay: number;
   weeklyTarget: number;
   trailing7DayActual: number;
+  changelog: ChangelogEntry[];
 }
 
 const DailyLeadCostsTab: React.FC = () => {
@@ -123,6 +134,24 @@ const DailyLeadCostsTab: React.FC = () => {
             if (t.target_leads_per_day && t.target_leads_per_day > 0) {
               campaignTargets.set(t.campaign_id, t.target_leads_per_day);
             }
+          });
+        }
+
+        // Fetch changelog entries for all campaigns in the date range
+        const { data: changelogData } = await supabase
+          .from("campaign_changelog")
+          .select("id, campaign_id, change_date, change_type, title, description")
+          .gte("change_date", dateRange.startDate)
+          .lte("change_date", dateRange.endDate)
+          .order("change_date", { ascending: true });
+
+        // Group changelog by campaign
+        const changelogByCampaign = new Map<string, ChangelogEntry[]>();
+        if (changelogData) {
+          changelogData.forEach((entry) => {
+            const existing = changelogByCampaign.get(entry.campaign_id) || [];
+            existing.push(entry);
+            changelogByCampaign.set(entry.campaign_id, existing);
           });
         }
 
@@ -218,6 +247,7 @@ const DailyLeadCostsTab: React.FC = () => {
             targetLeadsPerDay: targetPerDay,
             weeklyTarget,
             trailing7DayActual,
+            changelog: changelogByCampaign.get(campaignId) || [],
           });
         });
 
@@ -546,7 +576,15 @@ const DailyLeadCostsTab: React.FC = () => {
 
               {/* Cost Per Lead Chart */}
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Cost Per Lead</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Cost Per Lead</h4>
+                  {campaign.changelog.length > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      <span>{campaign.changelog.length} change{campaign.changelog.length !== 1 ? 's' : ''} logged</span>
+                    </div>
+                  )}
+                </div>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={campaign.data} margin={{ top: 25, right: 30, bottom: 20, left: 20 }}>
@@ -567,8 +605,10 @@ const DailyLeadCostsTab: React.FC = () => {
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
                           const data = payload[0].payload as LeadData;
+                          // Check if there are changelog entries for this date
+                          const dateChanges = campaign.changelog.filter(c => c.change_date === data.date);
                           return (
-                            <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
+                            <div className="bg-popover border border-border rounded-lg p-4 shadow-lg max-w-xs">
                               <p className="font-semibold text-lg mb-3">
                                 {format(parseISO(data.date), "EEE, MMM d")}
                               </p>
@@ -585,11 +625,39 @@ const DailyLeadCostsTab: React.FC = () => {
                                   <span className="text-muted-foreground">Spend: </span>
                                   <span className="font-bold text-lg">{formatCurrency(data.adSpend)}</span>
                                 </p>
+                                {dateChanges.length > 0 && (
+                                  <div className="pt-2 mt-2 border-t border-border">
+                                    <p className="text-sm font-medium text-amber-600 flex items-center gap-1 mb-1">
+                                      <FileText className="h-3 w-3" />
+                                      Changes Made:
+                                    </p>
+                                    {dateChanges.map((change, idx) => (
+                                      <p key={idx} className="text-sm text-muted-foreground">
+                                        • {change.title}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
                         }}
                       />
+                      {/* Changelog markers as vertical reference lines */}
+                      {campaign.changelog.map((change, idx) => (
+                        <ReferenceLine
+                          key={change.id}
+                          x={change.change_date}
+                          stroke="hsl(35 92% 50%)"
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          label={{
+                            value: "📝",
+                            position: "top",
+                            fontSize: 14,
+                          }}
+                        />
+                      ))}
                       <Line
                         type="monotone"
                         dataKey="costPerLead"
