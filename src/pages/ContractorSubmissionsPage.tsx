@@ -24,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { EditSubmissionDialog } from "@/components/contractors/EditSubmissionDialog";
+import { LeadProsperSyncButton } from "@/components/contractors/LeadProsperSyncButton";
 
 interface ContractorSubmission {
   id: string;
@@ -421,13 +422,14 @@ export default function ContractorSubmissionsPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
           <div>
             <CardTitle>Contractor Submissions</CardTitle>
             <CardDescription>
               Review and manage stats submissions from contractors
             </CardDescription>
           </div>
+          <LeadProsperSyncButton onSyncComplete={fetchSubmissions} />
           {selectedIds.size > 0 && (
             <Button 
               onClick={bulkApprove} 
