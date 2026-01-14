@@ -184,16 +184,22 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         });
 
-      // Best-effort cleanup of any legacy duplicate rows
-      await supabaseAdmin
-        .from("google_ads_tokens")
-        .delete()
-        .eq("user_id", payload.user_id)
-        .neq("id", payload.user_id);
+      if (dbError) {
         console.error("Database error storing tokens:", dbError);
         const redirectBack = new URL(payload.redirect_to);
         redirectBack.searchParams.set("google_oauth_error", "db_write_failed");
         return Response.redirect(redirectBack.toString(), 302);
+      }
+
+      // Best-effort cleanup of any legacy duplicate rows
+      const { error: cleanupError } = await supabaseAdmin
+        .from("google_ads_tokens")
+        .delete()
+        .eq("user_id", payload.user_id)
+        .neq("id", payload.user_id);
+
+      if (cleanupError) {
+        console.error("Token cleanup error (non-fatal):", cleanupError);
       }
 
       const redirectBack = new URL(payload.redirect_to);
@@ -290,17 +296,23 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         });
 
-      // Best-effort cleanup of any legacy duplicate rows
-      await supabaseAdmin
-        .from("google_ads_tokens")
-        .delete()
-        .eq("user_id", user.id)
-        .neq("id", user.id);
+      if (dbError) {
         console.error("Database error:", dbError);
         return new Response(
           JSON.stringify({ success: false, error: `Failed to store tokens: ${dbError.message}` }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
+      }
+
+      // Best-effort cleanup of any legacy duplicate rows
+      const { error: cleanupError } = await supabaseAdmin
+        .from("google_ads_tokens")
+        .delete()
+        .eq("user_id", user.id)
+        .neq("id", user.id);
+
+      if (cleanupError) {
+        console.error("Token cleanup error (non-fatal):", cleanupError);
       }
 
       return new Response(
