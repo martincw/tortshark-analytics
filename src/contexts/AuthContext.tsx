@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
@@ -8,12 +7,12 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
-  isAuthenticated: boolean; // New clear boolean to check auth state
+  isAuthenticated: boolean;
   signOut: () => Promise<void>;
   authError: string | null;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -24,12 +23,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log("Setting up auth state listener");
-    
-    // Set up auth state listener FIRST
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "Session found" : "No session");
-        
+
         if (event === 'TOKEN_REFRESHED') {
           console.log("Token refreshed successfully");
         } else if (event === 'SIGNED_OUT') {
@@ -42,30 +40,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("User updated");
           setIsAuthenticated(true);
         }
-        
+
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        
-        // Clear auth error when session state changes
         setAuthError(null);
       }
     );
 
-    // THEN check for existing session
     const initializeAuth = async () => {
       let loadingTimeoutId: number | undefined;
 
       try {
-        // Fail-open: don't block the entire app if Supabase is slow/unreachable
         loadingTimeoutId = window.setTimeout(() => {
           console.warn("Auth session check timed out; continuing without session");
           setIsLoading(false);
         }, 5000);
 
-        const {
-          data: { session: initialSession },
-          error,
-        } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
 
         console.log("Initial session check complete", initialSession ? "Session found" : "No session");
 
@@ -75,7 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const status = (error as any)?.status;
           const message = error.message ?? "";
 
-          // Corrupted/stale tokens -> clear local session storage (no network request)
           if (message.includes("Invalid Refresh Token") || message.includes("not found")) {
             console.log("Clearing corrupted session data (local sign out)");
             await supabase.auth.signOut({ scope: "local" });
@@ -86,7 +76,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
-          // Network / gateway timeouts -> treat as unauthenticated but keep storage
           if (
             status === 504 ||
             message.includes("Failed to fetch") ||
@@ -127,11 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } finally {
         if (loadingTimeoutId) window.clearTimeout(loadingTimeoutId);
-        // Always end loading state
         setIsLoading(false);
       }
     };
-    
+
     initializeAuth();
 
     return () => {
@@ -139,37 +127,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Function to handle token refresh errors and retry
-  const refreshSession = async () => {
-    try {
-      console.log("Attempting to refresh session");
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error("Failed to refresh session:", error);
-        setIsAuthenticated(false);
-        return false;
-      }
-      
-      setIsAuthenticated(!!data.session);
-      return !!data.session;
-    } catch (error) {
-      console.error("Error refreshing session:", error);
-      setIsAuthenticated(false);
-      return false;
-    }
-  };
-
   const signOut = async () => {
     try {
       setIsLoading(true);
       try {
         await supabase.auth.signOut();
-      } catch (e) {
-        // If the network is down, still clear the local session so the UI can recover.
+      } catch {
         await supabase.auth.signOut({ scope: "local" });
       }
-      // Clear any cached API keys
       if (window.localStorage) {
         localStorage.removeItem('lp_api_key');
       }
@@ -183,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const value = {
+  const value: AuthContextValue = {
     session,
     user,
     isLoading,
