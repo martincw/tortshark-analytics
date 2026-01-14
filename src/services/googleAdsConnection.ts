@@ -96,7 +96,7 @@ export const processOAuthCallback = async (code: string): Promise<boolean> => {
 export const validateGoogleAdsConnection = async (): Promise<boolean> => {
   try {
     console.log("Validating Google Ads connection");
-    
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return false;
 
@@ -105,15 +105,19 @@ export const validateGoogleAdsConnection = async (): Promise<boolean> => {
       headers: await getAuthHeaders(),
     });
 
-    if (error || !data?.valid) {
-      console.error("Connection validation failed:", error || data?.error);
-      return false;
+    if (error) {
+      console.error("Connection validation failed:", error);
+      throw new Error(error.message || "Failed to validate Google Ads connection");
     }
 
-    return true;
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    return !!data?.valid;
   } catch (error) {
     console.error("Error validating Google Ads connection:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -156,7 +160,8 @@ export const fetchGoogleAdsCampaignsForAccount = async (customerId: string): Pro
 
     // Check for developer token existence first
     const { data: developerTokenData, error: developerTokenError } = await supabase.functions.invoke('google-ads', {
-      body: { action: "get-developer-token" }
+      body: { action: "get-developer-token" },
+      headers: await getAuthHeaders(),
     });
 
     if (developerTokenError || !developerTokenData?.developerToken) {
@@ -165,10 +170,11 @@ export const fetchGoogleAdsCampaignsForAccount = async (customerId: string): Pro
     }
 
     const { data, error } = await supabase.functions.invoke("google-ads-mapping", {
-      body: { 
+      body: {
         action: "list-available-campaigns",
         googleAccountId: customerId
-      }
+      },
+      headers: await getAuthHeaders(),
     });
 
     if (error) {
@@ -212,13 +218,14 @@ export const mapGoogleAdsCampaignToTortshark = async (
     console.log(`Mapping campaign ${googleCampaignId} to Tortshark campaign ${tortsharkCampaignId}`);
 
     const { data, error } = await supabase.functions.invoke('google-ads-mapping', {
-      body: { 
+      body: {
         action: "create-mapping",
         tortsharkCampaignId,
         googleAccountId,
         googleCampaignId,
         googleCampaignName
-      }
+      },
+      headers: await getAuthHeaders(),
     });
 
     if (error) {
@@ -248,7 +255,8 @@ export const refreshGoogleAdsToken = async (): Promise<boolean> => {
     console.log("Manually refreshing Google Ads token");
     
     const { data, error } = await supabase.functions.invoke('google-ads', {
-      body: { action: "refresh" }
+      body: { action: "refresh" },
+      headers: await getAuthHeaders(),
     });
     
     if (error || !data?.success) {
@@ -269,7 +277,8 @@ export const getGoogleAdsDeveloperToken = async (): Promise<string | null> => {
     console.log("Fetching Google Ads developer token");
     
     const { data, error } = await supabase.functions.invoke('google-ads', {
-      body: { action: "get-developer-token" }
+      body: { action: "get-developer-token" },
+      headers: await getAuthHeaders(),
     });
     
     if (error || !data?.developerToken) {

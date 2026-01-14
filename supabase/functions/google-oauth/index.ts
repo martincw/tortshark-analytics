@@ -174,15 +174,22 @@ serve(async (req) => {
       const { error: dbError } = await supabaseAdmin
         .from("google_ads_tokens")
         .upsert({
+          // Force one-row-per-user by using user_id as the row id
+          id: payload.user_id,
           user_id: payload.user_id,
           access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
+          refresh_token: tokens.refresh_token ?? null,
           expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           scope: tokens.scope,
           updated_at: new Date().toISOString(),
         });
 
-      if (dbError) {
+      // Best-effort cleanup of any legacy duplicate rows
+      await supabaseAdmin
+        .from("google_ads_tokens")
+        .delete()
+        .eq("user_id", payload.user_id)
+        .neq("id", payload.user_id);
         console.error("Database error storing tokens:", dbError);
         const redirectBack = new URL(payload.redirect_to);
         redirectBack.searchParams.set("google_oauth_error", "db_write_failed");
@@ -273,15 +280,22 @@ serve(async (req) => {
       const { error: dbError } = await supabaseAdmin
         .from("google_ads_tokens")
         .upsert({
+          // Force one-row-per-user by using user_id as the row id
+          id: user.id,
           user_id: user.id,
           access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
+          refresh_token: tokens.refresh_token ?? null,
           expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           scope: tokens.scope,
           updated_at: new Date().toISOString(),
         });
 
-      if (dbError) {
+      // Best-effort cleanup of any legacy duplicate rows
+      await supabaseAdmin
+        .from("google_ads_tokens")
+        .delete()
+        .eq("user_id", user.id)
+        .neq("id", user.id);
         console.error("Database error:", dbError);
         return new Response(
           JSON.stringify({ success: false, error: `Failed to store tokens: ${dbError.message}` }),
@@ -301,6 +315,8 @@ serve(async (req) => {
         .from("google_ads_tokens")
         .select("expires_at")
         .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (tokensError) {
@@ -310,7 +326,7 @@ serve(async (req) => {
         );
       }
 
-      if (!tokens) {
+      if (!tokens?.expires_at) {
         return new Response(
           JSON.stringify({ valid: false }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -330,7 +346,9 @@ serve(async (req) => {
         .from("google_ads_tokens")
         .select("refresh_token")
         .eq("user_id", user.id)
-        .single();
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (tokenError || !tokenData?.refresh_token) {
         return new Response(
@@ -389,7 +407,9 @@ serve(async (req) => {
         .from("google_ads_tokens")
         .select("access_token")
         .eq("user_id", user.id)
-        .single();
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (tokenData?.access_token) {
         try {
