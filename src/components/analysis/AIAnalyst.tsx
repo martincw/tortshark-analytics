@@ -48,6 +48,7 @@ const AIAnalyst: React.FC = () => {
           body: JSON.stringify({
             workspaceId: currentWorkspace.id,
             messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+            clientDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
           }),
         }
       );
@@ -179,6 +180,7 @@ const AIAnalyst: React.FC = () => {
           },
           body: JSON.stringify({
             workspaceId: currentWorkspace?.id,
+            clientDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
           }),
         }
       );

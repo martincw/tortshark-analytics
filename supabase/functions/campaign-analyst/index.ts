@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { workspaceId, messages, briefingMode, analysisPeriod } = await req.json();
+    const { workspaceId, messages, briefingMode, analysisPeriod, clientDate } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,13 +22,21 @@ serve(async (req) => {
     // "yesterday" = just yesterday's data
     // "trailing7" (default) = trailing 7 days EXCLUDING today
     
-    // Get current date in UTC
-    const now = new Date();
-    console.log(`Server time (UTC): ${now.toISOString()}`);
+    // Use client-provided date if available, otherwise fall back to server time
+    // This ensures the analysis uses the user's local date, not the server's UTC date
+    let todayUTC: Date;
     
-    // Create today's date at midnight UTC
-    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    console.log(`Today UTC midnight: ${todayUTC.toISOString()}`);
+    if (clientDate) {
+      // clientDate should be in YYYY-MM-DD format from the client's local timezone
+      const [year, month, day] = clientDate.split('-').map(Number);
+      todayUTC = new Date(Date.UTC(year, month - 1, day));
+      console.log(`Using client date: ${clientDate} -> ${todayUTC.toISOString()}`);
+    } else {
+      // Fallback to server time (less accurate for users in different timezones)
+      const now = new Date();
+      todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      console.log(`Using server time (UTC): ${todayUTC.toISOString()}`);
+    }
     
     // Yesterday is 1 day before today
     const yesterdayUTC = new Date(todayUTC);

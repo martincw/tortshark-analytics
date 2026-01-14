@@ -636,6 +636,57 @@ export type Database = {
           },
         ]
       }
+      campaign_target_history: {
+        Row: {
+          campaign_id: string
+          case_payout_amount: number | null
+          created_at: string
+          effective_date: string
+          id: string
+          target_leads_per_day: number | null
+          target_profit: number | null
+          target_roas: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          case_payout_amount?: number | null
+          created_at?: string
+          effective_date: string
+          id?: string
+          target_leads_per_day?: number | null
+          target_profit?: number | null
+          target_roas?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          case_payout_amount?: number | null
+          created_at?: string
+          effective_date?: string
+          id?: string
+          target_leads_per_day?: number | null
+          target_profit?: number | null
+          target_roas?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_target_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_target_history_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_targets: {
         Row: {
           campaign_id: string
@@ -1501,6 +1552,15 @@ export type Database = {
           created_at: string
           workspace_id: string
           workspace_name: string
+        }[]
+      }
+      get_target_for_date: {
+        Args: { p_campaign_id: string; p_date: string }
+        Returns: {
+          case_payout_amount: number
+          target_leads_per_day: number
+          target_profit: number
+          target_roas: number
         }[]
       }
       get_user_account_type: {
