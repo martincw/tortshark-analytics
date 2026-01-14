@@ -589,7 +589,7 @@ serve(async (req) => {
       }
     }
     
-    // Handle the list-accounts action
+    // Handle the list-accounts action (legacy with accessToken)
     if (action === "list-accounts" && accessToken) {
       try {
         const accounts = await listGoogleAdsAccounts(accessToken, cleanupDummyAccounts);
@@ -611,6 +611,83 @@ serve(async (req) => {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
+        );
+      }
+    }
+    
+    // Handle the list action (uses stored token)
+    if (action === "list") {
+      const authHeader = req.headers.get("Authorization") || "";
+      const token = authHeader.replace("Bearer ", "");
+      
+      if (!token) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Authentication required" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Authentication failed" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Get stored access token
+      const supabaseServiceRole = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "");
+      const { data: tokenData, error: tokenError } = await supabaseServiceRole
+        .from("google_ads_tokens")
+        .select("access_token, refresh_token, expires_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (tokenError || !tokenData?.access_token) {
+        return new Response(
+          JSON.stringify({ success: false, error: "No Google Ads token found. Please reconnect.", accounts: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Check if token is expired and refresh if needed
+      let currentAccessToken = tokenData.access_token;
+      const isExpired = new Date(tokenData.expires_at) <= new Date();
+      
+      if (isExpired && tokenData.refresh_token) {
+        try {
+          const refreshResult = await refreshAccessToken(tokenData.refresh_token);
+          if (refreshResult.success) {
+            currentAccessToken = refreshResult.tokens.access_token;
+            
+            // Update the stored token
+            await supabaseServiceRole
+              .from("google_ads_tokens")
+              .update({
+                access_token: currentAccessToken,
+                expires_at: new Date(refreshResult.tokens.expiry_date).toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq("user_id", user.id);
+          }
+        } catch (refreshError) {
+          console.error("Error refreshing token:", refreshError);
+        }
+      }
+      
+      try {
+        const accounts = await listGoogleAdsAccounts(currentAccessToken, false);
+        
+        return new Response(
+          JSON.stringify({ success: true, accounts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Error listing accounts:", error);
+        return new Response(
+          JSON.stringify({ success: false, error: error.message || "Failed to list accounts", accounts: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }

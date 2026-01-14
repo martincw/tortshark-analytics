@@ -14,9 +14,10 @@ import {
   validateGoogleToken,
   cleanupAllAccounts
 } from "@/services/googleAdsService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCampaign } from "@/contexts/CampaignContext";
+import GoogleAdsAccountSelector from "./GoogleAdsAccountSelector";
 
 const GoogleAdsIntegration: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -27,9 +28,11 @@ const GoogleAdsIntegration: React.FC = () => {
   const [isCleaningUp, setIsCleaningUp] = useState<boolean>(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [showAccountSelector, setShowAccountSelector] = useState<boolean>(false);
   const { user } = useAuth();
   const { fetchGoogleAdsAccounts } = useCampaign();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   const REDIRECT_URL = "https://app.tortshark.com/integrations";
 
@@ -39,6 +42,9 @@ const GoogleAdsIntegration: React.FC = () => {
       
       setIsChecking(true);
       setConnectionError(null);
+      
+      // Check if we just completed OAuth
+      const justConnected = searchParams.get('google_connected') === '1';
       
       // Set a timeout to prevent endless loading
       const timeout = setTimeout(() => {
@@ -54,7 +60,12 @@ const GoogleAdsIntegration: React.FC = () => {
           const credentials = await getGoogleAdsCredentials();
           setUserEmail(credentials?.userEmail || null);
           
-          await fetchGoogleAdsAccounts();
+          // If just connected via OAuth, show account selector
+          if (justConnected) {
+            setShowAccountSelector(true);
+          } else {
+            await fetchGoogleAdsAccounts();
+          }
         }
       } catch (error) {
         console.error("Error checking Google connection:", error);
@@ -66,7 +77,7 @@ const GoogleAdsIntegration: React.FC = () => {
     };
     
     checkConnection();
-  }, [user, fetchGoogleAdsAccounts]);
+  }, [user, fetchGoogleAdsAccounts, searchParams]);
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -220,6 +231,24 @@ const GoogleAdsIntegration: React.FC = () => {
   const handleGoToAccounts = () => {
     navigate("/accounts");
   };
+
+  const handleAccountsConnected = async () => {
+    setShowAccountSelector(false);
+    await fetchGoogleAdsAccounts();
+    toast.success("Google Ads accounts connected successfully!");
+  };
+
+  // Show account selector if needed
+  if (showAccountSelector && isConnected) {
+    return (
+      <div className="space-y-6">
+        <GoogleAdsAccountSelector onAccountsConnected={handleAccountsConnected} />
+        <Button variant="outline" onClick={() => setShowAccountSelector(false)}>
+          Skip for now
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
