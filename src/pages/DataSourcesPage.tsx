@@ -28,13 +28,43 @@ export default function DataSourcesPage() {
     const sourceParam = searchParams.get('source');
     const code = searchParams.get('code');
     const error = searchParams.get('error');
-    
+    const googleOauthError = searchParams.get('google_oauth_error');
+    const googleConnected = searchParams.get('google_connected');
+
+    // Handle oauth errors from our edge-function redirect
+    if (googleOauthError) {
+      toast.error(`Google OAuth error: ${googleOauthError}`);
+      isNavigatingRef.current = true;
+      navigate(
+        { pathname: location.pathname, search: sourceParam ? `?source=${sourceParam}` : '' },
+        { replace: true }
+      );
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 100);
+      return;
+    }
+
+    // Handle success redirect from our edge-function
+    if (googleConnected) {
+      toast.success("Successfully connected to Google Ads");
+      isNavigatingRef.current = true;
+      navigate(
+        { pathname: location.pathname, search: sourceParam ? `?source=${sourceParam}` : '?source=googleads' },
+        { replace: true }
+      );
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 100);
+      return;
+    }
+
     // Handle OAuth callback if code is present
     if (code) {
       handleOAuthCallback(code);
       return;
     }
-    
+
     // Handle OAuth errors
     if (error) {
       toast.error(`Authentication error: ${error}`);

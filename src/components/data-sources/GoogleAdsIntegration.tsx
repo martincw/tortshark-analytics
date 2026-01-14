@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import GoogleAdsCampaigns from './GoogleAdsCampaigns';
 import { initiateGoogleAdsConnection, validateGoogleAdsConnection } from '@/services/googleAdsConnection';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
 
 const GoogleAdsIntegration = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -18,29 +19,39 @@ const GoogleAdsIntegration = () => {
   const [activeTab, setActiveTab] = useState('connect');
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Check connection status on component mount
-  useEffect(() => {
-    checkConnectionStatus();
-  }, []);
+  const { session, isLoading: isAuthLoading } = useAuth();
 
-  const checkConnectionStatus = async () => {
+  const checkConnectionStatus = useCallback(async () => {
     setIsChecking(true);
     setConnectionError(null);
-    
+
     try {
       const isValid = await validateGoogleAdsConnection();
       setIsConnected(isValid);
-      
+
       if (isValid) {
         setActiveTab('campaigns');
       }
     } catch (error) {
       console.error("Error validating Google Ads connection:", error);
-      setConnectionError("Failed to verify connection status");
+      const message = error instanceof Error ? error.message : "Failed to verify connection status";
+      setConnectionError(message);
     } finally {
       setIsChecking(false);
     }
-  };
+  }, []);
+
+  // Re-check once auth is ready (important after OAuth redirects)
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!session) {
+      setIsConnected(false);
+      setIsChecking(false);
+      return;
+    }
+
+    checkConnectionStatus();
+  }, [isAuthLoading, session?.access_token, checkConnectionStatus]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
