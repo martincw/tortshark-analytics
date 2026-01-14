@@ -21,19 +21,27 @@ serve(async (req) => {
     // Calculate date range based on analysisPeriod
     // "yesterday" = just yesterday's data
     // "trailing7" (default) = trailing 7 days EXCLUDING today
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
     
-    const endDate = new Date(today);
-    endDate.setUTCDate(endDate.getUTCDate() - 1); // Yesterday
+    // Get current date in UTC
+    const now = new Date();
+    console.log(`Server time (UTC): ${now.toISOString()}`);
     
-    const startDate = new Date(endDate);
-    if (analysisPeriod === "yesterday") {
-      // Just yesterday - startDate equals endDate
-      // startDate is already set to yesterday via endDate copy
-    } else {
-      // Default: trailing 7 days
-      startDate.setUTCDate(startDate.getUTCDate() - 6); // 7 days back from yesterday
+    // Create today's date at midnight UTC
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    console.log(`Today UTC midnight: ${todayUTC.toISOString()}`);
+    
+    // Yesterday is 1 day before today
+    const yesterdayUTC = new Date(todayUTC);
+    yesterdayUTC.setUTCDate(yesterdayUTC.getUTCDate() - 1);
+    
+    // For the "yesterday" period, start = end = yesterday
+    // For "trailing7", start = 7 days back from yesterday, end = yesterday
+    const endDate = new Date(yesterdayUTC);
+    const startDate = new Date(yesterdayUTC);
+    
+    if (analysisPeriod !== "yesterday") {
+      // trailing 7 days: go back 6 more days from yesterday (total 7 days)
+      startDate.setUTCDate(startDate.getUTCDate() - 6);
     }
     
     const startDateStr = startDate.toISOString().split('T')[0];
@@ -90,7 +98,7 @@ serve(async (req) => {
       
       // Skip changes made today - no data available yet
       // Change must be made BEFORE today to have any "after" data
-      if (changeDate >= today) {
+      if (changeDate >= todayUTC) {
         return {
           campaignName,
           changeType: change.change_type === "ad_creative" ? "Ad/Creative" : 
@@ -324,7 +332,7 @@ serve(async (req) => {
       .filter((c: any) => {
         const changeDate = new Date(c.change_date);
         changeDate.setUTCHours(0, 0, 0, 0);
-        return changeDate.getTime() >= today.getTime();
+        return changeDate.getTime() >= todayUTC.getTime();
       })
       .map((c: any) => ({
         campaignName: c.campaigns?.name || "Unknown",
