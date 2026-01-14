@@ -29,6 +29,7 @@ interface LeadData {
   costPerLead: number;
   trailing7DayLeads: number;
   trailing7DayTarget: number;
+  dailyTarget: number; // Target that was active on this specific date
 }
 
 interface ChangelogEntry {
@@ -75,8 +76,16 @@ const DailyLeadCostsTab: React.FC = () => {
     setSaving(true);
     try {
       const numericValue = parseInt(editValue) || 0;
+      const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
       
-      // Use upsert to handle both insert and update cases
+      // First, get the workspace_id for this campaign
+      const { data: campaignData } = await supabase
+        .from("campaigns")
+        .select("workspace_id")
+        .eq("id", campaignId)
+        .single();
+      
+      // Update current target
       const { error } = await supabase
         .from("campaign_targets")
         .upsert(
@@ -86,14 +95,33 @@ const DailyLeadCostsTab: React.FC = () => {
 
       if (error) throw error;
 
-      // Update local state
+      // Also insert into target history so future calculations know when this change happened
+      const { error: historyError } = await supabase
+        .from("campaign_target_history")
+        .upsert(
+          { 
+            campaign_id: campaignId, 
+            target_leads_per_day: numericValue,
+            effective_date: todayStr,
+            workspace_id: campaignData?.workspace_id
+          },
+          { onConflict: "campaign_id,effective_date" }
+        );
+
+      if (historyError) {
+        console.error("Error saving target history:", historyError);
+        // Don't fail the whole operation, just log
+      }
+
+      // Update local state - note: this uses current target for display
+      // The chart will recalculate with historical data on next load
       setCampaignData(prev => prev.map(c => 
         c.campaignId === campaignId 
           ? { ...c, targetLeadsPerDay: numericValue, weeklyTarget: numericValue * 7 }
           : c
       ));
       
-      toast.success("Lead cap updated");
+      toast.success("Lead cap updated (effective today)");
       setEditingCampaignId(null);
       setEditValue("");
     } catch (error) {
@@ -123,19 +151,59 @@ const DailyLeadCostsTab: React.FC = () => {
       setLoading(true);
 
       try {
-        // Fetch targets first
+        // Fetch current targets (for display/editing)
         const { data: targetsData } = await supabase
           .from("campaign_targets")
           .select("campaign_id, target_leads_per_day");
 
-        const campaignTargets = new Map<string, number>();
+        const currentCampaignTargets = new Map<string, number>();
         if (targetsData) {
           targetsData.forEach((t) => {
             if (t.target_leads_per_day && t.target_leads_per_day > 0) {
-              campaignTargets.set(t.campaign_id, t.target_leads_per_day);
+              currentCampaignTargets.set(t.campaign_id, t.target_leads_per_day);
             }
           });
         }
+
+        // Fetch target history for date-specific calculations
+        const { data: targetHistoryData } = await supabase
+          .from("campaign_target_history")
+          .select("campaign_id, effective_date, target_leads_per_day")
+          .order("effective_date", { ascending: true });
+
+        // Build a map of campaign -> sorted array of {date, target}
+        const targetHistoryMap = new Map<string, { date: string; target: number }[]>();
+        if (targetHistoryData) {
+          targetHistoryData.forEach((h) => {
+            if (!targetHistoryMap.has(h.campaign_id)) {
+              targetHistoryMap.set(h.campaign_id, []);
+            }
+            targetHistoryMap.get(h.campaign_id)!.push({
+              date: h.effective_date,
+              target: h.target_leads_per_day || 0,
+            });
+          });
+        }
+
+        // Helper function to get target for a specific date
+        const getTargetForDate = (campaignId: string, dateStr: string): number => {
+          const history = targetHistoryMap.get(campaignId);
+          if (!history || history.length === 0) {
+            // No history, fall back to current target
+            return currentCampaignTargets.get(campaignId) || 0;
+          }
+          // Find the most recent entry on or before this date
+          let applicableTarget = 0;
+          for (const entry of history) {
+            if (entry.date <= dateStr) {
+              applicableTarget = entry.target;
+            } else {
+              break; // History is sorted, no need to continue
+            }
+          }
+          // If no history before this date, use the current target
+          return applicableTarget || currentCampaignTargets.get(campaignId) || 0;
+        };
 
         // Fetch changelog entries for all campaigns in the date range
         const { data: changelogData } = await supabase
@@ -200,25 +268,28 @@ const DailyLeadCostsTab: React.FC = () => {
         const results: CampaignLeadData[] = [];
 
         campaignMap.forEach((value, campaignId) => {
-          const targetPerDay = campaignTargets.get(campaignId) || 0;
-          const weeklyTarget = targetPerDay * 7;
+          const currentTargetPerDay = currentCampaignTargets.get(campaignId) || 0;
 
-          // First pass: get leads data
-          const leadsByDate: { date: string; leads: number; adSpend: number }[] = allDates.map((date) => {
+          // First pass: get leads data with date-specific targets
+          const leadsByDate: { date: string; leads: number; adSpend: number; dailyTarget: number }[] = allDates.map((date) => {
             const dayData = value.byDate.get(date) || { leads: 0, adSpend: 0 };
+            const dailyTarget = getTargetForDate(campaignId, date);
             return {
               date,
               leads: dayData.leads,
               adSpend: dayData.adSpend,
+              dailyTarget,
             };
           });
 
-          // Second pass: calculate trailing 7-day totals
+          // Second pass: calculate trailing 7-day totals with date-specific targets
           const data: LeadData[] = leadsByDate.map((day, index) => {
             // Calculate trailing 7 days (including current day)
             let trailing7DayLeads = 0;
+            let trailing7DayTarget = 0;
             for (let i = Math.max(0, index - 6); i <= index; i++) {
               trailing7DayLeads += leadsByDate[i].leads;
+              trailing7DayTarget += leadsByDate[i].dailyTarget;
             }
 
             return {
@@ -227,15 +298,17 @@ const DailyLeadCostsTab: React.FC = () => {
               adSpend: day.adSpend,
               costPerLead: day.leads > 0 ? day.adSpend / day.leads : 0,
               trailing7DayLeads,
-              trailing7DayTarget: weeklyTarget,
+              trailing7DayTarget,
+              dailyTarget: day.dailyTarget,
             };
           });
 
           const totalLeads = data.reduce((sum, d) => sum + d.leads, 0);
           const totalSpend = data.reduce((sum, d) => sum + d.adSpend, 0);
 
-          // Get the last day's trailing 7-day actual
+          // Get the last day's trailing 7-day actual and target
           const trailing7DayActual = data.length > 0 ? data[data.length - 1].trailing7DayLeads : 0;
+          const lastDayTrailing7Target = data.length > 0 ? data[data.length - 1].trailing7DayTarget : 0;
 
           results.push({
             campaignId,
@@ -244,8 +317,8 @@ const DailyLeadCostsTab: React.FC = () => {
             totalLeads,
             totalSpend,
             avgCostPerLead: totalLeads > 0 ? totalSpend / totalLeads : 0,
-            targetLeadsPerDay: targetPerDay,
-            weeklyTarget,
+            targetLeadsPerDay: currentTargetPerDay,
+            weeklyTarget: lastDayTrailing7Target,
             trailing7DayActual,
             changelog: changelogByCampaign.get(campaignId) || [],
           });
@@ -399,7 +472,7 @@ const DailyLeadCostsTab: React.FC = () => {
                   <h4 className="text-sm font-medium text-muted-foreground">Daily Leads</h4>
                   {hasTarget && (
                     <div className="text-xs text-muted-foreground">
-                      Dashed line = daily target ({campaign.targetLeadsPerDay})
+                      Red dashed line = daily target (uses historical values)
                     </div>
                   )}
                 </div>
@@ -423,8 +496,10 @@ const DailyLeadCostsTab: React.FC = () => {
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
                           const data = payload[0].payload as LeadData;
-                          const isAboveTarget = hasTarget && data.leads >= campaign.targetLeadsPerDay;
-                          const isWeeklyAboveTarget = hasTarget && data.trailing7DayLeads >= campaign.weeklyTarget;
+                          const dayTarget = data.dailyTarget || 0;
+                          const hasDayTarget = dayTarget > 0;
+                          const isAboveTarget = hasDayTarget && data.leads >= dayTarget;
+                          const isWeeklyAboveTarget = data.trailing7DayTarget > 0 && data.trailing7DayLeads >= data.trailing7DayTarget;
                           return (
                             <div className="bg-popover border border-border rounded-lg p-4 shadow-lg">
                               <p className="font-semibold text-lg mb-3">
@@ -433,23 +508,23 @@ const DailyLeadCostsTab: React.FC = () => {
                               <div className="space-y-2 text-base">
                                 <p>
                                   <span className="text-muted-foreground">Daily Leads: </span>
-                                  <span className={`font-bold text-lg ${isAboveTarget ? 'text-green-500' : hasTarget ? 'text-red-500' : ''}`}>
+                                  <span className={`font-bold text-lg ${isAboveTarget ? 'text-green-500' : hasDayTarget ? 'text-red-500' : ''}`}>
                                     {data.leads}
                                   </span>
-                                  {hasTarget && (
+                                  {hasDayTarget && (
                                     <span className="text-muted-foreground text-sm ml-1">
-                                      / {campaign.targetLeadsPerDay}
+                                      / {dayTarget} target
                                     </span>
                                   )}
                                 </p>
-                                {hasTarget && (
+                                {data.trailing7DayTarget > 0 && (
                                   <p>
                                     <span className="text-muted-foreground">Trailing 7-Day: </span>
                                     <span className={`font-bold text-lg ${isWeeklyAboveTarget ? 'text-green-500' : 'text-red-500'}`}>
                                       {data.trailing7DayLeads}
                                     </span>
                                     <span className="text-muted-foreground text-sm ml-1">
-                                      / {campaign.weeklyTarget} ({Math.round((data.trailing7DayLeads / campaign.weeklyTarget) * 100)}%)
+                                      / {data.trailing7DayTarget} ({Math.round((data.trailing7DayLeads / data.trailing7DayTarget) * 100)}%)
                                     </span>
                                   </p>
                                 )}
@@ -458,12 +533,17 @@ const DailyLeadCostsTab: React.FC = () => {
                           );
                         }}
                       />
+                      {/* Use a Line for target instead of ReferenceLine so it can vary by date */}
                       {hasTarget && (
-                        <ReferenceLine
-                          y={campaign.targetLeadsPerDay}
+                        <Line
+                          type="stepAfter"
+                          dataKey="dailyTarget"
                           stroke="hsl(var(--destructive))"
                           strokeWidth={2}
                           strokeDasharray="8 4"
+                          dot={false}
+                          activeDot={false}
+                          legendType="none"
                         />
                       )}
                       <Line
