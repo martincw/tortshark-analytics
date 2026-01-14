@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import GoogleAdsIntegration from "@/components/data-sources/GoogleAdsIntegration";
 import ClickMagickIntegration from "@/components/data-sources/ClickMagickIntegration";
 import GoogleAdsCampaignMapping from "@/components/data-sources/GoogleAdsCampaignMapping";
+import LeadProsperCampaignMapping from "@/components/data-sources/LeadProsperCampaignMapping";
 import { toast } from "sonner";
 import { processOAuthCallback } from "@/services/googleAdsConnection";
 
@@ -127,7 +128,8 @@ export default function DataSourcesPage() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="googleads">Google Ads</TabsTrigger>
-          <TabsTrigger value="mapping">Campaign Mapping</TabsTrigger>
+          <TabsTrigger value="mapping">Google Mapping</TabsTrigger>
+          <TabsTrigger value="leadprosper">LeadProsper Mapping</TabsTrigger>
           <TabsTrigger value="clickmagick">ClickMagick</TabsTrigger>
         </TabsList>
         <TabsContent value="googleads">
@@ -135,6 +137,9 @@ export default function DataSourcesPage() {
         </TabsContent>
         <TabsContent value="mapping">
           <GoogleAdsCampaignMapping />
+        </TabsContent>
+        <TabsContent value="leadprosper">
+          <LeadProsperCampaignMapping />
         </TabsContent>
         <TabsContent value="clickmagick">
           <ClickMagickIntegration />
