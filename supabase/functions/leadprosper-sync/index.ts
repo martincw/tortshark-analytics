@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { type = 'today', forceRefresh = false } = await req.json();
-    console.log('LeadProsper sync request:', { type, forceRefresh });
+    const { type = 'today', forceRefresh = false, action = 'sync_leads' } = await req.json();
+    console.log('LeadProsper sync request:', { type, forceRefresh, action });
     
     // Get user from authorization header
     const authHeader = req.headers.get('authorization');
@@ -159,6 +159,46 @@ Deno.serve(async (req) => {
 
     const campaigns: LeadProsperCampaign[] = await campaignsResponse.json();
     console.log(`Found ${campaigns.length} campaigns`);
+
+    // If action is sync_campaigns, just update the external_lp_campaigns table and return
+    if (action === 'sync_campaigns') {
+      console.log('Syncing campaigns to external_lp_campaigns table...');
+      
+      const campaignsToUpsert = campaigns.map(c => ({
+        lp_campaign_id: c.id,
+        name: c.name || c.public_name || `Campaign ${c.id}`,
+        status: 'active',
+        user_id: user.id,
+        updated_at: new Date().toISOString()
+      }));
+
+      // Upsert campaigns
+      const { error: upsertError } = await supabase
+        .from('external_lp_campaigns')
+        .upsert(campaignsToUpsert, {
+          onConflict: 'lp_campaign_id',
+          ignoreDuplicates: false
+        });
+
+      if (upsertError) {
+        console.error('Error upserting campaigns:', upsertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to sync campaigns', details: upsertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`Successfully synced ${campaigns.length} campaigns`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          action: 'sync_campaigns',
+          synced: campaigns.length,
+          campaigns: campaigns.map(c => ({ id: c.id, name: c.name }))
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!campaigns || campaigns.length === 0) {
       return new Response(

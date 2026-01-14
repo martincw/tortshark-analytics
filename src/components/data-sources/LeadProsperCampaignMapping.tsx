@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Link2, AlertTriangle, CheckCircle, Search } from "lucide-react";
+import { Loader2, Link2, AlertTriangle, CheckCircle, Search, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -37,6 +37,7 @@ export default function LeadProsperCampaignMapping() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -139,6 +140,29 @@ export default function LeadProsperCampaignMapping() {
     }
   };
 
+  const handleSyncCampaigns = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("leadprosper-sync", {
+        body: { action: "sync_campaigns" }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Synced ${data.synced} campaigns from LeadProsper`);
+        await fetchData();
+      } else {
+        throw new Error(data.error || "Sync failed");
+      }
+    } catch (error) {
+      console.error("Error syncing campaigns:", error);
+      toast.error("Failed to sync campaigns from LeadProsper");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const filteredCampaigns = lpCampaigns.filter(lp => {
     const matchesSearch = lp.name.toLowerCase().includes(searchQuery.toLowerCase());
     const mapping = getMappingForLP(lp.id);
@@ -183,8 +207,25 @@ export default function LeadProsperCampaignMapping() {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-4 flex-wrap">
+          <Button 
+            onClick={handleSyncCampaigns} 
+            disabled={isSyncing}
+            variant="outline"
+          >
+            {isSyncing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Sync Campaigns from LeadProsper
+              </>
+            )}
+          </Button>
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search LeadProsper campaigns..."
