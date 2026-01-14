@@ -306,13 +306,17 @@ export default function ContractorBulkEntry() {
     }
   };
 
-  const handleLeadProsperPrefill = (date: string, data: Array<{
-    campaign_id: string;
-    campaign_name: string;
-    leads: number;
-    revenue: number;
-    ad_spend: number;
-  }>) => {
+  const handleLeadProsperPrefill = (
+    date: string, 
+    data: Array<{
+      campaign_id: string;
+      campaign_name: string;
+      leads: number;
+      revenue: number;
+      ad_spend: number;
+    }>,
+    channel: "youtube" | "meta" | "newsbreak"
+  ) => {
     // Set the date
     setContractorInfo(prev => ({
       ...prev,
@@ -321,7 +325,7 @@ export default function ContractorBulkEntry() {
       contractorEmail: 'system@leadprosper.sync'
     }));
 
-    // Select campaigns and prefill stats
+    // Select campaigns and prefill stats based on selected channel
     const newSelectedCampaigns = new Set<string>();
     const newStatsData: Record<string, DailyStats> = {};
 
@@ -334,14 +338,50 @@ export default function ContractorBulkEntry() {
         youtubeSpend: 0,
         metaSpend: 0,
         newsbreakSpend: 0,
-        youtubeLeads: item.leads || 0, // Default to YouTube channel
-        metaLeads: 0,
-        newsbreakLeads: 0
+        youtubeLeads: channel === "youtube" ? (item.leads || 0) : 0,
+        metaLeads: channel === "meta" ? (item.leads || 0) : 0,
+        newsbreakLeads: channel === "newsbreak" ? (item.leads || 0) : 0
       };
     });
 
     setSelectedCampaigns(newSelectedCampaigns);
     setStatsData(newStatsData);
+  };
+
+  const handleSelectAll = () => {
+    const allCampaignIds = filteredCampaigns.map(c => c.id);
+    const allSelected = allCampaignIds.every(id => selectedCampaigns.has(id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedCampaigns(new Set());
+      setStatsData({});
+    } else {
+      // Select all
+      const newSelectedCampaigns = new Set(allCampaignIds);
+      const newStatsData: Record<string, DailyStats> = {};
+      
+      allCampaignIds.forEach(id => {
+        if (!statsData[id]) {
+          newStatsData[id] = {
+            leads: 0,
+            cases: 0,
+            revenue: 0,
+            youtubeSpend: 0,
+            metaSpend: 0,
+            newsbreakSpend: 0,
+            youtubeLeads: 0,
+            metaLeads: 0,
+            newsbreakLeads: 0
+          };
+        } else {
+          newStatsData[id] = statsData[id];
+        }
+      });
+      
+      setSelectedCampaigns(newSelectedCampaigns);
+      setStatsData(prev => ({ ...prev, ...newStatsData }));
+    }
   };
 
   return (
@@ -410,8 +450,21 @@ export default function ContractorBulkEntry() {
               </div>
 
               {/* Campaign Filter Toggle */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Select Campaigns & Enter Stats</h3>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-medium">Select Campaigns & Enter Stats</h3>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleSelectAll}
+                    disabled={filteredCampaigns.length === 0}
+                  >
+                    {filteredCampaigns.length > 0 && filteredCampaigns.every(c => selectedCampaigns.has(c.id)) 
+                      ? "Deselect All" 
+                      : "Select All"}
+                  </Button>
+                </div>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <Switch
