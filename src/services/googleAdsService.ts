@@ -17,14 +17,21 @@ interface GoogleAdsAccount {
   status?: string;
 }
 
+
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+};
+
 // Authentication functions
 export const isGoogleAuthValid = async (): Promise<boolean> => {
   try {
     console.log("Checking Google Ads authentication validity...");
     
-    // Use the edge function to validate token instead of directly querying the database
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "validate" }
+      body: { action: "validate" },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -102,8 +109,9 @@ export const handleOAuthCallback = async (
       body: { 
         action: "callback",
         code,
-        redirectUri
-      }
+        redirectUri,
+      },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -127,7 +135,8 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
   try {
     // Use the edge function to get credential info instead of direct database access
     const { data: userData, error: userError } = await supabase.functions.invoke('google-ads', {
-      body: { action: "get-credentials" }
+      body: { action: "get-credentials" },
+      headers: await getAuthHeaders(),
     });
       
     if (userError || !userData) {
@@ -141,7 +150,8 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
     }
 
     const { data: tokenData, error: tokenError } = await supabase.functions.invoke('google-ads', {
-      body: { action: "get-developer-token" }
+      body: { action: "get-developer-token" },
+      headers: await getAuthHeaders(),
     });
 
     if (tokenError || !tokenData || !tokenData.developerToken) {
@@ -163,7 +173,8 @@ export const getGoogleAdsCredentials = async (): Promise<GoogleAdsCredentials | 
 export const validateGoogleToken = async (): Promise<boolean> => {
   try {
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "validate" }
+      body: { action: "validate" },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -181,7 +192,8 @@ export const validateGoogleToken = async (): Promise<boolean> => {
 export const refreshGoogleToken = async (): Promise<boolean> => {
   try {
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "refresh" }
+      body: { action: "refresh" },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -201,7 +213,8 @@ export const revokeGoogleAccess = async (): Promise<boolean> => {
     console.log("Revoking Google access");
     
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      body: { action: "revoke" }
+      body: { action: "revoke" },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -223,7 +236,8 @@ export const listGoogleAdsAccounts = async (): Promise<GoogleAdsAccount[]> => {
     console.log("Listing Google Ads accounts");
     
     const { data, error } = await supabase.functions.invoke('google-ads', {
-      body: { action: "accounts" }
+      body: { action: "accounts" },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -262,7 +276,8 @@ export const cleanupAllAccounts = async (): Promise<boolean> => {
     console.log("Cleaning up all Google Ads accounts");
     
     const { data, error } = await supabase.functions.invoke('google-ads-manager', {
-      body: { action: "delete-all-accounts" }
+      body: { action: "delete-all-accounts" },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
@@ -290,8 +305,9 @@ export const fetchGoogleAdsMetrics = async (
         action: "get-metrics",
         customerId: accountId,
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      }
+        endDate: dateRange.endDate,
+      },
+      headers: await getAuthHeaders(),
     });
     
     if (error) {
