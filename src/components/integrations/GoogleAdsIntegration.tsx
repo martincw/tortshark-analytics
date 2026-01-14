@@ -34,7 +34,7 @@ const GoogleAdsIntegration: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const REDIRECT_URL = "https://app.tortshark.com/integrations";
+  const REDIRECT_URL = "https://msgqsgftjwpbnqenhfmc.supabase.co/functions/v1/google-oauth";
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -373,11 +373,11 @@ const GoogleAdsIntegration: React.FC = () => {
                 <ul className="list-disc list-inside text-amber-700 pl-2 space-y-2">
                   <li>
                     <strong>Authorized JavaScript origins:</strong>
-                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://app.tortshark.com</code>
+                    <code className="block mt-1 p-1 bg-amber-100 rounded text-xs break-all">{window.location.origin}</code>
                   </li>
                   <li>
                     <strong>Authorized redirect URIs:</strong>
-                    <code className="block mt-1 p-1 bg-amber-100 rounded">https://app.tortshark.com/integrations</code>
+                    <code className="block mt-1 p-1 bg-amber-100 rounded text-xs break-all">{REDIRECT_URL}</code>
                   </li>
                 </ul>
                 <Button 
