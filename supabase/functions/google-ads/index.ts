@@ -110,19 +110,47 @@ serve(async (req) => {
           );
         }
 
-        // Check if token is expired and refresh if needed
+        // Check if token is expired and needs refresh
+        let accessToken = tokenData.access_token;
         const isExpired = new Date(tokenData.expires_at) < new Date();
         
         if (isExpired && tokenData.refresh_token) {
-          console.log("Token expired, attempting to refresh");
-          const { data: refreshData, error: refreshError } = await supabase.functions.invoke("google-oauth", {
-            body: { action: "refresh" }
+          console.log("Token expired, refreshing...");
+          const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
+          const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+          
+          const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              client_id: GOOGLE_CLIENT_ID,
+              client_secret: GOOGLE_CLIENT_SECRET,
+              refresh_token: tokenData.refresh_token,
+              grant_type: "refresh_token",
+            }).toString(),
           });
           
-          if (refreshError || !refreshData?.success) {
-            console.error("Token refresh failed:", refreshError || refreshData?.error);
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            accessToken = refreshData.access_token;
+            
+            // Update the stored token
+            const expiryDate = new Date(Date.now() + refreshData.expires_in * 1000);
+            await adminClient
+              .from("google_ads_tokens")
+              .update({
+                access_token: accessToken,
+                expires_at: expiryDate.toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq("user_id", user.id);
+            
+            console.log("Token refreshed successfully");
+          } else {
+            const errorText = await refreshResponse.text();
+            console.error("Token refresh failed:", errorText);
             return new Response(
-              JSON.stringify({ error: "Failed to refresh authentication" }),
+              JSON.stringify({ error: "Failed to refresh authentication. Please reconnect your Google Ads account." }),
               { 
                 status: 401, 
                 headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -131,30 +159,112 @@ serve(async (req) => {
           }
         }
         
-        // For demonstration purposes, return mock accounts
-        // In production, you would make an actual call to the Google Ads API
-        // This is a temporary solution until we implement the full Google Ads API client
-        const mockAccounts = [
+        // Call the Google Ads API to list accessible customers
+        console.log("Calling Google Ads API to list accessible customers...");
+        const listCustomersResponse = await fetch(
+          "https://googleads.googleapis.com/v18/customers:listAccessibleCustomers",
           {
-            id: "1234567890",
-            name: "Test Account 1",
-            status: "ENABLED",
-            customerId: "1234567890"
-          },
-          {
-            id: "9876543210",
-            name: "Test Account 2",
-            status: "ENABLED",
-            customerId: "9876543210"
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+            },
           }
-        ];
-
-        console.log(`Successfully retrieved ${mockAccounts.length} accounts`);
+        );
+        
+        if (!listCustomersResponse.ok) {
+          const errorText = await listCustomersResponse.text();
+          console.error("Failed to list accessible customers:", listCustomersResponse.status, errorText);
+          
+          // Check for specific error types
+          if (listCustomersResponse.status === 401) {
+            return new Response(
+              JSON.stringify({ error: "Google Ads authentication expired. Please reconnect your account." }),
+              { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          
+          return new Response(
+            JSON.stringify({ 
+              error: `Google Ads API error: ${listCustomersResponse.status}`,
+              details: errorText,
+              accounts: []
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        const { resourceNames } = await listCustomersResponse.json();
+        
+        if (!resourceNames || !Array.isArray(resourceNames) || resourceNames.length === 0) {
+          console.log("No accessible accounts found for this user");
+          return new Response(
+            JSON.stringify({ 
+              accounts: [],
+              message: "No Google Ads accounts found. The Google account you connected may not have access to any Google Ads accounts."
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log(`Found ${resourceNames.length} accessible accounts`);
+        
+        // Extract customer IDs from resource names (format: 'customers/1234567890')
+        const customerIds = resourceNames.map((name: string) => name.split('/')[1]);
+        
+        // Get details for each customer ID
+        const accounts = await Promise.all(
+          customerIds.map(async (customerId: string) => {
+            try {
+              const customerResponse = await fetch(
+                `https://googleads.googleapis.com/v18/customers/${customerId}`,
+                {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+                  },
+                }
+              );
+              
+              if (!customerResponse.ok) {
+                console.log(`Could not fetch details for customer ${customerId}, using basic info`);
+                return {
+                  id: customerId,
+                  customerId: customerId,
+                  name: `Account ${customerId}`,
+                  status: "ENABLED",
+                };
+              }
+              
+              const customerData = await customerResponse.json();
+              
+              return {
+                id: customerId,
+                customerId: customerId,
+                name: customerData.customer?.descriptiveName || `Account ${customerId}`,
+                currency: customerData.customer?.currencyCode || "USD",
+                timeZone: customerData.customer?.timeZone || "America/New_York",
+                status: customerData.customer?.status || "ENABLED",
+              };
+            } catch (error) {
+              console.error(`Error fetching details for customer ${customerId}:`, error);
+              return {
+                id: customerId,
+                customerId: customerId,
+                name: `Account ${customerId}`,
+                status: "ENABLED",
+              };
+            }
+          })
+        );
+        
+        const validAccounts = accounts.filter(account => account !== null);
+        console.log(`Returning ${validAccounts.length} valid accounts`);
+        
         return new Response(
-          JSON.stringify({ accounts: mockAccounts }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
+          JSON.stringify({ accounts: validAccounts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (error) {
         console.error("Error fetching Google Ads accounts:", error);
