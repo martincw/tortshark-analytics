@@ -10,6 +10,7 @@ import { InfoIcon, Key, Mail, User, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AuthPage = () => {
   const [email, setEmail] = useState("");
@@ -20,6 +21,7 @@ const AuthPage = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   
   // Get the returnTo path from URL query parameters
   const getReturnToPath = () => {
@@ -31,47 +33,14 @@ const AuthPage = () => {
   useEffect(() => {
     // Clear any stale error state
     setError(null);
-    
-    // Check if already signed in
-    const checkAuth = async () => {
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Session check error:", sessionError);
-          // Don't set error for typical auth flow errors
-          if (!sessionError.message.includes("Invalid Refresh Token") && !sessionError.message.includes("not found")) {
-            setError(sessionError.message);
-          }
-          return;
-        }
-        
-        if (session) {
-          // Already signed in, redirect to the return path or home
-          const returnPath = getReturnToPath();
-          console.log("User already signed in, redirecting to:", returnPath);
-          navigate(returnPath);
-        }
-      } catch (err) {
-        console.error("Auth check error:", err);
-      }
-    };
-    
-    checkAuth();
-    
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const returnPath = getReturnToPath();
-        console.log("Auth state changed to SIGNED_IN, redirecting to:", returnPath);
-        navigate(returnPath);
-      }
-    });
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate, location.search]);
+
+    // If already signed in (or becomes signed in), redirect to the return path or home
+    if (!authLoading && isAuthenticated) {
+      const returnPath = getReturnToPath();
+      console.log("User already signed in, redirecting to:", returnPath);
+      navigate(returnPath, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate, location.search]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,8 +61,14 @@ const AuthPage = () => {
       
       if (error) {
         console.error("Login error:", error);
-        setError(error.message);
-        toast.error(error.message || "Failed to sign in");
+        const status = (error as any)?.status;
+        const msg = error.message ?? "";
+        const friendly =
+          status === 504 || msg === "{}" || msg.includes("upstream request timeout")
+            ? "Auth is timing out (504). Please try again in a minute; if it keeps happening, check your Supabase project status."
+            : msg;
+        setError(friendly);
+        toast.error(friendly || "Failed to sign in");
         return;
       }
       
@@ -105,8 +80,13 @@ const AuthPage = () => {
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      setError(error.message || "An unexpected error occurred");
-      toast.error("An unexpected error occurred during login");
+      const msg = error?.message ?? "An unexpected error occurred";
+      const friendly =
+        msg.includes("Failed to fetch") || msg.includes("AbortError") || msg.includes("fetch")
+          ? "Unable to reach Supabase right now. Please try again in a minute."
+          : msg;
+      setError(friendly);
+      toast.error(friendly);
     } finally {
       setIsLoading(false);
     }
@@ -130,14 +110,22 @@ const AuthPage = () => {
         options: {
           data: {
             name: name || email.split("@")[0]
-          }
+          },
+          // Ensures email links (if enabled) return to your app
+          emailRedirectTo: window.location.origin,
         }
       });
       
       if (error) {
         console.error("Registration error:", error);
-        setError(error.message);
-        toast.error(error.message || "Failed to register");
+        const status = (error as any)?.status;
+        const msg = error.message ?? "";
+        const friendly =
+          status === 504 || msg === "{}" || msg.includes("upstream request timeout")
+            ? "Auth is timing out (504). Please try again in a minute; if it keeps happening, check your Supabase project status."
+            : msg;
+        setError(friendly);
+        toast.error(friendly || "Failed to register");
         return;
       }
       
@@ -148,8 +136,13 @@ const AuthPage = () => {
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      setError(error.message || "An unexpected error occurred");
-      toast.error("An unexpected error occurred during registration");
+      const msg = error?.message ?? "An unexpected error occurred";
+      const friendly =
+        msg.includes("Failed to fetch") || msg.includes("AbortError") || msg.includes("fetch")
+          ? "Unable to reach Supabase right now. Please try again in a minute."
+          : msg;
+      setError(friendly);
+      toast.error(friendly);
     } finally {
       setIsLoading(false);
     }

@@ -6,21 +6,39 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://msgqsgftjwpbnqenhfmc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ3FzZ2Z0andwYm5xZW5oZm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMTcyNTksImV4cCI6MjA1OTY5MzI1OX0.NHzPUSTETpeT6mIzNhjo8LmXas--pRV01Z9APewORpc";
 
+// Fail-fast network timeout so the UI doesn't hang indefinitely when Supabase is slow/unreachable.
+const DEFAULT_FETCH_TIMEOUT_MS = 12_000;
+
+const fetchWithTimeout: typeof fetch = async (input, init) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT_MS);
+
+  const abortListener = () => controller.abort();
+  init?.signal?.addEventListener?.("abort", abortListener);
+
+  try {
+    const { signal: _signal, ...rest } = (init ?? {}) as RequestInit;
+    return await globalThis.fetch(input as any, { ...rest, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+    init?.signal?.removeEventListener?.("abort", abortListener);
+  }
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(
-  SUPABASE_URL, 
-  SUPABASE_PUBLISHABLE_KEY,
-  {
-    auth: {
-      storage: window?.localStorage,
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  }
-);
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: window?.localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  global: {
+    fetch: fetchWithTimeout,
+  },
+});
 
 // Export the Supabase URL for Edge Functions
 export const SUPABASE_PROJECT_URL = SUPABASE_URL;

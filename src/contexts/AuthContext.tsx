@@ -53,47 +53,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // THEN check for existing session
     const initializeAuth = async () => {
+      let loadingTimeoutId: number | undefined;
+
       try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
-        
+        // Fail-open: don't block the entire app if Supabase is slow/unreachable
+        loadingTimeoutId = window.setTimeout(() => {
+          console.warn("Auth session check timed out; continuing without session");
+          setIsLoading(false);
+        }, 5000);
+
+        const {
+          data: { session: initialSession },
+          error,
+        } = await supabase.auth.getSession();
+
         console.log("Initial session check complete", initialSession ? "Session found" : "No session");
-        
+
         if (error) {
           console.error("Session retrieval error:", error);
-          setAuthError(error.message);
-          setIsAuthenticated(false);
-          
-          // Clear corrupted session data
-          if (error.message.includes("Invalid Refresh Token") || 
-              error.message.includes("not found") ||
-              error.message.includes("Failed to fetch")) {
-            console.log("Clearing corrupted session data");
-            await supabase.auth.signOut();
-          } else {
-            toast.error(`Authentication error: ${error.message}`);
+
+          const status = (error as any)?.status;
+          const message = error.message ?? "";
+
+          // Corrupted/stale tokens -> clear local session storage (no network request)
+          if (message.includes("Invalid Refresh Token") || message.includes("not found")) {
+            console.log("Clearing corrupted session data (local sign out)");
+            await supabase.auth.signOut({ scope: "local" });
+            setSession(null);
+            setUser(null);
+            setIsAuthenticated(false);
+            setAuthError(null);
+            return;
           }
-        } else {
-          setSession(initialSession);
-          setUser(initialSession?.user ?? null);
-          setIsAuthenticated(!!initialSession);
+
+          // Network / gateway timeouts -> treat as unauthenticated but keep storage
+          if (
+            status === 504 ||
+            message.includes("Failed to fetch") ||
+            message.includes("upstream request timeout") ||
+            message === "{}"
+          ) {
+            console.warn("Supabase auth temporarily unavailable:", { status, message });
+            setSession(null);
+            setUser(null);
+            setIsAuthenticated(false);
+            setAuthError("Auth service temporarily unavailable. Please try again.");
+            return;
+          }
+
+          setAuthError(message);
+          setIsAuthenticated(false);
+          toast.error(`Authentication error: ${message}`);
+          return;
         }
+
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        setIsAuthenticated(!!initialSession);
+        setAuthError(null);
       } catch (error: any) {
         console.error("Unexpected error during session check:", error);
-        setAuthError(error.message);
+
+        const message = error?.message ?? "Unknown error";
+        setSession(null);
+        setUser(null);
         setIsAuthenticated(false);
-        
-        // Clear session on network/fetch failures to prevent infinite retry loop
-        if (error.message?.includes("Failed to fetch") || error.message?.includes("fetch")) {
-          console.log("Network error - clearing potentially corrupted session");
-          try {
-            await supabase.auth.signOut();
-          } catch (e) {
-            // Ignore sign out errors during cleanup
-            console.log("Cleanup signout failed, clearing local storage");
-            localStorage.removeItem('sb-msgqsgftjwpbnqenhfmc-auth-token');
-          }
+
+        if (message.includes("Failed to fetch") || message.includes("fetch") || message.includes("AbortError")) {
+          setAuthError("Auth service temporarily unavailable. Please try again.");
+        } else {
+          setAuthError(message);
+          toast.error(`Authentication error: ${message}`);
         }
       } finally {
+        if (loadingTimeoutId) window.clearTimeout(loadingTimeoutId);
         // Always end loading state
         setIsLoading(false);
       }
@@ -130,7 +163,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       setIsLoading(true);
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // If the network is down, still clear the local session so the UI can recover.
+        await supabase.auth.signOut({ scope: "local" });
+      }
       // Clear any cached API keys
       if (window.localStorage) {
         localStorage.removeItem('lp_api_key');
