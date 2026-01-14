@@ -51,7 +51,15 @@ const LeadCapEditor: React.FC<LeadCapEditorProps> = ({ campaignId }) => {
     setIsSaving(true);
     try {
       const numericValue = parseInt(targetLeadsPerDay) || 0;
+      const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
       
+      // First get the workspace_id for this campaign
+      const { data: campaignData } = await supabase
+        .from("campaigns")
+        .select("workspace_id")
+        .eq("id", campaignId)
+        .single();
+
       const { error } = await supabase
         .from("campaign_targets")
         .update({ target_leads_per_day: numericValue })
@@ -61,9 +69,27 @@ const LeadCapEditor: React.FC<LeadCapEditorProps> = ({ campaignId }) => {
         throw error;
       }
 
+      // Also insert into target history so future calculations know when this change happened
+      const { error: historyError } = await supabase
+        .from("campaign_target_history")
+        .upsert(
+          { 
+            campaign_id: campaignId, 
+            target_leads_per_day: numericValue,
+            effective_date: todayStr,
+            workspace_id: campaignData?.workspace_id
+          },
+          { onConflict: "campaign_id,effective_date" }
+        );
+
+      if (historyError) {
+        console.error("Error saving target history:", historyError);
+        // Don't fail the whole operation, just log
+      }
+
       setOriginalValue(targetLeadsPerDay);
       setHasChanges(false);
-      toast.success("Daily lead cap updated successfully");
+      toast.success("Daily lead cap updated (effective today)");
     } catch (error) {
       console.error("Error saving target:", error);
       toast.error("Failed to save daily lead cap");
