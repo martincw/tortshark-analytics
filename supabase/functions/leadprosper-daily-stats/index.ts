@@ -43,11 +43,11 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { date: targetDate, dryRun = false } = body;
+    const { date: targetDate, dryRun = false, prefillOnly = false } = body;
     
     // Use provided date or default to yesterday
     const syncDate = targetDate || getYesterdayET();
-    console.log('LeadProsper daily stats sync for date:', syncDate, 'dryRun:', dryRun);
+    console.log('LeadProsper daily stats sync for date:', syncDate, 'dryRun:', dryRun, 'prefillOnly:', prefillOnly);
     
     // Get user from authorization header (optional - can also run as service role)
     const authHeader = req.headers.get('authorization');
@@ -243,13 +243,30 @@ Deno.serve(async (req) => {
 
     console.log(`Created ${submissions.length} submissions, ${unmappedCampaigns.length} unmapped campaigns`);
 
-    if (dryRun) {
+    // Get TortShark campaign names for prefill
+    const tsCampaignIds = submissions.map(s => s.campaign_id);
+    const { data: tsCampaigns } = await supabase
+      .from('campaigns')
+      .select('id, name')
+      .in('id', tsCampaignIds);
+    
+    const campaignNameMap = new Map(tsCampaigns?.map(c => [c.id, c.name]) || []);
+
+    // Add campaign names to submissions for prefill
+    const submissionsWithNames = submissions.map(s => ({
+      ...s,
+      campaign_name: campaignNameMap.get(s.campaign_id) || 'Unknown'
+    }));
+
+    if (dryRun || prefillOnly) {
       return new Response(
         JSON.stringify({
           success: true,
-          dryRun: true,
+          dryRun: dryRun || prefillOnly,
+          prefillOnly,
           date: syncDate,
-          submissions,
+          submissions: submissionsWithNames,
+          submissionsCreated: 0,
           unmappedCampaigns
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

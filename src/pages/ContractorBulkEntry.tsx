@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SubmissionConfirmationDialog } from "@/components/contractors/SubmissionConfirmationDialog";
+import { LeadProsperPrefillButton } from "@/components/contractors/LeadProsperPrefillButton";
 
 interface Campaign {
   id: string;
@@ -305,6 +306,44 @@ export default function ContractorBulkEntry() {
     }
   };
 
+  const handleLeadProsperPrefill = (date: string, data: Array<{
+    campaign_id: string;
+    campaign_name: string;
+    leads: number;
+    revenue: number;
+    ad_spend: number;
+  }>) => {
+    // Set the date
+    setContractorInfo(prev => ({
+      ...prev,
+      submissionDate: date,
+      contractorName: 'LeadProsper Import',
+      contractorEmail: 'system@leadprosper.sync'
+    }));
+
+    // Select campaigns and prefill stats
+    const newSelectedCampaigns = new Set<string>();
+    const newStatsData: Record<string, DailyStats> = {};
+
+    data.forEach(item => {
+      newSelectedCampaigns.add(item.campaign_id);
+      newStatsData[item.campaign_id] = {
+        leads: 0,
+        cases: 0,
+        revenue: item.revenue || 0,
+        youtubeSpend: 0,
+        metaSpend: 0,
+        newsbreakSpend: 0,
+        youtubeLeads: item.leads || 0, // Default to YouTube channel
+        metaLeads: 0,
+        newsbreakLeads: 0
+      };
+    });
+
+    setSelectedCampaigns(newSelectedCampaigns);
+    setStatsData(newStatsData);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -314,6 +353,9 @@ export default function ContractorBulkEntry() {
             <CardDescription>
               Submit daily campaign statistics for multiple campaigns. Admin will review and approve.
             </CardDescription>
+            <div className="pt-4">
+              <LeadProsperPrefillButton onPrefill={handleLeadProsperPrefill} />
+            </div>
           </CardHeader>
           
           <CardContent>
