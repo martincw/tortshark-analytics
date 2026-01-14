@@ -63,8 +63,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setAuthError(error.message);
           setIsAuthenticated(false);
           
-          // Toast only critical auth errors
-          if (error.message !== "Invalid Refresh Token" && !error.message.includes("not found")) {
+          // Clear corrupted session data
+          if (error.message.includes("Invalid Refresh Token") || 
+              error.message.includes("not found") ||
+              error.message.includes("Failed to fetch")) {
+            console.log("Clearing corrupted session data");
+            await supabase.auth.signOut();
+          } else {
             toast.error(`Authentication error: ${error.message}`);
           }
         } else {
@@ -76,6 +81,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Unexpected error during session check:", error);
         setAuthError(error.message);
         setIsAuthenticated(false);
+        
+        // Clear session on network/fetch failures to prevent infinite retry loop
+        if (error.message?.includes("Failed to fetch") || error.message?.includes("fetch")) {
+          console.log("Network error - clearing potentially corrupted session");
+          try {
+            await supabase.auth.signOut();
+          } catch (e) {
+            // Ignore sign out errors during cleanup
+            console.log("Cleanup signout failed, clearing local storage");
+            localStorage.removeItem('sb-msgqsgftjwpbnqenhfmc-auth-token');
+          }
+        }
       } finally {
         // Always end loading state
         setIsLoading(false);
