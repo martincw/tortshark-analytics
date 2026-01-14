@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Link2, X, RefreshCw, AlertTriangle } from "lucide-react";
+import { Link2, X, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const UnmappedCampaignsBanner: React.FC = () => {
   const { user } = useAuth();
@@ -18,23 +19,19 @@ const UnmappedCampaignsBanner: React.FC = () => {
     if (!user?.id) return;
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-sync`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            action: "get-unmapped-count",
-            userId: user.id,
-          }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("google-ads-sync", {
+        body: {
+          action: "get-unmapped-count",
+          userId: user.id,
+        },
+      });
 
-      const data = await response.json();
-      if (data.success) {
+      if (error) {
+        console.error("Error fetching unmapped count:", error);
+        return;
+      }
+
+      if (data?.success) {
         setUnmappedCount(data.unmappedCount || 0);
         setTotalCampaigns(data.totalCampaigns || 0);
         setLastSynced(new Date());
