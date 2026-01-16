@@ -3,21 +3,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Brain, Loader2, Sparkles, Send, User, Bot, Trash2 } from "lucide-react";
+import { Brain, Loader2, Sparkles, Send, User, Bot, Trash2, Calendar, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
+type AnalysisPeriod = "7" | "14" | "30" | "60";
+
+const PERIOD_OPTIONS: { value: AnalysisPeriod; label: string }[] = [
+  { value: "7", label: "7 Days" },
+  { value: "14", label: "14 Days" },
+  { value: "30", label: "30 Days" },
+  { value: "60", label: "60 Days" },
+];
+
 const AIAnalyst: React.FC = () => {
   const { currentWorkspace } = useWorkspace();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [analysisPeriod, setAnalysisPeriod] = useState<AnalysisPeriod>("7");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +65,8 @@ const AIAnalyst: React.FC = () => {
           body: JSON.stringify({
             workspaceId: currentWorkspace.id,
             messages: allMessages.map(m => ({ role: m.role, content: m.content })),
-            clientDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
+            clientDate: new Date().toLocaleDateString('en-CA'),
+            periodDays: parseInt(analysisPeriod),
           }),
         }
       );
@@ -180,7 +198,8 @@ const AIAnalyst: React.FC = () => {
           },
           body: JSON.stringify({
             workspaceId: currentWorkspace?.id,
-            clientDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
+            clientDate: new Date().toLocaleDateString('en-CA'),
+            periodDays: parseInt(analysisPeriod),
           }),
         }
       );
@@ -275,16 +294,16 @@ const AIAnalyst: React.FC = () => {
   };
 
   const suggestedQuestions = [
-    "Which campaign should I focus on today?",
-    "What's my best performing campaign this week?",
+    "Which day of the week performs best?",
+    "Show me volume trends over time",
     "Which campaigns are losing money?",
-    "How can I improve my ROAS?",
+    "What patterns do you see in my data?",
   ];
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Brain className="h-6 w-6 text-primary" />
@@ -295,21 +314,34 @@ const AIAnalyst: React.FC = () => {
                 <Sparkles className="h-4 w-4 text-yellow-500" />
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Chat with AI to analyze your campaigns and get recommendations
+                Analyze trends, patterns, and performance across time periods
               </p>
             </div>
           </div>
-          {messages.length > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={clearChat}
-              className="gap-2 text-muted-foreground"
-            >
-              <Trash2 className="h-4 w-4" />
-              Clear
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <Select value={analysisPeriod} onValueChange={(v) => setAnalysisPeriod(v as AnalysisPeriod)}>
+              <SelectTrigger className="w-[120px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {messages.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={clearChat}
+                className="gap-2 text-muted-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -317,7 +349,10 @@ const AIAnalyst: React.FC = () => {
           <div className="text-center py-8">
             <Brain className="h-16 w-16 mx-auto mb-4 opacity-20" />
             <p className="text-lg text-muted-foreground mb-4">
-              Start a conversation with your AI analyst
+              Analyze your campaigns over the last <span className="font-semibold text-primary">{analysisPeriod} days</span>
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
+              Includes day-of-week patterns, volume trends, and performance insights
             </p>
             <Button 
               onClick={handleStartAnalysis}
@@ -325,7 +360,7 @@ const AIAnalyst: React.FC = () => {
               className="gap-2 mb-6"
             >
               <Brain className="h-4 w-4" />
-              Run Full Analysis
+              Run {analysisPeriod}-Day Analysis
             </Button>
             <div className="border-t pt-4 mt-4">
               <p className="text-sm text-muted-foreground mb-3">Or ask a specific question:</p>
