@@ -12,27 +12,23 @@ serve(async (req) => {
   }
 
   try {
-    const { workspaceId, messages, briefingMode, analysisPeriod, clientDate } = await req.json();
+    const { workspaceId, messages, briefingMode, analysisPeriod, clientDate, periodDays } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Calculate date range based on analysisPeriod
-    // "yesterday" = just yesterday's data
-    // "trailing7" (default) = trailing 7 days EXCLUDING today
+    // Use periodDays if provided (7, 14, 30, 60), otherwise fall back to analysisPeriod logic
+    const daysToAnalyze = periodDays || (analysisPeriod === "yesterday" ? 1 : 7);
     
     // Use client-provided date if available, otherwise fall back to server time
-    // This ensures the analysis uses the user's local date, not the server's UTC date
     let todayUTC: Date;
     
     if (clientDate) {
-      // clientDate should be in YYYY-MM-DD format from the client's local timezone
       const [year, month, day] = clientDate.split('-').map(Number);
       todayUTC = new Date(Date.UTC(year, month - 1, day));
       console.log(`Using client date: ${clientDate} -> ${todayUTC.toISOString()}`);
     } else {
-      // Fallback to server time (less accurate for users in different timezones)
       const now = new Date();
       todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       console.log(`Using server time (UTC): ${todayUTC.toISOString()}`);
@@ -42,20 +38,15 @@ serve(async (req) => {
     const yesterdayUTC = new Date(todayUTC);
     yesterdayUTC.setUTCDate(yesterdayUTC.getUTCDate() - 1);
     
-    // For the "yesterday" period, start = end = yesterday
-    // For "trailing7", start = 7 days back from yesterday, end = yesterday
+    // End date is yesterday, start date is periodDays back from yesterday
     const endDate = new Date(yesterdayUTC);
     const startDate = new Date(yesterdayUTC);
-    
-    if (analysisPeriod !== "yesterday") {
-      // trailing 7 days: go back 6 more days from yesterday (total 7 days)
-      startDate.setUTCDate(startDate.getUTCDate() - 6);
-    }
+    startDate.setUTCDate(startDate.getUTCDate() - (daysToAnalyze - 1));
     
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
     
-    const periodLabel = analysisPeriod === "yesterday" ? "yesterday" : "trailing 7 days";
+    const periodLabel = daysToAnalyze === 1 ? "yesterday" : `trailing ${daysToAnalyze} days`;
     console.log(`Analyzing ${periodLabel}: ${startDateStr} to ${endDateStr}`);
 
     // Fetch all campaign data for analysis
@@ -328,6 +319,103 @@ serve(async (req) => {
       };
     }).filter(c => c.totalSpend > 0 || c.totalLeads > 0) || [];
 
+    // Day-of-week analysis (aggregate across all campaigns)
+    const dayOfWeekStats: { [key: string]: { leads: number; spend: number; revenue: number; count: number } } = {
+      'Sunday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+      'Monday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+      'Tuesday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+      'Wednesday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+      'Thursday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+      'Friday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+      'Saturday': { leads: 0, spend: 0, revenue: 0, count: 0 },
+    };
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    statsHistory?.forEach(stat => {
+      const date = new Date(stat.date + 'T12:00:00Z');
+      const dayName = dayNames[date.getUTCDay()];
+      dayOfWeekStats[dayName].leads += stat.leads || 0;
+      dayOfWeekStats[dayName].spend += stat.ad_spend || 0;
+      dayOfWeekStats[dayName].revenue += stat.revenue || 0;
+      dayOfWeekStats[dayName].count += 1;
+    });
+    
+    const dayOfWeekAnalysis = Object.entries(dayOfWeekStats).map(([day, stats]) => ({
+      day,
+      totalLeads: stats.leads,
+      avgLeads: stats.count > 0 ? Math.round((stats.leads / stats.count) * 10) / 10 : 0,
+      totalSpend: Math.round(stats.spend * 100) / 100,
+      avgSpend: stats.count > 0 ? Math.round((stats.spend / stats.count) * 100) / 100 : 0,
+      totalRevenue: Math.round(stats.revenue * 100) / 100,
+      avgCPL: stats.leads > 0 ? Math.round((stats.spend / stats.leads) * 100) / 100 : 0,
+      avgROAS: stats.spend > 0 ? Math.round((stats.revenue / stats.spend) * 100) / 100 : 0,
+      dataPoints: stats.count,
+    }));
+    
+    // Find best/worst days
+    const sortedByLeads = [...dayOfWeekAnalysis].sort((a, b) => b.avgLeads - a.avgLeads);
+    const sortedByROAS = [...dayOfWeekAnalysis].filter(d => d.dataPoints > 0).sort((a, b) => b.avgROAS - a.avgROAS);
+    
+    // Weekly trend analysis (week-over-week comparison)
+    const weeklyTrends: { weekStart: string; leads: number; spend: number; revenue: number; roas: number }[] = [];
+    if (daysToAnalyze >= 14) {
+      // Group by week
+      const weekMap = new Map<string, { leads: number; spend: number; revenue: number }>();
+      statsHistory?.forEach(stat => {
+        const date = new Date(stat.date + 'T12:00:00Z');
+        // Get Monday of that week
+        const day = date.getUTCDay();
+        const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(date);
+        monday.setUTCDate(diff);
+        const weekKey = monday.toISOString().split('T')[0];
+        
+        if (!weekMap.has(weekKey)) {
+          weekMap.set(weekKey, { leads: 0, spend: 0, revenue: 0 });
+        }
+        const week = weekMap.get(weekKey)!;
+        week.leads += stat.leads || 0;
+        week.spend += stat.ad_spend || 0;
+        week.revenue += stat.revenue || 0;
+      });
+      
+      Array.from(weekMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([weekStart, data]) => {
+          weeklyTrends.push({
+            weekStart,
+            leads: data.leads,
+            spend: Math.round(data.spend * 100) / 100,
+            revenue: Math.round(data.revenue * 100) / 100,
+            roas: data.spend > 0 ? Math.round((data.revenue / data.spend) * 100) / 100 : 0,
+          });
+        });
+    }
+    
+    // Volume trend (is volume increasing or decreasing?)
+    let volumeTrend = { direction: 'stable' as 'up' | 'down' | 'stable', percentChange: 0 };
+    if (daysToAnalyze >= 14 && statsHistory && statsHistory.length >= 7) {
+      const sortedStats = [...statsHistory].sort((a, b) => a.date.localeCompare(b.date));
+      const halfPoint = Math.floor(sortedStats.length / 2);
+      const firstHalf = sortedStats.slice(0, halfPoint);
+      const secondHalf = sortedStats.slice(halfPoint);
+      
+      const firstHalfLeads = firstHalf.reduce((sum, s) => sum + (s.leads || 0), 0);
+      const secondHalfLeads = secondHalf.reduce((sum, s) => sum + (s.leads || 0), 0);
+      
+      // Normalize by days
+      const firstAvg = firstHalf.length > 0 ? firstHalfLeads / firstHalf.length : 0;
+      const secondAvg = secondHalf.length > 0 ? secondHalfLeads / secondHalf.length : 0;
+      
+      if (firstAvg > 0) {
+        const change = ((secondAvg - firstAvg) / firstAvg) * 100;
+        volumeTrend = {
+          direction: change > 10 ? 'up' : change < -10 ? 'down' : 'stable',
+          percentChange: Math.round(change * 10) / 10,
+        };
+      }
+    }
+
     // Overall portfolio metrics
     const portfolioTotalSpend = campaignSummaries.reduce((sum, c) => sum + c.totalSpend, 0);
     const portfolioTotalRevenue = campaignSummaries.reduce((sum, c) => sum + c.totalRevenue, 0);
@@ -356,7 +444,8 @@ serve(async (req) => {
       dateRange: {
         startDate: startDateStr,
         endDate: endDateStr,
-        description: "Trailing 7 days (excluding today)"
+        days: daysToAnalyze,
+        description: `Trailing ${daysToAnalyze} days (excluding today)`
       },
       portfolioMetrics: {
         totalSpend: Math.round(portfolioTotalSpend * 100) / 100,
@@ -366,6 +455,17 @@ serve(async (req) => {
         avgCPL: Math.round(portfolioCPL * 100) / 100,
         activeCampaigns: campaignSummaries.filter(c => c.isActive).length
       },
+      // Day-of-week patterns
+      dayOfWeekAnalysis: {
+        data: dayOfWeekAnalysis,
+        bestDayForLeads: sortedByLeads[0]?.day || null,
+        worstDayForLeads: sortedByLeads[sortedByLeads.length - 1]?.day || null,
+        bestDayForROAS: sortedByROAS[0]?.day || null,
+        worstDayForROAS: sortedByROAS[sortedByROAS.length - 1]?.day || null,
+      },
+      // Volume trends
+      volumeTrend,
+      weeklyTrends: weeklyTrends.length > 1 ? weeklyTrends : undefined,
       campaigns: campaignSummaries,
       // Changes made TODAY - actions already taken, DO NOT recommend these again
       todaysChanges: todaysChanges.length > 0 ? todaysChanges : undefined,
@@ -388,8 +488,22 @@ CRITICAL RULES:
 2. **Never reallocate between campaigns**: The goal is to MAXIMIZE ALL campaigns, not shift budget between them.
 3. **CPL is relative**: A $500 CPL might be great for one tort and terrible for another. Only flag rising CPL trends within the same campaign.
 4. **If ROAS < 2x, the campaign is NOT profitable** - flag this clearly.
-5. **CAPACITY IS KEY**: Check capacityFillPercent for each campaign. This is calculated based on the actual analysis period (1 day for "yesterday", 7 days for "trailing 7"). If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
+5. **CAPACITY IS KEY**: Check capacityFillPercent for each campaign. If a campaign is under 100% capacity and has decent ROAS (1.5x+), this is a BIG OPPORTUNITY to push volume.
 6. **Near-profitable campaigns under capacity are priority**: If ROAS is close to 2x (1.5x-2x) AND under capacity, highlight this as a key opportunity.
+
+**DAY-OF-WEEK ANALYSIS:**
+The data includes "dayOfWeekAnalysis" which shows performance broken down by day of the week. Use this to:
+- Identify best/worst performing days for leads and ROAS
+- Recommend day-parting or budget adjustments by day
+- Spot patterns (e.g., weekends vs weekdays)
+- Note if certain days consistently underperform
+
+**VOLUME TRENDS:**
+The data includes "volumeTrend" showing if lead volume is increasing, decreasing, or stable over the period.
+- If "direction" is "up": Volume is growing - this is positive
+- If "direction" is "down": Volume is declining - investigate why
+- "percentChange" shows the magnitude of change
+If "weeklyTrends" is present, analyze week-over-week changes in detail.
 
 **TODAY'S CHANGES (ALREADY DONE - DO NOT RECOMMEND AGAIN):**
 If "todaysChanges" is present in the data, these are actions the user has ALREADY TAKEN TODAY. 
@@ -423,7 +537,8 @@ IMPORTANT REMINDERS:
 - Only compare a campaign's CPL to its OWN history, not to other campaigns
 - Check "todaysChanges" before making recommendations - don't suggest what's already been done
 - Calculate actual profit (revenue - spend) for each campaign
-- If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working`;
+- If there are recentChanges, ANALYZE THEIR IMPACT in detail - this is critical for understanding what's working
+- Use dayOfWeekAnalysis to identify patterns and make day-specific recommendations`;
 
     // Check if this is a chat conversation, briefing, or initial analysis
     const isChat = messages && Array.isArray(messages) && messages.length > 0;
@@ -469,13 +584,26 @@ RULES:
         { role: "user", content: briefingPrompt }
       ];
     } else {
-      // Initial analysis mode: generate full report
-      const initialPrompt = `Provide a comprehensive analysis of all campaign performance data. 
+      // Initial analysis mode: generate full report with trend analysis
+      const initialPrompt = `Provide a comprehensive ${daysToAnalyze}-day analysis of all campaign performance data. 
 
 Format your response as:
 
 ## 🎯 Executive Summary
-Brief 2-3 sentence overview. Start with overall portfolio ROAS. Immediately highlight any profitable campaigns that are under capacity. If there are logged changes, mention their overall impact.
+Brief 2-3 sentence overview. Start with overall portfolio ROAS for the ${daysToAnalyze}-day period. Mention volume trend (up/down/stable). Immediately highlight any profitable campaigns that are under capacity.
+
+## 📈 Volume & Trend Analysis
+- Overall volume trend: Is lead volume increasing, decreasing, or stable? Quote the percentage change.
+- Week-over-week trends (if weeklyTrends data exists): Show how each week performed
+- Key insight: What does this trend mean for the business?
+
+## 📅 Day-of-Week Patterns
+Analyze the dayOfWeekAnalysis data:
+| Day | Avg Leads | Avg Spend | CPL | ROAS |
+- Highlight the BEST day for leads and ROAS
+- Highlight the WORST day for leads and ROAS
+- Recommend: Should certain days have higher/lower budgets?
+- Note any weekend vs weekday patterns
 
 ## 🔄 Change Impact Analysis
 (Include this section ONLY if recentChanges data exists)
@@ -486,13 +614,13 @@ For each logged change, show:
 - Impact assessment: ✅ Positive, ⚠️ Neutral/Too Early, ❌ Negative
 - Recommendation: Keep, Roll Back, or Wait for More Data
 
-## 📊 Weekly Campaign Overview
+## 📊 Campaign Overview (${daysToAnalyze} Days)
 For ALL active campaigns, show:
 | Campaign | Spend | Revenue | ROAS | Profit/Loss | Leads | Daily Target | Capacity % |
 Mark campaigns with: ✅ (2x+ ROAS), ⚠️ (1.5-2x), ❌ (<1.5x)
 
 ## 🚀 Top Priority: Under-Capacity Opportunities
-Campaigns with decent ROAS (1.5x+) that are UNDER capacity (weeklyCapacityFillPercent < 100). These should be scaled up. Show the gap between current leads and target.
+Campaigns with decent ROAS (1.5x+) that are UNDER capacity. These should be scaled up.
 
 ## 🚨 Losing Money (Action Required)
 Campaigns with ROAS < 1.5x - calculate exact losses.
@@ -503,8 +631,12 @@ Campaigns hitting both profitability (2x+) and capacity targets.
 ## 📉 CPL Trend Alerts
 Only campaigns where CPL is rising vs their own past (cplTrend > 15%).
 
-## 💡 Campaign-Specific Actions
-One actionable item per campaign. Prioritize changes based on changelog impact analysis.
+## 💡 Actionable Recommendations
+Based on all the above analysis:
+1. Day-of-week optimizations (if patterns exist)
+2. Volume trend actions (investigate decline OR capitalize on growth)
+3. Campaign-specific actions
+4. Changes to roll back or keep
 
 IMPORTANT: If a campaign has positive ROAS but is under capacity, this is your MAIN recommendation - push more volume there!`;
 
