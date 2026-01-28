@@ -2,15 +2,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, LinkIcon, CheckCircle2, XCircle, LogIn, AlertCircle } from "lucide-react";
+import { LinkIcon, CheckCircle2, XCircle, LogIn, AlertCircle, Building2, Map } from "lucide-react";
 import { toast } from 'sonner';
 import GoogleAdsCampaigns from './GoogleAdsCampaigns';
+import GoogleAdsAccountSelector from '@/components/integrations/GoogleAdsAccountSelector';
 import { initiateGoogleAdsConnection, validateGoogleAdsConnection } from '@/services/googleAdsConnection';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const GoogleAdsIntegration = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -18,6 +18,7 @@ const GoogleAdsIntegration = () => {
   const [isChecking, setIsChecking] = useState(true);
   const [activeTab, setActiveTab] = useState('connect');
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [hasConnectedAccounts, setHasConnectedAccounts] = useState(false);
 
   const { session, isLoading: isAuthLoading } = useAuth();
 
@@ -30,7 +31,22 @@ const GoogleAdsIntegration = () => {
       setIsConnected(isValid);
 
       if (isValid) {
-        setActiveTab('campaigns');
+        // Check if any accounts are connected
+        const { data: accounts } = await supabase
+          .from('account_connections')
+          .select('id')
+          .eq('platform', 'google_ads')
+          .eq('is_connected', true)
+          .limit(1);
+
+        setHasConnectedAccounts(accounts && accounts.length > 0);
+
+        // Navigate to appropriate tab based on state
+        if (accounts && accounts.length > 0) {
+          setActiveTab('campaigns');
+        } else {
+          setActiveTab('accounts');
+        }
       }
     } catch (error) {
       console.error("Error validating Google Ads connection:", error);
@@ -81,11 +97,33 @@ const GoogleAdsIntegration = () => {
     }
   };
 
+  const handleAccountsConnected = () => {
+    setHasConnectedAccounts(true);
+    setActiveTab('campaigns');
+    toast.success('Accounts connected! Now you can map campaigns.');
+  };
+
   const handleDisconnect = async () => {
     try {
-      // Implement disconnect logic here
+      // Delete the tokens
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('google_ads_tokens')
+          .delete()
+          .eq('user_id', user.id);
+        
+        // Disconnect all Google Ads accounts
+        await supabase
+          .from('account_connections')
+          .update({ is_connected: false })
+          .eq('user_id', user.id)
+          .eq('platform', 'google_ads');
+      }
+      
       toast.info('Google Ads disconnected');
       setIsConnected(false);
+      setHasConnectedAccounts(false);
       setActiveTab('connect');
     } catch (error) {
       toast.error("Failed to disconnect Google Ads");
@@ -101,7 +139,7 @@ const GoogleAdsIntegration = () => {
             Google Ads Integration
           </CardTitle>
           <CardDescription>
-            Connect your Google Ads account to sync ad performance data automatically
+            Connect your Google Ads accounts to sync ad performance data automatically
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -112,20 +150,29 @@ const GoogleAdsIntegration = () => {
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
-                <TabsTrigger value="connect">Connection</TabsTrigger>
-                <TabsTrigger value="campaigns" disabled={!isConnected}>Campaigns</TabsTrigger>
+                <TabsTrigger value="connect">
+                  Connection
+                </TabsTrigger>
+                <TabsTrigger value="accounts" disabled={!isConnected}>
+                  <Building2 className="mr-1 h-4 w-4" />
+                  Accounts
+                </TabsTrigger>
+                <TabsTrigger value="campaigns" disabled={!isConnected || !hasConnectedAccounts}>
+                  <Map className="mr-1 h-4 w-4" />
+                  Campaigns
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="connect">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <div className="flex-1">
-                      <Label htmlFor="googleads-status">Connection Status</Label>
-                      <div className="flex items-center mt-1 text-sm">
+                      <div className="text-sm font-medium mb-1">Connection Status</div>
+                      <div className="flex items-center text-sm">
                         {isConnected ? (
                           <>
                             <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                            <span className="text-green-600">Connected</span>
+                            <span className="text-green-600">Connected to Google</span>
                           </>
                         ) : (
                           <>
@@ -160,6 +207,23 @@ const GoogleAdsIntegration = () => {
                       </Button>
                     </div>
                   )}
+
+                  {isConnected && (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                      <p className="text-sm text-green-800">
+                        ✓ Google account connected. Go to the <strong>Accounts</strong> tab to select which Google Ads accounts to connect.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="accounts">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Select the Google Ads accounts you want to connect. You can connect multiple accounts.
+                  </p>
+                  <GoogleAdsAccountSelector onAccountsConnected={handleAccountsConnected} />
                 </div>
               </TabsContent>
               
