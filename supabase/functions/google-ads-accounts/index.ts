@@ -139,9 +139,9 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
       headers["login-customer-id"] = GOOGLE_ADS_MANAGER_CUSTOMER_ID.replace(/-/g, "");
     }
     
-    // Google Ads API - use the v18 endpoint (latest stable)
+    // Google Ads API - use the v17 endpoint (latest stable)
     const listCustomersResponse = await fetch(
-      "https://googleads.googleapis.com/v18/customers:listAccessibleCustomers",
+      "https://googleads.googleapis.com/v17/customers:listAccessibleCustomers",
       {
         method: "GET",
         headers,
@@ -181,7 +181,7 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
           }
           
           const customerResponse = await fetch(
-            `https://googleads.googleapis.com/v18/customers/${customerId}`,
+            `https://googleads.googleapis.com/v17/customers/${customerId}`,
             {
               method: "GET",
               headers: detailHeaders,
