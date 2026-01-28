@@ -162,7 +162,7 @@ serve(async (req) => {
         // Call the Google Ads API to list accessible customers
         console.log("Calling Google Ads API to list accessible customers...");
         const listCustomersResponse = await fetch(
-          "https://googleads.googleapis.com/v18/customers:listAccessibleCustomers",
+          "https://googleads.googleapis.com/v17/customers:listAccessibleCustomers",
           {
             method: "GET",
             headers: {
@@ -217,7 +217,7 @@ serve(async (req) => {
           customerIds.map(async (customerId: string) => {
             try {
               const customerResponse = await fetch(
-                `https://googleads.googleapis.com/v18/customers/${customerId}`,
+                `https://googleads.googleapis.com/v17/customers/${customerId}`,
                 {
                   method: "GET",
                   headers: {

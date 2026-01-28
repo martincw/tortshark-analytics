@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const GOOGLE_ADS_API_VERSION = "v16";
+const GOOGLE_ADS_API_VERSION = "v17";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 const corsHeaders = {
@@ -182,7 +182,7 @@ async function fetchAccountsList(accessToken: string, developerToken: string): P
     
     // First, fetch the accessible customers
     const managerResponse = await fetch(
-      "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers",
+      "https://googleads.googleapis.com/v17/customers:listAccessibleCustomers",
       {
         method: "GET",
         headers: {
