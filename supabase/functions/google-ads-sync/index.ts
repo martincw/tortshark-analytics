@@ -320,12 +320,12 @@ serve(async (req) => {
         );
       }
 
-      // Get connected Google Ads accounts
+      // Get connected Google Ads accounts (use 'google_ads' as platform)
       const { data: connections } = await supabase
         .from("account_connections")
         .select("customer_id, name")
         .eq("user_id", userId)
-        .eq("platform", "google")
+        .eq("platform", "google_ads")
         .eq("is_connected", true);
 
       if (!connections || connections.length === 0) {
@@ -391,7 +391,7 @@ serve(async (req) => {
         .from("account_connections")
         .select("customer_id")
         .eq("user_id", userId)
-        .eq("platform", "google")
+        .eq("platform", "google_ads")
         .eq("is_connected", true);
 
       if (!connections || connections.length === 0) {
