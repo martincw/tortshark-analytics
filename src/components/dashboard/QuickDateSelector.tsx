@@ -72,6 +72,11 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         start = getStartOfWeek(lastWeek);
         end = getEndOfWeek(lastWeek);
         break;
+      case 'Last3Days':
+        // Trailing 3 days ending yesterday
+        end = yesterday;
+        start = subDays(end, 2);
+        break;
       case 'Last7Days':
         // Changed: Use yesterday as end date instead of now
         end = yesterday;
@@ -183,6 +188,13 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
     switch (option) {
       case 'MonthToDate':
         return startDate.getTime() === getStartOfMonth(today).getTime();
+      case 'Last3Days':
+        const last3End = new Date(yesterday);
+        const last3Start = subDays(last3End, 2);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last3Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last3End, "yyyy-MM-dd")
+        );
       case 'Last7Days':
         const last7End = new Date(yesterday);
         const last7Start = subDays(last7End, 6);
@@ -334,6 +346,15 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
         >
           <Calendar className="mr-2 h-4 w-4" />
           Last Month
+        </Button>
+        <Button 
+          variant={isSelected('Last3Days') ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => handleQuickSelect('Last3Days')}
+          className="w-full justify-start"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Last 3 Days
         </Button>
         <Button 
           variant={isSelected('Last7Days') ? "default" : "outline"} 
