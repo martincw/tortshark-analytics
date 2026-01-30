@@ -166,6 +166,11 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
 
   // Function to highlight the selected range button
   const isSelected = (option: string): boolean => {
+    // AllTime uses empty strings, so check for that first
+    if (option === 'AllTime') {
+      return !currentRange?.startDate && !currentRange?.endDate;
+    }
+    
     if (!currentRange?.startDate) return false;
     
     const startDate = new Date(currentRange.startDate);
@@ -179,7 +184,6 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
       case 'MonthToDate':
         return startDate.getTime() === getStartOfMonth(today).getTime();
       case 'Last7Days':
-        // Update the check for Last7Days
         const last7End = new Date(yesterday);
         const last7Start = subDays(last7End, 6);
         return (
@@ -187,7 +191,6 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
           format(endDate, "yyyy-MM-dd") === format(last7End, "yyyy-MM-dd")
         );
       case 'Last14Days':
-        // Add check for Last14Days
         const last14End = new Date(yesterday);
         const last14Start = subDays(last14End, 13);
         return (
@@ -195,7 +198,6 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
           format(endDate, "yyyy-MM-dd") === format(last14End, "yyyy-MM-dd")
         );
       case 'Last30Days':
-        // Update the check for Last30Days
         const last30End = new Date(yesterday);
         const last30Start = subDays(last30End, 29);
         return (
@@ -216,11 +218,19 @@ const QuickDateSelector: React.FC<QuickDateSelectorProps> = ({
           format(startDate, "yyyy-MM-dd") === format(last90Start, "yyyy-MM-dd") &&
           format(endDate, "yyyy-MM-dd") === format(last90End, "yyyy-MM-dd")
         );
-      case 'AllTime':
-        const allTimeStart = subYears(today, 2);
+      case 'Last180Days':
+        const last180End = new Date(yesterday);
+        const last180Start = subDays(last180End, 179);
         return (
-          format(startDate, "yyyy-MM-dd") === format(allTimeStart, "yyyy-MM-dd") &&
-          format(endDate, "yyyy-MM-dd") === format(yesterday, "yyyy-MM-dd")
+          format(startDate, "yyyy-MM-dd") === format(last180Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last180End, "yyyy-MM-dd")
+        );
+      case 'Last270Days':
+        const last270End = new Date(yesterday);
+        const last270Start = subDays(last270End, 269);
+        return (
+          format(startDate, "yyyy-MM-dd") === format(last270Start, "yyyy-MM-dd") &&
+          format(endDate, "yyyy-MM-dd") === format(last270End, "yyyy-MM-dd")
         );
       case 'ThisWeek':
         const thisWeekStart = getStartOfWeek(today);
