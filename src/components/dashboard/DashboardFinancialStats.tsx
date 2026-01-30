@@ -32,7 +32,14 @@ const DashboardFinancialStats: React.FC = () => {
   
   useEffect(() => {
     async function calculateFinancialStats() {
-      if (!dateRange.startDate || !dateRange.endDate) return;
+      const isAllTime = !dateRange.startDate && !dateRange.endDate;
+      const hasBoundedRange = Boolean(dateRange.startDate && dateRange.endDate);
+
+      // Guard against partially-set ranges (shouldn't happen, but keeps UI predictable)
+      if (!isAllTime && !hasBoundedRange) {
+        setStats(null);
+        return;
+      }
       
       setLoading(true);
       console.log('Calculating financial stats for date range:', dateRange);
@@ -54,7 +61,11 @@ const DashboardFinancialStats: React.FC = () => {
         
         relevantCampaigns.forEach(campaign => {
           campaign.statsHistory.forEach(entry => {
-            if (isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)) {
+            const includeEntry = hasBoundedRange
+              ? isDateInRange(entry.date, dateRange.startDate!, dateRange.endDate!)
+              : true;
+
+            if (includeEntry) {
               totalRevenue += entry.revenue || 0;
               totalCost += entry.adSpend || 0;
               totalLeads += entry.leads || 0;
@@ -64,6 +75,12 @@ const DashboardFinancialStats: React.FC = () => {
             }
           });
         });
+
+        // If there's no data at all for the chosen period, keep the existing empty-state UX
+        if (daysWithEntries.size === 0) {
+          setStats(null);
+          return;
+        }
         
         const profit = totalRevenue - totalCost;
         const roas = totalCost > 0 ? (totalRevenue / totalCost) * 100 : 0;
@@ -239,9 +256,11 @@ const DashboardFinancialStats: React.FC = () => {
           </div>
         ) : (
           <div className="py-8 text-center text-muted-foreground">
-            {dateRange.startDate ? 
-              `No stats available for selected date range` : 
-              'Please select a date range to view stats'}
+            {dateRange.startDate && dateRange.endDate
+              ? 'No stats available for selected date range'
+              : (!dateRange.startDate && !dateRange.endDate)
+                ? 'No stats available for all time'
+                : 'Please select a date range to view stats'}
           </div>
         )}
       </CardContent>
