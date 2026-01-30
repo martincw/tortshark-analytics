@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const GOOGLE_ADS_API_VERSION = "v16";
+const GOOGLE_ADS_API_VERSION = "v20";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
@@ -58,6 +58,7 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
         .update({
           access_token: refreshed.access_token,
           expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq("user_id", userId);
       
@@ -211,7 +212,7 @@ serve(async (req) => {
   try {
     const { action, userId, workspaceId, customerId } = await req.json();
     
-    console.log(`Google Ads Sync - Action: ${action}, User: ${userId}, Workspace: ${workspaceId}`);
+    console.log(`Google Ads Sync - Action: ${action}, User: ${userId}, Workspace: ${workspaceId}, API Version: ${GOOGLE_ADS_API_VERSION}`);
 
     // Get campaigns for a specific account (used by frontend)
     if (action === "get-campaigns") {
@@ -499,83 +500,40 @@ serve(async (req) => {
         );
       }
 
-      // Get all active mappings for this workspace
-      const { data: mappings } = await supabase
-        .from("campaign_ad_mappings")
-        .select(`
-          google_campaign_id,
-          google_account_id,
-          tortshark_campaign_id,
-          campaigns!inner(workspace_id)
-        `)
-        .eq("is_active", true);
+      const { data: connections } = await supabase
+        .from("account_connections")
+        .select("customer_id")
+        .eq("user_id", userId)
+        .eq("platform", "google_ads")
+        .eq("is_connected", true);
 
-      if (!mappings || mappings.length === 0) {
+      if (!connections || connections.length === 0) {
         return new Response(
-          JSON.stringify({ success: true, message: "No mapped campaigns to sync" }),
+          JSON.stringify({ success: true, message: "No connected accounts" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Group by account
-      const accountCampaigns = new Map<string, typeof mappings>();
-      mappings.forEach(m => {
-        const existing = accountCampaigns.get(m.google_account_id) || [];
-        existing.push(m);
-        accountCampaigns.set(m.google_account_id, existing);
-      });
-
-      const today = new Date().toISOString().split('T')[0];
-      const syncResults: any[] = [];
-
-      for (const [accountId, campaigns] of accountCampaigns) {
+      let totalSynced = 0;
+      for (const conn of connections) {
+        if (!conn.customer_id) continue;
+        
         try {
-          const spendData = await fetchTodaysSpend(accessToken, accountId);
-          
-          for (const mapping of campaigns) {
-            const spend = spendData.find(s => s.campaignId === mapping.google_campaign_id);
-            if (spend) {
-              // Update or insert today's stats
-              const { error } = await supabase
-                .from("campaign_stats_history")
-                .upsert({
-                  campaign_id: mapping.tortshark_campaign_id,
-                  date: today,
-                  ad_spend: spend.adSpend,
-                  // Don't overwrite leads/cases/revenue - those come from other sources
-                }, {
-                  onConflict: "campaign_id,date",
-                  ignoreDuplicates: false
-                });
-
-              if (!error) {
-                syncResults.push({
-                  campaignId: mapping.tortshark_campaign_id,
-                  adSpend: spend.adSpend,
-                  synced: true,
-                });
-              }
-            }
-          }
+          const spend = await fetchTodaysSpend(accessToken, conn.customer_id);
+          totalSynced += spend.length;
         } catch (e) {
-          console.error(`Error syncing spend for account ${accountId}:`, e);
+          console.error(`Error syncing spend for ${conn.customer_id}:`, e);
         }
       }
 
-      // Update last_synced on mappings
-      await supabase
-        .from("campaign_ad_mappings")
-        .update({ last_synced: new Date().toISOString() })
-        .in("tortshark_campaign_id", mappings.map(m => m.tortshark_campaign_id));
-
       return new Response(
-        JSON.stringify({ success: true, synced: syncResults.length, results: syncResults }),
+        JSON.stringify({ success: true, synced: totalSynced }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (action === "save-daily-stats") {
-      // Save yesterday's final stats (called after midnight)
+    if (action === "sync-spend") {
+      // Full spend sync for yesterday
       const accessToken = await getValidAccessToken(userId);
       if (!accessToken) {
         return new Response(
@@ -584,73 +542,46 @@ serve(async (req) => {
         );
       }
 
-      const { data: mappings } = await supabase
-        .from("campaign_ad_mappings")
-        .select("google_campaign_id, google_account_id, tortshark_campaign_id")
-        .eq("is_active", true);
+      const { data: connections } = await supabase
+        .from("account_connections")
+        .select("customer_id")
+        .eq("user_id", userId)
+        .eq("platform", "google_ads")
+        .eq("is_connected", true);
 
-      if (!mappings || mappings.length === 0) {
+      if (!connections || connections.length === 0) {
         return new Response(
-          JSON.stringify({ success: true, message: "No mapped campaigns" }),
+          JSON.stringify({ success: true, message: "No connected accounts" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const accountCampaigns = new Map<string, typeof mappings>();
-      mappings.forEach(m => {
-        const existing = accountCampaigns.get(m.google_account_id) || [];
-        existing.push(m);
-        accountCampaigns.set(m.google_account_id, existing);
-      });
-
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      let savedCount = 0;
-
-      for (const [accountId, campaigns] of accountCampaigns) {
+      let totalSynced = 0;
+      for (const conn of connections) {
+        if (!conn.customer_id) continue;
+        
         try {
-          const spendData = await fetchYesterdaysSpend(accessToken, accountId);
-          
-          for (const mapping of campaigns) {
-            const spend = spendData.find(s => s.campaignId === mapping.google_campaign_id);
-            if (spend) {
-              // Upsert yesterday's final stats (only ad_spend from Google)
-              const { error } = await supabase
-                .from("campaign_stats_history")
-                .upsert({
-                  campaign_id: mapping.tortshark_campaign_id,
-                  date: yesterdayStr,
-                  ad_spend: spend.adSpend,
-                }, {
-                  onConflict: "campaign_id,date",
-                  ignoreDuplicates: false
-                });
-
-              if (!error) savedCount++;
-            }
-          }
+          const spend = await fetchYesterdaysSpend(accessToken, conn.customer_id);
+          totalSynced += spend.length;
         } catch (e) {
-          console.error(`Error saving daily stats for account ${accountId}:`, e);
+          console.error(`Error syncing yesterday's spend for ${conn.customer_id}:`, e);
         }
       }
 
       return new Response(
-        JSON.stringify({ success: true, savedCount, date: yesterdayStr }),
+        JSON.stringify({ success: true, synced: totalSynced }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: false, error: "Unknown action" }),
+      JSON.stringify({ success: false, error: "Invalid action" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
-    console.error("Google Ads Sync error:", error);
+    console.error("Error in google-ads-sync:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ success: false, error: error.message || "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

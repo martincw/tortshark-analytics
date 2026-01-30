@@ -43,6 +43,12 @@ const GoogleAdsAccountSelector: React.FC<GoogleAdsAccountSelectorProps> = ({
 
       if (funcError) throw funcError;
 
+      // Check if API returned an error
+      if (data?.success === false && data?.error) {
+        setError(data.error);
+        return;
+      }
+
       if (data?.accounts) {
         // Also check which accounts are already connected
         const { data: existingConnections } = await supabase
@@ -169,8 +175,18 @@ const GoogleAdsAccountSelector: React.FC<GoogleAdsAccountSelectorProps> = ({
         <CardContent>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="ml-2">
+              <strong>Error:</strong> {error}
+            </AlertDescription>
           </Alert>
+          <p className="text-sm text-muted-foreground mt-3">
+            This could be caused by:
+            <ul className="list-disc ml-4 mt-1">
+              <li>Developer token not approved for production use</li>
+              <li>No Google Ads accounts linked to this Google account</li>
+              <li>Insufficient permissions on the connected account</li>
+            </ul>
+          </p>
           <Button onClick={fetchAccounts} variant="outline" className="mt-4">
             <RefreshCw className="mr-2 h-4 w-4" />
             Retry

@@ -6,6 +6,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
+const GOOGLE_ADS_API_VERSION = "v20";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,6 +91,7 @@ serve(async (req) => {
     // Action to list Google Ads accounts
     if (action === "accounts") {
       console.log("Fetching Google Ads accounts for user:", user.id);
+      console.log("Using API version:", GOOGLE_ADS_API_VERSION);
       
       try {
         // Get the user's Google Ads token from the database
@@ -162,7 +164,7 @@ serve(async (req) => {
         // Call the Google Ads API to list accessible customers
         console.log("Calling Google Ads API to list accessible customers...");
         const listCustomersResponse = await fetch(
-          "https://googleads.googleapis.com/v17/customers:listAccessibleCustomers",
+          `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
           {
             method: "GET",
             headers: {
@@ -190,7 +192,7 @@ serve(async (req) => {
               details: errorText,
               accounts: []
             }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         
@@ -200,6 +202,7 @@ serve(async (req) => {
           console.log("No accessible accounts found for this user");
           return new Response(
             JSON.stringify({ 
+              success: true,
               accounts: [],
               message: "No Google Ads accounts found. The Google account you connected may not have access to any Google Ads accounts."
             }),
@@ -217,7 +220,7 @@ serve(async (req) => {
           customerIds.map(async (customerId: string) => {
             try {
               const customerResponse = await fetch(
-                `https://googleads.googleapis.com/v17/customers/${customerId}`,
+                `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
                 {
                   method: "GET",
                   headers: {
@@ -263,7 +266,7 @@ serve(async (req) => {
         console.log(`Returning ${validAccounts.length} valid accounts`);
         
         return new Response(
-          JSON.stringify({ accounts: validAccounts }),
+          JSON.stringify({ success: true, accounts: validAccounts }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (error) {
@@ -271,7 +274,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ error: `Failed to fetch accounts: ${error.message}` }),
           { 
-            status: 500, 
+            status: 502, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );

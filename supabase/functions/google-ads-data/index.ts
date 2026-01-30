@@ -4,7 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const GOOGLE_ADS_API_VERSION = "v17";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const GOOGLE_ADS_API_VERSION = "v20";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 const corsHeaders = {
@@ -14,10 +15,12 @@ const corsHeaders = {
 };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
-    const { data: tokens, error: tokensError } = await supabase
+    // Use admin client to bypass RLS
+    const { data: tokens, error: tokensError } = await adminClient
       .from("google_ads_tokens")
       .select("access_token, refresh_token, expires_at")
       .eq("user_id", userId)
@@ -37,14 +40,15 @@ async function getGoogleAdsToken(userId: string): Promise<{ accessToken: string;
     if (isExpired && tokens.refresh_token) {
       const refreshedTokens = await refreshGoogleToken(tokens.refresh_token);
       
-      await supabase
+      // Update token using admin client (no provider filter - column doesn't exist)
+      await adminClient
         .from("google_ads_tokens")
         .update({
           access_token: refreshedTokens.access_token,
           expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .eq("user_id", userId)
-        .eq("provider", "google");
+        .eq("user_id", userId);
       
       return { 
         accessToken: refreshedTokens.access_token, 
@@ -178,11 +182,11 @@ function transformCampaignMetrics(apiResponse: any): any[] {
 
 async function fetchAccountsList(accessToken: string, developerToken: string): Promise<any[]> {
   try {
-    console.log("Fetching Google Ads accounts...");
+    console.log("Fetching Google Ads accounts using API version:", GOOGLE_ADS_API_VERSION);
     
     // First, fetch the accessible customers
     const managerResponse = await fetch(
-      "https://googleads.googleapis.com/v17/customers:listAccessibleCustomers",
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
       {
         method: "GET",
         headers: {
@@ -375,7 +379,7 @@ serve(async (req) => {
             details: error.message
           }),
           { 
-            status: 500,
+            status: 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
@@ -432,14 +436,15 @@ serve(async (req) => {
           try {
             const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
             
-            await supabase
-              .from("user_oauth_tokens")
+            // Update token using admin client
+            await adminClient
+              .from("google_ads_tokens")
               .update({
                 access_token: refreshedTokens.access_token,
                 expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
+                updated_at: new Date().toISOString()
               })
-              .eq("user_id", user.id)
-              .eq("provider", "google");
+              .eq("user_id", user.id);
             
             const apiResponse = await fetchCampaignMetrics(
               refreshedTokens.access_token,
@@ -511,51 +516,14 @@ serve(async (req) => {
           }
         );
       } catch (error) {
-        console.error("Error fetching Google Ads accounts:", error);
-        
-        if (tokensResult.refreshToken) {
-          try {
-            const refreshedTokens = await refreshGoogleToken(tokensResult.refreshToken);
-            
-            await supabase
-              .from("user_oauth_tokens")
-              .update({
-                access_token: refreshedTokens.access_token,
-                expires_at: new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString(),
-              })
-              .eq("user_id", user.id)
-              .eq("provider", "google");
-            
-            const accounts = await fetchAccountsList(refreshedTokens.access_token, GOOGLE_ADS_DEVELOPER_TOKEN);
-            
-            return new Response(
-              JSON.stringify({ success: true, accounts }),
-              { 
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
-          } catch (refreshError) {
-            return new Response(
-              JSON.stringify({ 
-                success: false, 
-                error: "Failed to refresh token and retry fetching accounts",
-                details: refreshError.message
-              }),
-              { 
-                status: 500,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
-          }
-        }
-        
+        console.error("Error fetching accounts:", error);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: error.message || "Failed to fetch Google Ads accounts"
+            error: error.message || "Failed to fetch accounts" 
           }),
           { 
-            status: 500,
+            status: 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
@@ -570,12 +538,11 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in google-ads-data function:", error);
-    
+    console.error("Error in google-ads-data edge function:", error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "Internal server error"
+        error: error.message || "Internal server error" 
       }),
       { 
         status: 500,
