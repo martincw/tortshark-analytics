@@ -15,7 +15,27 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
   const { dateRange } = useCampaign();
   
   const averages = useMemo(() => {
-    if (!dateRange.startDate || !dateRange.endDate || !filteredCampaigns.length) {
+    const isAllTime = !dateRange.startDate && !dateRange.endDate;
+    const hasBoundedRange = Boolean(dateRange.startDate && dateRange.endDate);
+
+    if (!filteredCampaigns.length) {
+      return {
+        adSpend: 0,
+        leads: 0,
+        cases: 0,
+        revenue: 0,
+        profit: 0,
+        roas: 0,
+        conversionRate: 0,
+        costPerLead: 0,
+        earningsPerLead: 0,
+        daysInRange: 1,
+        displayDateRange: ""
+      };
+    }
+
+    // Guard against partially-set ranges
+    if (!isAllTime && !hasBoundedRange) {
       return {
         adSpend: 0,
         leads: 0,
@@ -36,16 +56,14 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
     const todayString = format(today, 'yyyy-MM-dd');
     
-    // Parse the selected date range
-    const startDate = parseISO(dateRange.startDate);
-    const endDate = parseISO(dateRange.endDate);
-    
-    // Determine the effective end date for averages calculation
-    // This should be the earlier of: yesterday OR the selected end date
-    const effectiveEndDate = isBefore(endDate, yesterday) ? endDate : yesterday;
-    
-    // Only proceed if we have a valid date range (start date <= effective end date)
-    if (isBefore(effectiveEndDate, startDate)) {
+    // For bounded ranges we keep the existing "completed days only" logic
+    const startDate = hasBoundedRange ? parseISO(dateRange.startDate) : undefined;
+    const endDate = hasBoundedRange ? parseISO(dateRange.endDate) : undefined;
+    const effectiveEndDate = hasBoundedRange
+      ? (isBefore(endDate!, yesterday) ? endDate! : yesterday)
+      : undefined;
+
+    if (hasBoundedRange && isBefore(effectiveEndDate!, startDate!)) {
       return {
         adSpend: 0,
         leads: 0,
@@ -69,6 +87,8 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
     
     // Track which days have entries to calculate true average
     const daysWithEntries = new Set<string>();
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
     
     filteredCampaigns.forEach(campaign => {
       campaign.statsHistory.forEach(entry => {
@@ -77,28 +97,49 @@ export function DailyAveragesSection({ filteredCampaigns }: DailyAveragesSection
           return;
         }
         
-        // Only include entries within the effective date range
-        if (isDateInRange(entry.date, dateRange.startDate!, format(effectiveEndDate, 'yyyy-MM-dd'))) {
+        const includeEntry = hasBoundedRange
+          ? isDateInRange(entry.date, dateRange.startDate!, format(effectiveEndDate!, 'yyyy-MM-dd'))
+          : true;
+
+        if (includeEntry) {
           totalAdSpend += entry.adSpend || 0;
           totalLeads += entry.leads || 0;
           totalCases += entry.cases || 0;
           totalRevenue += entry.revenue || 0;
           daysWithEntries.add(entry.date);
+
+          const entryDate = parseISO(entry.date);
+          if (!minDate || entryDate < minDate) minDate = entryDate;
+          if (!maxDate || entryDate > maxDate) maxDate = entryDate;
         }
       });
     });
+
+    if (daysWithEntries.size === 0) {
+      return {
+        adSpend: 0,
+        leads: 0,
+        cases: 0,
+        revenue: 0,
+        profit: 0,
+        roas: 0,
+        conversionRate: 0,
+        costPerLead: 0,
+        earningsPerLead: 0,
+        daysInRange: 0,
+        displayDateRange: "No completed days in range"
+      };
+    }
     
-    // Calculate number of completed days in the range
-    let daysInRange = differenceInDays(effectiveEndDate, startDate) + 1;
+    // Calculate display date range for subtitle
+    const displayDateRange = hasBoundedRange
+      ? `${format(startDate!, 'MMM d')} - ${format(effectiveEndDate!, 'MMM d, yyyy')}`
+      : (minDate && maxDate)
+        ? `${format(minDate, 'MMM d, yyyy')} - ${format(maxDate, 'MMM d, yyyy')}`
+        : "";
     
-    // Ensure we don't have negative or zero days
-    daysInRange = Math.max(daysInRange, 1);
-    
-    // Calculate display date range for subtitle - show the actual range used for averages
-    const displayDateRange = `${format(startDate, 'MMM d')} - ${format(effectiveEndDate, 'MMM d, yyyy')}`;
-    
-    // Use days with entries for average calculation if available, otherwise use calculated days in range
-    const effectiveDays = daysWithEntries.size > 0 ? daysWithEntries.size : daysInRange;
+    // Use days with entries for average calculation
+    const effectiveDays = Math.max(1, daysWithEntries.size);
     
     // Calculate daily averages
     const dailyAdSpend = effectiveDays > 0 ? totalAdSpend / effectiveDays : 0;
