@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-type AnalysisPeriod = "yesterday" | "trailing7";
+type AnalysisPeriod = "yesterday" | "trailing3" | "trailing7";
 
 type Message = {
   role: "user" | "assistant";
@@ -311,6 +311,15 @@ const MorningBriefing: React.FC = () => {
                 className="h-7 text-xs px-3"
               >
                 Yesterday
+              </Button>
+              <Button
+                variant={period === "trailing3" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => handlePeriodChange("trailing3")}
+                disabled={isLoading}
+                className="h-7 text-xs px-3"
+              >
+                Trailing 3 Days
               </Button>
               <Button
                 variant={period === "trailing7" ? "secondary" : "ghost"}
