@@ -156,21 +156,48 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
         `)
         .eq('user_id', user.id);
 
-      // Fetch stats history - use date range if set, otherwise fetch all
-      let statsHistoryQuery = supabase
-        .from('campaign_stats_history')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      // Only filter by date if we have a valid start date (not "all time")
-      if (dateRange.startDate) {
-        statsHistoryQuery = statsHistoryQuery.gte('date', dateRange.startDate);
-      }
-      if (dateRange.endDate) {
-        statsHistoryQuery = statsHistoryQuery.lte('date', dateRange.endDate);
-      }
-      
-      const { data: statsHistoryData, error: statsHistoryError } = await statsHistoryQuery;
+      // Fetch stats history (PAGED): Supabase/PostgREST often caps responses, so we must page.
+      const PAGE_SIZE = 1000;
+      const fetchStatsHistoryPaged = async () => {
+        const allRows: any[] = [];
+        let from = 0;
+        let page = 0;
+
+        while (true) {
+          let query = supabase
+            .from('campaign_stats_history')
+            .select('*')
+            .order('date', { ascending: false })
+            .range(from, from + PAGE_SIZE - 1);
+
+          // Only filter by date if we have a valid start/end date (not "all time")
+          if (dateRange.startDate) query = query.gte('date', dateRange.startDate);
+          if (dateRange.endDate) query = query.lte('date', dateRange.endDate);
+
+          const { data, error } = await query;
+          if (error) return { data: allRows, error };
+
+          if (!data || data.length === 0) break;
+          allRows.push(...data);
+          page += 1;
+
+          // If we got less than a full page, we're done
+          if (data.length < PAGE_SIZE) break;
+
+          from += PAGE_SIZE;
+
+          // Safety valve to prevent infinite loops in case of unexpected API behavior
+          if (page > 200) {
+            console.warn('Stats history paging exceeded 200 pages; stopping early to avoid runaway fetch.');
+            break;
+          }
+        }
+
+        console.log(`Fetched ${allRows.length} campaign_stats_history rows across ${page} page(s).`);
+        return { data: allRows, error: null };
+      };
+
+      const { data: statsHistoryData, error: statsHistoryError } = await fetchStatsHistoryPaged();
 
       if (statsHistoryError) {
         console.error("Error fetching stats history:", statsHistoryError);
