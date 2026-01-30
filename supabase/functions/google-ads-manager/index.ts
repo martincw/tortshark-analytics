@@ -8,8 +8,8 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
-// Updated API version from v16 to v18
-const GOOGLE_ADS_API_VERSION = "v18";
+// Updated API version to v20
+const GOOGLE_ADS_API_VERSION = "v20";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -58,7 +58,7 @@ async function getAccessToken(refreshToken: string): Promise<string> {
   }
 }
 
-// Get tokens from user_oauth_tokens table
+// Get tokens from google_ads_tokens table
 async function getTokens(userId: string): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
     const { data: tokens, error } = await supabase
@@ -79,20 +79,20 @@ async function getTokens(userId: string): Promise<{ accessToken: string; refresh
     const isExpired = new Date(tokens.expires_at) <= new Date();
     
     if (isExpired && tokens.refresh_token) {
-      const newTokens = await getAccessToken(tokens.refresh_token);
+      const newAccessToken = await getAccessToken(tokens.refresh_token);
       
       // Update stored token
       await supabase
         .from("google_ads_tokens")
         .update({
-          access_token: newTokens,
+          access_token: newAccessToken,
           expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .eq("user_id", userId)
-        .eq("provider", "google");
+        .eq("user_id", userId);
       
       return {
-        accessToken: newTokens,
+        accessToken: newAccessToken,
         refreshToken: tokens.refresh_token
       };
     }
@@ -243,7 +243,7 @@ async function saveAccountsToDatabase(userId: string, accounts: any[]): Promise<
           id: account.id,
           user_id: userId,
           name: account.name,
-          platform: 'google',
+          platform: 'google_ads',
           customer_id: account.customerId,
           is_connected: true,
           last_synced: new Date().toISOString()
@@ -276,7 +276,7 @@ async function deleteAllAccounts(userId: string): Promise<{ success: boolean; re
       .from('account_connections')
       .select('id')
       .eq('user_id', userId)
-      .eq('platform', 'google');
+      .eq('platform', 'google_ads');
     
     if (countError) {
       console.error("Error counting accounts:", countError);
@@ -290,7 +290,7 @@ async function deleteAllAccounts(userId: string): Promise<{ success: boolean; re
       .from('account_connections')
       .delete()
       .eq('user_id', userId)
-      .eq('platform', 'google');
+      .eq('platform', 'google_ads');
     
     if (error) {
       console.error("Error deleting all accounts:", error);
@@ -370,7 +370,7 @@ serve(async (req) => {
             error: error.message || "Failed to list Google Ads accounts" 
           }),
           { 
-            status: 500,
+            status: 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
@@ -380,16 +380,16 @@ serve(async (req) => {
     // Handle listing accounts with refresh token
     if (action === "list-accounts-with-refresh-token" && refreshToken) {
       try {
-        const accessToken = await getAccessToken(refreshToken);
+        const newAccessToken = await getAccessToken(refreshToken);
         
         // Use updated version
-        const accounts = await listGoogleAdsAccounts(accessToken);
+        const accounts = await listGoogleAdsAccounts(newAccessToken);
           
         // Store accounts in database
         await saveAccountsToDatabase(userId, accounts);
           
         return new Response(
-          JSON.stringify({ success: true, accounts, accessToken }),
+          JSON.stringify({ success: true, accounts, accessToken: newAccessToken }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (error) {
@@ -400,7 +400,7 @@ serve(async (req) => {
             error: error.message || "Failed to list Google Ads accounts" 
           }),
           { 
-            status: 500,
+            status: 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
@@ -439,7 +439,7 @@ serve(async (req) => {
             error: error.message || "Failed to list Google Ads accounts" 
           }),
           { 
-            status: 500,
+            status: 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );

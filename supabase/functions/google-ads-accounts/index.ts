@@ -7,6 +7,7 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
 const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 const GOOGLE_ADS_MANAGER_CUSTOMER_ID = Deno.env.get("GOOGLE_ADS_MANAGER_CUSTOMER_ID") || "";
+const GOOGLE_ADS_API_VERSION = "v20";
 const REDIRECT_URI = "https://app.tortshark.com/integrations";
 
 const corsHeaders = {
@@ -126,6 +127,7 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
     console.log("Listing real Google Ads accounts");
     console.log("Using developer token:", GOOGLE_ADS_DEVELOPER_TOKEN ? "present" : "missing");
     console.log("Using manager customer ID:", GOOGLE_ADS_MANAGER_CUSTOMER_ID || "not set");
+    console.log("Using API version:", GOOGLE_ADS_API_VERSION);
     
     // Build headers - include login-customer-id for MCC/Manager account access
     const headers: Record<string, string> = {
@@ -139,9 +141,9 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
       headers["login-customer-id"] = GOOGLE_ADS_MANAGER_CUSTOMER_ID.replace(/-/g, "");
     }
     
-    // Google Ads API - use the v17 endpoint (latest stable)
+    // Google Ads API - use v20 endpoint
     const listCustomersResponse = await fetch(
-      "https://googleads.googleapis.com/v17/customers:listAccessibleCustomers",
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
       {
         method: "GET",
         headers,
@@ -181,7 +183,7 @@ async function listGoogleAdsAccounts(accessToken: string, cleanupDummyAccounts: 
           }
           
           const customerResponse = await fetch(
-            `https://googleads.googleapis.com/v17/customers/${customerId}`,
+            `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}`,
             {
               method: "GET",
               headers: detailHeaders,
@@ -344,7 +346,7 @@ serve(async (req) => {
             error: error.message || "Failed to list Google Ads accounts" 
           }),
           { 
-            status: 500,
+            status: 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
@@ -421,9 +423,10 @@ serve(async (req) => {
         );
       } catch (error) {
         console.error("Error listing accounts:", error);
+        // Return 502 with actual error message for the UI to display
         return new Response(
           JSON.stringify({ success: false, error: error.message || "Failed to list accounts", accounts: [] }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
@@ -498,62 +501,11 @@ serve(async (req) => {
             `Successfully removed ${result.removedCount} accounts` : 
             `Failed: ${result.error}`
         }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    // Handle the delete-all-accounts action
-    if (action === "delete-all-accounts") {
-      const authHeader = req.headers.get("Authorization") || "";
-      const token = authHeader.replace("Bearer ", "");
-      
-      if (!token) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Authentication required for account deletion" 
-          }),
-          { 
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-      
-      if (userError || !user) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Authentication failed" 
-          }),
-          { 
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
-      const result = await deleteAllAccounts(user.id);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: result.success, 
-          removedCount: result.removedCount,
-          error: result.error,
-          message: result.success ? 
-            `Successfully removed ${result.removedCount} accounts` : 
-            `Failed to remove accounts: ${result.error}`
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-    
+    // Default response for unrecognized action
     return new Response(
       JSON.stringify({ success: false, error: "Invalid action or missing parameters" }),
       { 
@@ -567,8 +519,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "Internal server error",
-        stack: error.stack
+        error: error.message || "Internal server error"
       }),
       { 
         status: 500,
