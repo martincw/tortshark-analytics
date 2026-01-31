@@ -124,51 +124,76 @@ Deno.serve(async (req) => {
 
     for (const campaign of campaigns) {
       try {
-        const leadsUrl = new URL('https://api.leadprosper.io/public/leads');
-        leadsUrl.searchParams.set('start_date', syncDate);
-        leadsUrl.searchParams.set('end_date', syncDate);
-        leadsUrl.searchParams.set('campaign', campaign.id.toString());
-        leadsUrl.searchParams.set('timezone', 'America/New_York');
+        // Fetch ALL leads with pagination
+        let allLeads: LeadProsperLead[] = [];
+        let page = 1;
+        const perPage = 100; // LeadProsper default page size
+        let hasMore = true;
 
-        const leadsResponse = await fetch(leadsUrl.toString(), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
+        while (hasMore) {
+          const leadsUrl = new URL('https://api.leadprosper.io/public/leads');
+          leadsUrl.searchParams.set('start_date', syncDate);
+          leadsUrl.searchParams.set('end_date', syncDate);
+          leadsUrl.searchParams.set('campaign', campaign.id.toString());
+          leadsUrl.searchParams.set('timezone', 'America/New_York');
+          leadsUrl.searchParams.set('page', page.toString());
+          leadsUrl.searchParams.set('per_page', perPage.toString());
+
+          const leadsResponse = await fetch(leadsUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!leadsResponse.ok) {
+            console.warn(`Failed to fetch leads for campaign ${campaign.id} page ${page}:`, leadsResponse.status);
+            break;
           }
-        });
 
-        if (!leadsResponse.ok) {
-          console.warn(`Failed to fetch leads for campaign ${campaign.id}:`, leadsResponse.status);
-          continue;
+          const leadsData = await leadsResponse.json();
+          let leads: LeadProsperLead[] = [];
+          
+          if (Array.isArray(leadsData)) {
+            leads = leadsData;
+          } else if (leadsData.data && Array.isArray(leadsData.data)) {
+            leads = leadsData.data;
+          } else if (leadsData.leads && Array.isArray(leadsData.leads)) {
+            leads = leadsData.leads;
+          }
+
+          allLeads = allLeads.concat(leads);
+
+          // Check if there are more pages
+          // If we got fewer than perPage leads, we've reached the end
+          if (leads.length < perPage) {
+            hasMore = false;
+          } else {
+            page++;
+            // Safety valve: max 50 pages (5000 leads per campaign per day should be more than enough)
+            if (page > 50) {
+              console.warn(`Campaign ${campaign.id}: Hit pagination limit at 50 pages`);
+              hasMore = false;
+            }
+          }
+
+          // Add a small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        const leadsData = await leadsResponse.json();
-        let leads: LeadProsperLead[] = [];
-        
-        if (Array.isArray(leadsData)) {
-          leads = leadsData;
-        } else if (leadsData.data && Array.isArray(leadsData.data)) {
-          leads = leadsData.data;
-        } else if (leadsData.leads && Array.isArray(leadsData.leads)) {
-          leads = leadsData.leads;
-        }
-
-        if (leads.length > 0) {
+        if (allLeads.length > 0) {
           const stats: CampaignStats = {
             lpCampaignId: campaign.id,
             campaignName: campaign.name,
-            leads: leads.length,
-            revenue: leads.reduce((sum, l) => sum + (l.revenue || 0), 0),
-            cost: leads.reduce((sum, l) => sum + (l.cost || 0), 0),
-            acceptedLeads: leads.filter(l => l.status?.toLowerCase() === 'accepted').length
+            leads: allLeads.length,
+            revenue: allLeads.reduce((sum, l) => sum + (l.revenue || 0), 0),
+            cost: allLeads.reduce((sum, l) => sum + (l.cost || 0), 0),
+            acceptedLeads: allLeads.filter(l => l.status?.toLowerCase() === 'accepted').length
           };
           campaignStats.set(campaign.id, stats);
-          console.log(`Campaign ${campaign.name}: ${leads.length} leads, $${stats.revenue} revenue`);
+          console.log(`Campaign ${campaign.name}: ${allLeads.length} leads (${page} page(s)), $${stats.revenue} revenue`);
         }
-
-        // Add a small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
         
       } catch (error) {
         console.warn(`Error processing campaign ${campaign.id}:`, error);
