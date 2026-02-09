@@ -686,21 +686,58 @@ export const CampaignProvider = ({ children }: { children: React.ReactNode }) =>
     setError(null);
   
     try {
-      const { data, error } = await supabase
+      // First check if a record exists for this date
+      const { data: existing } = await supabase
         .from('campaign_stats_history')
-        .insert([
-          {
-            id: uuidv4(),
-            campaign_id: campaignId,
-            date: entry.date,
-            leads: entry.leads,
-            cases: entry.cases,
-            retainers: entry.retainers,
-            revenue: entry.revenue,
-            ad_spend: entry.adSpend,
-            created_at: new Date().toISOString()
-          }
-        ]);
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('date', entry.date)
+        .maybeSingle();
+
+      let data, error;
+      if (existing) {
+        // Update existing record, merging new values with existing
+        const updatePayload: Record<string, any> = {};
+        if (entry.leads !== undefined) updatePayload.leads = entry.leads;
+        if (entry.cases !== undefined) updatePayload.cases = entry.cases;
+        if (entry.retainers !== undefined) updatePayload.retainers = entry.retainers;
+        if (entry.revenue !== undefined) updatePayload.revenue = entry.revenue;
+        if (entry.adSpend !== undefined) updatePayload.ad_spend = entry.adSpend;
+        if (entry.youtube_spend !== undefined) updatePayload.youtube_spend = entry.youtube_spend;
+        if (entry.meta_spend !== undefined) updatePayload.meta_spend = entry.meta_spend;
+        if (entry.newsbreak_spend !== undefined) updatePayload.newsbreak_spend = entry.newsbreak_spend;
+        if (entry.youtube_leads !== undefined) updatePayload.youtube_leads = entry.youtube_leads;
+        if (entry.meta_leads !== undefined) updatePayload.meta_leads = entry.meta_leads;
+        if (entry.newsbreak_leads !== undefined) updatePayload.newsbreak_leads = entry.newsbreak_leads;
+
+        ({ data, error } = await supabase
+          .from('campaign_stats_history')
+          .update(updatePayload)
+          .eq('id', existing.id));
+      } else {
+        // Insert new record
+        ({ data, error } = await supabase
+          .from('campaign_stats_history')
+          .insert([
+            {
+              id: uuidv4(),
+              campaign_id: campaignId,
+              date: entry.date,
+              leads: entry.leads,
+              cases: entry.cases,
+              retainers: entry.retainers,
+              revenue: entry.revenue,
+              ad_spend: entry.adSpend,
+              youtube_spend: entry.youtube_spend,
+              meta_spend: entry.meta_spend,
+              newsbreak_spend: entry.newsbreak_spend,
+              youtube_leads: entry.youtube_leads,
+              meta_leads: entry.meta_leads,
+              newsbreak_leads: entry.newsbreak_leads,
+              created_at: new Date().toISOString()
+            }
+          ]));
+      }
   
       if (error) {
         console.error("Error adding stat history entry:", error);
