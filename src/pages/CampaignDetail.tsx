@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCampaign } from "@/contexts/CampaignContext";
+import { supabase } from "@/integrations/supabase/client";
 import { calculateMetrics, formatCurrency, formatNumber, formatPercent, getRoasClass } from "@/utils/campaignUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -156,7 +157,54 @@ const CampaignDetail = () => {
   
   // State to control how many manual stats entries to show
   const [showAllStats, setShowAllStats] = useState(false);
-  const STATS_PER_PAGE = 10;
+  const STATS_PER_PAGE = 7; // Show most recent week by default
+
+  // Fetch ALL stats history for this campaign (ignoring global date range)
+  // Used by FlexibleTimeComparison and the daily stats table
+  const [allStatsHistory, setAllStatsHistory] = useState<any[]>([]);
+  const fetchAllStatsHistory = useCallback(async () => {
+    if (!id) return;
+    const allRows: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('campaign_stats_history')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('date', { ascending: false })
+        .range(from, from + 999);
+      if (error || !data || data.length === 0) break;
+      allRows.push(...data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    setAllStatsHistory(allRows.map(entry => ({
+      id: entry.id || '',
+      campaignId: entry.campaign_id || '',
+      date: entry.date || '',
+      leads: entry.leads || 0,
+      cases: entry.cases || 0,
+      revenue: entry.revenue || 0,
+      adSpend: entry.ad_spend || 0,
+      youtube_spend: entry.youtube_spend || 0,
+      meta_spend: entry.meta_spend || 0,
+      newsbreak_spend: entry.newsbreak_spend || 0,
+      youtube_leads: entry.youtube_leads || 0,
+      meta_leads: entry.meta_leads || 0,
+      newsbreak_leads: entry.newsbreak_leads || 0,
+      createdAt: entry.created_at || ''
+    })));
+  }, [id]);
+
+  useEffect(() => {
+    fetchAllStatsHistory();
+  }, [fetchAllStatsHistory, campaign?.statsHistory]);
+
+  // Campaign with ALL stats history (for components that shouldn't use date filter)
+  const fullCampaign = useMemo(() => {
+    if (!campaign) return null;
+    return { ...campaign, statsHistory: allStatsHistory };
+  }, [campaign, allStatsHistory]);
 
   // Multi-day stats integration
   const {
@@ -216,15 +264,14 @@ const CampaignDetail = () => {
     return calculateMetrics(campaign, dateRange);
   }, [campaign, dateRange]);
 
-  // Sort stats history by date, newest first
+  // Sort ALL stats history by date, newest first (independent of date range)
   const sortedStatsHistory = useMemo(() => {
-    if (!campaign) return [];
-    return [...campaign.statsHistory].sort((a, b) => 
+    return [...allStatsHistory].sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [campaign]);
+  }, [allStatsHistory]);
   
-  // Stats to display based on show all toggle
+  // Stats to display based on show all toggle - default to most recent week
   const displayedStats = useMemo(() => {
     return showAllStats ? sortedStatsHistory : sortedStatsHistory.slice(0, STATS_PER_PAGE);
   }, [sortedStatsHistory, showAllStats]);
@@ -725,7 +772,7 @@ const CampaignDetail = () => {
       <BuyerStackSection campaign={campaign} />
       
       {/* Replace TimeComparisonSection with FlexibleTimeComparison */}
-      <FlexibleTimeComparison campaign={campaign} />
+      {fullCampaign && <FlexibleTimeComparison campaign={fullCampaign} />}
 
       <Card className="shadow-md border-accent/30 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-accent/10 to-background border-b pb-3">
@@ -772,7 +819,7 @@ const CampaignDetail = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campaign.statsHistory.length > 0 ? (
+              {allStatsHistory.length > 0 ? (
                 displayedStats.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell>
@@ -821,14 +868,14 @@ const CampaignDetail = () => {
           </Table>
           
           {/* Show More button */}
-          {campaign.statsHistory.length > STATS_PER_PAGE && (
+          {sortedStatsHistory.length > STATS_PER_PAGE && (
             <div className="flex justify-center p-4">
               <Button 
                 variant="outline" 
                 onClick={toggleShowAllStats}
                 className="text-sm flex items-center gap-1"
               >
-                {showAllStats ? "Show Less" : `Show All (${campaign.statsHistory.length})`}
+                {showAllStats ? "Show Less" : `Show More (${sortedStatsHistory.length} total)`}
                 {!showAllStats && <ChevronDown className="h-4 w-4" />}
               </Button>
             </div>
