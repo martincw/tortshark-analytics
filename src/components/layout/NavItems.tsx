@@ -1,4 +1,4 @@
-import { 
+import {
   Home, 
   Target, 
   TrendingUp, 
@@ -7,6 +7,7 @@ import {
   Users, 
   UserCheck, 
   Database,
+  Link2,
   Workflow,
   FileText,
   LayoutDashboard,
@@ -85,6 +86,11 @@ export const getNavItems = (accountType?: 'member' | 'contractor'): NavItem[] =>
       icon: Database,
       label: "Data Sources",
       href: "/data-sources",
+    },
+    {
+      icon: Link2,
+      label: "LP Mapping",
+      href: "/data-sources?source=leadprosper",
     },
     {
       icon: Brain,
