@@ -195,22 +195,46 @@ export default function ContractorSubmissionsPage() {
       if (fetchError) throw fetchError;
       if (!latestSubmission) throw new Error('Submission not found');
 
-      // First, add the stats to campaign_stats_history
-      const { error: statsError } = await supabase
+      // First, check if stats already exist for this campaign+date
+      const { data: existingStats } = await supabase
         .from('campaign_stats_history')
-        .insert({
-          campaign_id: latestSubmission.campaign_id,
-          date: latestSubmission.submission_date,
-          ad_spend: latestSubmission.ad_spend,
-          youtube_spend: latestSubmission.youtube_spend || 0,
-          meta_spend: latestSubmission.meta_spend || 0,
-          newsbreak_spend: latestSubmission.newsbreak_spend || 0,
-          leads: latestSubmission.leads,
-          cases: latestSubmission.cases,
-          revenue: latestSubmission.revenue
-        });
+        .select('id')
+        .eq('campaign_id', latestSubmission.campaign_id)
+        .eq('date', latestSubmission.submission_date)
+        .maybeSingle();
 
-      if (statsError) throw statsError;
+      if (existingStats) {
+        // Update existing record
+        const { error: statsError } = await supabase
+          .from('campaign_stats_history')
+          .update({
+            ad_spend: latestSubmission.ad_spend,
+            youtube_spend: latestSubmission.youtube_spend || 0,
+            meta_spend: latestSubmission.meta_spend || 0,
+            newsbreak_spend: latestSubmission.newsbreak_spend || 0,
+            leads: latestSubmission.leads,
+            cases: latestSubmission.cases,
+            revenue: latestSubmission.revenue
+          })
+          .eq('id', existingStats.id);
+        if (statsError) throw statsError;
+      } else {
+        // Insert new record
+        const { error: statsError } = await supabase
+          .from('campaign_stats_history')
+          .insert({
+            campaign_id: latestSubmission.campaign_id,
+            date: latestSubmission.submission_date,
+            ad_spend: latestSubmission.ad_spend,
+            youtube_spend: latestSubmission.youtube_spend || 0,
+            meta_spend: latestSubmission.meta_spend || 0,
+            newsbreak_spend: latestSubmission.newsbreak_spend || 0,
+            leads: latestSubmission.leads,
+            cases: latestSubmission.cases,
+            revenue: latestSubmission.revenue
+          });
+        if (statsError) throw statsError;
+      }
 
       // Update daily lead metrics using the RPC function
       const { error: metricsError } = await supabase.rpc('upsert_daily_lead_metrics', {
