@@ -7,7 +7,7 @@ const SUPABASE_URL = "https://msgqsgftjwpbnqenhfmc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ3FzZ2Z0andwYm5xZW5oZm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMTcyNTksImV4cCI6MjA1OTY5MzI1OX0.NHzPUSTETpeT6mIzNhjo8LmXas--pRV01Z9APewORpc";
 
 // Fail-fast network timeout so the UI doesn't hang indefinitely when Supabase is slow/unreachable.
-const DEFAULT_FETCH_TIMEOUT_MS = 12_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 120_000;
 
 const fetchWithTimeout: typeof fetch = async (input, init) => {
   const controller = new AbortController();
