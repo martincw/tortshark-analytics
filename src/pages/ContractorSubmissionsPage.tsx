@@ -415,6 +415,30 @@ export default function ContractorSubmissionsPage() {
     }
   };
 
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkProcessing(true);
+    
+    try {
+      const { error } = await supabase
+        .from('contractor_submissions')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast.success(`${selectedIds.size} submission(s) deleted`);
+      setSelectedIds(new Set());
+      fetchSubmissions();
+    } catch (error) {
+      console.error('Error bulk deleting submissions:', error);
+      toast.error('Failed to delete submissions');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -455,14 +479,41 @@ export default function ContractorSubmissionsPage() {
           </div>
           <LeadProsperSyncButton onSyncComplete={fetchSubmissions} />
           {selectedIds.size > 0 && (
-            <Button 
-              onClick={bulkApprove} 
-              disabled={isBulkProcessing}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Approve {selectedIds.size} Selected
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={bulkApprove} 
+                disabled={isBulkProcessing}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Approve {selectedIds.size} Selected
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive"
+                    disabled={isBulkProcessing}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete {selectedIds.size} Selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {selectedIds.size} submission(s)?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. The selected submissions will be permanently deleted.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={bulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           )}
         </CardHeader>
         
